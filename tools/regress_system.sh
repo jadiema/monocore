@@ -29,3 +29,14 @@ for d in fz fs; do
 	done
 	echo "images identiques : $ok sur $n"
 done
+
+# Loading a ROM over a running one (OSD): the test ROM plays its music, then hello is loaded.
+# Nothing of the first game may remain: same picture as hello alone, sound silent apart from a click.
+echo "== chargement par-dessus une autre ROM"
+mkdir -p $W/ld/js $W/ld/sys
+LD="20:p1=2 23:p1=0 26:p1=2 29:p1=0 32:p1=2 35:p1=0 38:p1=10 41:p1=0"
+f=50; for i in $(seq 9); do LD="$LD $f:p1=2 $((f+3)):p1=0"; f=$((f+6)); done
+LD="$LD 110:p1=10 113:p1=0 160:load=examples/hello/build/hello.mnc 230:shot=hello"
+node tools/run.js examples/hello/build/hello.mnc $W/ld/js "60:shot=hello" > /dev/null
+rtl/obj_sys/Vmc_system rom/build/testrom.mnc $W/ld/sys "$LD" 2>&1 | grep "peak"
+python3 tools/cmp_ppm.py $W/ld/js/hello.ppm $W/ld/sys/hello.ppm $W/ld/d_hello.png

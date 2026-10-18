@@ -14,7 +14,23 @@
 _start:
     la sp, __stack_top
     csrw mcountinhibit, zero    // enable mcycle/minstret (the CPU may reset with them inhibited)
-    // copy .data from ROM to WRAM
+    // A reset does not clear the memories: on MiSTer, loading a new ROM leaves the previous
+    // game's maps, sprites, palettes and sound registers in place. Zero them by DMA fill
+    // (the CPU waits on DMA_CTRL until each fill ends). NVRAM is kept.
+    la t0, clear_table
+    la t4, clear_table_end
+    li t5, 0x40000040           // DMA_SRC (fill pattern), then DMA_DST, DMA_LEN, DMA_CTRL
+    li t3, 3                    // start, fill mode
+8:  bgeu t0, t4, 9f
+    lw t1, 0(t0)
+    lw t2, 4(t0)
+    sw zero, 0(t5)
+    sw t1, 4(t5)
+    sw t2, 8(t5)
+    sw t3, 12(t5)
+    addi t0, t0, 8
+    j 8b
+9:  // copy .data from ROM to WRAM
     la t0, __data_load
     la t1, __data_start
     la t2, __data_end
@@ -36,6 +52,19 @@ _start:
     call main
 5:  wfi
     j 5b
+
+    .section .rodata
+    .align 2
+clear_table:                    // address, length in bytes
+    .word 0x30000000, 0x100     // PCM voices (sound first: the previous game's notes stop at once)
+    .word 0x30000400, 0x80      // PSG channels
+    .word 0x20010000, 0x2000    // palette
+    .word 0x20020000, 0x2000    // sprite table
+    .word 0x20040000, 0x10000   // tilemaps
+    .word 0x20080000, 0x2000    // line scroll tables
+    .word 0x200C0000, 0x20000   // CHR RAM
+    .word 0x10000000, 0x20000   // WRAM (the stack is not in use yet)
+clear_table_end:
 
     .text
     .align 2

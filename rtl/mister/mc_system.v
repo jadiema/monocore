@@ -121,7 +121,10 @@ module mc_system (
 		.audio_valid(audio_valid), .audio_l(a_l), .audio_r(a_r),
 		.dbg_apu_wr(), .dbg_apu_addr(), .dbg_apu_data(), .dbg_apu_be());
 
-	always @(posedge clk) if (audio_valid) begin audio_l <= a_l; audio_r <= a_r; end
+	// silent while the core is held in reset (ROM loading, OSD reset)
+	always @(posedge clk)
+		if (!core_rst_n) begin audio_l <= 16'd0; audio_r <= 16'd0; end
+		else if (audio_valid) begin audio_l <= a_l; audio_r <= a_r; end
 
 	// ---------------------------------------------------------------- SDRAM
 	mc_sdram sdram (

@@ -27,7 +27,7 @@ Choix directeurs :
 
 Modèle de temps du simulateur : 1 cycle par instruction, +1 pour un chargement, +2 pour un saut ou un branchement pris, +2 pour une multiplication, +16 pour une division ou un reste. Il a été recalé sur la simulation du core : écart de 2 à 14 % selon le type de code (0,94 instruction par cycle mesurée sur un CRC32, soit environ 47 millions par seconde). C'est une estimation : un programme se synchronise sur les interruptions, jamais sur un nombre de cycles.
 
-Au reset : `pc` = `0x100` (vecteur fixe, juste après l'en-tête), interruptions désactivées, `DISP_CTRL` = 0 (affichage éteint).
+Au reset : `pc` = `0x100` (vecteur fixe, juste après l'en-tête), interruptions désactivées, `DISP_CTRL` = 0 (affichage éteint). Le reset remet à zéro les registres mais **pas le contenu des mémoires** (WRAM, palette, sprites, tilemaps, CHR RAM, registres des voix et canaux son) : sur MiSTer, charger une nouvelle ROM les laisse tels que le jeu précédent les a laissés. Le code de démarrage du SDK (`sdk/crt0.S`) les met à zéro par DMA avant `main` (environ 2 ms) ; la NVRAM est conservée.
 
 ## 3. Carte mémoire
 

@@ -3,6 +3,7 @@
 // pictures are taken from the video output (as the framework's scaler would receive them).
 //
 // usage: Vmc_system rom.mnc outdir [script]     (script syntax of tools/run.js: frame:p1=hex, frame:shot=name)
+// frame:load=path loads a second ROM while the first one runs, like choosing another file in the OSD.
 // env: RDLATE=1 selects the later read capture; SDLAT=n adds n cycles to the chip's read latency
 //
 // SDRAM model: 4 banks x 8192 rows x 512 columns x 16 bits, CAS latency 2, bursts of 2 for reads,
@@ -134,10 +135,12 @@ int main(int argc, char **argv) {
 
     // console input layout (bit 0 up, 1 down, 2 left, 3 right) to the MiSTer joystick layout
     auto joy = [](uint32_t c) { return (c & 0xFF0) | ((c & 1) << 3) | ((c & 2) << 1) | ((c & 4) >> 1) | ((c & 8) >> 3); };
+    std::string next_rom;
     auto apply = [&](int f) {
         auto r = events.equal_range(f);
         for (auto it = r.first; it != r.second; ++it) {
             const std::string &a = it->second;
+            if (a.rfind("load=", 0) == 0) next_rom = a.substr(5);
             if (a.rfind("p1=", 0) == 0) top->joy1 = joy(strtoul(a.c_str() + 3, 0, 16));
             else if (a.rfind("p2=", 0) == 0) top->joy2 = joy(strtoul(a.c_str() + 3, 0, 16));
             else if (a.rfind("sys=", 0) == 0) top->in_sys = strtoul(a.c_str() + 4, 0, 16);
@@ -175,6 +178,7 @@ int main(int argc, char **argv) {
     size_t dl_pos = 0;
     int dl_state = 0, dl_gap = 0;   // 0 wait for SDRAM init, 1 streaming, 2 done
     int frame = 0, prev_vc = -1;
+    int audio_peak = 0;            // largest |sample| since the last ROM load
     bool started = false;
     int win_max = 0, win_frame_max = 0;
     std::vector<int> win_hist;
@@ -194,7 +198,13 @@ int main(int argc, char **argv) {
             if (slow == 20) top->reset = 0;
             // loader: one 16-bit word per write, waiting for dl_wait
             top->dl_wr = 0;
-            if (dl_state == 0 && slow > 30000) { dl_state = 1; top->dl_active = 1; }
+            if (!next_rom.empty() && dl_state == 2) {
+                rom = load(next_rom.c_str());
+                if (rom.size() & 1) rom.push_back(0);
+                fprintf(stderr, "loading %s at frame %d\n", next_rom.c_str(), frame);
+                next_rom.clear(); audio_peak = 0; dl_pos = 0; dl_state = 1; top->dl_active = 1;
+            }
+            else if (dl_state == 0 && slow > 30000) { dl_state = 1; top->dl_active = 1; }
             else if (dl_state == 1) {
                 if (dl_gap > 0) dl_gap--;
                 else if (!top->dl_wait) {
@@ -205,6 +215,7 @@ int main(int argc, char **argv) {
                 }
             }
             if (top->dbg_valid) dbg += (char)top->dbg_char;
+            { int a = abs((int16_t)top->audio_l), b = abs((int16_t)top->audio_r); if (a > audio_peak) audio_peak = a; if (b > audio_peak) audio_peak = b; }
             if (top->running && !started) { started = true; apply(0); fprintf(stderr, "core started at clk cycle %llu\n", (unsigned long long)slow); }
             // picture: pixels of the visible area, in order
             if (started && top->ce_pix) {
@@ -250,6 +261,7 @@ int main(int argc, char **argv) {
         std::ofstream o(outdir + "/windows.txt");
         for (size_t i = 0; i < win_hist.size(); i++) o << i << " " << win_hist[i] << "\n";
     }
+    printf("audio peak since the last ROM load: %d\n", audio_peak);
     printf("debug: \"%s\"\n", esc.c_str());
     top->final();
     delete top;
