@@ -122,6 +122,13 @@ typedef struct {
 #define DMA_LEN     REG32(IO_BASE + 0x48)
 #define DMA_CTRL    REG32(IO_BASE + 0x4C)
 #define DEBUG_OUT   REG32(IO_BASE + 0x60)
+#define HW_VERSION  REG32(IO_BASE + 0x70)   // 2: pads 3-4, analog inputs, keyboard (1 before)
+#define IN_P3       REG32(IO_BASE + 0x80)
+#define IN_P4       REG32(IO_BASE + 0x84)
+#define ANALOG_P(n) REG32(IO_BASE + 0x90 + 4 * (n))   // n = 0..3: left X, left Y, right X, right Y (int8)
+#define PADDLE_P(n) REG32(IO_BASE + 0xA0 + 4 * (n))   // paddle 0-255 (7:0), spinner position (31:16)
+#define KEY_STATE(k) REG32(IO_BASE + 0xB0 + 4 * (k))  // k = 0..7: 256 bits, 1 = key down
+#define KEY_EVENT   REG32(IO_BASE + 0xD0)   // read: bit 31 valid, 9 down, 8 extended, 7-0 PS/2 code; write: next
 
 #define IN_UP     (1u << 0)
 #define IN_DOWN   (1u << 1)
@@ -130,6 +137,91 @@ typedef struct {
 #define IN_B(n)   (1u << (3 + (n)))   // n = 1..6
 #define IN_START  (1u << 10)
 #define IN_COIN   (1u << 11)
+
+// keyboard: PS/2 set 2 codes, 0x100 + code for the extended keys (E0 prefix). The codes give the
+// position of a key on a US (QWERTY) keyboard: on an AZERTY keyboard KEY_Q is the A key, and so on.
+#define KEY_A 0x1C
+#define KEY_B 0x32
+#define KEY_C 0x21
+#define KEY_D 0x23
+#define KEY_E 0x24
+#define KEY_F 0x2B
+#define KEY_G 0x34
+#define KEY_H 0x33
+#define KEY_I 0x43
+#define KEY_J 0x3B
+#define KEY_K 0x42
+#define KEY_L 0x4B
+#define KEY_M 0x3A
+#define KEY_N 0x31
+#define KEY_O 0x44
+#define KEY_P 0x4D
+#define KEY_Q 0x15
+#define KEY_R 0x2D
+#define KEY_S 0x1B
+#define KEY_T 0x2C
+#define KEY_U 0x3C
+#define KEY_V 0x2A
+#define KEY_W 0x1D
+#define KEY_X 0x22
+#define KEY_Y 0x35
+#define KEY_Z 0x1A
+#define KEY_0 0x45
+#define KEY_1 0x16
+#define KEY_2 0x1E
+#define KEY_3 0x26
+#define KEY_4 0x25
+#define KEY_5 0x2E
+#define KEY_6 0x36
+#define KEY_7 0x3D
+#define KEY_8 0x3E
+#define KEY_9 0x46
+#define KEY_SPACE     0x29
+#define KEY_ENTER     0x5A
+#define KEY_ESC       0x76
+#define KEY_BACKSPACE 0x66
+#define KEY_TAB       0x0D
+#define KEY_LSHIFT    0x12
+#define KEY_RSHIFT    0x59
+#define KEY_LCTRL     0x14
+#define KEY_LALT      0x11
+#define KEY_F1  0x05
+#define KEY_F2  0x06
+#define KEY_F3  0x04
+#define KEY_F4  0x0C
+#define KEY_F5  0x03
+#define KEY_F6  0x0B
+#define KEY_F7  0x83
+#define KEY_F8  0x0A
+#define KEY_F9  0x01
+#define KEY_F10 0x09
+#define KEY_F11 0x78
+#define KEY_F12 0x07
+#define KEY_KP0 0x70
+#define KEY_KP1 0x69
+#define KEY_KP2 0x72
+#define KEY_KP3 0x7A
+#define KEY_KP4 0x6B
+#define KEY_KP5 0x73
+#define KEY_KP6 0x74
+#define KEY_KP7 0x6C
+#define KEY_KP8 0x75
+#define KEY_KP9 0x7D
+#define KEY_UP     0x175
+#define KEY_DOWN   0x172
+#define KEY_LEFT   0x16B
+#define KEY_RIGHT  0x174
+#define KEY_INSERT 0x170
+#define KEY_DELETE 0x171
+#define KEY_HOME   0x16C
+#define KEY_END    0x169
+#define KEY_PGUP   0x17D
+#define KEY_PGDN   0x17A
+#define KEY_RCTRL  0x114
+#define KEY_RALT   0x111
+#define KEY_KPENTER 0x15A
+// bit of a key in KEY_STATE0-7
+#define KEY_INDEX(k) (((k) & 0xFF) == 0x83 ? 0x02 : ((((k) >> 1) & 0x80) | ((k) & 0x7F)))
 
 #define IRQ_VBLANK (1u << 0)
 #define IRQ_LINE   (1u << 1)

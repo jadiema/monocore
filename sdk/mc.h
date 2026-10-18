@@ -105,11 +105,23 @@ void mc_tune(int ch, const char *notes, int frames_per_beat, int volume);
 void mc_tune_stop(int ch);
 
 // ================================================================ inputs
-uint32_t mc_pad(int player);                // raw state (IN_UP ... IN_COIN), player 1 or 2
+uint32_t mc_pad(int player);                // raw state (IN_UP ... IN_COIN), player 1 to 4
 uint32_t mc_pad_pressed(int player);        // buttons that went down since the previous frame
 uint32_t mc_pad_released(int player);
 uint32_t mc_sys(void);                      // IN_SYS
 uint32_t mc_dip(void);                      // DIP switches
+int  mc_hw_version(void);                   // 2 or more: pads 3-4, analog inputs and keyboard exist
+// analog inputs (0 on hardware version 1): stick 0 = left, 1 = right; -127 to +127, +Y = down
+int  mc_stick_x(int player, int stick);
+int  mc_stick_y(int player, int stick);
+int  mc_paddle(int player);                 // 0-255
+int  mc_spinner(int player);                // position, 0-65535 (wraps around)
+int  mc_spinner_delta(int player);          // movement since the previous mc_frame()
+// keyboard: key = KEY_xxx of monocore.h (PS/2 code, 0x100 + code for the extended keys)
+bool mc_key(int key);                       // down now (state read by mc_frame)
+bool mc_key_pressed(int key);               // went down since the previous frame
+bool mc_key_released(int key);
+int  mc_key_event(void);                    // next event: 0x200 if down, 0x100 if extended, + code; -1 = none
 
 // ================================================================ memory
 // WRAM 128 KB: .data, .bss, heap (malloc), then the stack (MC_STACK bytes at the top).

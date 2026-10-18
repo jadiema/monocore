@@ -224,7 +224,8 @@ kbd {
               <dl class="keymap">
                 <dt>Service / test</dt><dd><kbd>9</kbd> · <kbd>0</kbd></dd>
                 <dt>Tilt</dt><dd><kbd>T</kbd></dd>
-                <dt>Manettes</dt><dd>2 manettes USB ou Bluetooth : joueurs 1 et 2</dd>
+                <dt>Manettes</dt><dd>jusqu'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris</dd>
+                <dt>Clavier</dt><dd><label><input type="checkbox" id="kbdMode"> clavier de la console</label> (<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 et 2</dd>
               </dl>
             </section>
           </div>
@@ -868,8 +869,44 @@ kbd {
 <td><code>DEBUG_OUT</code></td>
 <td>un octet écrit = un caractère sur la console de debug (absent du FPGA final)</td>
 </tr>
+<tr>
+<td>0x70</td>
+<td><code>HW_VERSION</code></td>
+<td>version du matériel : 2 depuis l'ajout des joueurs 3 et 4, de l'analogique et du clavier (1 avant)</td>
+</tr>
+<tr>
+<td>0x80</td>
+<td><code>IN_P3</code></td>
+<td>joueur 3, même format que <code>IN_P1</code></td>
+</tr>
+<tr>
+<td>0x84</td>
+<td><code>IN_P4</code></td>
+<td>joueur 4</td>
+</tr>
+<tr>
+<td>0x90 + 4n</td>
+<td><code>ANALOG_Pn</code></td>
+<td>manette n (0-3 = joueurs 1-4) : stick gauche X (bits 7–0) et Y (15–8), stick droit X (23–16) et Y (31–24), signés de −127 à +127, 0 au repos ; Y positif vers le bas</td>
+</tr>
+<tr>
+<td>0xA0 + 4n</td>
+<td><code>PADDLE_Pn</code></td>
+<td>paddle de 0 à 255 (bits 7–0) ; bits 31–16 : position du spinner, compteur 16 bits qui accumule ses déplacements</td>
+</tr>
+<tr>
+<td>0xB0 + 4k</td>
+<td><code>KEY_STATE0</code>–<code>KEY_STATE7</code></td>
+<td>clavier : 256 bits, 1 = touche enfoncée ; la touche de code PS/2 (jeu 2) <em>c</em> est le bit <em>i</em> = c (bit 7 de <em>c</em> à 0), + 128 pour un code étendu (préfixe E0) ; le code 0x83 (F7) prend la place libre i = 0x02</td>
+</tr>
+<tr>
+<td>0xD0</td>
+<td><code>KEY_EVENT</code></td>
+<td>lecture : plus ancien événement clavier non lu, bit 31 valide, bit 9 appui (0 = relâchement), bit 8 étendu, bits 7–0 code PS/2 ; écriture (valeur quelconque) : retire cet événement. File de 16 événements ; une fois pleine, les nouveaux sont perdus</td>
+</tr>
 </tbody>
 </table>
+<p>Les joueurs 3 et 4, l'analogique et le clavier viennent du framework MiSTer : manettes 3 et 4 de <code>hps_io</code>, sticks analogiques, paddles et spinners des manettes 1 à 4, clavier USB de la carte (codes PS/2). Une ROM qui veut les utiliser vérifie que <code>HW_VERSION</code> ≥ 2. La lecture de ces registres n'a aucun effet de bord : seule l'écriture dans <code>KEY_EVENT</code> fait avancer la file.</p>
 <p>VBLANK se déclenche au début de la ligne <code>SCREEN_H</code>, LINE au début de la ligne <code>LINE_CMP</code>. La ligne d'interruption du CPU vaut <code>(IRQ_STATUS &amp; IRQ_ENABLE) != 0</code>.</p>
 <p>Les timers servent typiquement à cadencer le pilote son traduit à la fréquence d'origine (souvent 60 à 250 Hz). Le DMA sert aux transferts ROM → VRAM ou à l'effacement de la mémoire. Le CPU reste suspendu sur l'écriture de <code>DMA_CTRL</code> jusqu'à la fin du transfert, ce qui évite toute course entre les deux. Il transfère des mots de 32 bits quand la source (en copie) et la destination sont alignées, sinon des octets. Coût mesuré : remplissage 1 cycle par mot ; copie 3 cycles par mot, plus environ 2,5 par mot lu en ROM (soit environ 0,7 octet par cycle depuis la ROM et 1,3 octet par cycle entre mémoires internes).</p>
 <h2>7. Format de ROM (<code>.mnc</code>)</h2>
@@ -1155,8 +1192,63 @@ v-&gt;ctrl = 1;                            // lance la voix
 <li><strong>Ne jamais déréférencer l'adresse 0 en C.</strong> C'est le début de la ROM, mais le compilateur la traite comme un pointeur nul et peut supprimer le code qui la lit. Passe par un symbole (<code>assets</code>, <code>hero_chr</code>…).</li>
 <li><strong>Compiler en RV32IM</strong> (<code>-march=rv32im -mabi=ilp32</code>), sans extension C (instructions compressées) ni F (flottants). Pour des calculs fractionnaires, utilise la virgule fixe.</li>
 </ol>
-<h2>7. Sur le MiSTer</h2>
-<p>Quand le core existera : copie le fichier <code>.mnc</code> dans <code>games/MONOCORE</code> sur la carte SD du MiSTer, lance le core MONOCORE-1, puis choisis la ROM dans le menu OSD. Le framework MiSTer charge la ROM en SDRAM ; le bitstream ne change pas.</p></article>
+<h2>7. Aller plus loin : le SDK bas niveau « mc »</h2>
+<p>Ce guide accède au matériel par ses registres, et le manuel du programmeur utilise la bibliothèque <code>easy</code>, volontairement simple (un plan de texte, une carte, 64 sprites de 16 × 16). Entre les deux, le SDK <strong>mc</strong> donne accès à toute la console en C, sans assembleur, pour les jeux complexes et les portages. Il suffit d'ajouter une ligne dans <code>project.txt</code> :</p>
+<pre><code>library = mc
+</code></pre>
+<p>puis d'inclure <code>mc.h</code>. On obtient alors :</p>
+<ul>
+<li>des <strong>interruptions en C</strong> : <code>mc_on_vblank</code>, deux timers (<code>mc_on_timer</code>), et jusqu'à 64 <strong>effets raster</strong> par image (<code>mc_raster_add</code>), exacts à la ligne près ;</li>
+<li>toute la <strong>vidéo</strong> : résolution de 224 à 384 × 192 à 288 (<code>mc_video_mode</code>), quatre plans en tuiles 8 ou 16 et 4 ou 8 bpp (<code>mc_layer</code>), défilement ligne par ligne, <strong>CHR RAM</strong> de 128 Ko pour les graphismes produits à l'exécution (<code>mc_chr_upload</code>) ;</li>
+<li><strong>512 sprites</strong> gérés par une table fantôme en WRAM, envoyée par DMA à chaque <code>mc_frame()</code> ;</li>
+<li>le <strong>son</strong> PCM et PSG en accès direct (<code>mc_pcm_play</code>, <code>mc_psg</code>), et un petit séquenceur (<code>mc_tune</code>) ;</li>
+<li>une <strong>petite libc</strong> : <code>malloc</code>/<code>free</code>, <code>&lt;string.h&gt;</code>, <code>&lt;stdlib.h&gt;</code>, <code>&lt;stdio.h&gt;</code> (<code>printf</code> écrit sur la sortie de débogage), <code>&lt;ctype.h&gt;</code>, <code>&lt;assert.h&gt;</code> ;</li>
+<li>des <strong>maths en virgule fixe</strong> 16.16 : <code>mc_sin</code>, <code>mc_cos</code>, <code>mc_atan2</code>, <code>mc_isqrt</code> ;</li>
+<li>la clé <code>data = fichier.bin</code> dans <code>project.txt</code>, pour embarquer des fichiers bruts (niveaux, données d'un jeu porté).</li>
+</ul>
+<p>Squelette :</p>
+<pre><code class="language-c">#include &quot;mc.h&quot;
+
+int main(void) {
+  mc_init();
+  mc_text_layer(0, 3);                  // texte sur le plan 0, devant tout
+  mc_text(0, 2, 2, &quot;BONJOUR&quot;, 0);
+  for (;;) {
+    mc_frame();                         // image suivante : sprites, manettes, musique
+    if (mc_pad_pressed(1) &amp; IN_START) { /* ... */ }
+  }
+}
+</code></pre>
+<p>La référence complète est dans <code>sdk/SDK_MC.md</code>. Trois exemples l'utilisent :</p>
+<table>
+<thead>
+<tr>
+<th>Exemple</th>
+<th>Ce qu'il montre</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>examples/test_sdk</code></td>
+<td>le minimum à vérifier : raster, timers, <code>malloc</code>, <code>printf</code></td>
+</tr>
+<tr>
+<td><code>examples/boot</code></td>
+<td>l'écran d'accueil de la console : barres copper, logo, ciel raster, texte défilant, musique</td>
+</tr>
+<tr>
+<td><code>examples/horizon</code></td>
+<td>une course en fausse 3D : la route est choisie et décalée ligne par ligne, les objets sont zoomés selon leur distance</td>
+</tr>
+<tr>
+<td><code>examples/nebula</code></td>
+<td>un shoot'em up complet : sprites et décors générés au démarrage, parallaxe sur trois plans, sol en perspective, 54 effets raster, jusqu'à 233 sprites, tirs visés, particules zoomées</td>
+</tr>
+</tbody>
+</table>
+<h2>8. Sur le MiSTer</h2>
+<p>Copie le core dans <code>_Console</code> et tes fichiers <code>.mnc</code> dans <code>games/MONOCORE</code> sur la carte SD du MiSTer, lance le core MONOCORE-1, puis choisis la ROM dans le menu OSD (F12 → Charger une ROM). Le framework MiSTer charge la ROM en SDRAM ; le bitstream ne change pas.</p>
+<p>Un fichier nommé exactement <strong><code>games/MONOCORE/boot.rom</code></strong> est chargé automatiquement au lancement du core (c'est ainsi que démarre l'écran d'accueil, <code>examples/boot</code>). Pour que la console démarre directement sur le core, ajoute <code>bootcore=lastexactcore</code> dans <code>MiSTer.ini</code>, en mettant <code>bootcore_timeout</code> en commentaire.</p></article>
     </div>
   </main>
 </div>
@@ -1259,7 +1351,11 @@ v-&gt;ctrl = 1;                            // lance la voix
       this.sprOverflow = false; this.sprOverflowCur = false; this.sprPeak = 0; this.sprPeakCur = 0;
       this.frameBuf = new Uint32Array(384 * 288);
       // I/O
-      this.inputs = [0, 0, 0];
+      this.inputs = [0, 0, 0, 0, 0];          // IN_P1, IN_P2, IN_SYS, IN_P3, IN_P4
+      this.analog = [0, 0, 0, 0];             // ANALOG_P1-4 (32 bits each)
+      this.paddle = [0, 0, 0, 0];             // PADDLE_P1-4
+      this.keyState = new Uint32Array(8);     // KEY_STATE0-7
+      this.keyQueue = [];                     // KEY_EVENT queue (16 events at most)
       this.dip = this.header.dip >>> 0;
       this.irqStatus = 0; this.irqEnable = 0;
       this.timers = [{ reload: 0, on: false, count: 0 }, { reload: 0, on: false, count: 0 }];
@@ -1436,9 +1532,23 @@ v-&gt;ctrl = 1;                            // lance la voix
         case 0x44: return this.dma.dst;
         case 0x48: return this.dma.len;
         case 0x4C: return 0;
-        case 0x70: return 0x00000001; // hardware version 0.1
+        case 0x70: return 0x00000002; // hardware version 2 (pads 3-4, analog, keyboard)
+        case 0x80: return this.inputs[3];
+        case 0x84: return this.inputs[4];
+        case 0xD0: return this.keyQueue.length ? (0x80000000 | this.keyQueue[0]) | 0 : 0;
       }
+      if (o >= 0x90 && o < 0xA0) return this.analog[(o - 0x90) >> 2] | 0;
+      if (o >= 0xA0 && o < 0xB0) return this.paddle[(o - 0xA0) >> 2] | 0;
+      if (o >= 0xB0 && o < 0xD0) return this.keyState[(o - 0xB0) >> 2] | 0;
       return 0;
+    }
+
+    // a key of the keyboard goes down or up: code = PS/2 set 2 code, ext = E0 prefix
+    keyEvent(code, ext, down) {
+      code &= 0xff;
+      const i = code === 0x83 ? 0x02 : ((ext ? 0x80 : 0) | (code & 0x7f));
+      if (down) this.keyState[i >> 5] |= 1 << (i & 31); else this.keyState[i >> 5] &= ~(1 << (i & 31));
+      if (this.keyQueue.length < 16) this.keyQueue.push((down ? 0x200 : 0) | (ext ? 0x100 : 0) | code);
     }
 
     ioWrite(o, v) {
@@ -1452,6 +1562,7 @@ v-&gt;ctrl = 1;                            // lance la voix
         case 0x48: this.dma.len = v >>> 0; break;
         case 0x4C: if (v & 1) this.runDma(!!(v & 2)); break;
         case 0x60: if (this.onDebug) this.onDebug(String.fromCharCode(v & 0xff)); break;
+        case 0xD0: this.keyQueue.shift(); break;
       }
     }
 
@@ -2116,22 +2227,58 @@ v-&gt;ctrl = 1;                            // lance la voix
     Digit2: [1, 10], Digit6: [1, 11],
     Digit9: [2, 0], Digit0: [2, 1], KeyT: [2, 2],
   };
+  // the console's keyboard: KeyboardEvent.code -> PS/2 set 2 code (0x100 + code = extended, E0)
+  const PS2 = {
+    KeyA: 0x1C, KeyB: 0x32, KeyC: 0x21, KeyD: 0x23, KeyE: 0x24, KeyF: 0x2B, KeyG: 0x34, KeyH: 0x33,
+    KeyI: 0x43, KeyJ: 0x3B, KeyK: 0x42, KeyL: 0x4B, KeyM: 0x3A, KeyN: 0x31, KeyO: 0x44, KeyP: 0x4D,
+    KeyQ: 0x15, KeyR: 0x2D, KeyS: 0x1B, KeyT: 0x2C, KeyU: 0x3C, KeyV: 0x2A, KeyW: 0x1D, KeyX: 0x22,
+    KeyY: 0x35, KeyZ: 0x1A, Digit0: 0x45, Digit1: 0x16, Digit2: 0x1E, Digit3: 0x26, Digit4: 0x25,
+    Digit5: 0x2E, Digit6: 0x36, Digit7: 0x3D, Digit8: 0x3E, Digit9: 0x46, Backquote: 0x0E, Minus: 0x4E,
+    Equal: 0x55, BracketLeft: 0x54, BracketRight: 0x5B, Backslash: 0x5D, Semicolon: 0x4C, Quote: 0x52,
+    Comma: 0x41, Period: 0x49, Slash: 0x4A, IntlBackslash: 0x61, Space: 0x29, Enter: 0x5A, Escape: 0x76,
+    Backspace: 0x66, Tab: 0x0D, CapsLock: 0x58, ShiftLeft: 0x12, ShiftRight: 0x59, ControlLeft: 0x14,
+    AltLeft: 0x11, ControlRight: 0x114, AltRight: 0x111, F1: 0x05, F2: 0x06, F3: 0x04, F4: 0x0C,
+    F5: 0x03, F6: 0x0B, F7: 0x83, F8: 0x0A, F10: 0x09, F11: 0x78, F12: 0x07,
+    ArrowUp: 0x175, ArrowDown: 0x172, ArrowLeft: 0x16B, ArrowRight: 0x174, Insert: 0x170, Delete: 0x171,
+    Home: 0x16C, End: 0x169, PageUp: 0x17D, PageDown: 0x17A,
+    Numpad0: 0x70, Numpad1: 0x69, Numpad2: 0x72, Numpad3: 0x7A, Numpad4: 0x6B, Numpad5: 0x73,
+    Numpad6: 0x74, Numpad7: 0x6C, Numpad8: 0x75, Numpad9: 0x7D, NumpadDecimal: 0x71, NumpadAdd: 0x79,
+    NumpadSubtract: 0x7B, NumpadMultiply: 0x7C, NumpadDivide: 0x14A, NumpadEnter: 0x15A, NumLock: 0x77,
+  };
   const keyState = [0, 0, 0];
+  const kbdDown = new Set();
+  function kbdRelease() { if (m) kbdDown.forEach((c) => m.keyEvent(c & 0xff, c > 0xff, false)); kbdDown.clear(); }
+  $('kbdMode').addEventListener('change', () => { kbdRelease(); keyState[0] = keyState[1] = keyState[2] = 0; $('kbdMode').blur(); });
   function onKey(e, down) {
+    if (e.target.closest('input, select, textarea') && e.target.id !== 'kbdMode') return;
+    if ($('view-sim').hidden || e.metaKey) return;
+    if (e.code === 'F9') { if (down) { $('kbdMode').checked = !$('kbdMode').checked; $('kbdMode').dispatchEvent(new Event('change')); } e.preventDefault(); return; }
+    if ($('kbdMode').checked) {
+      const c = PS2[e.code];
+      if (c === undefined || !m) return;
+      e.preventDefault();
+      if (down === kbdDown.has(c)) return;          // auto-repeat
+      if (down) kbdDown.add(c); else kbdDown.delete(c);
+      m.keyEvent(c & 0xff, c > 0xff, down);
+      return;
+    }
     const k = KEYS[e.code];
-    if (!k || e.target.closest('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
-    if ($('view-sim').hidden) return;
+    if (!k || e.ctrlKey || e.altKey) return;
     e.preventDefault();
     if (down) keyState[k[0]] |= 1 << k[1]; else keyState[k[0]] &= ~(1 << k[1]);
   }
   window.addEventListener('keydown', (e) => onKey(e, true));
   window.addEventListener('keyup', (e) => onKey(e, false));
-  window.addEventListener('blur', () => { keyState[0] = keyState[1] = keyState[2] = 0; });
+  window.addEventListener('blur', () => { keyState[0] = keyState[1] = keyState[2] = 0; kbdRelease(); });
+  const analog = [0, 0, 0, 0];
   function pollPads() {
-    const out = [0, 0];
+    const out = [0, 0, 0, 0];
+    analog.fill(0);
     let pads = [];
     try { pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : []; } catch (e) { pads = []; }
-    pads.slice(0, 2).forEach((p, i) => {
+    pads.slice(0, 4).forEach((p, i) => {
+      const ax8 = (n) => { const v = Math.round((p.axes[n] || 0) * 127); return (Math.max(-127, Math.min(127, v)) & 0xff); };
+      analog[i] = (ax8(0) | ax8(1) << 8 | ax8(2) << 16 | ax8(3) << 24) | 0;
       const b = (n) => p.buttons[n] && p.buttons[n].pressed;
       const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
       let v = 0;
@@ -2213,6 +2360,8 @@ v-&gt;ctrl = 1;                            // lance la voix
     m.inputs[0] = keyState[0] | pads[0];
     m.inputs[1] = keyState[1] | pads[1];
     m.inputs[2] = keyState[2];
+    m.inputs[3] = pads[2]; m.inputs[4] = pads[3];
+    for (let i = 0; i < 4; i++) m.analog[i] = analog[i];
     const n = m.runFrame();
     pushAudio(n);
     frameStats();

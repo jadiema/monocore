@@ -224,7 +224,8 @@ kbd {
               <dl class="keymap">
                 <dt>Service / test</dt><dd><kbd>9</kbd> · <kbd>0</kbd></dd>
                 <dt>Tilt</dt><dd><kbd>T</kbd></dd>
-                <dt>Manettes</dt><dd>2 manettes USB ou Bluetooth : joueurs 1 et 2</dd>
+                <dt>Manettes</dt><dd>jusqu'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris</dd>
+                <dt>Clavier</dt><dd><label><input type="checkbox" id="kbdMode"> clavier de la console</label> (<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 et 2</dd>
               </dl>
             </section>
           </div>
@@ -412,22 +413,58 @@ __CORE_JS__
     Digit2: [1, 10], Digit6: [1, 11],
     Digit9: [2, 0], Digit0: [2, 1], KeyT: [2, 2],
   };
+  // the console's keyboard: KeyboardEvent.code -> PS/2 set 2 code (0x100 + code = extended, E0)
+  const PS2 = {
+    KeyA: 0x1C, KeyB: 0x32, KeyC: 0x21, KeyD: 0x23, KeyE: 0x24, KeyF: 0x2B, KeyG: 0x34, KeyH: 0x33,
+    KeyI: 0x43, KeyJ: 0x3B, KeyK: 0x42, KeyL: 0x4B, KeyM: 0x3A, KeyN: 0x31, KeyO: 0x44, KeyP: 0x4D,
+    KeyQ: 0x15, KeyR: 0x2D, KeyS: 0x1B, KeyT: 0x2C, KeyU: 0x3C, KeyV: 0x2A, KeyW: 0x1D, KeyX: 0x22,
+    KeyY: 0x35, KeyZ: 0x1A, Digit0: 0x45, Digit1: 0x16, Digit2: 0x1E, Digit3: 0x26, Digit4: 0x25,
+    Digit5: 0x2E, Digit6: 0x36, Digit7: 0x3D, Digit8: 0x3E, Digit9: 0x46, Backquote: 0x0E, Minus: 0x4E,
+    Equal: 0x55, BracketLeft: 0x54, BracketRight: 0x5B, Backslash: 0x5D, Semicolon: 0x4C, Quote: 0x52,
+    Comma: 0x41, Period: 0x49, Slash: 0x4A, IntlBackslash: 0x61, Space: 0x29, Enter: 0x5A, Escape: 0x76,
+    Backspace: 0x66, Tab: 0x0D, CapsLock: 0x58, ShiftLeft: 0x12, ShiftRight: 0x59, ControlLeft: 0x14,
+    AltLeft: 0x11, ControlRight: 0x114, AltRight: 0x111, F1: 0x05, F2: 0x06, F3: 0x04, F4: 0x0C,
+    F5: 0x03, F6: 0x0B, F7: 0x83, F8: 0x0A, F10: 0x09, F11: 0x78, F12: 0x07,
+    ArrowUp: 0x175, ArrowDown: 0x172, ArrowLeft: 0x16B, ArrowRight: 0x174, Insert: 0x170, Delete: 0x171,
+    Home: 0x16C, End: 0x169, PageUp: 0x17D, PageDown: 0x17A,
+    Numpad0: 0x70, Numpad1: 0x69, Numpad2: 0x72, Numpad3: 0x7A, Numpad4: 0x6B, Numpad5: 0x73,
+    Numpad6: 0x74, Numpad7: 0x6C, Numpad8: 0x75, Numpad9: 0x7D, NumpadDecimal: 0x71, NumpadAdd: 0x79,
+    NumpadSubtract: 0x7B, NumpadMultiply: 0x7C, NumpadDivide: 0x14A, NumpadEnter: 0x15A, NumLock: 0x77,
+  };
   const keyState = [0, 0, 0];
+  const kbdDown = new Set();
+  function kbdRelease() { if (m) kbdDown.forEach((c) => m.keyEvent(c & 0xff, c > 0xff, false)); kbdDown.clear(); }
+  $('kbdMode').addEventListener('change', () => { kbdRelease(); keyState[0] = keyState[1] = keyState[2] = 0; $('kbdMode').blur(); });
   function onKey(e, down) {
+    if (e.target.closest('input, select, textarea') && e.target.id !== 'kbdMode') return;
+    if ($('view-sim').hidden || e.metaKey) return;
+    if (e.code === 'F9') { if (down) { $('kbdMode').checked = !$('kbdMode').checked; $('kbdMode').dispatchEvent(new Event('change')); } e.preventDefault(); return; }
+    if ($('kbdMode').checked) {
+      const c = PS2[e.code];
+      if (c === undefined || !m) return;
+      e.preventDefault();
+      if (down === kbdDown.has(c)) return;          // auto-repeat
+      if (down) kbdDown.add(c); else kbdDown.delete(c);
+      m.keyEvent(c & 0xff, c > 0xff, down);
+      return;
+    }
     const k = KEYS[e.code];
-    if (!k || e.target.closest('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
-    if ($('view-sim').hidden) return;
+    if (!k || e.ctrlKey || e.altKey) return;
     e.preventDefault();
     if (down) keyState[k[0]] |= 1 << k[1]; else keyState[k[0]] &= ~(1 << k[1]);
   }
   window.addEventListener('keydown', (e) => onKey(e, true));
   window.addEventListener('keyup', (e) => onKey(e, false));
-  window.addEventListener('blur', () => { keyState[0] = keyState[1] = keyState[2] = 0; });
+  window.addEventListener('blur', () => { keyState[0] = keyState[1] = keyState[2] = 0; kbdRelease(); });
+  const analog = [0, 0, 0, 0];
   function pollPads() {
-    const out = [0, 0];
+    const out = [0, 0, 0, 0];
+    analog.fill(0);
     let pads = [];
     try { pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : []; } catch (e) { pads = []; }
-    pads.slice(0, 2).forEach((p, i) => {
+    pads.slice(0, 4).forEach((p, i) => {
+      const ax8 = (n) => { const v = Math.round((p.axes[n] || 0) * 127); return (Math.max(-127, Math.min(127, v)) & 0xff); };
+      analog[i] = (ax8(0) | ax8(1) << 8 | ax8(2) << 16 | ax8(3) << 24) | 0;
       const b = (n) => p.buttons[n] && p.buttons[n].pressed;
       const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
       let v = 0;
@@ -509,6 +546,8 @@ __CORE_JS__
     m.inputs[0] = keyState[0] | pads[0];
     m.inputs[1] = keyState[1] | pads[1];
     m.inputs[2] = keyState[2];
+    m.inputs[3] = pads[2]; m.inputs[4] = pads[3];
+    for (let i = 0; i < 4; i++) m.analog[i] = analog[i];
     const n = m.runFrame();
     pushAudio(n);
     frameStats();

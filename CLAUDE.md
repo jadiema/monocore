@@ -1,6 +1,6 @@
 # MONOCORE-1 — notes de travail (pour Claude et pour les contributeurs)
 
-Console virtuelle figée pour MiSTer (DE10-Nano, Cyclone V 5CSEBA6U23I7). Un seul bitstream ; les jeux d'arcade sont **traduits** vers elle (recompilation statique vers RV32IM), ils ne sont pas émulés. Voir `README.md` pour la carte du dépôt, `SPEC.md` (v0.3) pour la référence matérielle.
+Console virtuelle figée pour MiSTer (DE10-Nano, Cyclone V 5CSEBA6U23I7). Un seul bitstream ; les jeux d'arcade sont **traduits** vers elle (recompilation statique vers RV32IM), ils ne sont pas émulés. Voir `README.md` pour la carte du dépôt, `SPEC.md` (v0.4) pour la référence matérielle.
 
 ## Conventions
 

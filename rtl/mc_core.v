@@ -24,8 +24,16 @@ module mc_core (
 	// inputs
 	input  wire [11:0] in_p1,
 	input  wire [11:0] in_p2,
+	input  wire [11:0] in_p3,
+	input  wire [11:0] in_p4,
 	input  wire [2:0]  in_sys,
 	input  wire [31:0] dip,
+	input  wire [127:0] in_analog,
+	input  wire [127:0] in_paddle,
+	input  wire        kb_stb,
+	input  wire        kb_down,
+	input  wire        kb_ext,
+	input  wire [7:0]  kb_code,
 	// debug output (simulation)
 	output wire        dbg_valid,
 	output wire [7:0]  dbg_char,
@@ -320,7 +328,9 @@ module mc_core (
 		.clk(clk), .rst_n(rst_n),
 		.rd(s_rd[S_IO]), .raddr(s_raddr[11:0]), .wr(s_wr[S_IO]), .waddr(s_waddr[11:0]),
 		.wdata(s_wdata), .be(s_be), .rdata(s_rdata[S_IO]), .ready(s_ready[S_IO]),
-		.in_p1(in_p1), .in_p2(in_p2), .in_sys(in_sys), .dip(dip),
+		.in_p1(in_p1), .in_p2(in_p2), .in_p3(in_p3), .in_p4(in_p4), .in_sys(in_sys), .dip(dip),
+		.in_analog(in_analog), .in_paddle(in_paddle),
+		.kb_stb(kb_stb), .kb_down(kb_down), .kb_ext(kb_ext), .kb_code(kb_code),
 		.vblank_pulse(vblank_pulse), .line_pulse(line_pulse), .dma_done(dma_done), .irq(cpu_irq),
 		.dma_start(dma_start), .dma_fill(dma_fill), .dma_src(dma_src), .dma_dst(dma_dst), .dma_len(dma_len),
 		.dma_busy(dma_busy), .dbg_valid(dbg_valid), .dbg_char(dbg_char));

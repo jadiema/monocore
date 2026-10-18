@@ -1,6 +1,8 @@
 // MONOCORE-1 RTL testbench (Verilator).
 // usage: Vmc_core rom.mnc outdir "frame:action ..."   (same script syntax as tools/run.js)
-//   actions: p1=<hex> p2=<hex> sys=<hex> (inputs from the start of that frame),
+//   actions: p1=<hex> p2=<hex> p3=<hex> p4=<hex> sys=<hex> (inputs from the start of that frame),
+//            a1=<hex> .. a4=<hex> (ANALOG_Pn), d1=<hex> .. d4=<hex> (PADDLE_Pn),
+//            kd=<hex> ku=<hex> (key down / up, PS/2 code, 0x1xx = extended),
 //            dump=<name> (video/sound memories at the end of that frame, same layout as run.js)
 // The SDRAM is modelled behind the ROM port: first beat 4 cycles after the request is accepted,
 // then one 32-bit beat per cycle (16-bit SDRAM at 100 MHz, core at 50 MHz).
@@ -66,16 +68,25 @@ int main(int argc, char **argv) {
         }
     }
 
-    uint32_t p1 = 0, p2 = 0, sys = 0;
+    uint32_t p1 = 0, p2 = 0, p3 = 0, p4 = 0, sys = 0, an[4] = {0, 0, 0, 0}, pd[4] = {0, 0, 0, 0};
+    std::deque<uint32_t> keys;   // pending key events: bit 9 down, bit 8 extended, code
     auto apply = [&](int f) {
         auto r = events.equal_range(f);
         for (auto it = r.first; it != r.second; ++it) {
             const std::string &a = it->second;
-            if (a.rfind("p1=", 0) == 0) p1 = strtoul(a.c_str() + 3, 0, 16);
-            else if (a.rfind("p2=", 0) == 0) p2 = strtoul(a.c_str() + 3, 0, 16);
+            uint32_t v = a.size() > 3 ? strtoul(a.c_str() + 3, 0, 16) : 0;
+            if (a.rfind("p1=", 0) == 0) p1 = v;
+            else if (a.rfind("p2=", 0) == 0) p2 = v;
+            else if (a.rfind("p3=", 0) == 0) p3 = v;
+            else if (a.rfind("p4=", 0) == 0) p4 = v;
+            else if (a.size() > 3 && a[0] == 'a' && a[1] >= '1' && a[1] <= '4' && a[2] == '=') an[a[1] - '1'] = v;
+            else if (a.size() > 3 && a[0] == 'd' && a[1] >= '1' && a[1] <= '4' && a[2] == '=') pd[a[1] - '1'] = v;
+            else if (a.rfind("kd=", 0) == 0) keys.push_back(0x200 | (v & 0x1FF));
+            else if (a.rfind("ku=", 0) == 0) keys.push_back(v & 0x1FF);
             else if (a.rfind("sys=", 0) == 0) sys = strtoul(a.c_str() + 4, 0, 16);
         }
-        top->in_p1 = p1; top->in_p2 = p2; top->in_sys = sys;
+        top->in_p1 = p1; top->in_p2 = p2; top->in_p3 = p3; top->in_p4 = p4; top->in_sys = sys;
+        for (int i = 0; i < 4; i++) { top->in_analog[i] = an[i]; top->in_paddle[i] = pd[i]; }
     };
     // frame capture (pixels come from the renderer's palette stage)
     std::vector<uint32_t> fb(384 * 288, 0);
@@ -143,6 +154,11 @@ int main(int argc, char **argv) {
 
     while (cycle < limit) {
         // drive inputs for this cycle (combinational responses computed from the current state)
+        top->kb_stb = 0;
+        if (!keys.empty() && (cycle & 15) == 0) {
+            uint32_t k = keys.front(); keys.pop_front();
+            top->kb_stb = 1; top->kb_down = (k >> 9) & 1; top->kb_ext = (k >> 8) & 1; top->kb_code = k & 0xFF;
+        }
         top->rom_ack = 0; top->rom_valid = 0;
         if (!sd_busy && top->rom_req) {
             top->rom_ack = 1;

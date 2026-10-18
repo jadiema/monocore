@@ -17,7 +17,17 @@ module mc_system (
 	// controls, MiSTer joystick layout: 0 right, 1 left, 2 down, 3 up, 4-9 buttons 1-6, 10 start, 11 coin
 	input  wire [11:0] joy1,
 	input  wire [11:0] joy2,
+	input  wire [11:0] joy3,
+	input  wire [11:0] joy4,
 	input  wire [2:0]  in_sys,
+	// analog inputs of pads 1-4 (hps_io): sticks X [7:0] Y [15:8] signed, paddle 0-255,
+	// spinner [7:0] signed movement with [8] toggling at each update
+	input  wire [63:0] joy_l_analog,
+	input  wire [63:0] joy_r_analog,
+	input  wire [31:0] paddle,
+	input  wire [35:0] spinner,
+	// keyboard (hps_io ps2_key): [10] toggles at each event, [9] pressed, [8] extended, [7:0] code
+	input  wire [10:0] ps2_key,
 	// video
 	output wire        ce_pix,
 	output wire [7:0]  vga_r,
@@ -106,13 +116,45 @@ module mc_system (
 	// joystick: MiSTer order (right, left, down, up) to the console's (up, down, left, right)
 	wire [11:0] p1 = {joy1[11:4], joy1[0], joy1[1], joy1[2], joy1[3]};
 	wire [11:0] p2 = {joy2[11:4], joy2[0], joy2[1], joy2[2], joy2[3]};
+	wire [11:0] p3 = {joy3[11:4], joy3[0], joy3[1], joy3[2], joy3[3]};
+	wire [11:0] p4 = {joy4[11:4], joy4[0], joy4[1], joy4[2], joy4[3]};
+
+	// spinners: the console sees a 16-bit position, the sum of the movements hps_io reports
+	reg  [15:0] spin_pos [0:3];
+	reg  [3:0]  spin_tog;
+	integer si;
+	always @(posedge clk) begin
+		if (reset) begin
+			for (si = 0; si < 4; si = si + 1) spin_pos[si] <= 16'd0;
+			spin_tog <= {spinner[35], spinner[26], spinner[17], spinner[8]};
+		end else begin
+			for (si = 0; si < 4; si = si + 1)
+				if (spinner[si * 9 + 8] != spin_tog[si]) begin
+					spin_tog[si] <= spinner[si * 9 + 8];
+					spin_pos[si] <= spin_pos[si] + {{8{spinner[si * 9 + 7]}}, spinner[si * 9 +: 8]};
+				end
+		end
+	end
+	wire [127:0] analog, paddles;
+	genvar gi;
+	generate for (gi = 0; gi < 4; gi = gi + 1) begin : pads
+		assign analog[gi * 32 +: 32]  = {joy_r_analog[gi * 16 +: 16], joy_l_analog[gi * 16 +: 16]};
+		assign paddles[gi * 32 +: 32] = {spin_pos[gi], 8'd0, paddle[gi * 8 +: 8]};
+	end endgenerate
+
+	// keyboard: one pulse per change of the ps2_key toggle bit
+	reg kb_tog;
+	always @(posedge clk) kb_tog <= ps2_key[10];
+	wire kb_stb = ps2_key[10] != kb_tog && running;
 
 	mc_core core (
 		.clk(clk), .rst_n(core_rst_n),
 		.rom_req(rom_req), .rom_addr(rom_addr), .rom_ack(rom_ack), .rom_valid(rom_valid), .rom_data(rom_data),
 		.rom_size(rom_size),
 		.gfx_req(gfx_req), .gfx_addr(gfx_addr), .gfx_rdy(gfx_rdy), .gfx_valid(gfx_valid), .gfx_data(gfx_data),
-		.in_p1(p1), .in_p2(p2), .in_sys(in_sys), .dip(dip_rom ^ dip_osd),
+		.in_p1(p1), .in_p2(p2), .in_p3(p3), .in_p4(p4), .in_sys(in_sys), .dip(dip_rom ^ dip_osd),
+		.in_analog(analog), .in_paddle(paddles),
+		.kb_stb(kb_stb), .kb_down(ps2_key[9]), .kb_ext(ps2_key[8]), .kb_code(ps2_key[7:0]),
 		.dbg_valid(dbg_valid), .dbg_char(dbg_char),
 		.vcount(vcount), .vblank_pulse(), .line_start(),
 		.px_valid(px_valid), .px_x(px_x), .px_y(px_y), .px_rgb(px_rgb), .window_cycles(dbg_window),

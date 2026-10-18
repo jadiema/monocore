@@ -48,7 +48,7 @@ void intro_run(void) {
   mo5_locate(8, 24); mo5_puts("<APPUYEZ SUR UN BOUTON>"); mo5_key_wait(""); mo5_cls();   // 145
 
   mo5_color(7, 1); mo5_locate(15, 0); mo5_puts(" COMMANDES "); mo5_color(7, 4);     // 150
-  PRINTLN(""); PRINTLN("");
+  PRINTLN(""); PRINTLN("Au clavier : les touches du MO5 (AZERTY)");
   PRINTLN("Croix : Marcher/Courir (Pressez 2 fois)");
   PRINTLN("START : Arret/Debout");
   PRINTLN("B5 : Accroupir"); PRINTLN("COIN+B1 : Boire");

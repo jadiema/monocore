@@ -1,6 +1,6 @@
 # MONOCORE-1
 
-Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur lequel tournent des jeux d'arcade traduits et des jeux faits maison. Ce dépôt contient la spécification (v0.3), le simulateur de référence, le kit de développement, le manuel du programmeur, une ROM de test et le core FPGA, qui fonctionne sur la carte (image et son en HDMI).
+Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur lequel tournent des jeux d'arcade traduits et des jeux faits maison. Ce dépôt contient la spécification (v0.4), le simulateur de référence, le kit de développement, le manuel du programmeur, une ROM de test et le core FPGA, qui fonctionne sur la carte (image et son en HDMI).
 
 | Dossier | Contenu |
 |---|---|

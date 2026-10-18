@@ -1,5 +1,5 @@
-// MONOCORE-1 I/O block (0x4000_0000): inputs, interrupt controller, timers, cycle counter,
-// DMA registers and the debug output. Slave protocol: see mc_rom_cache.v.
+// MONOCORE-1 I/O block (0x4000_0000): inputs (4 pads, analog sticks, paddles and spinners, keyboard),
+// interrupt controller, timers, cycle counter, DMA registers and the debug output. Slave protocol: see mc_rom_cache.v.
 module mc_io (
 	input  wire        clk,
 	input  wire        rst_n,
@@ -15,8 +15,17 @@ module mc_io (
 	// inputs
 	input  wire [11:0] in_p1,
 	input  wire [11:0] in_p2,
+	input  wire [11:0] in_p3,
+	input  wire [11:0] in_p4,
 	input  wire [2:0]  in_sys,
 	input  wire [31:0] dip,
+	input  wire [127:0] in_analog,     // pads 1-4 (32 bits each): left X, left Y, right X, right Y
+	input  wire [127:0] in_paddle,     // pads 1-4: paddle (7:0), spinner position (31:16)
+	// keyboard: one pulse per key event, PS/2 set 2 code
+	input  wire        kb_stb,
+	input  wire        kb_down,
+	input  wire        kb_ext,
+	input  wire [7:0]  kb_code,
 	// interrupt sources and CPU interrupt line
 	input  wire        vblank_pulse,
 	input  wire        line_pulse,
@@ -37,6 +46,27 @@ module mc_io (
 	reg [31:0] t0_reload, t1_reload, t0_cnt, t1_cnt;
 	reg        t0_on, t1_on;
 	reg [63:0] cycles;
+
+	// keyboard: state of the 256 keys and a queue of 16 events
+	reg [255:0] key_state;
+	reg [9:0]   kq [0:15];             // {down, ext, code}
+	reg [3:0]   kq_rd, kq_wr;
+	reg [4:0]   kq_n;
+	wire [7:0]  key_index = kb_code == 8'h83 ? 8'h02 : {kb_ext, kb_code[6:0]};
+	wire        wr_keyev = wr && waddr[11:2] == 10'h034;   // 0xD0: removes the oldest event
+	wire        kq_push = kb_stb && kq_n != 5'd16;
+	wire        kq_pop  = wr_keyev && kq_n != 5'd0;
+	always @(posedge clk or negedge rst_n) begin
+		if (!rst_n) begin
+			key_state <= 256'd0; kq_rd <= 4'd0; kq_wr <= 4'd0; kq_n <= 5'd0;
+		end else begin
+			if (kb_stb) key_state[key_index] <= kb_down;
+			if (kq_push) begin kq[kq_wr] <= {kb_down, kb_ext, kb_code}; kq_wr <= kq_wr + 4'd1; end
+			if (kq_pop) kq_rd <= kq_rd + 4'd1;
+			kq_n <= kq_n + {4'd0, kq_push} - {4'd0, kq_pop};
+		end
+	end
+	wire [9:0] kq_head = kq[kq_rd];
 
 	wire [31:0] bm = {{8{be[3]}}, {8{be[2]}}, {8{be[1]}}, {8{be[0]}}};
 	function [31:0] merge(input [31:0] old);
@@ -102,6 +132,25 @@ module mc_io (
 		case (raddr[11:2])
 		10'h000: rdata <= {20'd0, in_p1};
 		10'h001: rdata <= {20'd0, in_p2};
+		10'h020: rdata <= {20'd0, in_p3};                  // 0x80
+		10'h021: rdata <= {20'd0, in_p4};                  // 0x84
+		10'h024: rdata <= in_analog[31:0];                 // 0x90
+		10'h025: rdata <= in_analog[63:32];
+		10'h026: rdata <= in_analog[95:64];
+		10'h027: rdata <= in_analog[127:96];
+		10'h028: rdata <= in_paddle[31:0];                 // 0xA0
+		10'h029: rdata <= in_paddle[63:32];
+		10'h02A: rdata <= in_paddle[95:64];
+		10'h02B: rdata <= in_paddle[127:96];
+		10'h02C: rdata <= key_state[31:0];                 // 0xB0
+		10'h02D: rdata <= key_state[63:32];
+		10'h02E: rdata <= key_state[95:64];
+		10'h02F: rdata <= key_state[127:96];
+		10'h030: rdata <= key_state[159:128];
+		10'h031: rdata <= key_state[191:160];
+		10'h032: rdata <= key_state[223:192];
+		10'h033: rdata <= key_state[255:224];
+		10'h034: rdata <= {kq_n != 5'd0, 21'd0, kq_head};  // 0xD0
 		10'h002: rdata <= {29'd0, in_sys};
 		10'h003: rdata <= dip;
 		10'h004: rdata <= {27'd0, irq_status};
@@ -115,7 +164,7 @@ module mc_io (
 		10'h010: rdata <= dma_src;
 		10'h011: rdata <= dma_dst;
 		10'h012: rdata <= dma_len;
-		10'h01C: rdata <= 32'h00000001;   // 0x70: hardware version 0.1
+		10'h01C: rdata <= 32'h00000002;   // 0x70: hardware version 2 (pads 3-4, analog, keyboard)
 		default: rdata <= 32'd0;
 		endcase
 	end

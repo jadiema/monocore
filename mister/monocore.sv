@@ -2,7 +2,7 @@
 //  MONOCORE-1 for MiSTer: the virtual console core inside the MiSTer framework (Template_MiSTer).
 //
 //  This file connects rtl/mister/mc_system.v (core, SDRAM controller, ROM loader, scan-out) to the
-//  framework: hps_io (OSD menu, ROM loading, joysticks), the PLL (50 MHz system, 100 MHz SDRAM),
+//  framework: hps_io (OSD menu, ROM loading, 4 joysticks with analog sticks, paddles, spinners, keyboard), the PLL (50 MHz system, 100 MHz SDRAM),
 //  the SDRAM pins, video and audio.
 //
 //  ROM loading: any file chosen in the OSD ("Charger une ROM", .MNC) is copied to the SDRAM, then the
@@ -62,7 +62,11 @@ localparam CONF_STR = {
 wire forced_scandoubler;
 wire   [1:0] buttons;
 wire [127:0] status;
-wire  [31:0] joystick_0, joystick_1;
+wire  [31:0] joystick_0, joystick_1, joystick_2, joystick_3;
+wire  [15:0] joy_l_0, joy_l_1, joy_l_2, joy_l_3, joy_r_0, joy_r_1, joy_r_2, joy_r_3;
+wire   [7:0] paddle_0, paddle_1, paddle_2, paddle_3;
+wire   [8:0] spinner_0, spinner_1, spinner_2, spinner_3;
+wire  [10:0] ps2_key;
 wire         ioctl_download, ioctl_wr, ioctl_wait;
 wire  [26:0] ioctl_addr;
 wire  [15:0] ioctl_dout;
@@ -82,6 +86,15 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 
 	.joystick_0(joystick_0),
 	.joystick_1(joystick_1),
+	.joystick_2(joystick_2),
+	.joystick_3(joystick_3),
+	.joystick_l_analog_0(joy_l_0), .joystick_l_analog_1(joy_l_1),
+	.joystick_l_analog_2(joy_l_2), .joystick_l_analog_3(joy_l_3),
+	.joystick_r_analog_0(joy_r_0), .joystick_r_analog_1(joy_r_1),
+	.joystick_r_analog_2(joy_r_2), .joystick_r_analog_3(joy_r_3),
+	.paddle_0(paddle_0), .paddle_1(paddle_1), .paddle_2(paddle_2), .paddle_3(paddle_3),
+	.spinner_0(spinner_0), .spinner_1(spinner_1), .spinner_2(spinner_2), .spinner_3(spinner_3),
+	.ps2_key(ps2_key),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_index(ioctl_index),
@@ -129,6 +142,13 @@ mc_system system
 
 	.joy1(joystick_0[11:0]),
 	.joy2(joystick_1[11:0]),
+	.joy3(joystick_2[11:0]),
+	.joy4(joystick_3[11:0]),
+	.joy_l_analog({joy_l_3, joy_l_2, joy_l_1, joy_l_0}),
+	.joy_r_analog({joy_r_3, joy_r_2, joy_r_1, joy_r_0}),
+	.paddle({paddle_3, paddle_2, paddle_1, paddle_0}),
+	.spinner({spinner_3, spinner_2, spinner_1, spinner_0}),
+	.ps2_key(ps2_key),
 	.in_sys(3'd0),
 
 	.ce_pix(ce_pix),

@@ -95,7 +95,11 @@
       this.sprOverflow = false; this.sprOverflowCur = false; this.sprPeak = 0; this.sprPeakCur = 0;
       this.frameBuf = new Uint32Array(384 * 288);
       // I/O
-      this.inputs = [0, 0, 0];
+      this.inputs = [0, 0, 0, 0, 0];          // IN_P1, IN_P2, IN_SYS, IN_P3, IN_P4
+      this.analog = [0, 0, 0, 0];             // ANALOG_P1-4 (32 bits each)
+      this.paddle = [0, 0, 0, 0];             // PADDLE_P1-4
+      this.keyState = new Uint32Array(8);     // KEY_STATE0-7
+      this.keyQueue = [];                     // KEY_EVENT queue (16 events at most)
       this.dip = this.header.dip >>> 0;
       this.irqStatus = 0; this.irqEnable = 0;
       this.timers = [{ reload: 0, on: false, count: 0 }, { reload: 0, on: false, count: 0 }];
@@ -272,9 +276,23 @@
         case 0x44: return this.dma.dst;
         case 0x48: return this.dma.len;
         case 0x4C: return 0;
-        case 0x70: return 0x00000001; // hardware version 0.1
+        case 0x70: return 0x00000002; // hardware version 2 (pads 3-4, analog, keyboard)
+        case 0x80: return this.inputs[3];
+        case 0x84: return this.inputs[4];
+        case 0xD0: return this.keyQueue.length ? (0x80000000 | this.keyQueue[0]) | 0 : 0;
       }
+      if (o >= 0x90 && o < 0xA0) return this.analog[(o - 0x90) >> 2] | 0;
+      if (o >= 0xA0 && o < 0xB0) return this.paddle[(o - 0xA0) >> 2] | 0;
+      if (o >= 0xB0 && o < 0xD0) return this.keyState[(o - 0xB0) >> 2] | 0;
       return 0;
+    }
+
+    // a key of the keyboard goes down or up: code = PS/2 set 2 code, ext = E0 prefix
+    keyEvent(code, ext, down) {
+      code &= 0xff;
+      const i = code === 0x83 ? 0x02 : ((ext ? 0x80 : 0) | (code & 0x7f));
+      if (down) this.keyState[i >> 5] |= 1 << (i & 31); else this.keyState[i >> 5] &= ~(1 << (i & 31));
+      if (this.keyQueue.length < 16) this.keyQueue.push((down ? 0x200 : 0) | (ext ? 0x100 : 0) | code);
     }
 
     ioWrite(o, v) {
@@ -288,6 +306,7 @@
         case 0x48: this.dma.len = v >>> 0; break;
         case 0x4C: if (v & 1) this.runDma(!!(v & 2)); break;
         case 0x60: if (this.onDebug) this.onDebug(String.fromCharCode(v & 0xff)); break;
+        case 0xD0: this.keyQueue.shift(); break;
       }
     }
 

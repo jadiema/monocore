@@ -1,6 +1,6 @@
 # MONOCORE-1 — spécification de la console virtuelle
 
-Version 0.3 — octobre 2026 (horloge unique de 50 MHz, après les essais de synthèse Quartus)
+Version 0.4 — octobre 2026 (4 manettes, entrées analogiques et clavier ; horloge unique de 50 MHz)
 
 ## 1. Principe
 
@@ -212,6 +212,15 @@ Chaque côté de la sortie vaut `⌊somme × MASTER_VOL × 77 / 65 536⌋`, born
 | 0x48 | `DMA_LEN` | longueur en octets |
 | 0x4C | `DMA_CTRL` | écriture bit 0 lancer, bit 1 mode remplissage ; lecture bit 0 occupé |
 | 0x60 | `DEBUG_OUT` | un octet écrit = un caractère sur la console de debug (absent du FPGA final) |
+| 0x70 | `HW_VERSION` | version du matériel : 2 depuis l'ajout des joueurs 3 et 4, de l'analogique et du clavier (1 avant) |
+| 0x80 | `IN_P3` | joueur 3, même format que `IN_P1` |
+| 0x84 | `IN_P4` | joueur 4 |
+| 0x90 + 4n | `ANALOG_Pn` | manette n (0-3 = joueurs 1-4) : stick gauche X (bits 7–0) et Y (15–8), stick droit X (23–16) et Y (31–24), signés de −127 à +127, 0 au repos ; Y positif vers le bas |
+| 0xA0 + 4n | `PADDLE_Pn` | paddle de 0 à 255 (bits 7–0) ; bits 31–16 : position du spinner, compteur 16 bits qui accumule ses déplacements |
+| 0xB0 + 4k | `KEY_STATE0`–`KEY_STATE7` | clavier : 256 bits, 1 = touche enfoncée ; la touche de code PS/2 (jeu 2) *c* est le bit *i* = c (bit 7 de *c* à 0), + 128 pour un code étendu (préfixe E0) ; le code 0x83 (F7) prend la place libre i = 0x02 |
+| 0xD0 | `KEY_EVENT` | lecture : plus ancien événement clavier non lu, bit 31 valide, bit 9 appui (0 = relâchement), bit 8 étendu, bits 7–0 code PS/2 ; écriture (valeur quelconque) : retire cet événement. File de 16 événements ; une fois pleine, les nouveaux sont perdus |
+
+Les joueurs 3 et 4, l'analogique et le clavier viennent du framework MiSTer : manettes 3 et 4 de `hps_io`, sticks analogiques, paddles et spinners des manettes 1 à 4, clavier USB de la carte (codes PS/2). Une ROM qui veut les utiliser vérifie que `HW_VERSION` ≥ 2. La lecture de ces registres n'a aucun effet de bord : seule l'écriture dans `KEY_EVENT` fait avancer la file.
 
 VBLANK se déclenche au début de la ligne `SCREEN_H`, LINE au début de la ligne `LINE_CMP`. La ligne d'interruption du CPU vaut `(IRQ_STATUS & IRQ_ENABLE) != 0`.
 

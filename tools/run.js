@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // Headless MONOCORE-1 runner: run a ROM for N frames with scripted inputs, save screenshots and audio.
 // usage: node run.js rom.mnc outdir "frame:action ..."
-//   actions: shot  |  p1=<hex>  (sets P1 inputs from this frame)  |  sys=<hex>
+//   actions: shot  |  p1=<hex>  (sets P1 inputs from this frame)  |  p2= p3= p4=  |  sys=<hex>
+//            a1=<hex> .. a4=  (ANALOG_Pn)  |  d1=<hex> .. d4=  (PADDLE_Pn)
+//            kd=<hex> / ku=<hex>  (key down / up, PS/2 set 2 code; 0x1xx = extended)
 const fs = require('fs');
 const path = require('path');
 const Monocore = require(path.join(__dirname, '../sim/core.js'));
@@ -28,6 +30,11 @@ for (let f = 0; f <= last; f++) {
     if (a.startsWith('p1=')) m.inputs[0] = parseInt(a.slice(3), 16);
     else if (a.startsWith('p2=')) m.inputs[1] = parseInt(a.slice(3), 16);
     else if (a.startsWith('sys=')) m.inputs[2] = parseInt(a.slice(4), 16);
+    else if (a.startsWith('p3=')) m.inputs[3] = parseInt(a.slice(3), 16);
+    else if (a.startsWith('p4=')) m.inputs[4] = parseInt(a.slice(3), 16);
+    else if (/^a[1-4]=/.test(a)) m.analog[+a[1] - 1] = parseInt(a.slice(3), 16) | 0;
+    else if (/^d[1-4]=/.test(a)) m.paddle[+a[1] - 1] = parseInt(a.slice(3), 16) | 0;
+    else if (/^k[du]=/.test(a)) { const v = parseInt(a.slice(3), 16); m.keyEvent(v & 0xff, !!(v & 0x100), a[1] === 'd'); }
   }
   const n = m.runFrame();
   for (let i = 0; i < 2 * n; i++) audio.push(m.audioI[i]);

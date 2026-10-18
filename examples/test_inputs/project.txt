@@ -1,0 +1,4 @@
+name    = inputs
+title   = TEST DES ENTREES
+library = mc
+sources = main.c

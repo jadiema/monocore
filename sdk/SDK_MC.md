@@ -45,7 +45,9 @@ musiques, données d'un jeu porté) : symboles `fichier_file` (données) et `fic
 | Sprites | `mc_sprite`, `mc_sprite_zoom`, `mc_sprite_flip`, `mc_sprite_8bpp`, `mc_sprite_hide`, `mc_sprites_used` | 512 sprites de 8 × 8 à 256 × 256, table fantôme `mc_spr[]` en WRAM |
 | Texte | `mc_text_layer`, `mc_text`, `mc_text_clear` | police du SDK, pour les menus et le débogage |
 | Son | `mc_pcm_play`, `mc_pcm_stop`, `mc_pcm_pos`, `mc_psg`, `mc_psg_freq16`, `mc_psg_volume`, `mc_master_volume`, `mc_tune` | 8 voies PCM (8/16 bits, ADPCM) et 8 voies PSG |
-| Entrées | `mc_pad`, `mc_pad_pressed`, `mc_pad_released`, `mc_sys`, `mc_dip` | |
+| Entrées | `mc_pad`, `mc_pad_pressed`, `mc_pad_released`, `mc_sys`, `mc_dip`, `mc_hw_version` | 4 manettes (joueurs 1 à 4) |
+| Analogique | `mc_stick_x`, `mc_stick_y`, `mc_paddle`, `mc_spinner`, `mc_spinner_delta` | sticks gauche et droit de −127 à +127, paddle 0-255, spinner en position 16 bits |
+| Clavier | `mc_key`, `mc_key_pressed`, `mc_key_released`, `mc_key_event` | codes PS/2 `KEY_xxx` de `monocore.h`, état des 256 touches et file de 16 événements |
 | Mémoire | `malloc`, `calloc`, `realloc`, `free`, `mc_heap_free`, `mc_copy`, `mc_fill`, `MC_NVRAM` | tas d'environ 100 Ko entre les variables et la pile (16 Ko) |
 | Maths | `fix16`, `fix_mul`, `fix_div`, `mc_sin`, `mc_cos`, `mc_atan2`, `mc_isqrt`, `mc_rand` | virgule fixe 16.16, angles sur 1024 pas |
 | Débogage | `mc_debug`, `printf`, `puts`, `assert` | sortie sur `DEBUG_OUT`, affichée par le simulateur |
@@ -68,11 +70,28 @@ musiques, données d'un jeu porté) : symboles `fichier_file` (données) et `fic
   `float`, mais lentement ; pour un portage, convertissez les calculs en `fix16`.
 - **NVRAM** : 32 Ko, pas encore sauvegardés sur la carte SD par le core.
 
+## Manettes 3 et 4, analogique et clavier
+
+Ces entrées existent à partir de la version 2 du matériel (`mc_hw_version() >= 2`) ; sur une
+version plus ancienne, les fonctions renvoient 0 (ou -1 pour `mc_key_event`). Elles viennent du
+framework MiSTer : manettes 3 et 4, sticks analogiques, paddles et spinners des manettes 1 à 4,
+clavier USB de la carte. Dans le simulateur, les sticks des manettes du navigateur sont lus, et la
+case « clavier de la console » (touche F9) envoie le clavier du PC à la console au lieu des
+joueurs 1 et 2.
+
+Les touches sont désignées par leur code PS/2 (jeu 2), `KEY_xxx` dans `monocore.h`, avec 0x100 en
+plus pour les touches étendues (flèches, Inser…). Ce code désigne une **position** : il porte le nom
+de la touche d'un clavier QWERTY, si bien que sur un clavier AZERTY la touche A est `KEY_Q`.
+`mc_key` et `mc_key_pressed` lisent l'état relevé par `mc_frame()` ; `mc_key_event()` rend les
+événements un par un, dans l'ordre, ce qui convient à la saisie de texte (`examples/test_inputs`
+affiche tout ce que la console reçoit).
+
 ## Exemples
 
 | Dossier | Contenu |
 |---|---|
 | `examples/test_sdk` | test minimal : raster, timers, `malloc`, `printf` |
+| `examples/test_inputs` | affiche les 4 manettes, leurs sticks, paddles et spinners, et les événements du clavier |
 | `examples/boot` | l'écran d'accueil de la console (`boot.rom`) : barres copper par défilement ligne par ligne, logo en un seul sprite de 256 × 40, ciel raster, texte défilant en sprites zoomés |
 | `examples/horizon` | course en fausse 3D (style OutRun) : une texture de route de 120 lignes, choisie (`dy`) et décalée (`dx`) ligne par ligne pour la largeur, les bandes et les virages ; objets zoomés selon leur distance et triés avec `qsort` |
 | `examples/nebula` | shoot'em up complet ; tous les graphismes sont produits au démarrage dans la CHR RAM (sprites en « ASCII art », décors procéduraux découpés en tuiles avec partage des tuiles identiques), parallaxe, sol en perspective, 233 sprites, tirs visés avec `mc_atan2` |

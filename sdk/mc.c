@@ -8,7 +8,11 @@ volatile uint32_t mc_frames;
 volatile int mc_raster_line;
 sprite_t mc_spr[MC_SPRITES];
 static int spr_used = MC_SPRITES;
-static uint32_t pad_now[2], pad_prev[2];
+static uint32_t pad_now[4], pad_prev[4];
+static uint32_t hw_version;                         // HW_VERSION, read by mc_init
+static uint16_t spin_prev[4];
+static int      spin_delta[4];
+static uint32_t key_now[8], key_prev[8];
 static mc_handler_t vbl_fn, timer_fn[2];
 static uint32_t lctrl[4];
 static int map_w[4] = {64, 64, 64, 64};
@@ -111,7 +115,13 @@ void mc_init(void) {
   for (int c = 0; c < 8; c++) { PSG[c].vol_l = PSG[c].vol_r = 0; PCM[c].ctrl = 0; }
   MASTER_VOL = 255;
   rast_n = rast_i = 0; vbl_fn = 0; timer_fn[0] = timer_fn[1] = 0;
-  pad_now[0] = pad_now[1] = pad_prev[0] = pad_prev[1] = 0;
+  for (int j = 0; j < 4; j++) { pad_now[j] = pad_prev[j] = 0; spin_delta[j] = 0; }
+  for (int k = 0; k < 8; k++) key_now[k] = key_prev[k] = 0;
+  hw_version = HW_VERSION;
+  if (hw_version >= 2) {
+    for (int j = 0; j < 4; j++) spin_prev[j] = (uint16_t)(PADDLE_P(j) >> 16);
+    while (KEY_EVENT & 0x80000000u) KEY_EVENT = 0;   // events from before the start of the game
+  }
   mc_srand((uint32_t)mc_cycles() | 1u);
   IRQ_ENABLE = IRQ_VBLANK;
   irq_global_enable();
@@ -121,8 +131,16 @@ void mc_frame(void) {
   uint32_t f = mc_frames;
   while (mc_frames == f) wfi();
   dma_copy(SPRITES, mc_spr, (uint32_t)spr_used * sizeof(sprite_t));
-  for (int j = 0; j < 2; j++) pad_prev[j] = pad_now[j];
+  for (int j = 0; j < 4; j++) pad_prev[j] = pad_now[j];
   pad_now[0] = IN_P1; pad_now[1] = IN_P2;
+  if (hw_version >= 2) {
+    pad_now[2] = IN_P3; pad_now[3] = IN_P4;
+    for (int j = 0; j < 4; j++) {
+      uint16_t s = (uint16_t)(PADDLE_P(j) >> 16);
+      spin_delta[j] = (int16_t)(s - spin_prev[j]); spin_prev[j] = s;
+    }
+    for (int k = 0; k < 8; k++) { key_prev[k] = key_now[k]; key_now[k] = KEY_STATE(k); }
+  }
   tunes_step();
 }
 
@@ -272,9 +290,32 @@ void mc_tune(int ch, const char *notes, int fpb, int vol) {
 void mc_tune_stop(int ch) { track[ch & 7].on = 0; mc_psg_volume(ch, 0, 0); }
 
 // ---------------------------------------------------------------- inputs
-uint32_t mc_pad(int p) { return pad_now[(p - 1) & 1]; }
-uint32_t mc_pad_pressed(int p) { int j = (p - 1) & 1; return pad_now[j] & ~pad_prev[j]; }
-uint32_t mc_pad_released(int p) { int j = (p - 1) & 1; return ~pad_now[j] & pad_prev[j]; }
+uint32_t mc_pad(int p) { return pad_now[(p - 1) & 3]; }
+uint32_t mc_pad_pressed(int p) { int j = (p - 1) & 3; return pad_now[j] & ~pad_prev[j]; }
+uint32_t mc_pad_released(int p) { int j = (p - 1) & 3; return ~pad_now[j] & pad_prev[j]; }
+int mc_hw_version(void) { return (int)hw_version; }
+int mc_stick_x(int p, int stick) {
+  if (hw_version < 2) return 0;
+  return (int8_t)(ANALOG_P((p - 1) & 3) >> (stick ? 16 : 0));
+}
+int mc_stick_y(int p, int stick) {
+  if (hw_version < 2) return 0;
+  return (int8_t)(ANALOG_P((p - 1) & 3) >> (stick ? 24 : 8));
+}
+int mc_paddle(int p) { return hw_version < 2 ? 0 : (int)(PADDLE_P((p - 1) & 3) & 0xFF); }
+int mc_spinner(int p) { return hw_version < 2 ? 0 : (int)(uint16_t)(PADDLE_P((p - 1) & 3) >> 16); }
+int mc_spinner_delta(int p) { return spin_delta[(p - 1) & 3]; }
+static inline bool key_bit(const uint32_t *t, int key) { int i = KEY_INDEX(key); return (t[i >> 5] >> (i & 31)) & 1; }
+bool mc_key(int key) { return key_bit(key_now, key); }
+bool mc_key_pressed(int key) { return key_bit(key_now, key) && !key_bit(key_prev, key); }
+bool mc_key_released(int key) { return !key_bit(key_now, key) && key_bit(key_prev, key); }
+int mc_key_event(void) {
+  if (hw_version < 2) return -1;
+  uint32_t e = KEY_EVENT;
+  if (!(e & 0x80000000u)) return -1;
+  KEY_EVENT = 0;
+  return (int)(e & 0x3FF);
+}
 uint32_t mc_sys(void) { return IN_SYS; }
 uint32_t mc_dip(void) { return DIPSW; }
 

@@ -34,6 +34,12 @@ Ces fichiers sont dans `.gitignore` : **ne les publie pas**.
 | Objet en main précédent / suivant | COIN + gauche / droite |
 | Menus (1/2, O/N, achats 1-4, 0 pour sortir) | B1, B2… (B5 = 0 chez le marchand) |
 
+## Au clavier
+
+Avec un clavier USB sur la MiSTer (matériel version 2), le jeu se joue aussi avec les touches
+d'origine du MO5, à la même place sur un clavier AZERTY : flèches, espace, A, B, S, D, O, P, L, G,
+I, Q et 0 à 6 (rangée du haut ou pavé numérique). Les menus acceptent 1/2, O/N et 0-4.
+
 ## Banc de test sur PC
 
     gcc -O1 -o pc/game pc/pc_main.c intro.c game.c mo5rt.c mo5font.c aigle_image.c intro_data.c aigle_code.c -I.

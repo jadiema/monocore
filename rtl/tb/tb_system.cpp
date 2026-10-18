@@ -3,6 +3,8 @@
 // pictures are taken from the video output (as the framework's scaler would receive them).
 //
 // usage: Vmc_system rom.mnc outdir [script]     (script syntax of tools/run.js: frame:p1=hex, frame:shot=name)
+//   also p3= p4=, a1=..a4= (ANALOG_Pn: right stick 31:16, left 15:0), d1=..d4= (paddle), s1=..s4= (spinner
+//   movement, signed 8 bits), kd= / ku= (key down / up through ps2_key, one event per frame)
 // frame:load=path loads a second ROM while the first one runs, like choosing another file in the OSD.
 // env: RDLATE=1 selects the later read capture; SDLAT=n adds n cycles to the chip's read latency
 //
@@ -21,6 +23,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <deque>
+#include <cstring>
 
 static std::vector<uint8_t> load(const char *path) {
     std::ifstream f(path, std::ios::binary);
@@ -136,7 +140,12 @@ int main(int argc, char **argv) {
     // console input layout (bit 0 up, 1 down, 2 left, 3 right) to the MiSTer joystick layout
     auto joy = [](uint32_t c) { return (c & 0xFF0) | ((c & 1) << 3) | ((c & 2) << 1) | ((c & 4) >> 1) | ((c & 8) >> 3); };
     std::string next_rom;
+    std::deque<uint32_t> keys;
     auto apply = [&](int f) {
+        if (!keys.empty()) {                       // one key event per frame, as ps2_key holds one
+            uint32_t k = keys.front(); keys.pop_front();
+            top->ps2_key = ((~top->ps2_key) & 0x400) | (k & 0x3FF);
+        }
         auto r = events.equal_range(f);
         for (auto it = r.first; it != r.second; ++it) {
             const std::string &a = it->second;
@@ -144,6 +153,22 @@ int main(int argc, char **argv) {
             if (a.rfind("p1=", 0) == 0) top->joy1 = joy(strtoul(a.c_str() + 3, 0, 16));
             else if (a.rfind("p2=", 0) == 0) top->joy2 = joy(strtoul(a.c_str() + 3, 0, 16));
             else if (a.rfind("sys=", 0) == 0) top->in_sys = strtoul(a.c_str() + 4, 0, 16);
+            else if (a.rfind("p3=", 0) == 0) top->joy3 = joy(strtoul(a.c_str() + 3, 0, 16));
+            else if (a.rfind("p4=", 0) == 0) top->joy4 = joy(strtoul(a.c_str() + 3, 0, 16));
+            else if (a.size() > 3 && a[2] == '=' && a[1] >= '1' && a[1] <= '4' && strchr("adsk", a[0])) {
+                int n = a[1] - '1'; uint64_t v = strtoul(a.c_str() + 3, 0, 16);
+                if (a[0] == 'a') {
+                    top->joy_l_analog = (top->joy_l_analog & ~(0xFFFFull << (16 * n))) | ((v & 0xFFFF) << (16 * n));
+                    top->joy_r_analog = (top->joy_r_analog & ~(0xFFFFull << (16 * n))) | (((v >> 16) & 0xFFFF) << (16 * n));
+                } else if (a[0] == 'd') top->paddle = (top->paddle & ~(0xFFu << (8 * n))) | ((uint32_t)(v & 0xFF) << (8 * n));
+                else if (a[0] == 's') {
+                    uint64_t sp = top->spinner, t = (~sp >> (9 * n + 8)) & 1;
+                    sp = (sp & ~(0x1FFull << (9 * n))) | ((t << 8 | (v & 0xFF)) << (9 * n));
+                    top->spinner = sp;
+                }
+            }
+            else if (a.rfind("kd=", 0) == 0) keys.push_back(0x200 | (strtoul(a.c_str() + 3, 0, 16) & 0x1FF));
+            else if (a.rfind("ku=", 0) == 0) keys.push_back(strtoul(a.c_str() + 3, 0, 16) & 0x1FF);
         }
     };
     // picture from the video output
