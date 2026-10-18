@@ -178,7 +178,8 @@ int main(int argc, char **argv) {
     size_t dl_pos = 0;
     int dl_state = 0, dl_gap = 0;   // 0 wait for SDRAM init, 1 streaming, 2 done
     int frame = 0, prev_vc = -1;
-    int audio_peak = 0;            // largest |sample| since the last ROM load
+    bool peak_armed = true;       // false from a load request until the core is held in reset
+    int audio_peak = 0;            // largest |sample| while the last loaded ROM runs
     bool started = false;
     int win_max = 0, win_frame_max = 0;
     std::vector<int> win_hist;
@@ -202,7 +203,7 @@ int main(int argc, char **argv) {
                 rom = load(next_rom.c_str());
                 if (rom.size() & 1) rom.push_back(0);
                 fprintf(stderr, "loading %s at frame %d\n", next_rom.c_str(), frame);
-                next_rom.clear(); audio_peak = 0; dl_pos = 0; dl_state = 1; top->dl_active = 1;
+                next_rom.clear(); audio_peak = 0; peak_armed = false; dl_pos = 0; dl_state = 1; top->dl_active = 1;
             }
             else if (dl_state == 0 && slow > 30000) { dl_state = 1; top->dl_active = 1; }
             else if (dl_state == 1) {
@@ -215,7 +216,8 @@ int main(int argc, char **argv) {
                 }
             }
             if (top->dbg_valid) dbg += (char)top->dbg_char;
-            { int a = abs((int16_t)top->audio_l), b = abs((int16_t)top->audio_r); if (a > audio_peak) audio_peak = a; if (b > audio_peak) audio_peak = b; }
+            if (!top->running) peak_armed = true;
+            if (top->running && peak_armed) { int a = abs((int16_t)top->audio_l), b = abs((int16_t)top->audio_r); if (a > audio_peak) audio_peak = a; if (b > audio_peak) audio_peak = b; }
             if (top->running && !started) { started = true; apply(0); fprintf(stderr, "core started at clk cycle %llu\n", (unsigned long long)slow); }
             // picture: pixels of the visible area, in order
             if (started && top->ce_pix) {
@@ -261,7 +263,7 @@ int main(int argc, char **argv) {
         std::ofstream o(outdir + "/windows.txt");
         for (size_t i = 0; i < win_hist.size(); i++) o << i << " " << win_hist[i] << "\n";
     }
-    printf("audio peak since the last ROM load: %d\n", audio_peak);
+    printf("audio peak while the loaded ROM runs: %d\n", audio_peak);
     printf("debug: \"%s\"\n", esc.c_str());
     top->final();
     delete top;

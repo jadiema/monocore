@@ -121,10 +121,16 @@ module mc_system (
 		.audio_valid(audio_valid), .audio_l(a_l), .audio_r(a_r),
 		.dbg_apu_wr(), .dbg_apu_addr(), .dbg_apu_data(), .dbg_apu_be());
 
-	// silent while the core is held in reset (ROM loading, OSD reset)
+	// silent while the core is held in reset (ROM loading, OSD reset) and for 512 samples (10.7 ms)
+	// after it starts: the previous game's sound registers keep playing until the start-up code
+	// (sdk/crt0.S) clears them, a few microseconds later
+	reg [9:0] mute;
 	always @(posedge clk)
-		if (!core_rst_n) begin audio_l <= 16'd0; audio_r <= 16'd0; end
-		else if (audio_valid) begin audio_l <= a_l; audio_r <= a_r; end
+		if (!core_rst_n) begin audio_l <= 16'd0; audio_r <= 16'd0; mute <= 10'd512; end
+		else if (audio_valid) begin
+			if (mute != 0) begin mute <= mute - 10'd1; audio_l <= 16'd0; audio_r <= 16'd0; end
+			else begin audio_l <= a_l; audio_r <= a_r; end
+		end
 
 	// ---------------------------------------------------------------- SDRAM
 	mc_sdram sdram (
