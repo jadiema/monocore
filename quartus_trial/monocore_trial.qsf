@@ -1,0 +1,54 @@
+# MONOCORE-1 synthesis trial for the DE10-Nano (Cyclone V 5CSEBA6U23I7).
+# Purpose: resources and maximum frequency of the core alone. Do NOT program the board with it.
+set_global_assignment -name FAMILY "Cyclone V"
+set_global_assignment -name DEVICE 5CSEBA6U23I7
+set_global_assignment -name TOP_LEVEL_ENTITY monocore_trial_top
+set_global_assignment -name VERILOG_INPUT_VERSION SYSTEMVERILOG_2005
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
+set_global_assignment -name OPTIMIZATION_MODE "HIGH PERFORMANCE EFFORT"
+set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
+# keep the memories in M10K blocks (Quartus otherwise turns some small ones into registers)
+set_global_assignment -name AUTO_RAM_TO_LCELL_CONVERSION OFF
+set_global_assignment -name TIMEQUEST_REPORT_WORST_CASE_TIMING_PATHS ON
+set_global_assignment -name TIMEQUEST_REPORT_NUM_WORST_CASE_TIMING_PATHS 50
+set_global_assignment -name SEARCH_PATH ../rtl/hazard3
+set_global_assignment -name SEARCH_PATH ../rtl/hazard3/arith
+set_global_assignment -name SDC_FILE monocore_trial.sdc
+set_global_assignment -name VERILOG_FILE monocore_trial_top.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_core.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_ram.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_rom_cache.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_rom_arb.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_io.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_gpu.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_apu.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_vtiming.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_util.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_layer.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_sprites.v
+set_global_assignment -name VERILOG_FILE ../rtl/mc_render.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_core.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_cpu_1port.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_cpu_2port.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/arith/hazard3_alu.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/arith/hazard3_branchcmp.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/arith/hazard3_mul_fast.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/arith/hazard3_muldiv_seq.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/arith/hazard3_onehot_encode.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/arith/hazard3_onehot_priority.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/arith/hazard3_onehot_priority_dynamic.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/arith/hazard3_priority_encode.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/arith/hazard3_shift_barrel.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_csr.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_decode.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_frontend.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_instr_decompress.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_irq_ctrl.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_pmp.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_power_ctrl.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_regfile_1w2r.v
+set_global_assignment -name VERILOG_FILE ../rtl/hazard3/hazard3_triggers.v
+# 50 MHz oscillator pin of the DE10-Nano (FPGA_CLK1_50); the other pins are left unplaced on purpose
+set_location_assignment PIN_V11 -to clk
+set_instance_assignment -name IO_STANDARD "3.3-V LVTTL" -to clk

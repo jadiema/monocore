@@ -1,0 +1,555 @@
+#!/usr/bin/env python3
+"""Builds the MONOCORE-1 programmer's manual: printable HTML, then PDF through Chromium.
+
+usage: python3 manual/tools/manual.py      -> manual/MONOCORE-1_Manuel_du_programmeur.pdf
+Listings are read from manual/examples/*/main.c, so the manual always shows the code that runs.
+The prose is in French; code, file and setting names are in English.
+"""
+import html, os, re, sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+EX = os.path.join(ROOT, 'examples')
+OUT_HTML = os.path.join(ROOT, 'manual.html')
+OUT_PDF = os.path.join(ROOT, 'MONOCORE-1_Manuel_du_programmeur.pdf')
+
+# ---------------------------------------------------------------- building blocks
+def esc(s): return html.escape(s, quote=False)
+
+KW = r'\b(int|void|static|const|char|for|while|if|else|return|break|continue|typedef|struct|uint8_t|uint16_t|uint32_t|int8_t|int16_t|volatile|extern|sizeof|unsigned)\b'
+def highlight(code):
+    """C colouring: comments, strings, directives, keywords, numbers, constants"""
+    out = []
+    pat = re.compile(r'(//[^\n]*)|("(?:[^"\\]|\\.)*")|(^#\w+[^\n]*)|' + KW + r'|(\b\d+\b|\b0x[0-9A-Fa-f]+\b)|([A-Z][A-Z0-9_]{2,})', re.M)
+    pos = 0
+    for m in pat.finditer(code):
+        out.append(esc(code[pos:m.start()]))
+        t = esc(m.group(0))
+        if m.group(1): out.append('<span class="c-com">%s</span>' % t)
+        elif m.group(2): out.append('<span class="c-str">%s</span>' % t)
+        elif m.group(3): out.append('<span class="c-pre">%s</span>' % t)
+        elif m.group(4): out.append('<span class="c-kw">%s</span>' % t)
+        elif m.group(5): out.append('<span class="c-num">%s</span>' % t)
+        else: out.append('<span class="c-cst">%s</span>' % t)
+        pos = m.end()
+    out.append(esc(code[pos:]))
+    return ''.join(out)
+
+def listing(code, caption=None, numbers=True, lang='c'):
+    code = code.strip('\n')
+    body = highlight(code) if lang == 'c' else esc(code)
+    rows = []
+    for i, l in enumerate(body.split('\n')):
+        num = '<span class="ln">%3d</span>' % (i + 1) if numbers else ''
+        rows.append(num + (l if l else ' '))
+    cap = '<div class="lst-cap"><span>LISTING</span> %s</div>' % esc(caption) if caption else ''
+    return '<div class="listing %s">%s<pre>%s</pre></div>' % ('' if numbers else 'nonum', cap, '\n'.join(rows))
+
+def shell(code, caption=None):
+    cap = '<div class="lst-cap sh"><span>TERMINAL</span> %s</div>' % esc(caption) if caption else ''
+    return '<div class="terminal">%s<pre>%s</pre></div>' % (cap, esc(code.strip('\n')))
+
+def source(folder, name='main.c'):
+    return open(os.path.join(EX, folder, name), encoding='utf-8').read()
+
+def screen(img, caption, small=False):
+    return ('<figure class="tv%s"><div class="bezel"><img src="images/%s"></div>'
+            '<figcaption>%s</figcaption></figure>') % (' small' if small else '', img, caption)
+
+def box(kind, title, text):
+    return '<div class="box %s"><div class="box-t">%s</div>%s</div>' % (kind, title, text)
+
+def table(head, rows, cls=''):
+    h = ''.join('<th>%s</th>' % e for e in head)
+    b = ''.join('<tr>%s</tr>' % ''.join('<td>%s</td>' % c for c in r) for r in rows)
+    return '<table class="%s"><thead><tr>%s</tr></thead><tbody>%s</tbody></table>' % (cls, h, b)
+
+CHAPTERS = []
+def chapter(num, title, lead, colour):
+    CHAPTERS.append((num, title))
+    return ('<section class="chap-open c%s"><span class="mark">QQCH%sQQ</span><div class="chap-num">%s</div><div class="chap-band"></div>'
+            '<h1 id="ch%s">%s</h1><p class="lead">%s</p></section>') % (colour, num, num, num, title, lead)
+
+def h2(t): return '<h2>%s</h2>' % t
+def h3(t): return '<h3>%s</h3>' % t
+def p(t): return '<p>%s</p>' % t
+def ul(items): return '<ul>%s</ul>' % ''.join('<li>%s</li>' % i for i in items)
+def ol(items): return '<ol>%s</ol>' % ''.join('<li>%s</li>' % i for i in items)
+def c(t): return '<code>%s</code>' % esc(t)
+
+# ---------------------------------------------------------------- figures
+FIG_LAYERS = '''
+<figure class="fig"><svg viewBox="0 0 560 250" xmlns="http://www.w3.org/2000/svg" font-family="Archivo" font-size="13">
+ <defs><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b0b30"/><stop offset="1" stop-color="#3a3f9a"/></linearGradient></defs>
+ <g transform="translate(40,150) skewX(-30)"><rect x="0" y="0" width="190" height="70" fill="#111" stroke="#222"/></g>
+ <g transform="translate(40,105) skewX(-30)">
+  <rect x="0" y="0" width="190" height="70" fill="url(#sk)" stroke="#223" opacity=".95"/>
+  <path d="M0 50 L30 35 L60 48 L95 30 L130 46 L160 33 L190 45 L190 70 L0 70Z" fill="#5a4f8a"/>
+  <rect x="0" y="62" width="190" height="8" fill="#3cb85a"/>
+ </g>
+ <g transform="translate(40,60) skewX(-30)">
+  <rect x="0" y="0" width="190" height="70" fill="none" stroke="#999" stroke-dasharray="4 3"/>
+  <polygon points="90,22 96,34 108,35 99,43 102,55 90,48 78,55 81,43 72,35 84,34" fill="#ffd43b" stroke="#222"/>
+  <polygon points="140,40 150,58 130,58" fill="#3f7cff" stroke="#222"/>
+ </g>
+ <g transform="translate(40,15) skewX(-30)">
+  <rect x="0" y="0" width="190" height="70" fill="none" stroke="#999" stroke-dasharray="4 3"/>
+  <text x="18" y="22" fill="#e8b400" font-family="IBM Plex Mono" font-size="11" font-weight="600">SCORE 000120</text>
+ </g>
+ <g font-weight="600" fill="#222">
+  <text x="300" y="45">4. le texte (plan 0)</text><text x="300" y="61" font-weight="400" fill="#555">toujours devant</text>
+  <text x="300" y="92">3. les sprites</text><text x="300" y="108" font-weight="400" fill="#555">64 objets mobiles de 16 x 16</text>
+  <text x="300" y="139">2. le décor (plan 1)</text><text x="300" y="155" font-weight="400" fill="#555">tuiles de 16 x 16, il défile</text>
+  <text x="300" y="186">1. la couleur de fond</text><text x="300" y="202" font-weight="400" fill="#555">là où rien n'est dessiné</text>
+ </g>
+ <g stroke="#bbb"><line x1="268" y1="40" x2="295" y2="40"/><line x1="268" y1="87" x2="295" y2="87"/><line x1="268" y1="134" x2="295" y2="134"/><line x1="268" y1="181" x2="295" y2="181"/></g>
+</svg><figcaption>L'image est un empilement : ce qui est dessiné au-dessus cache ce qui est dessous.</figcaption></figure>'''
+
+FIG_SCREEN = '''
+<figure class="fig"><svg viewBox="0 0 520 300" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Mono" font-size="11">
+ <rect x="60" y="30" width="400" height="240" fill="#0d1240" stroke="#222" stroke-width="2"/>
+ <g stroke="#2b3270" stroke-width="1">
+ ''' + ''.join('<line x1="%d" y1="30" x2="%d" y2="270"/>' % (60 + i * 10, 60 + i * 10) for i in range(1, 40)) + \
+ ''.join('<line x1="60" y1="%d" x2="460" y2="%d"/>' % (30 + j * 8, 30 + j * 8) for j in range(1, 30)) + '''
+ </g>
+ <rect x="60" y="30" width="10" height="8" fill="#ffd43b"/><rect x="450" y="262" width="10" height="8" fill="#ffd43b"/>
+ <text x="60" y="22" fill="#222">col 0</text><text x="420" y="22" fill="#222">col 39</text>
+ <text x="4" y="37" fill="#222">row 0</text><text x="4" y="270" fill="#222">row 29</text>
+ <text x="150" y="292" fill="#555">x de 0 à 319 pixels, y de 0 à 239 pixels</text>
+ <rect x="280" y="150" width="20" height="16" fill="#3f7cff" stroke="#fff"/><text x="272" y="162" fill="#fff" text-anchor="end">sprite à x = 176, y = 120</text>
+</svg><figcaption>Le texte se place en colonnes et lignes (une case = 8 x 8 pixels), les sprites au pixel près.</figcaption></figure>'''
+
+FIG_JOYPAD = '''
+<figure class="fig"><svg viewBox="0 0 520 210" xmlns="http://www.w3.org/2000/svg" font-family="Archivo" font-size="13">
+ <rect x="20" y="40" width="480" height="140" rx="60" fill="#2a2a33"/>
+ <g fill="#55555f"><rect x="80" y="95" width="70" height="26" rx="4"/><rect x="102" y="73" width="26" height="70" rx="4"/></g>
+ <g fill="#d33"><circle cx="340" cy="90" r="15"/><circle cx="380" cy="90" r="15"/><circle cx="420" cy="90" r="15"/></g>
+ <g fill="#e8b400"><circle cx="340" cy="132" r="15"/><circle cx="380" cy="132" r="15"/><circle cx="420" cy="132" r="15"/></g>
+ <g fill="#888"><rect x="210" y="130" width="34" height="12" rx="6"/><rect x="262" y="130" width="34" height="12" rx="6"/></g>
+ <g fill="#fff" font-weight="700" font-size="11" text-anchor="middle">
+  <text x="340" y="94">B1</text><text x="380" y="94">B2</text><text x="420" y="94">B3</text>
+  <text x="340" y="136">B4</text><text x="380" y="136">B5</text><text x="420" y="136">B6</text>
+ </g>
+ <g fill="#222" font-weight="600" text-anchor="middle" font-family="IBM Plex Mono">
+  <text x="115" y="28">UP DOWN LEFT RIGHT</text><text x="227" y="165">COIN</text><text x="279" y="165">START</text>
+  <text x="380" y="28">B1 ... B6</text>
+ </g>
+</svg><figcaption>Les noms des commandes, tels qu'on les écrit dans un programme.</figcaption></figure>'''
+
+# ---------------------------------------------------------------- content
+parts = []
+A = parts.append
+
+# cover (rendered separately, without page footer)
+COVER = '''<section class="cover">
+ <div class="cover-stripes"><i></i><i></i><i></i><i></i><i></i></div>
+ <div class="cover-top">CONSOLE VIRTUELLE POUR MiSTer · DE10-NANO</div>
+ <div class="cover-title">MONOCORE<span>-1</span></div>
+ <div class="cover-sub">MANUEL DU PROGRAMMEUR</div>
+ <div class="cover-shot"><img src="images/screen_07_title.png"></div>
+ <div class="cover-bottom">Écrivez vos propres jeux · Tutoriels pas à pas · Référence complète</div>
+ <div class="cover-ed">ÉDITION 1 · OCTOBRE 2026</div>
+</section>'''
+
+A('@@TOC@@')
+
+A('<section class="foreword">' + h2('Avant-propos') +
+p("Bienvenue ! Vous avez entre les mains le manuel de la <b>MONOCORE-1</b>, une console de jeu qui n'a jamais existé dans le commerce : elle vit dans le circuit programmable (FPGA) de votre MiSTer. Elle a été conçue pour accueillir des adaptations de jeux d'arcade des années 1978 à 1995, mais aussi, et surtout, <b>vos propres jeux</b>.") +
+p("Comme les ordinateurs familiaux de notre enfance, elle s'allume et attend qu'on lui dise quoi faire. Ce manuel vous apprend à le lui dire. <b>Aucune connaissance préalable n'est nécessaire</b> : nous partirons d'un écran vide pour arriver, au chapitre 9, à un jeu complet avec un titre, un score, des vies, de la musique et des explosions.") +
+p("Chaque exemple de ce manuel est un vrai programme, fourni dans le dossier <code>manual/examples</code>. Les images d'écran ont été prises en le faisant tourner : ce que vous voyez est ce que vous obtiendrez.") +
+box('know', 'Une langue pour le code', p("Comme dans presque tous les langages de programmation, les noms utilisés dans le code (fonctions, variables, fichiers, réglages) sont en <b>anglais</b> : <code>print</code> pour écrire, <code>wait_frame</code> pour attendre l'image suivante… Chaque nom est expliqué la première fois qu'il apparaît, et l'annexe A les traduit tous. Les textes affichés à l'écran, eux, sont en français.")) +
+box('tip', 'Comment lire ce manuel', ul([
+  "Les chapitres 1 à 3 installent l'atelier et font tourner un premier programme. Lisez-les dans l'ordre.",
+  "Les chapitres 4 à 8 présentent une notion chacun : le langage C, la manette, les sprites, le son, le décor.",
+  "Le chapitre 9 assemble tout dans un jeu. Le chapitre 10 ouvre le capot pour les curieux.",
+  "Les annexes servent de référence : gardez-les sous la main pendant que vous programmez."])) +
+p("Bon courage, et amusez-vous bien !") + '</section>')
+
+# ---------------------------------------------------------------- 1
+A(chapter(1, "La MONOCORE-1 en un coup d'oeil", "Ce qu'il y a dans la boîte, et comment l'image et le son sont fabriqués.", 1))
+A(p("La MONOCORE-1 est une console complète : un processeur, une mémoire, un circuit vidéo, un circuit sonore et deux manettes. Un programme de jeu, une <b>ROM</b>, est un fichier <code>.mnc</code> que l'on charge depuis le menu du MiSTer ou que l'on glisse dans le simulateur."))
+A(table(['Élément', 'Caractéristiques'], [
+  ['Processeur', "RISC-V 32 bits à 50 MHz, environ 47 millions d'instructions par seconde"],
+  ['Mémoire', "128 Ko de mémoire de travail, 32 Ko de mémoire sauvegardée, ROM jusqu'à 32 Mo"],
+  ['Image', "320 x 240 pixels par défaut (de 224 x 192 à 384 x 288), 60 images par seconde, 4096 couleurs à l'écran parmi 32 768"],
+  ['Plans', '4 plans de tuiles qui défilent, chacun dans sa direction'],
+  ['Sprites', "512 objets mobiles, agrandis ou réduits à volonté, retournés, jusqu'à 64 par ligne"],
+  ['Son', "8 voix d'échantillons (dont le format ADPCM des bornes d'arcade), 8 générateurs de notes et de bruit, stéréo 48 kHz"],
+  ['Commandes', '2 manettes : 4 directions, 6 boutons, START et COIN (pièce)'],
+], 'specs'))
+A(h2("Comment se forme l'image"))
+A(p("L'écran est construit 60 fois par seconde, ligne par ligne, en superposant plusieurs couches. Avec la bibliothèque <b>easy</b> (« facile ») que nous utiliserons dans ce manuel, il y en a quatre :"))
+A(FIG_LAYERS)
+A(p("Pour placer les choses à l'écran, on utilise deux façons de compter. Le texte se range dans une grille de cases de 8 x 8 pixels : 40 colonnes et 30 lignes. Les sprites, eux, se placent au pixel près : x va de 0 (à gauche) à 319 (à droite), y de 0 (en haut) à 239 (en bas). Attention, y grandit vers le <b>bas</b>, comme sur toutes les consoles."))
+A(FIG_SCREEN)
+A(box('know', 'Le saviez-vous ?', p("Une image de la MONOCORE-1 compte 264 lignes, dont 240 visibles. Pendant les 24 lignes invisibles, la <b>pause verticale</b>, rien n'est dessiné : c'est le bon moment pour préparer l'image suivante. La fonction <code>wait_frame()</code> (« attendre l'image ») attend précisément ce moment.")))
+
+# ---------------------------------------------------------------- 2
+A(chapter(2, "Installer l'atelier", "Trois outils gratuits, un simulateur, et la console est prête à recevoir vos programmes.", 2))
+A(p("Un programme MONOCORE-1 s'écrit en <b>langage C</b> dans un simple éditeur de texte, puis il est transformé en ROM par l'outil <code>build.py</code> (« construire »). Il faut pour cela :"))
+A(ol(["<b>LLVM</b> (le compilateur <code>clang</code> et ses amis) : il sait produire du code pour le processeur RISC-V de la console ;",
+      "<b>Python 3</b> avec la bibliothèque <b>Pillow</b>, pour convertir vos dessins et vos sons ;",
+      "un <b>éditeur de texte</b> : n'importe lequel convient (Bloc-notes, TextEdit, Geany, VS Code…)."]))
+A(h3('Sous Linux (Debian, Ubuntu, Raspberry Pi OS…)'))
+A(shell("sudo apt install clang lld llvm python3 python3-pil"))
+A(h3('Sous macOS'))
+A(shell("brew install llvm lld python\npip3 install pillow\nexport PATH=\"$(brew --prefix llvm)/bin:$PATH\""))
+A(p("La dernière ligne ajoute les outils LLVM au chemin de recherche des commandes ; ajoutez-la à votre fichier <code>~/.zshrc</code> pour ne pas avoir à la retaper."))
+A(h3('Sous Windows'))
+A(p("Le plus simple est d'installer <b>WSL</b> (le Linux intégré à Windows : dans une invite de commandes, tapez <code>wsl --install</code>, redémarrez) puis de suivre les instructions Linux ci-dessus. On peut aussi installer LLVM (llvm.org) et Python (python.org) directement, puis <code>pip install pillow</code>."))
+A(h3("Vérifier que tout est prêt"))
+A(shell("clang -print-targets | grep riscv32\npython3 -c \"import PIL; print('Pillow OK')\"", "deux lignes doivent s'afficher"))
+A(h2('Le dossier de la console'))
+A(p("Le projet MONOCORE-1 est un dossier qui contient, entre autres :"))
+A(table(['Dossier', 'Contenu'], [
+  [c('sdk/'), "le kit de développement : <code>easy.h</code>, <code>monocore.h</code>, l'outil <code>build.py</code>, la police de caractères"],
+  [c('manual/examples/'), "tous les programmes de ce manuel, prêts à construire"],
+  [c('dist/monocore.html'), "le simulateur : une page web qui fait tourner les ROM sur votre ordinateur"],
+  [c('mister/'), "le core pour le MiSTer"]]))
+A(h2('Le simulateur'))
+A(p("Ouvrez <code>dist/monocore.html</code> dans votre navigateur (Firefox, Chrome, Edge ou Safari). Cliquez sur <b>Mettre sous tension</b> : la ROM de test démarre. Pour essayer vos programmes, cliquez sur <b>Charger une ROM…</b> ou glissez un fichier <code>.mnc</code> sur l'écran. Le simulateur se joue au clavier ou avec une manette USB :"))
+A(table(['Commande', 'Joueur 1', 'Joueur 2'], [
+  ['Directions', 'flèches', 'I J K L'], ['Boutons 1 à 3', 'Z X C', 'N M ,'], ['Boutons 4 à 6', 'A S D', 'H U O'],
+  ['START', '1 ou Entrée', '2'], ['COIN (pièce)', '5', '6']]))
+A(p("Sur le côté, le <b>moniteur</b> montre la charge du processeur, le nombre de sprites par ligne, les voix sonores actives, et une <b>console de debug</b> qui affiche ce que votre programme écrit dans <code>DEBUG_OUT</code>, bien pratique pour chercher une erreur."))
+A(h2('La console MiSTer'))
+A(p("Pour jouer sur la vraie console, copiez le core <code>MONOCORE.rbf</code> dans le dossier <code>_Console</code> de la carte SD du MiSTer, et vos ROM dans <code>games/MONOCORE</code>. Dans le menu du core (touche F12), choisissez <b>Charger une ROM</b>. Une ROM nommée <code>boot.rom</code> dans ce dossier se lance toute seule."))
+A(box('warn', 'Attention', p("Le MiSTer doit être équipé d'une <b>barrette SDRAM</b> : la ROM du jeu est chargée dedans.")))
+
+# ---------------------------------------------------------------- 3
+A(chapter(3, 'Premier programme : BONJOUR', "Six lignes de C, une commande, et la console vous salue.", 3))
+A(p("Tout programme vit dans son propre dossier. Celui-ci s'appelle <code>01_hello</code> et contient deux fichiers. Le premier, <code>project.txt</code>, décrit le projet : le nom du fichier à produire (<code>name</code>), le titre inscrit dans la ROM (<code>title</code>) et les fichiers du programme (<code>sources</code>)."))
+A(listing(source('01_hello', 'project.txt'), 'project.txt', numbers=False, lang='txt'))
+A(p("Le second, <code>main.c</code>, est le programme lui-même :"))
+A(listing(source('01_hello'), 'main.c'))
+A(h2('Construire la ROM'))
+A(p("Ouvrez un terminal dans le dossier du programme, et lancez <code>build.py</code> en indiquant où il se trouve :"))
+A(shell("cd manual/examples/01_hello\npython3 ../../../sdk/build.py\n\nROM ready: .../01_hello/build/hello.mnc"))
+A(p("Le fichier <code>build/hello.mnc</code> est votre ROM. Chargez-la dans le simulateur :"))
+A(screen('screen_01.png', 'BONJOUR en 320 x 240 : le texte blanc sur le fond bleu.'))
+A(h2('Ligne par ligne'))
+A(table(['Ligne', "Ce qu'elle fait"], [
+  ['1', "<code>#include \"easy.h\"</code> donne accès à la bibliothèque easy : toutes les fonctions de ce manuel."],
+  ['3', "<code>int main(void)</code> : c'est ici que le programme commence. Tout ce qui est entre les accolades <code>{ }</code> s'exécute dans l'ordre."],
+  ['4', "<code>init()</code> (« initialiser ») prépare la console : police, couleurs, écran allumé. À appeler une fois, en premier."],
+  ['5', "<code>background(0, 0, 120)</code> choisit la couleur du fond : rouge 0, vert 0, bleu 120 (sur 255)."],
+  ['6 et 7', "<code>print(colonne, ligne, \"texte\")</code> (« imprimer ») écrit un texte dans la grille de 40 x 30 cases."],
+  ['8', "<code>for (;;)</code> répète sans fin ce qui suit. Un programme de console ne s'arrête jamais : ici, il attend image après image avec <code>wait_frame()</code>."]]))
+A(box('tip', 'À vous de jouer', ul([
+  "Changez le texte, sa position, la couleur du fond, puis reconstruisez la ROM.",
+  "Les accents sont acceptés mais affichés sans accent : la police est celle des années 80, en majuscules de préférence.",
+  "Une erreur ? <code>build.py</code> indique le fichier et la ligne. Le plus souvent, il manque un point-virgule <code>;</code> en fin de ligne."])))
+
+# ---------------------------------------------------------------- 4
+A(chapter(4, 'Petit cours de C', "Variables, conditions et boucles : de quoi donner vie à l'écran.", 4))
+A(p("Le C est le langage dans lequel ont été écrits une grande partie des jeux et des systèmes depuis les années 80. Nous n'en utiliserons qu'une petite partie, présentée ici sur un exemple qui affiche les huit encres de texte, compte les secondes et fait clignoter un message."))
+A(listing(source('02_colors'), '02_colors/main.c'))
+A(screen('screen_02.png', 'Les huit encres, le compteur de secondes et le message qui clignote.'))
+A(h2('Les variables'))
+A(p("Une <b>variable</b> est une case de mémoire qui porte un nom et contient un nombre. <code>int seconds = 0;</code> crée la variable <code>seconds</code> (« secondes ») et y range 0. Ensuite, <code>seconds = seconds + 1;</code> lit la valeur, ajoute 1 et range le résultat. <code>int</code> veut dire « nombre entier » (de -2 milliards à +2 milliards)."))
+A(p("La bibliothèque fournit une variable toute prête : <code>frame_count</code> (« nombre d'images »), qui compte les images depuis le démarrage. Comme il y en a 60 par seconde, <code>frame_count % 60 == 0</code> (le reste de la division par 60 vaut zéro) est vrai une fois par seconde."))
+A(h2('Les conditions'))
+A(p("<code>if (condition) action;</code> n'exécute l'action que si la condition est vraie. On peut ajouter <code>else autre_action;</code> pour le cas contraire. Les comparaisons s'écrivent <code>==</code> (égal, avec deux signes !), <code>!=</code> (différent), <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>. On combine avec <code>&amp;&amp;</code> (et) et <code>||</code> (ou)."))
+A(h2('Les boucles'))
+A(p("<code>for (int n = 0; n &lt; 8; n++)</code> répète ce qui suit en faisant prendre à <code>n</code> les valeurs 0, 1, 2… jusqu'à 7. <code>n++</code> veut dire « ajouter 1 à n ». La forme <code>for (;;)</code>, sans rien, répète pour toujours : c'est la <b>boucle principale</b> de tout jeu, qui tourne une fois par image."))
+A(h2('Les fonctions'))
+A(p("<code>print_ink(...)</code>, <code>background(...)</code> ou <code>random(256)</code> sont des <b>fonctions</b> : des morceaux de programme qui ont un nom, reçoivent des valeurs entre parenthèses et parfois en rendent une. <code>random(256)</code> (« au hasard ») rend un nombre entre 0 et 255. Vous écrirez vos propres fonctions au chapitre 9."))
+A(box('know', 'La recette de tout jeu', listing("""int main(void) {
+  init();
+  // 1. set up: colours, pictures, map, variables
+  for (;;) {
+    wait_frame();
+    // 2. read the joypad
+    // 3. move the world, check collisions
+    // 4. draw: sprites, score
+  }
+}""", numbers=False) + p("Préparer, puis pour chaque image : lire la manette, faire bouger le monde, afficher.")))
+
+# ---------------------------------------------------------------- 5
+A(chapter(5, 'La manette', "Savoir ce que fait le joueur, image après image.", 5))
+A(FIG_JOYPAD)
+A(p("Deux fonctions suffisent pour tout savoir des manettes :"))
+A(table(['Fonction', 'Rend vrai quand…', 'Pour…'], [
+  [c('held(1, LEFT)'), "le bouton est enfoncé en ce moment (<i>held</i> : tenu)", "les déplacements, le tir automatique"],
+  [c('pressed(1, B1)'), "le bouton vient d'être enfoncé, une seule fois par appui (<i>pressed</i> : appuyé)", "sauter, valider un menu, compter"]]))
+A(p("Le premier nombre est le joueur : 1 ou 2. Les manettes sont lues une fois par image, par <code>wait_frame()</code>. Voici un programme d'essai qui affiche l'état de chaque commande :"))
+A(listing(source('03_joypad'), '03_joypad/main.c'))
+A(screen('screen_03.png', "Ici, HAUT, DROITE et le bouton 2 sont enfoncés."))
+A(p("Ce programme utilise deux <b>tableaux</b> : <code>labels[12]</code> contient douze textes, <code>buttons[12]</code> douze boutons. <code>labels[0]</code> est le premier, <code>labels[11]</code> le dernier. La boucle <code>for</code> les parcourt tous avec la même variable <code>i</code>."))
+
+# ---------------------------------------------------------------- 6
+A(chapter(6, 'Les sprites', "Des objets qui bougent : votre héros, les ennemis, les bonus.", 6))
+A(h2('Dessiner une planche'))
+A(p("Les dessins des sprites se rangent dans une <b>planche</b> (<i>sprite sheet</i>) : une image PNG de <b>16 pixels de large</b>, où les dessins de 16 x 16 sont posés les uns sous les autres. Le premier porte le numéro 0, le suivant le numéro 1, et ainsi de suite. Dessinez-la avec n'importe quel logiciel de dessin (Aseprite, LibreSprite, GIMP, Paint…) en respectant deux règles :"))
+A(ul(["<b>15 couleurs au plus</b> pour toute la planche ;",
+      "le <b>transparent</b> (les pixels effacés de l'image) laisse voir ce qui est derrière le sprite."]))
+A('<div class="sheet-row"><img class="sheet" src="images/sheet_x8.png"><div>' +
+  table(['N°', 'Nom dans le code', 'Dessin'], [['0', c('SHIP'), 'vaisseau'], ['1', c('STAR'), 'étoile'], ['2', c('STAR2'), 'étoile qui scintille'], ['3', c('BOMB'), 'bombe'], ['4', c('EXPLOSION'), 'explosion'], ['5', c('HEART'), 'cœur']]) +
+  p("La planche des exemples, agrandie huit fois. Elle est dans <code>04_sprites/sheet.png</code>.") + '</div></div>')
+A(p("Il suffit de la nommer dans <code>project.txt</code> (<code>sprites = sheet.png</code>) : <code>build.py</code> la convertit et la rend disponible sous les noms <code>sheet_chr</code> (les dessins) et <code>sheet_pal</code> (les couleurs)."))
+A(h2('Afficher et déplacer'))
+A(listing(source('04_sprites'), '04_sprites/main.c'))
+A(screen('screen_04.png', 'Le vaisseau agrandi deux fois (bouton 2), et les étoiles qui scintillent.'))
+A(table(['Fonction', 'Effet'], [
+  [c('load_sprites(chr, pal, 8)'), "choisit la planche et range ses couleurs dans la palette 8"],
+  [c('sprite(n, x, y, picture)'), "affiche le sprite n (0 à 63) à la position x, y avec le dessin choisi"],
+  [c('hide_sprite(n)'), "fait disparaître le sprite n"],
+  [c('flip_sprite(n, h, v)'), "le retourne horizontalement (h = 1) et/ou verticalement (v = 1)"],
+  [c('scale_sprite(n, 200)'), "l'agrandit (200 = double, 50 = moitié)"],
+  [c('collide(x1, y1, x2, y2)'), "vrai si deux sprites de 16 x 16 se touchent"]]))
+A(box('tip', 'Animer', p("Pour animer un sprite, on change de dessin régulièrement. <code>(frame_count / 10) % 2</code> vaut 0 pendant 10 images, puis 1 pendant 10 images, etc. : de quoi alterner deux dessins six fois par seconde. Avec <code>% 4</code>, on fait tourner quatre dessins.")))
+A(box('warn', 'Les limites', p("On peut afficher jusqu'à <b>64 sprites sur une même ligne</b> de l'écran. Au-delà, les derniers ne sont pas dessinés sur cette ligne : le moniteur du simulateur l'indique en rouge.")))
+
+# ---------------------------------------------------------------- 7
+A(chapter(7, 'Le son', "Des bips, des bruits, des mélodies et des échantillons.", 7))
+A(p("La MONOCORE-1 a <b>8 canaux</b> de notes (numérotés de 0 à 7), qui jouent ensemble, et <b>8 voix d'échantillons</b> pour les sons enregistrés."))
+A(table(['Fonction', 'Effet'], [
+  [c('tone(channel, 440, 150)'), "joue un son carré de 440 hertz (le LA du diapason) au volume 150 sur 255"],
+  [c('noise(channel, 120)'), "un souffle : explosions, vagues, caisse claire"],
+  [c('quiet(channel)'), "fait taire le canal"],
+  [c('play(channel, tune, 15, 100)'), "joue une mélodie en boucle, toute seule"],
+  [c('stop(channel)'), "arrête la mélodie"],
+  [c('play_sample(voice, data, count, rate, volume)'), "joue un son enregistré (fichier WAV)"]]))
+A(listing(source('05_sound'), '05_sound/main.c'))
+A(screen('screen_05.png', 'Le petit piano : chaque bouton joue une note.'))
+A(h2('Écrire une mélodie'))
+A(p("Une mélodie est un texte où chaque mot est un <b>temps</b>. Les notes s'écrivent avec les lettres de la notation anglaise :"))
+A(table(['DO', 'RÉ', 'MI', 'FA', 'SOL', 'LA', 'SI'], [[c('C'), c('D'), c('E'), c('F'), c('G'), c('A'), c('B')]], 'notes'))
+A(table(['Écriture', 'Signification'], [
+  [c('C D E F G A B'), "les notes, dans l'octave 4 (celle du LA à 440 Hz)"],
+  [c('C5  G3'), "un chiffre après la note change d'octave : C5 est le DO aigu suivant"],
+  [c('F#  C#5'), "un # (dièse) monte la note d'un demi-ton"],
+  [c('-'), "prolonge la note précédente d'un temps"],
+  [c('.'), "un temps de silence"]]))
+A(p("Le troisième nombre de <code>play()</code> règle le tempo : le nombre d'images par temps. 15 images, c'est 4 temps par seconde (240 à la minute) ; 30, deux fois plus lent. Pour jouer plusieurs voix en même temps (une mélodie et une basse), lancez deux mélodies sur deux canaux."))
+A(h2('Les sons enregistrés'))
+A(p("Un fichier WAV nommé dans <code>project.txt</code> (<code>sounds = boom.wav</code>) devient trois noms : <code>boom_data</code> (les échantillons), <code>boom_count</code> (leur nombre) et <code>boom_rate</code> (leur fréquence). On le joue avec :"))
+A(listing("""extern const int8_t boom_data[];
+extern const uint32_t boom_count, boom_rate;
+...
+play_sample(0, boom_data, boom_count, boom_rate, 230);""", numbers=False))
+A(box('tip', 'Bonne pratique', p("Gardez des sons courts et en 8 000 à 22 050 Hz : ils occupent moins de place dans la ROM et sonnent très « arcade ». Un son de 16 000 Hz pendant une demi-seconde occupe 8 Ko.")))
+
+# ---------------------------------------------------------------- 8
+A(chapter(8, 'Le décor', "Un grand paysage en tuiles, qui défile derrière les sprites.", 8))
+A(p("Le décor (<i>map</i>) est une grande image découpée en <b>tuiles de 16 x 16 pixels</b>. Les tuiles identiques ne sont stockées qu'une fois : un ciel uni ou un sol répétitif ne coûtent presque rien. Le décor peut mesurer jusqu'à <b>1024 x 1024 pixels</b> et il boucle : en défilant au-delà du bord droit, on retrouve le bord gauche."))
+A(ul(["Dessinez une image dont la largeur et la hauteur sont des multiples de 16, en <b>15 couleurs</b> au plus ;",
+      "nommez-la dans <code>project.txt</code> : <code>maps = landscape.png</code> ;",
+      "le programme reçoit <code>landscape_chr</code>, <code>landscape_pal</code>, <code>landscape_map</code> (la carte des tuiles), <code>landscape_width</code> et <code>landscape_height</code> (largeur et hauteur en tuiles)."]))
+A(listing(source('06_scroll'), '06_scroll/main.c'))
+A(screen('screen_06.png', 'Le paysage de 1024 pixels défile derrière le vaisseau.'))
+A(p("<code>scroll_map(x, y)</code> (« faire défiler le décor ») indique quel point du décor apparaît dans le coin en haut à gauche de l'écran. En augmentant <code>x</code> à chaque image, le décor glisse vers la gauche : on a l'impression d'avancer vers la droite."))
+A(box('know', 'Le saviez-vous ?', p("Les jeux des années 80 donnaient de la profondeur en faisant défiler plusieurs plans à des vitesses différentes : le lointain lentement, le premier plan vite. La MONOCORE-1 a quatre plans, et peut même faire défiler chaque ligne de l'écran différemment (chapitre 10).")))
+
+# ---------------------------------------------------------------- 9
+A(chapter(9, 'Projet : ATTRAPE-ÉTOILES', "Un jeu complet : écran titre, score, record, vies, musique et explosions.", 9))
+A('<div class="pair">' + screen('screen_07_title.png', "L'écran titre.", True) + screen('screen_07_game.png', 'Une partie en cours.', True) + '</div>')
+n_lines = len(source('07_stars').rstrip('\n').split('\n'))
+A(p("Le principe : des étoiles et des bombes tombent du ciel. Déplacez le vaisseau avec LEFT et RIGHT pour attraper les étoiles (10 points chacune) et éviter les bombes (une vie perdue). Plus le score monte, plus tout tombe vite. Le jeu tient en %d lignes, rangées en <b>fonctions</b> qui ont chacune un rôle." % n_lines))
+A(h2('Organisation du programme'))
+A(table(['Fonction', 'Rôle'], [
+  [c('main'), "prépare la console, puis enchaîne pour toujours : titre, partie, fin de partie"],
+  [c('title_screen'), "écran titre : affiche le titre et les règles, joue la musique, attend START"],
+  [c('game'), "la partie : manette, objets, explosion, score, jusqu'à ce qu'il n'y ait plus de vies"],
+  [c('drop_item'), "« lâcher un objet » : le place en haut de l'écran, au hasard, étoile ou bombe"],
+  [c('move_items'), "fait tomber les objets et teste s'ils touchent le vaisseau"],
+  [c('show_score'), "écrit le score et le record, dessine les cœurs"],
+  [c('game_over'), "affiche PARTIE TERMINEE pendant trois secondes"]]))
+A(h2('Les structures'))
+A(p("Chaque objet qui tombe a une position, une vitesse, et peut être une étoile ou une bombe. Plutôt que d'avoir quatre tableaux séparés, on regroupe ces informations dans une <b>structure</b> : <code>item_t</code> (« objet »). Le tableau <code>items[6]</code> contient six objets, et <code>it-&gt;y</code> désigne la position verticale de l'objet <code>it</code>."))
+A(h2('Le listing complet'))
+A(listing(source('07_stars', 'project.txt'), '07_stars/project.txt', numbers=False, lang='txt'))
+A(listing(source('07_stars'), '07_stars/main.c'))
+A(h2('Pour aller plus loin'))
+A(p("Le jeu est à vous : modifiez-le ! Quelques idées, de la plus simple à la plus ambitieuse :"))
+A(ol(["Changez les couleurs, la vitesse, le nombre de points par étoile.",
+      "Ajoutez un objet rare (le cœur, dessin 5) qui rend une vie.",
+      "Faites défiler le décor plus vite quand le score augmente.",
+      "Ajoutez une deuxième voix à la musique (une basse sur le canal 3).",
+      "Mode deux joueurs : un second vaisseau commandé par la manette 2 (<code>held(2, LEFT)</code>).",
+      "Ajoutez le tir : le bouton 1 lance un projectile qui détruit les bombes."]))
+
+# ---------------------------------------------------------------- 10
+A(chapter(10, 'Sous le capot', "La bibliothèque easy n'est qu'un raccourci : voici ce que la console sait faire d'autre.", 10))
+A(p("Toutes les fonctions de <code>easy</code> écrivent dans des <b>registres</b> : des adresses mémoire spéciales qui commandent les circuits de la console. <code>monocore.h</code> leur donne des noms. Vous pouvez les utiliser à côté de <code>easy</code>, à condition de respecter son rangement (plans 0 et 1, palettes 0 à 15, sprites 0 à 63) ou de ne pas l'utiliser du tout."))
+A(h2("Changer la taille de l'écran"))
+A(listing("""SCREEN_W = 256;   // from 224 to 384 pixels wide
+SCREEN_H = 224;   // from 192 to 288 lines""", numbers=False))
+A(p("La nouvelle taille prend effet à l'image suivante. Pour un jeu vertical (comme Pac-Man ou Galaga), on choisit 224 x 288 et on demande que l'image soit tournée d'un quart de tour avec <code>DISP_CTRL |= DISP_ROT(1)</code> : le simulateur le fait déjà, le core MiSTer le fera dans sa prochaine version."))
+A(h2('Les quatre plans'))
+A(p("Les plans 2 et 3, inutilisés par <code>easy</code>, se règlent comme le décor : <code>LAYER_CTRL(n)</code> (taille des tuiles, 4 ou 8 bits par pixel, taille de la carte, priorité), <code>LAYER_CHR(n)</code> (adresse des dessins), <code>LAYER_SCROLLX(n)</code> et <code>LAYER_SCROLLY(n)</code>, et la carte <code>TILEMAP(n)</code>. Il faut ensuite les allumer : <code>DISP_CTRL |= DISP_LAYER(2)</code>."))
+A(h2('Le défilement ligne par ligne'))
+A(p("Avec l'option <code>LC_LINESCROLL</code>, chaque ligne de l'écran ajoute son propre décalage au défilement du plan : routes de jeux de course, vagues, effets de chaleur."))
+A(listing("""LAYER_CTRL(1) |= LC_LINESCROLL;
+for (int y = 0; y < 240; y++) {
+  LINESCROLL(1)[y].dx = (y > 120) ? (y - 120) * (frame_count % 64) / 32 : 0;
+  LINESCROLL(1)[y].dy = 0;
+}""", numbers=False))
+A(h2('Les sprites sans limites'))
+A(p("La console gère <b>512 sprites</b> (la table <code>SPRITES[n]</code>), de 8 x 8 à 256 x 256 pixels (largeur et hauteur en cellules de 8 pixels), en 16 ou 256 couleurs, avec un zoom indépendant en largeur et en hauteur (<code>zoomx</code>, <code>zoomy</code> : 256 = taille normale). Le registre <code>SPR_COUNT</code> dit combien d'entrées la console parcourt."))
+A(h2('Les interruptions'))
+A(p("Une <b>interruption</b> arrête le programme un instant pour exécuter <code>irq_handler()</code>. <code>easy</code> utilise celle du début de la pause verticale (VBLANK). Il en existe d'autres : LINE (au début d'une ligne choisie par <code>LINE_CMP</code>, pour changer un registre en cours d'image), TIMER0 et TIMER1 (à intervalle régulier, en cycles du processeur : <code>T0_RELOAD = CPU_HZ / 240</code> pour 240 fois par seconde), DMA (fin de transfert)."))
+A(h2('Le DMA'))
+A(p("Le DMA copie ou remplit la mémoire bien plus vite que le processeur : <code>dma_copy(destination, source, octets)</code> et <code>dma_fill(destination, motif, octets)</code>. Idéal pour charger une palette, une carte de décor, ou des dessins dans la <b>CHR RAM</b> (128 Ko de graphismes modifiables en cours de jeu, à l'adresse <code>CHRRAM_BASE</code>)."))
+A(h2('Le temps du processeur'))
+A(p("Le processeur exécute environ <b>780 000 instructions par image</b>. C'est énorme : un 68000 de borne d'arcade en exécutait 25 000. Le moniteur du simulateur affiche la charge : si elle dépasse 100 %, le jeu ralentit. Gardez une marge, car le simulateur estime le temps à environ 10 % près."))
+A(box('warn', "Règle d'or", p("Ne comptez jamais sur un nombre de cycles pour régler la vitesse d'un jeu : synchronisez-vous toujours sur les images (<code>wait_frame()</code>) ou sur un timer. C'est ce qui garantit que le jeu tourne pareil dans le simulateur et sur la console.")))
+
+# ---------------------------------------------------------------- appendices
+A(chapter('A', 'La bibliothèque easy', "Toutes les fonctions, d'un coup d'oeil, avec la traduction de leur nom.", 1))
+A(table(['Fonction', 'Traduction', 'Description'], [
+  [c('init()'), 'initialiser', "prépare la console : à appeler une fois, au début"],
+  [c('wait_frame()'), "attendre l'image", "attend l'image suivante (1/60 de seconde), lit les manettes, fait avancer les mélodies"],
+  [c('frame_count'), "nombre d'images", "variable : images depuis le démarrage"],
+  [c('random(n)'), 'au hasard', "nombre au hasard de 0 à n - 1"],
+  [c('background(r, g, b)'), 'fond', "couleur du fond (rouge, vert, bleu de 0 à 255)"],
+  [c('ink(n, r, g, b)'), 'encre', "couleur de l'encre de texte n (0 à 7)"],
+  [c('load_palette(n, pal)'), 'charger une palette', "range une palette de 16 couleurs (fichier .pal) en palette n"],
+  [c('cls()'), "effacer l'écran", "efface tout le texte (de <i>CLear Screen</i>)"],
+  [c('print(col, row, text)'), 'imprimer', "écrit en blanc, colonne <i>col</i>, ligne <i>row</i>"],
+  [c('print_ink(col, row, text, ink)'), 'imprimer en couleur', "écrit avec l'encre choisie"],
+  [c('print_num(col, row, n, digits, ink)'), 'imprimer un nombre', "écrit un nombre sur <i>digits</i> chiffres, complété par des zéros"],
+  [c('held(player, button)'), 'tenu', "vrai si le bouton est enfoncé"],
+  [c('pressed(player, button)'), 'appuyé', "vrai si le bouton vient d'être enfoncé"],
+  [c('load_sprites(chr, pal, palette)'), 'charger les sprites', "choisit la planche de sprites"],
+  [c('sprite(n, x, y, picture)'), 'sprite', "affiche le sprite n (0 à 63) avec le dessin <i>picture</i>"],
+  [c('hide_sprite(n)'), 'cacher', "cache le sprite n"],
+  [c('flip_sprite(n, h, v)'), 'retourner', "retourne le sprite n"],
+  [c('scale_sprite(n, percent)'), 'mettre à l\'échelle', "agrandit ou réduit le sprite n"],
+  [c('sprite_palette(n, palette)'), 'palette du sprite', "change la palette du sprite n"],
+  [c('collide(x1, y1, x2, y2)'), 'se heurter', "vrai si deux sprites de 16 x 16 se touchent"],
+  [c('load_map(chr, pal, map, w, h, palette)'), 'charger le décor', "installe un décor de w x h tuiles"],
+  [c('scroll_map(x, y)'), 'faire défiler', "fait défiler le décor"],
+  [c('tone(channel, freq, volume)'), 'note', "son carré sur un canal"],
+  [c('noise(channel, volume)'), 'bruit', "bruit sur un canal"],
+  [c('quiet(channel)'), 'silence', "fait taire un canal"],
+  [c('play(channel, tune, frames, volume)'), 'jouer', "joue une mélodie en boucle"],
+  [c('stop(channel)'), 'arrêter', "arrête la mélodie du canal"],
+  [c('play_sample(voice, data, count, rate, volume)'), 'jouer un échantillon', "joue un son enregistré"]], 'ref'))
+A(p("Boutons : <code>UP</code> (haut), <code>DOWN</code> (bas), <code>LEFT</code> (gauche), <code>RIGHT</code> (droite), <code>B1</code> à <code>B6</code>, <code>START</code>, <code>COIN</code> (pièce). Encres par défaut : 0 blanc, 1 jaune, 2 cyan, 3 vert, 4 rouge, 5 violet, 6 orange, 7 gris."))
+A(h3('Le fichier project.txt'))
+A(table(['Réglage', 'Contenu', 'Noms créés pour le programme'], [
+  [c('name'), "nom du fichier produit (<code>build/name.mnc</code>)", ''],
+  [c('title'), "titre inscrit dans la ROM", ''],
+  [c('sources'), "fichiers C du programme", ''],
+  [c('sprites'), "planches de sprites (PNG de 16 pixels de large)", c('x_chr') + ' ' + c('x_pal')],
+  [c('maps'), "décors (PNG, tuiles de 16 x 16)", c('x_chr') + ' ' + c('x_pal') + ' ' + c('x_map') + ' ' + c('x_width') + ' ' + c('x_height')],
+  [c('sounds'), "sons (WAV)", c('x_data') + ' ' + c('x_count') + ' ' + c('x_rate')]], 'ref'))
+A(p("<code>x</code> est le nom du fichier sans son extension : <code>sheet.png</code> donne <code>sheet_chr</code> et <code>sheet_pal</code>."))
+
+A(chapter('B', 'Carte mémoire et registres', "Pour programmer la console directement (monocore.h).", 2))
+A(table(['Adresse', 'Taille', 'Contenu'], [
+  [c('0x0000_0000'), '32 Mo max', 'ROM : programme, dessins, sons (lecture seule)'],
+  [c('0x1000_0000'), '128 Ko', 'mémoire de travail : variables, pile'],
+  [c('0x1800_0000'), '32 Ko', 'mémoire sauvegardée (scores, réglages)'],
+  [c('0x2000_0000'), '4 Ko', 'registres vidéo'],
+  [c('0x2001_0000'), '8 Ko', 'palette : 4096 couleurs RGB555'],
+  [c('0x2002_0000'), '8 Ko', 'table des 512 sprites, 16 octets chacun'],
+  [c('0x2004_0000'), '64 Ko', 'cartes des 4 plans, 16 Ko chacune'],
+  [c('0x2008_0000'), '8 Ko', 'défilement par ligne des 4 plans'],
+  [c('0x200C_0000'), '128 Ko', 'CHR RAM : dessins modifiables'],
+  [c('0x3000_0000'), '4 Ko', 'registres son'],
+  [c('0x4000_0000'), '4 Ko', 'manettes, interruptions, timers, DMA']], 'ref'))
+A(h3('Vidéo'))
+A(table(['Registre', 'Rôle'], [
+  [c('DISP_CTRL'), 'bit 0 affichage, bits 1 à 4 plans 0 à 3, bit 5 sprites, bits 8-9 rotation'],
+  [c('SCREEN_W / SCREEN_H'), "taille de l'image (224-384 x 192-288)"],
+  [c('BG_COLOR'), 'numéro de la couleur de fond dans la palette'],
+  [c('LINE_CMP'), "ligne de l'interruption LINE"],
+  [c('VCOUNT / FRAME'), "ligne en cours, numéro d'image (lecture)"],
+  [c('SPR_CHR / SPR_COUNT'), "adresse des dessins de sprites, nombre d'entrées parcourues"],
+  [c('LAYER_CTRL(n)'), 'plan n : tuiles 16 (bit 0), 8 bpp (bit 1), largeur et hauteur de carte, défilement par ligne (bit 6), priorité (bits 8-9)'],
+  [c('LAYER_CHR(n)'), 'adresse des dessins du plan n'],
+  [c('LAYER_SCROLLX/Y(n)'), 'défilement du plan n']], 'ref'))
+A(h3('Son'))
+A(table(['Registre', 'Rôle'], [
+  [c('PCM[v].start / length / loop / step'), "voix d'échantillons v (0 à 7) : adresse, longueur, boucle, pas (0x10000 = 48 kHz)"],
+  [c('PCM[v].vol_l / vol_r / format'), 'volumes, format (0 : 8 bits, 1 : 16 bits, 2 : ADPCM)'],
+  [c('PCM[v].ctrl'), '1 lance, 0 arrête'],
+  [c('PSG[c].freq'), 'fréquence du canal c en 1/16 de hertz'],
+  [c('PSG[c].wave / duty'), 'forme (carré, triangle, dent de scie, bruit), rapport cyclique'],
+  [c('PSG[c].vol_l / vol_r'), 'volumes'],
+  [c('MASTER_VOL'), 'volume général']], 'ref'))
+A(h3('Entrées, interruptions, timers, DMA'))
+A(table(['Registre', 'Rôle'], [
+  [c('IN_P1 / IN_P2 / IN_SYS / DIPSW'), 'manettes, boutons système, DIP switches'],
+  [c('IRQ_STATUS / IRQ_ENABLE'), 'interruptions en attente (écrire 1 pour acquitter) et autorisées'],
+  [c('T0_RELOAD / T0_CTRL'), 'timer 0 : période en cycles, marche'],
+  [c('CYCLE_LO / CYCLE_HI'), 'compteur de cycles du processeur (50 MHz)'],
+  [c('DMA_SRC / DST / LEN / CTRL'), 'copie (CTRL = 1) ou remplissage (CTRL = 3)'],
+  [c('DEBUG_OUT'), 'un caractère vers la console de debug du simulateur']], 'ref'))
+
+A(chapter('C', 'Limites et dépannage', "Ce que la console ne peut pas faire, et que faire quand rien ne marche.", 3))
+A(table(['Limite', 'Valeur'], [
+  ['Sprites par ligne', '64, et 1280 pixels de sprites'],
+  ['Couleurs', '15 par planche ou par décor (4 bits par pixel), 255 en mode 8 bits'],
+  ['Décor', '1024 x 1024 pixels (64 x 64 tuiles de 16)'],
+  ['Mémoire de travail', '128 Ko pour les variables et la pile'],
+  ['ROM', '32 Mo'],
+  ['Son', "8 voix d'échantillons + 8 canaux de notes"]]))
+A(h3('Messages et problèmes fréquents'))
+A(table(['Symptôme', 'Cause probable et remède'], [
+  ["<code>error: expected ';'</code>", "il manque un point-virgule à la fin de la ligne indiquée (ou de la précédente)"],
+  ['<code>undefined symbol: sheet_chr</code>', "l'image n'est pas déclarée dans <code>project.txt</code>, ou porte un autre nom"],
+  ['<code>ERROR: tool not found: clang</code>', "LLVM n'est pas installé ou pas dans le chemin (chapitre 2)"],
+  ['<code>ERROR: no project.txt file</code>', "la commande n'est pas lancée dans le dossier du programme"],
+  ['écran noir', "<code>init()</code> oublié, ou le programme n'appelle jamais <code>wait_frame()</code>"],
+  ['sprite invisible', "planche non chargée, sprite hors de l'écran, ou plus de 64 sprites sur la ligne"],
+  ['couleurs bizarres', "plus de 15 couleurs dans l'image : réduisez la palette"],
+  ['le jeu ralentit', "trop de calculs par image : regardez la charge dans le moniteur"],
+  ['rien sur le MiSTer', "barrette SDRAM absente, ou essayer l'option « Lecture SDRAM : Retardée »"]]))
+A('<section class="colophon">' + p("MONOCORE-1 · Manuel du programmeur · édition 1, octobre 2026.") +
+  p("Titres en Press Start 2P (Cody Boisclair), texte en Archivo (Omnibus-Type), listings en IBM Plex Mono : polices sous licence SIL Open Font License.") +
+  p("Les exemples se trouvent dans <code>manual/examples</code>. Ce manuel se régénère avec <code>python3 manual/tools/manual.py</code>.") + '</section>')
+
+# ---------------------------------------------------------------- table of contents
+toc = ['<section class="toc-page"><h2>Sommaire</h2><ol class="toc">']
+for num, title in CHAPTERS:
+    toc.append('<li><a href="#ch%s"><span class="tn">%s</span><span class="tt">%s</span><span class="tp"></span><span class="pg">@@PG%s@@</span></a></li>' % (num, num, title, num))
+toc.append('</ol></section>')
+body = '\n'.join(parts).replace('@@TOC@@', '\n'.join(toc))
+
+CSS = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'manual.css'), encoding='utf-8').read()
+def page(content):
+    return """<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>MONOCORE-1 — Manuel du programmeur</title>
+<style>%s</style></head><body>%s</body></html>""" % (CSS, content)
+
+from playwright.sync_api import sync_playwright
+FOOT = """<div style="width:100%;font-family:Archivo,sans-serif;font-size:8px;color:#777;padding:0 20mm;display:flex;justify-content:space-between;align-items:center">
+<span style="letter-spacing:.15em">MONOCORE-1 · MANUEL DU PROGRAMMEUR</span>
+<span style="display:flex;gap:2px;align-items:center"><i style="display:inline-block;width:10px;height:3px;background:#e23b2e"></i><i style="display:inline-block;width:10px;height:3px;background:#f28c1b"></i><i style="display:inline-block;width:10px;height:3px;background:#f2c81b"></i><i style="display:inline-block;width:10px;height:3px;background:#3aa655"></i><i style="display:inline-block;width:10px;height:3px;background:#2f6fd6"></i>
+<b style="margin-left:6px;color:#222;font-size:9px" class="pageNumber"></b></span></div>"""
+
+def render(html_text, path, footer=True):
+    open(OUT_HTML, 'w', encoding='utf-8').write(html_text)
+    with sync_playwright() as pw:
+        b = pw.chromium.launch()
+        pg = b.new_page()
+        pg.goto('file://' + OUT_HTML)
+        pg.wait_for_timeout(500)
+        pg.pdf(path=path, print_background=True, prefer_css_page_size=True, display_header_footer=footer,
+               header_template='<div></div>', footer_template=FOOT)
+        b.close()
+
+from pypdf import PdfReader, PdfWriter
+TMP_BODY = OUT_PDF + '.body.pdf'
+TMP_COVER = OUT_PDF + '.cover.pdf'
+# pass 1 finds the page of each chapter, pass 2 writes them into the table of contents
+render(page(body), TMP_BODY)
+pages = {}
+for i, pgo in enumerate(PdfReader(TMP_BODY).pages):
+    for m in re.finditer(r'QQCH(\w+)QQ', pgo.extract_text() or ''):
+        pages.setdefault(m.group(1), i + 1)
+final = body
+for num, _ in CHAPTERS:
+    final = final.replace('@@PG%s@@' % num, str(pages.get(str(num), '?')))
+final = re.sub(r'<span class="mark">QQCH\w+QQ</span>', '', final)
+render(page(final), TMP_BODY)
+render(page(COVER).replace('<body>', '<body class="cover-page">').replace('</head>', '<style>@page { margin: 0 }</style></head>'), TMP_COVER, footer=False)
+w = PdfWriter()
+for f in (TMP_COVER, TMP_BODY):
+    for pgo in PdfReader(f).pages: w.add_page(pgo)
+w.add_metadata({'/Title': 'MONOCORE-1 - Manuel du programmeur', '/Author': 'MONOCORE-1', '/Subject': 'Programmer la console virtuelle MONOCORE-1'})
+with open(OUT_PDF, 'wb') as fo: w.write(fo)
+os.remove(TMP_BODY); os.remove(TMP_COVER)
+open(OUT_HTML, 'w', encoding='utf-8').write(page(COVER + final))
+print('PDF:', OUT_PDF, '-', len(PdfReader(OUT_PDF).pages), 'pages', pages)

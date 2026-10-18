@@ -1,0 +1,4 @@
+name    = sprites
+title   = LES SPRITES
+sources = main.c
+sprites = sheet.png

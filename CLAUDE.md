@@ -1,0 +1,44 @@
+# MONOCORE-1 — notes de travail (pour Claude et pour les contributeurs)
+
+Console virtuelle figée pour MiSTer (DE10-Nano, Cyclone V 5CSEBA6U23I7). Un seul bitstream ; les jeux d'arcade sont **traduits** vers elle (recompilation statique vers RV32IM), ils ne sont pas émulés. Voir `README.md` pour la carte du dépôt, `SPEC.md` (v0.3) pour la référence matérielle.
+
+## Conventions
+
+- **Langue** : la documentation et les textes à l'écran sont en français. **Tout ce qui est technique est en anglais** : noms de fonctions, de fichiers, de variables, de registres, clés de configuration, réglages, commentaires dans le code. Ne jamais mélanger les deux langues dans la syntaxe du code.
+- Le simulateur JavaScript (`sim/core.js`) est la **référence** : le RTL doit produire les mêmes images au pixel près et le même son au bit près. Toute modification du comportement se fait d'abord dans `SPEC.md`, puis dans le simulateur et le RTL ensemble, et se vérifie avec les tests de régression.
+- Une modification du RTL doit garder le timing à 50 MHz (marge actuelle : 1,32 ns, essai Quartus n° 5).
+
+## Décisions d'architecture (ne pas remettre en cause sans raison)
+
+- **Une seule horloge de 50 MHz** pour toute la console. Le CPU Hazard3 RV32IM (Apache 2.0, non modifié, `rtl/hazard3`) plafonne vers 53 MHz sur ce FPGA ; chemin critique décodage → x_stall_on_raw → d_htrans → bus. Les mémoires bloc GPU/WRAM/NVRAM sont lues de façon spéculative dès que `hready_nc` est haut pour sortir `d_htrans` du chemin critique.
+- Ligne = 4 × ⌊5e7 / (240 × lignes totales)⌋ cycles (3156 à 240 lignes, 2668 à 288). Un pixel tous les 4 cycles (12,5 MHz). Échantillon son au cycle ⌈k × 5e7 / 48000⌉.
+- Budgets par ligne : 64 sprites, 1280 pixels de sprites, 512 mots de graphismes. Son : 8 voix PCM/ADPCM + 8 canaux PSG. ROM ≤ 32 Mo. Bloc FM (YM2151) réservé en `0x3000_1000`, **pas encore fait**.
+- SDRAM à 100 MHz (horloge 2× en phase) : une rangée ouverte par banque, BL2, CL2 ; priorité rafraîchissement > écriture > graphismes > ROM (ROM servie après 8 mots graphiques d'affilée). Option OSD « Lecture SDRAM » Normale/Retardée = capture décalée d'un cycle (`sd_rd_late`).
+- Sortie : double tampon de ligne, HDMI via le framework MiSTer (scaler), son en HDMI.
+
+## Construire et tester
+
+Outils : clang + ld.lld + llvm-objcopy, Python 3 (Pillow, Markdown), make, Node, Verilator 5 (`pip install verilator`), Quartus Prime Lite 17.0 pour le core MiSTer.
+
+```sh
+make -C rom                       # ROM de test -> rom/build/testrom.mnc
+python3 tools/build_page.py       # simulateur autonome -> dist/monocore.html
+cd rtl && ./build_sim.sh          # banc Verilator du core -> rtl/obj_dir/Vmc_core
+tools/regress.sh                  # régression simulateur / RTL (images, son, stress)
+tools/regress_system.sh           # système complet avec modèle de SDRAM (rtl/mister)
+python3 manual/tools/manual.py    # régénère le manuel PDF (Playwright/Chromium)
+```
+
+Quartus : ouvrir `mister/MONOCORE.qpf` (voir `mister/LISEZMOI.md`). `quartus_trial/` est l'essai de synthèse du core seul.
+
+## SDK
+
+- `sdk/monocore.h` : registres matériels. `sdk/easy.h` / `easy.c` : bibliothèque pour débutants (init, wait_frame, print, sprite, load_map, play…). `sdk/build.py` construit un jeu à partir d'un `project.txt`.
+- Le manuel (`manual/`) a un exemple par chapitre dans `manual/examples/`.
+
+## Ce qui reste à faire
+
+- Core MiSTer : rotation d'écran (nécessite la DDRAM pour `screen_rotate`), sauvegarde NVRAM, DIP switches dans l'OSD.
+- Bloc FM compatible YM2151.
+- La ROM de stress déborde du blanking sur 2 images en mode 288 lignes.
+- Traducteur statique vers RV32IM (Z80 d'abord, puis 68000). Jeu candidat pour tester la puissance : Final Fight (CPS1), avec musiques pré-enregistrées ou bloc FM ; le grand plan 32 × 32 du CPS1 dépasse la taille de carte d'un plan.

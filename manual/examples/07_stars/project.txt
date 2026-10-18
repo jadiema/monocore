@@ -1,0 +1,7 @@
+# Attrape-Etoiles: the complete game of chapter 9
+name    = stars
+title   = ATTRAPE-ETOILES
+sources = main.c
+sprites = sheet.png
+maps    = landscape.png
+sounds  = boom.wav

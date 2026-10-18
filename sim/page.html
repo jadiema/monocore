@@ -1,0 +1,570 @@
+<meta charset="utf-8">
+<title>MONOCORE-1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a development board — screen on the left like the HDMI output, an instrument column of
+   "FPGA" readouts on the right, documentation tabs below the same header. Single dark look on purpose:
+   the colours of the DE10-Nano's blue solder mask with white silkscreen and gold pads. */
+:root {
+  --board: #0b2233;
+  --board-2: #102d43;
+  --trace: #1d4a68;
+  --silk: #e8eef3;
+  --silk-dim: #93abbd;
+  --pad: #d8aa50;
+  --ok: #62d394;
+  --warn: #f1b64a;
+  --bad: #ff6f61;
+  --glass: #03080c;
+  --f-display: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+  --f-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--board); color: var(--silk); }
+body {
+  font: 15px/1.55 var(--f-body);
+  padding-inline: 16px;
+  padding-block: 0 40px;
+  background-image:
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--trace) 55%, transparent) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; }
+
+/* header */
+header {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 28px;
+  padding-block: 18px 12px; border-bottom: 1px solid var(--trace);
+}
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand { flex-wrap: wrap; }
+.brand h1 { font: 700 26px/1 var(--f-display); letter-spacing: .06em; margin: 0; white-space: nowrap; }
+@media (max-width: 500px) { .overlay p { display: none; } }
+.brand span { font: 500 12px var(--f-mono); color: var(--pad); letter-spacing: .08em; }
+nav { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+nav button {
+  font: 600 13px var(--f-display); letter-spacing: .08em; text-transform: uppercase;
+  background: none; color: var(--silk-dim); border: 1px solid transparent; border-radius: 4px;
+  padding: 7px 12px; cursor: pointer;
+}
+nav button[aria-selected="true"] { color: var(--board); background: var(--pad); }
+nav button:hover:not([aria-selected="true"]) { color: var(--silk); border-color: var(--trace); }
+button:focus-visible, input:focus-visible, select:focus-visible, label:focus-within { outline: 2px solid var(--pad); outline-offset: 2px; }
+
+/* simulator layout */
+.bench { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 24px; margin-top: 20px; }
+@media (max-width: 920px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+
+.screen-unit { min-width: 0; }
+.bezel {
+  position: relative; background: var(--glass); border-radius: 10px; padding: 14px;
+  border: 1px solid var(--trace);
+  box-shadow: inset 0 0 0 1px #000, 0 18px 40px -20px #000;
+}
+.bezel::before { /* silkscreen corner marks */
+  content: 'HDMI OUT'; position: absolute; top: -9px; left: 16px; padding: 0 6px;
+  font: 600 10px var(--f-mono); letter-spacing: .14em; color: var(--silk-dim); background: var(--board);
+}
+.screen-box { display: flex; align-items: center; justify-content: center; aspect-ratio: 4 / 3; max-width: 100%; position: relative; }
+canvas#screen { image-rendering: pixelated; image-rendering: crisp-edges; max-width: 100%; max-height: 100%; background: #000; display: block; }
+.overlay {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: color-mix(in srgb, var(--glass) 70%, transparent); text-align: center; padding: 20px;
+}
+.overlay[hidden] { display: none; }
+.overlay button { font: 700 15px var(--f-display); letter-spacing: .08em; text-transform: uppercase; }
+.overlay p { margin: 0; color: var(--silk-dim); font-size: 13px; max-width: 34ch; }
+.bezel:fullscreen { display: flex; align-items: center; justify-content: center; border-radius: 0; }
+.bezel:fullscreen .screen-box { width: min(100vw, calc(100vh * 4 / 3)); }
+
+.transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+.btn {
+  font: 600 13px var(--f-display); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--silk); background: var(--board-2); border: 1px solid var(--trace); border-radius: 5px;
+  padding: 8px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+}
+.btn:hover { border-color: var(--silk-dim); }
+.btn.primary { background: var(--pad); color: var(--board); border-color: var(--pad); }
+.btn[aria-pressed="true"] { border-color: var(--pad); color: var(--pad); }
+.spacer { flex: 1; }
+.romname { font: 500 13px var(--f-mono); color: var(--silk-dim); min-width: 0; overflow-wrap: anywhere; }
+.romname b { color: var(--silk); font-weight: 500; }
+.drop-hint { margin: 10px 0 0; font-size: 13px; color: var(--silk-dim); }
+body.dragging .bezel { outline: 2px dashed var(--pad); outline-offset: 6px; }
+
+/* keys */
+.keys { margin-top: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.keys section { min-width: 0; }
+h2 { font: 600 12px var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--silk-dim); margin: 0 0 8px; }
+.keymap { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; }
+.keymap dt { color: var(--silk-dim); }
+.keymap dd { margin: 0; }
+kbd {
+  font: 500 12px var(--f-mono); color: var(--silk); background: var(--board-2); border: 1px solid var(--trace);
+  border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; white-space: nowrap;
+}
+
+/* instrument column */
+.instruments { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.panel { background: var(--board-2); border: 1px solid var(--trace); border-radius: 8px; padding: 14px; min-width: 0; }
+.panel h2 { display: flex; justify-content: space-between; align-items: center; }
+.pill { font: 600 11px var(--f-mono); letter-spacing: .06em; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; text-transform: uppercase; }
+.pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); } .pill.bad { color: var(--bad); }
+.meter { margin-top: 10px; }
+.meter-head { display: flex; justify-content: space-between; font-size: 13px; }
+.meter-head span:last-child { font: 500 13px var(--f-mono); font-variant-numeric: tabular-nums; }
+.bar { height: 10px; margin-top: 5px; border-radius: 2px; background: repeating-linear-gradient(90deg, var(--trace) 0 6px, transparent 6px 8px); position: relative; overflow: hidden; }
+.bar i { position: absolute; inset: 0 auto 0 0; width: 0; background: repeating-linear-gradient(90deg, var(--ok) 0 6px, transparent 6px 8px); transition: width .2s; }
+.bar.warn i { background: repeating-linear-gradient(90deg, var(--warn) 0 6px, transparent 6px 8px); }
+.bar.bad i { background: repeating-linear-gradient(90deg, var(--bad) 0 6px, transparent 6px 8px); }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 12px 0 0; font-size: 13px; }
+.facts dt { color: var(--silk-dim); }
+.facts dd { margin: 0; text-align: right; font: 500 13px var(--f-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.voices { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; margin-top: 6px; }
+.voices.psg { grid-template-columns: repeat(8, 1fr); }
+.voices i { height: 12px; border-radius: 2px; background: var(--trace); }
+.voices i.on { background: var(--pad); box-shadow: 0 0 6px color-mix(in srgb, var(--pad) 60%, transparent); }
+.dips { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; margin-top: 8px; }
+.dip { position: relative; height: 34px; background: #b8322b; border-radius: 2px; cursor: pointer; display: block; }
+.dip input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
+.dip::after { content: ''; position: absolute; left: 3px; right: 3px; height: 12px; bottom: 3px; background: var(--silk); border-radius: 1px; transition: bottom .12s; }
+.dip:has(input:checked)::after { bottom: 19px; }
+.dip-labels { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; font: 500 9px var(--f-mono); color: var(--silk-dim); text-align: center; margin-top: 3px; }
+.console {
+  font: 12px/1.45 var(--f-mono); background: var(--glass); color: var(--ok); border-radius: 4px;
+  padding: 8px 10px; height: 110px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0;
+}
+.console .err { color: var(--bad); }
+
+/* documents */
+.doc { max-width: 860px; margin: 26px auto 0; }
+.doc h1 { font: 700 30px/1.15 var(--f-display); letter-spacing: .02em; text-wrap: balance; margin: 0 0 6px; }
+.doc h2 { font: 600 19px var(--f-display); letter-spacing: .04em; text-transform: none; color: var(--pad); margin: 34px 0 10px; }
+.doc h3 { font: 600 16px var(--f-display); margin: 22px 0 8px; }
+.doc p, .doc li { max-width: 72ch; }
+.doc a { color: var(--pad); }
+.doc code { font: 13px var(--f-mono); background: var(--board-2); border: 1px solid var(--trace); border-radius: 3px; padding: 0 4px; }
+.doc pre { background: var(--glass); border: 1px solid var(--trace); border-radius: 6px; padding: 12px 14px; overflow-x: auto; }
+.doc pre code { background: none; border: 0; padding: 0; font-size: 13px; line-height: 1.5; color: #cfe3f1; }
+.table-scroll { overflow-x: auto; margin: 12px 0; }
+.doc table { border-collapse: collapse; font-size: 14px; min-width: 100%; }
+.doc th { font: 600 12px var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--silk-dim); text-align: left; }
+.doc th, .doc td { border-bottom: 1px solid var(--trace); padding: 6px 10px 6px 0; vertical-align: top; }
+.doc td:first-child code { white-space: nowrap; }
+.doc strong { color: #fff; }
+.doc-files { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
+
+@media (prefers-reduced-motion: reduce) { .bar i, .dip::after { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand"><h1>MONOCORE-1</h1><span>CONSOLE VIRTUELLE · SIMULATEUR v0.1</span></div>
+    <nav role="tablist" aria-label="Sections">
+      <button role="tab" id="tab-sim" aria-selected="true" aria-controls="view-sim">Simulateur</button>
+      <button role="tab" id="tab-spec" aria-selected="false" aria-controls="view-spec">Spécification</button>
+      <button role="tab" id="tab-guide" aria-selected="false" aria-controls="view-guide">Créer une ROM</button>
+    </nav>
+  </header>
+
+  <main>
+    <div id="view-sim" role="tabpanel" aria-labelledby="tab-sim">
+      <div class="bench">
+        <div class="screen-unit">
+          <div class="bezel" id="bezel">
+            <div class="screen-box" id="screenBox">
+              <canvas id="screen" width="320" height="240" aria-label="Écran de la console"></canvas>
+              <div class="overlay" id="overlay">
+                <button class="btn primary" id="startBtn">Mettre sous tension</button>
+                <p>Le son démarre avec ce bouton. Clavier ou manette : voir les commandes sous l'écran.</p>
+              </div>
+            </div>
+          </div>
+          <div class="transport">
+            <button class="btn" id="pauseBtn" aria-pressed="false">Pause</button>
+            <button class="btn" id="resetBtn">Reset</button>
+            <button class="btn" id="muteBtn" aria-pressed="false">Couper le son</button>
+            <button class="btn" id="aspectBtn" aria-pressed="false">Pixels carrés</button>
+            <button class="btn" id="fsBtn">Plein écran</button>
+            <span class="spacer"></span>
+            <select class="btn" id="romSelect" aria-label="ROM intégrée">
+              <option value="test">ROM de test</option>
+              <option value="hello">Exemple « Bonjour »</option>
+            </select>
+            <label class="btn primary" for="romFile">Charger une ROM…</label>
+            <input type="file" id="romFile" accept=".mnc,.bin" hidden>
+          </div>
+          <p class="drop-hint">Tu peux aussi glisser un fichier <code>.mnc</code> sur l'écran. <span class="romname" id="romName"></span></p>
+
+          <div class="keys">
+            <section>
+              <h2>Joueur 1</h2>
+              <dl class="keymap">
+                <dt>Direction</dt><dd><kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd></dd>
+                <dt>Boutons 1–3</dt><dd><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd></dd>
+                <dt>Boutons 4–6</dt><dd><kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></dd>
+                <dt>Start / pièce</dt><dd><kbd>1</kbd> ou <kbd>Entrée</kbd> · <kbd>5</kbd></dd>
+              </dl>
+            </section>
+            <section>
+              <h2>Joueur 2</h2>
+              <dl class="keymap">
+                <dt>Direction</dt><dd><kbd>J</kbd> <kbd>I</kbd> <kbd>K</kbd> <kbd>L</kbd></dd>
+                <dt>Boutons 1–3</dt><dd><kbd>N</kbd> <kbd>M</kbd> <kbd>,</kbd></dd>
+                <dt>Boutons 4–6</dt><dd><kbd>H</kbd> <kbd>U</kbd> <kbd>O</kbd></dd>
+                <dt>Start / pièce</dt><dd><kbd>2</kbd> · <kbd>6</kbd></dd>
+              </dl>
+            </section>
+            <section>
+              <h2>Système et manettes</h2>
+              <dl class="keymap">
+                <dt>Service / test</dt><dd><kbd>9</kbd> · <kbd>0</kbd></dd>
+                <dt>Tilt</dt><dd><kbd>T</kbd></dd>
+                <dt>Manettes</dt><dd>2 manettes USB ou Bluetooth : joueurs 1 et 2</dd>
+              </dl>
+            </section>
+          </div>
+        </div>
+
+        <aside class="instruments" aria-label="Moniteur matériel">
+          <div class="panel">
+            <h2>Processeur RV32IM · 50 MHz <span class="pill ok" id="runPill">Prêt</span></h2>
+            <div class="meter">
+              <div class="meter-head"><span>Charge par image</span><span id="cpuVal">0 %</span></div>
+              <div class="bar" id="cpuBar"><i></i></div>
+            </div>
+            <dl class="facts">
+              <dt>Instructions / s</dt><dd id="mips">–</dd>
+              <dt>Pic sur 1 s</dt><dd id="cpuPeak">–</dd>
+              <dt>Timer 0</dt><dd id="timer0">arrêté</dd>
+              <dt>Images / s</dt><dd id="fps">–</dd>
+            </dl>
+          </div>
+          <div class="panel">
+            <h2>Vidéo <span class="pill ok" id="ovfPill">Sprites OK</span></h2>
+            <dl class="facts">
+              <dt>Résolution</dt><dd id="res">–</dd>
+              <dt>Rotation</dt><dd id="rot">–</dd>
+              <dt>Image n°</dt><dd id="frameNo">–</dd>
+            </dl>
+            <div class="meter">
+              <div class="meter-head"><span>Sprites sur la ligne la plus chargée</span><span id="sprVal">0 / 64</span></div>
+              <div class="bar" id="sprBar"><i></i></div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>Son · 48 kHz stéréo</h2>
+            <div class="meter-head"><span>Voix PCM</span><span id="pcmVal">0 / 8</span></div>
+            <div class="voices" id="pcmVoices"></div>
+            <div class="meter-head" style="margin-top:10px"><span>Canaux PSG</span><span id="psgVal">0 / 8</span></div>
+            <div class="voices psg" id="psgVoices"></div>
+          </div>
+          <div class="panel">
+            <h2>DIP switches <span id="dipHex" class="pill ok">0x0000</span></h2>
+            <div class="dips" id="dips"></div>
+            <div class="dip-labels" id="dipLabels"></div>
+          </div>
+          <div class="panel">
+            <h2>Console de debug</h2>
+            <pre class="console" id="console" aria-live="polite"></pre>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div id="view-spec" role="tabpanel" aria-labelledby="tab-spec" hidden>
+      <article class="doc">__SPEC_HTML__</article>
+    </div>
+    <div id="view-guide" role="tabpanel" aria-labelledby="tab-guide" hidden>
+      <article class="doc">__GUIDE_HTML__</article>
+    </div>
+  </main>
+</div>
+
+<script>
+__CORE_JS__
+</script>
+<script>
+(function () {
+  'use strict';
+  const ROMS = __ROMS_JSON__;
+  const $ = (id) => document.getElementById(id);
+
+  // ---------------------------------------------------------------- tabs
+  const tabs = ['sim', 'spec', 'guide'];
+  function showTab(name) {
+    for (const t of tabs) {
+      $('tab-' + t).setAttribute('aria-selected', t === name ? 'true' : 'false');
+      $('view-' + t).hidden = t !== name;
+    }
+  }
+  for (const t of tabs) $('tab-' + t).addEventListener('click', () => showTab(t));
+  if (location.hash === '#spec' || location.hash === '#guide') showTab(location.hash.slice(1));
+  document.querySelectorAll('.doc table').forEach((t) => {
+    const w = document.createElement('div'); w.className = 'table-scroll';
+    t.parentNode.insertBefore(w, t); w.appendChild(t);
+  });
+
+  // ---------------------------------------------------------------- console
+  const con = $('console');
+  function log(text, cls) {
+    if (cls) { const s = document.createElement('span'); s.className = cls; s.textContent = text; con.appendChild(s); }
+    else con.appendChild(document.createTextNode(text));
+    if (con.textContent.length > 20000) con.textContent = con.textContent.slice(-10000);
+    con.scrollTop = con.scrollHeight;
+  }
+
+  // ---------------------------------------------------------------- machine
+  let m = null, romKey = '', running = false, paused = false;
+  function b64(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+
+  function nvKey() { return 'monocore-nvram:' + (m ? m.header.title : ''); }
+  function saveNv() {
+    if (!m || !m.nvDirty) return;
+    m.nvDirty = false;
+    try { let s = ''; for (let i = 0; i < m.nvram.length; i += 8192) s += String.fromCharCode.apply(null, m.nvram.subarray(i, i + 8192)); localStorage.setItem(nvKey(), btoa(s)); } catch (e) { /* storage unavailable */ }
+  }
+
+  function loadRom(bytes, label) {
+    saveNv();
+    try {
+      const nm = new Monocore(bytes);
+      m = nm;
+    } catch (e) {
+      log('ROM refusée (' + label + ') : ' + e.message + '\n', 'err');
+      return;
+    }
+    m.onDebug = (c) => log(c);
+    m.onError = (e) => { log('\nArrêt du CPU : ' + e + '\n', 'err'); setPill('runPill', 'bad', 'Arrêt'); };
+    try { const s = localStorage.getItem(nvKey()); if (s) m.nvram.set(b64(s).subarray(0, m.nvram.length)); } catch (e) { /* no storage */ }
+    romKey = label;
+    $('romName').innerHTML = '';
+    const b = document.createElement('b'); b.textContent = m.header.title || label;
+    $('romName').append('ROM : ', b, ' · ' + (m.header.origin || '') + ' · ' + (bytes.length / 1024).toFixed(1) + ' Ko');
+    log('— ' + (m.header.title || label) + ' (' + bytes.length + ' octets, entrée 0x' + m.header.entry.toString(16) + ')\n');
+    syncDips(true);
+    setPill('runPill', 'ok', running ? 'En marche' : 'Prêt');
+    peakWin.length = 0;
+  }
+
+  // ---------------------------------------------------------------- video
+  const canvas = $('screen'), ctx = canvas.getContext('2d');
+  const off = document.createElement('canvas'), octx = off.getContext('2d');
+  let img = null, squarePixels = false;
+  function draw() {
+    const W = m.scrW, H = m.scrH;
+    if (off.width !== W || off.height !== H || !img) { off.width = W; off.height = H; img = octx.createImageData(W, H); }
+    img.data.set(new Uint8ClampedArray(m.frameBuf.buffer, 0, W * H * 4));
+    octx.putImageData(img, 0, 0);
+    const rot = (m.gpuDV.getUint32(0, true) >> 8) & 3;
+    const cw = rot & 1 ? H : W, ch = rot & 1 ? W : H;
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; layoutScreen(); }
+    ctx.imageSmoothingEnabled = false;
+    ctx.save();
+    ctx.translate(cw / 2, ch / 2);
+    ctx.rotate(rot * Math.PI / 2);
+    ctx.drawImage(off, -W / 2, -H / 2);
+    ctx.restore();
+  }
+  function layoutScreen() {
+    const box = $('screenBox');
+    // arcade monitors are 4:3 (3:4 when rotated); "square pixels" shows the native grid as is
+    const rotated = canvas.height > canvas.width;
+    const ar = squarePixels ? canvas.width / canvas.height : (rotated ? 3 / 4 : 4 / 3);
+    canvas.style.aspectRatio = String(ar);
+    canvas.style.width = rotated ? 'auto' : '100%';
+    canvas.style.height = rotated ? '100%' : 'auto';
+    box.style.aspectRatio = '4 / 3';
+  }
+
+  // ---------------------------------------------------------------- audio
+  let ac = null, nextT = 0, muted = false;
+  function startAudio() {
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
+      nextT = 0;
+    } catch (e) { ac = null; log('Son indisponible dans ce navigateur.\n', 'err'); }
+  }
+  function pushAudio(n) {
+    if (!ac || muted || n <= 0) return;
+    const buf = ac.createBuffer(2, n, 48000);
+    buf.copyToChannel(m.audioL.subarray(0, n), 0);
+    buf.copyToChannel(m.audioR.subarray(0, n), 1);
+    const src = ac.createBufferSource(); src.buffer = buf; src.connect(ac.destination);
+    const now = ac.currentTime;
+    if (nextT < now + 0.01) nextT = now + 0.05;
+    if (nextT > now + 0.3) return;
+    src.start(nextT); nextT += n / 48000;
+  }
+
+  // ---------------------------------------------------------------- inputs
+  // bit numbers: 0 up, 1 down, 2 left, 3 right, 4-9 buttons 1-6, 10 start, 11 coin
+  const KEYS = {
+    ArrowUp: [0, 0], ArrowDown: [0, 1], ArrowLeft: [0, 2], ArrowRight: [0, 3],
+    KeyZ: [0, 4], KeyX: [0, 5], KeyC: [0, 6], KeyA: [0, 7], KeyS: [0, 8], KeyD: [0, 9],
+    Digit1: [0, 10], Enter: [0, 10], Digit5: [0, 11],
+    KeyI: [1, 0], KeyK: [1, 1], KeyJ: [1, 2], KeyL: [1, 3],
+    KeyN: [1, 4], KeyM: [1, 5], Comma: [1, 6], KeyH: [1, 7], KeyU: [1, 8], KeyO: [1, 9],
+    Digit2: [1, 10], Digit6: [1, 11],
+    Digit9: [2, 0], Digit0: [2, 1], KeyT: [2, 2],
+  };
+  const keyState = [0, 0, 0];
+  function onKey(e, down) {
+    const k = KEYS[e.code];
+    if (!k || e.target.closest('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
+    if ($('view-sim').hidden) return;
+    e.preventDefault();
+    if (down) keyState[k[0]] |= 1 << k[1]; else keyState[k[0]] &= ~(1 << k[1]);
+  }
+  window.addEventListener('keydown', (e) => onKey(e, true));
+  window.addEventListener('keyup', (e) => onKey(e, false));
+  window.addEventListener('blur', () => { keyState[0] = keyState[1] = keyState[2] = 0; });
+  function pollPads() {
+    const out = [0, 0];
+    let pads = [];
+    try { pads = navigator.getGamepads ? Array.from(navigator.getGamepads()).filter(Boolean) : []; } catch (e) { pads = []; }
+    pads.slice(0, 2).forEach((p, i) => {
+      const b = (n) => p.buttons[n] && p.buttons[n].pressed;
+      const ax = p.axes[0] || 0, ay = p.axes[1] || 0;
+      let v = 0;
+      if (b(12) || ay < -0.5) v |= 1; if (b(13) || ay > 0.5) v |= 2;
+      if (b(14) || ax < -0.5) v |= 4; if (b(15) || ax > 0.5) v |= 8;
+      [0, 1, 2, 3, 4, 5].forEach((bi, k) => { if (b(bi)) v |= 1 << (4 + k); });
+      if (b(9)) v |= 1 << 10; if (b(8)) v |= 1 << 11;
+      out[i] = v;
+    });
+    return out;
+  }
+
+  // ---------------------------------------------------------------- DIP switches
+  const dipsEl = $('dips');
+  for (let i = 15; i >= 0; i--) {
+    const l = document.createElement('label'); l.className = 'dip'; l.title = 'DIP ' + (i + 1);
+    const inp = document.createElement('input'); inp.type = 'checkbox'; inp.id = 'dip' + i; inp.setAttribute('aria-label', 'DIP switch ' + (i + 1));
+    inp.addEventListener('change', () => syncDips(false));
+    l.appendChild(inp); dipsEl.appendChild(l);
+    const t = document.createElement('span'); t.textContent = i + 1; $('dipLabels').appendChild(t);
+  }
+  function syncDips(fromMachine) {
+    if (!m) return;
+    if (fromMachine) for (let i = 0; i < 16; i++) $('dip' + i).checked = !!((m.dip >>> i) & 1);
+    else { let v = m.dip & 0xffff0000; for (let i = 0; i < 16; i++) if ($('dip' + i).checked) v |= 1 << i; m.dip = v >>> 0; }
+    $('dipHex').textContent = '0x' + (m.dip & 0xffff).toString(16).toUpperCase().padStart(4, '0');
+  }
+
+  // ---------------------------------------------------------------- monitor
+  const pcmEls = [], psgEls = [];
+  for (let i = 0; i < 8; i++) { const e = document.createElement('i'); $('pcmVoices').appendChild(e); pcmEls.push(e); }
+  for (let i = 0; i < 8; i++) { const e = document.createElement('i'); $('psgVoices').appendChild(e); psgEls.push(e); }
+  function setPill(id, cls, text) { const p = $(id); p.className = 'pill ' + cls; p.textContent = text; }
+  function setBar(id, frac) {
+    const b = $(id); b.querySelector('i').style.width = Math.min(100, frac * 100).toFixed(1) + '%';
+    b.className = 'bar' + (frac >= 0.9 ? ' bad' : frac >= 0.7 ? ' warn' : '');
+  }
+  const peakWin = [];
+  let instrAcc = 0, framesAcc = 0, lastStat = performance.now(), fpsShown = 0, sprPeakWin = 0, ovfWin = false;
+  function frameStats() {
+    peakWin.push(m.stats.load); if (peakWin.length > 60) peakWin.shift();
+    instrAcc += m.stats.instr; framesAcc++;
+    sprPeakWin = Math.max(sprPeakWin, m.sprPeak); ovfWin = ovfWin || m.sprOverflow;
+  }
+  function updateMonitor() {
+    const now = performance.now();
+    const load = m.stats.load;
+    $('cpuVal').textContent = (load * 100).toFixed(1) + ' %';
+    setBar('cpuBar', load);
+    $('cpuPeak').textContent = (Math.max(0, ...peakWin) * 100).toFixed(1) + ' %';
+    if (now - lastStat >= 500) {
+      const dt = (now - lastStat) / 1000;
+      $('mips').textContent = (instrAcc / dt / 1e6).toFixed(2) + ' M';
+      fpsShown = framesAcc / dt;
+      $('fps').textContent = fpsShown.toFixed(1);
+      instrAcc = 0; framesAcc = 0; lastStat = now;
+      $('sprVal').textContent = sprPeakWin + ' / 64';
+      setBar('sprBar', sprPeakWin / 64);
+      setPill('ovfPill', ovfWin ? 'bad' : 'ok', ovfWin ? 'Débordement' : 'Sprites OK');
+      sprPeakWin = 0; ovfWin = false;
+    }
+    const t0 = m.timers[0];
+    $('timer0').textContent = t0.on && t0.reload ? (1e8 / t0.reload).toFixed(1) + ' Hz' : 'arrêté';
+    const rot = (m.gpuDV.getUint32(0, true) >> 8) & 3;
+    $('res').textContent = m.scrW + ' × ' + m.scrH;
+    $('rot').textContent = (rot * 90) + '°';
+    $('frameNo').textContent = m.frame;
+    let np = 0, ns = 0;
+    for (let i = 0; i < 8; i++) { const on = m.voices[i].playing; pcmEls[i].className = on ? 'on' : ''; np += on; }
+    for (let i = 0; i < 8; i++) { const b = 0x400 + i * 16; const on = !!(m.apuRegs[b + 6] || m.apuRegs[b + 7]) && m.apuDV.getUint32(b, true) > 0; psgEls[i].className = on ? 'on' : ''; ns += on; }
+    $('pcmVal').textContent = np + ' / 8';
+    $('psgVal').textContent = ns + ' / 8';
+  }
+
+  // ---------------------------------------------------------------- main loop
+  let acc = 0, last = 0, tick = 0;
+  function step() {
+    const pads = pollPads();
+    m.inputs[0] = keyState[0] | pads[0];
+    m.inputs[1] = keyState[1] | pads[1];
+    m.inputs[2] = keyState[2];
+    const n = m.runFrame();
+    pushAudio(n);
+    frameStats();
+  }
+  function loop(ts) {
+    requestAnimationFrame(loop);
+    if (!running || paused || !m || m.halted) { last = ts; return; }
+    let frames = 0;
+    if (ac && !muted && ac.state === 'running') {
+      // pace on the audio clock: keep about 70 ms of sound queued
+      while (nextT - ac.currentTime < 0.07 && frames < 4) { step(); frames++; }
+    } else {
+      acc += Math.min(100, ts - (last || ts)); last = ts;
+      while (acc >= 1000 / 60 && frames < 4) { step(); frames++; acc -= 1000 / 60; }
+    }
+    last = ts;
+    if (frames) { draw(); if (++tick % 3 === 0) updateMonitor(); if (tick % 120 === 0) saveNv(); }
+  }
+
+  // ---------------------------------------------------------------- controls
+  $('startBtn').addEventListener('click', () => {
+    if (!ac) startAudio();
+    if (ac && ac.state === 'suspended') ac.resume();
+    running = true; $('overlay').hidden = true;
+    setPill('runPill', 'ok', 'En marche');
+    canvas.focus && canvas.focus();
+  });
+  $('pauseBtn').addEventListener('click', (e) => {
+    paused = !paused; e.currentTarget.setAttribute('aria-pressed', paused); e.currentTarget.textContent = paused ? 'Reprendre' : 'Pause';
+    setPill('runPill', paused ? 'warn' : 'ok', paused ? 'Pause' : 'En marche');
+  });
+  $('resetBtn').addEventListener('click', () => { if (m) { saveNv(); const dip = m.dip; m.reset(); m.dip = dip; setPill('runPill', 'ok', running ? 'En marche' : 'Prêt'); log('— reset\n'); } });
+  $('muteBtn').addEventListener('click', (e) => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.textContent = muted ? 'Activer le son' : 'Couper le son'; });
+  $('aspectBtn').addEventListener('click', (e) => { squarePixels = !squarePixels; e.currentTarget.setAttribute('aria-pressed', squarePixels); layoutScreen(); });
+  $('fsBtn').addEventListener('click', () => { const b = $('bezel'); if (b.requestFullscreen) b.requestFullscreen().catch(() => log('Plein écran refusé par le navigateur.\n', 'err')); });
+  $('romSelect').addEventListener('change', (e) => loadRom(b64(ROMS[e.target.value]), e.target.value));
+  function loadFile(f) {
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = () => loadRom(new Uint8Array(r.result), f.name);
+    r.readAsArrayBuffer(f);
+  }
+  $('romFile').addEventListener('change', (e) => { loadFile(e.target.files[0]); e.target.value = ''; });
+  window.addEventListener('dragover', (e) => { e.preventDefault(); document.body.classList.add('dragging'); });
+  window.addEventListener('dragleave', (e) => { if (!e.relatedTarget) document.body.classList.remove('dragging'); });
+  window.addEventListener('drop', (e) => {
+    e.preventDefault(); document.body.classList.remove('dragging');
+    loadFile(e.dataTransfer.files && e.dataTransfer.files[0]);
+    showTab('sim');
+  });
+  window.addEventListener('pagehide', saveNv);
+
+  loadRom(b64(ROMS.test), 'test');
+  // show a first frame behind the power button
+  for (let i = 0; i < 40; i++) m.runFrame();
+  draw(); layoutScreen(); updateMonitor();
+  requestAnimationFrame(loop);
+})();
+</script>

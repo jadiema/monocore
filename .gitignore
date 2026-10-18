@@ -1,0 +1,27 @@
+# Build outputs
+**/build/*
+!rom/build/testrom.mnc
+*.o
+*.elf
+__pycache__/
+node_modules/
+
+# Verilator
+rtl/obj_*/
+rtl/tb/obj_*/
+
+# Quartus
+**/db/
+**/incremental_db/
+**/output_files/
+*.qws
+*.rpt
+*.summary
+*.smsg
+*.done
+*.jdi
+*.sld
+*.pin
+*.qarlog
+build_id.v
+greybox_tmp/

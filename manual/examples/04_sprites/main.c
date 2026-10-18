@@ -1,0 +1,35 @@
+#include "easy.h"
+
+extern const uint8_t sheet_chr[], sheet_pal[];   // built from sheet.png
+
+// picture numbers in the sheet
+#define SHIP   0
+#define STAR   1
+#define STAR2  2
+
+int main(void) {
+  init();
+  background(0, 0, 40);
+  load_sprites(sheet_chr, sheet_pal, 8);
+  print_ink(3, 1, "MANETTE:BOUGER  B1:MIROIR  B2:TAILLE", 2);
+
+  int x = 152, y = 120;          // ship position
+  int flipped = 0, big = 0;
+
+  for (;;) {
+    wait_frame();
+    if (held(1, LEFT))  x = x - 2;
+    if (held(1, RIGHT)) x = x + 2;
+    if (held(1, UP))    y = y - 2;
+    if (held(1, DOWN))  y = y + 2;
+    if (pressed(1, B1)) { flipped = !flipped; flip_sprite(0, 0, flipped); }
+    if (pressed(1, B2)) { big = !big;         scale_sprite(0, big ? 200 : 100); }
+    sprite(0, x, y, SHIP);
+
+    // five twinkling stars: the picture changes every 10 frames
+    for (int i = 0; i < 5; i++) {
+      int picture = ((frame_count / 10 + i) % 2) ? STAR : STAR2;
+      sprite(1 + i, 30 + i * 60, 50, picture);
+    }
+  }
+}
