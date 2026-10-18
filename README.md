@@ -13,6 +13,7 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 | `examples/hello/` | exemple minimal à copier pour démarrer un jeu (registres bruts, `Makefile`) |
 | `examples/boot/` | l'écran d'accueil de la console (`boot.rom`), façon intro Amiga, écrit avec `mc` |
 | `examples/nebula/` | NEBULA, un shoot'em up complet écrit avec `mc` : décors et sprites générés au démarrage, parallaxe, raster, 233 sprites |
+| `examples/horizon/` | HORIZON, une course en fausse 3D écrite avec `mc` (style OutRun) : route dessinée ligne par ligne, virages, objets zoomés selon la distance |
 | `examples/test_sdk/` | test du SDK `mc` (raster, timers, `malloc`, `printf`) |
 | `tools/run.js` | exécution sans écran : captures et enregistrement du son, pour les tests automatiques |
 | `tools/isatest/` | auto-test du jeu d'instructions (même source compilée en natif et en RV32IM) |

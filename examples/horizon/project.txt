@@ -1,0 +1,5 @@
+# HORIZON: pseudo-3D racing example of the low-level "mc" SDK (all graphics generated at start-up)
+name    = horizon
+title   = HORIZON
+library = mc
+sources = main.c

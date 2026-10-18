@@ -74,6 +74,7 @@ musiques, données d'un jeu porté) : symboles `fichier_file` (données) et `fic
 |---|---|
 | `examples/test_sdk` | test minimal : raster, timers, `malloc`, `printf` |
 | `examples/boot` | l'écran d'accueil de la console (`boot.rom`) : barres copper par défilement ligne par ligne, logo en un seul sprite de 256 × 40, ciel raster, texte défilant en sprites zoomés |
+| `examples/horizon` | course en fausse 3D (style OutRun) : une texture de route de 120 lignes, choisie (`dy`) et décalée (`dx`) ligne par ligne pour la largeur, les bandes et les virages ; objets zoomés selon leur distance et triés avec `qsort` |
 | `examples/nebula` | shoot'em up complet ; tous les graphismes sont produits au démarrage dans la CHR RAM (sprites en « ASCII art », décors procéduraux découpés en tuiles avec partage des tuiles identiques), parallaxe, sol en perspective, 233 sprites, tirs visés avec `mc_atan2` |
 
 ## Fichiers

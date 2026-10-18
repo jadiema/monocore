@@ -160,6 +160,7 @@ La référence complète est dans `sdk/SDK_MC.md`. Trois exemples l'utilisent :
 |---|---|
 | `examples/test_sdk` | le minimum à vérifier : raster, timers, `malloc`, `printf` |
 | `examples/boot` | l'écran d'accueil de la console : barres copper, logo, ciel raster, texte défilant, musique |
+| `examples/horizon` | une course en fausse 3D : la route est choisie et décalée ligne par ligne, les objets sont zoomés selon leur distance |
 | `examples/nebula` | un shoot'em up complet : sprites et décors générés au démarrage, parallaxe sur trois plans, sol en perspective, 54 effets raster, jusqu'à 233 sprites, tirs visés, particules zoomées |
 
 ## 8. Sur le MiSTer
