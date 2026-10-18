@@ -68,6 +68,14 @@ musiques, données d'un jeu porté) : symboles `fichier_file` (données) et `fic
   `float`, mais lentement ; pour un portage, convertissez les calculs en `fix16`.
 - **NVRAM** : 32 Ko, pas encore sauvegardés sur la carte SD par le core.
 
+## Exemples
+
+| Dossier | Contenu |
+|---|---|
+| `examples/test_sdk` | test minimal : raster, timers, `malloc`, `printf` |
+| `examples/boot` | l'écran d'accueil de la console (`boot.rom`) : barres copper par défilement ligne par ligne, logo en un seul sprite de 256 × 40, ciel raster, texte défilant en sprites zoomés |
+| `examples/nebula` | shoot'em up complet ; tous les graphismes sont produits au démarrage dans la CHR RAM (sprites en « ASCII art », décors procéduraux découpés en tuiles avec partage des tuiles identiques), parallaxe, sol en perspective, 233 sprites, tirs visés avec `mc_atan2` |
+
 ## Fichiers
 
 - `mc.h`, `mc.c` : le SDK ;

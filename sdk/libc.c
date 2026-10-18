@@ -1,4 +1,4 @@
-// Petite libc pour MONOCORE-1 (SDK mc). memset, memcpy, memmove, memcmp et strlen sont dans mini.c.
+// Small C library for MONOCORE-1 (mc SDK). memset, memcpy, memmove, memcmp and strlen are in mini.c.
 #include <stdint.h>
 #include <stdarg.h>
 #include "libc/string.h"
@@ -7,7 +7,7 @@
 #include "libc/ctype.h"
 #include "mc.h"
 
-// ---------------------------------------------------------------- chaînes
+// ---------------------------------------------------------------- strings
 void *memchr(const void *s, int c, size_t n) {
   const unsigned char *p = s;
   for (; n; n--, p++) if (*p == (unsigned char)c) return (void *)p;
@@ -49,7 +49,7 @@ char *strstr(const char *h, const char *n) {
   return 0;
 }
 
-// ---------------------------------------------------------------- nombres
+// ---------------------------------------------------------------- numbers
 int abs(int v) { return v < 0 ? -v : v; }
 long labs(long v) { return v < 0 ? -v : v; }
 unsigned long strtoul(const char *s, char **end, int base) {
@@ -77,7 +77,7 @@ int rand(void) { return (int)(mc_rand() & RAND_MAX); }
 void srand(unsigned s) { mc_srand(s); }
 
 void qsort(void *base, size_t count, size_t size, int (*cmp)(const void *, const void *)) {
-  // tri de Shell : sans récursion, sans mémoire supplémentaire
+  // Shell sort: no recursion, no extra memory
   unsigned char *a = base;
   for (size_t gap = count / 2; gap; gap /= 2)
     for (size_t i = gap; i < count; i++)
@@ -87,9 +87,9 @@ void qsort(void *base, size_t count, size_t size, int (*cmp)(const void *, const
       }
 }
 
-// ---------------------------------------------------------------- tas (malloc)
-// Blocs chaînés dans l'ordre des adresses : en-tête = taille du bloc (multiple de 8) | 1 si occupé.
-// Recherche du premier bloc libre assez grand, fusion des voisins libres à la libération.
+// ---------------------------------------------------------------- heap (malloc)
+// Blocks chained in address order: header = block size (multiple of 8) | 1 when in use.
+// First fit, free neighbours are merged when a block is freed or searched.
 extern char __bss_end[], __stack_top[];
 typedef struct { uint32_t size; uint32_t pad; } hdr_t;
 static hdr_t *heap_lo, *heap_hi;
@@ -107,7 +107,7 @@ void *malloc(size_t n) {
   uint32_t need = (uint32_t)((n + sizeof(hdr_t) + 7) & ~(size_t)7);
   for (hdr_t *h = heap_lo; h < heap_hi; h = next(h)) {
     if (h->size & 1) continue;
-    while (next(h) < heap_hi && !(next(h)->size & 1)) h->size += next(h)->size;   // fusion
+    while (next(h) < heap_hi && !(next(h)->size & 1)) h->size += next(h)->size;   // merge
     if (h->size >= need) {
       if (h->size - need >= 16) { hdr_t *r = (hdr_t *)((char *)h + need); r->size = h->size - need; h->size = need; }
       h->size |= 1;

@@ -120,6 +120,50 @@ Pour une musique, le plus simple est de cadencer un séquenceur avec le timer 0 
 5. **Ne jamais déréférencer l'adresse 0 en C.** C'est le début de la ROM, mais le compilateur la traite comme un pointeur nul et peut supprimer le code qui la lit. Passe par un symbole (`assets`, `hero_chr`…).
 6. **Compiler en RV32IM** (`-march=rv32im -mabi=ilp32`), sans extension C (instructions compressées) ni F (flottants). Pour des calculs fractionnaires, utilise la virgule fixe.
 
-## 7. Sur le MiSTer
+## 7. Aller plus loin : le SDK bas niveau « mc »
 
-Quand le core existera : copie le fichier `.mnc` dans `games/MONOCORE` sur la carte SD du MiSTer, lance le core MONOCORE-1, puis choisis la ROM dans le menu OSD. Le framework MiSTer charge la ROM en SDRAM ; le bitstream ne change pas.
+Ce guide accède au matériel par ses registres, et le manuel du programmeur utilise la bibliothèque `easy`, volontairement simple (un plan de texte, une carte, 64 sprites de 16 × 16). Entre les deux, le SDK **mc** donne accès à toute la console en C, sans assembleur, pour les jeux complexes et les portages. Il suffit d'ajouter une ligne dans `project.txt` :
+
+```
+library = mc
+```
+
+puis d'inclure `mc.h`. On obtient alors :
+
+- des **interruptions en C** : `mc_on_vblank`, deux timers (`mc_on_timer`), et jusqu'à 64 **effets raster** par image (`mc_raster_add`), exacts à la ligne près ;
+- toute la **vidéo** : résolution de 224 à 384 × 192 à 288 (`mc_video_mode`), quatre plans en tuiles 8 ou 16 et 4 ou 8 bpp (`mc_layer`), défilement ligne par ligne, **CHR RAM** de 128 Ko pour les graphismes produits à l'exécution (`mc_chr_upload`) ;
+- **512 sprites** gérés par une table fantôme en WRAM, envoyée par DMA à chaque `mc_frame()` ;
+- le **son** PCM et PSG en accès direct (`mc_pcm_play`, `mc_psg`), et un petit séquenceur (`mc_tune`) ;
+- une **petite libc** : `malloc`/`free`, `<string.h>`, `<stdlib.h>`, `<stdio.h>` (`printf` écrit sur la sortie de débogage), `<ctype.h>`, `<assert.h>` ;
+- des **maths en virgule fixe** 16.16 : `mc_sin`, `mc_cos`, `mc_atan2`, `mc_isqrt` ;
+- la clé `data = fichier.bin` dans `project.txt`, pour embarquer des fichiers bruts (niveaux, données d'un jeu porté).
+
+Squelette :
+
+```c
+#include "mc.h"
+
+int main(void) {
+  mc_init();
+  mc_text_layer(0, 3);                  // texte sur le plan 0, devant tout
+  mc_text(0, 2, 2, "BONJOUR", 0);
+  for (;;) {
+    mc_frame();                         // image suivante : sprites, manettes, musique
+    if (mc_pad_pressed(1) & IN_START) { /* ... */ }
+  }
+}
+```
+
+La référence complète est dans `sdk/SDK_MC.md`. Trois exemples l'utilisent :
+
+| Exemple | Ce qu'il montre |
+|---|---|
+| `examples/test_sdk` | le minimum à vérifier : raster, timers, `malloc`, `printf` |
+| `examples/boot` | l'écran d'accueil de la console : barres copper, logo, ciel raster, texte défilant, musique |
+| `examples/nebula` | un shoot'em up complet : sprites et décors générés au démarrage, parallaxe sur trois plans, sol en perspective, 54 effets raster, jusqu'à 233 sprites, tirs visés, particules zoomées |
+
+## 8. Sur le MiSTer
+
+Copie le core dans `_Console` et tes fichiers `.mnc` dans `games/MONOCORE` sur la carte SD du MiSTer, lance le core MONOCORE-1, puis choisis la ROM dans le menu OSD (F12 → Charger une ROM). Le framework MiSTer charge la ROM en SDRAM ; le bitstream ne change pas.
+
+Un fichier nommé exactement **`games/MONOCORE/boot.rom`** est chargé automatiquement au lancement du core (c'est ainsi que démarre l'écran d'accueil, `examples/boot`). Pour que la console démarre directement sur le core, ajoute `bootcore=lastexactcore` dans `MiSTer.ini`, en mettant `bootcore_timeout` en commentaire.

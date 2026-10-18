@@ -8,9 +8,12 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 | `GUIDE.md` | créer sa propre ROM, pas à pas |
 | `sim/core.js` | le simulateur (CPU RV32IM, vidéo par lignes, son), utilisable dans le navigateur et dans Node |
 | `sim/page.html` | la page du simulateur (modèle) ; `tools/build_page.py` produit `dist/monocore.html` |
-| `sdk/` | en-têtes, démarrage, script d'édition de liens, outils PNG et WAV, bibliothèque pour débutants `easy` et outil `build.py` (voir le manuel) |
+| `sdk/` | en-têtes, démarrage, script d'édition de liens, outils PNG et WAV, outil `build.py`, et deux bibliothèques : `easy` pour débuter (voir le manuel) et `mc`, le SDK bas niveau avec sa petite libc, pour les jeux complexes et les portages (voir `sdk/SDK_MC.md`) |
 | `rom/` | la ROM de test (mire et résolutions, plans et raster, sprites, son, contrôles, CPU et DMA) |
-| `examples/hello/` | exemple minimal à copier pour démarrer un jeu |
+| `examples/hello/` | exemple minimal à copier pour démarrer un jeu (registres bruts, `Makefile`) |
+| `examples/boot/` | l'écran d'accueil de la console (`boot.rom`), façon intro Amiga, écrit avec `mc` |
+| `examples/nebula/` | NEBULA, un shoot'em up complet écrit avec `mc` : décors et sprites générés au démarrage, parallaxe, raster, 233 sprites |
+| `examples/test_sdk/` | test du SDK `mc` (raster, timers, `malloc`, `printf`) |
 | `tools/run.js` | exécution sans écran : captures et enregistrement du son, pour les tests automatiques |
 | `tools/isatest/` | auto-test du jeu d'instructions (même source compilée en natif et en RV32IM) |
 | `rtl/` | le core FPGA en Verilog (CPU, mémoires, E/S, DMA, rendu vidéo, son) et ses bancs de test Verilator |
@@ -27,6 +30,7 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 ```sh
 make -C rom                 # ROM de test -> rom/build/testrom.mnc
 make -C examples/hello      # exemple -> examples/hello/build/hello.mnc
+cd examples/nebula && python3 ../../sdk/build.py .   # exemple mc -> build/nebula.mnc
 python3 tools/build_page.py # simulateur autonome -> dist/monocore.html
 ```
 
@@ -39,6 +43,10 @@ node tools/run.js rom/build/testrom.mnc /tmp/out "5:p1=10 6:p1=0 60:shot=mire"
 ```
 
 Les actions `p1=`, `p2=` et `sys=` règlent les entrées (bits de `IN_P1`, en hexadécimal) à partir d'une image ; `shot=nom` enregistre une capture PPM. Le son de toute la séance est écrit dans `audio.wav`.
+
+## Sur le MiSTer
+
+Copie le core (`mister/output_files/MONOCORE.rbf`, renommé `MONOCORE_aaaammjj.rbf`) dans `_Console`, et les ROMs `.mnc` dans `games/MONOCORE`. Un fichier `games/MONOCORE/boot.rom` est chargé automatiquement au lancement du core : c'est là que va l'écran d'accueil (`examples/boot`). Détails dans `mister/LISEZMOI.md`.
 
 ## Ce qui reste à faire
 

@@ -1,4 +1,4 @@
-// Sous-ensemble de <stdio.h> pour MONOCORE-1 (SDK mc) : la sortie va sur DEBUG_OUT
+// Subset of <stdio.h> for MONOCORE-1 (mc SDK): output goes to DEBUG_OUT
 #pragma once
 #include <stddef.h>
 #include <stdarg.h>

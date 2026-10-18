@@ -1,4 +1,4 @@
-// Sous-ensemble de <string.h> pour MONOCORE-1 (SDK mc)
+// Subset of <string.h> for MONOCORE-1 (mc SDK)
 #pragma once
 #include <stddef.h>
 void  *memset(void *d, int c, size_t n);

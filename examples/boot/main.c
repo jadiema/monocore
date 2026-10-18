@@ -1,7 +1,7 @@
-// MONOCORE-1 - écran d'accueil façon « intro Amiga » (ROM boot.rom, SDK bas niveau mc)
-//   barres copper (défilement ligne par ligne du plan 1), logo chromé (un sprite 256 x 40),
-//   champ d'étoiles sur 3 plans devant un ciel dégradé (effets raster), texte défilant sinusoïdal
-//   et musique sur 3 voies.
+// MONOCORE-1 - Amiga-intro style start-up screen (boot.rom, low-level mc SDK)
+//   copper bars (per-line scrolling of layer 1), chrome logo (one 256 x 40 sprite),
+//   3-speed starfield over a gradient sky (raster effects), sine scroller
+//   and 3-voice music.
 #include "mc.h"
 
 extern const uint8_t sheet_chr[], sheet_pal[];
@@ -12,8 +12,8 @@ static const int8_t sinus[256] = { 0, 3, 6, 9, 12, 16, 19, 22, 25, 28, 31, 34, 3
 #define COS(a) sinus[((a) + 64) & 255]
 
 // ---------------------------------------------------------------- palettes
-// 0-7 : encres du texte (easy) ; 16-22 : barres copper ; 23 : filets ; 24 : logo ;
-// 25-27 : étoiles ; 28-35 : lettres du défilant
+// 0-7: text inks; 16-22: copper bars; 23: rules; 24: logo;
+// 25-27: stars; 28-35: scroller letters
 #define PAL_BAR    16
 #define NB_BARS    7
 #define PAL_RULE   23
@@ -29,17 +29,17 @@ static void make_palettes(void) {
     {30, 200, 255}, {60, 90, 255}, {220, 60, 255}, {255, 200, 80}};
   for (int b = 0; b <= NB_BARS; b++)
     for (int i = 1; i <= 15; i++) {
-      int p = SIN((i * 128) / 16);                 // 0 -> 127 -> 0 du haut au bas de la barre
-      int w = p > 100 ? (p - 100) * 9 : 0;         // reflet blanc au centre
+      int p = SIN((i * 128) / 16);                 // 0 -> 127 -> 0 from the top to the bottom of a bar
+      int w = p > 100 ? (p - 100) * 9 : 0;         // white highlight in the middle
       int r = hue[b][0] * p / 127 + w, g = hue[b][1] * p / 127 + w, bl = hue[b][2] * p / 127 + w;
       set_color(PAL_BAR + b, i, r > 255 ? 255 : r, g > 255 ? 255 : g, bl > 255 ? 255 : bl);
     }
-  static const uint8_t chrome[15][3] = {           // ciel bleu, horizon sombre, sol doré
+  static const uint8_t chrome[15][3] = {           // blue sky, dark horizon, golden ground
     {0, 0, 0}, {255, 255, 255}, {214, 240, 255}, {168, 216, 255}, {112, 176, 240}, {56, 120, 208},
     {24, 60, 144}, {90, 42, 16}, {154, 72, 24}, {208, 112, 40}, {240, 152, 56}, {255, 192, 96},
     {255, 232, 160}, {10, 10, 30}, {0, 0, 0}};
   for (int i = 1; i < 15; i++) set_color(PAL_LOGO, i, chrome[i][0], chrome[i][1], chrome[i][2]);
-  for (int s = 0; s < 3; s++) {                    // étoiles : plus claires quand elles vont vite
+  for (int s = 0; s < 3; s++) {                    // stars: brighter when they move faster
     int v = 90 + s * 80;
     set_color(PAL_STAR + s, 1, v, v, v + 40 > 255 ? 255 : v + 40);
     set_color(PAL_STAR + s, 2, 255, 255, 255);
@@ -53,10 +53,10 @@ static void make_palettes(void) {
   }
 }
 
-// ---------------------------------------------------------------- barres copper
-// Le plan 1 contient une « texture » : la rangée de tuiles q (16 lignes) est la barre q, dans la
-// palette PAL_BAR + q ; la rangée 63 est vide. Le défilement ligne par ligne choisit, pour chaque
-// ligne de l'écran, la ligne de texture à afficher : dy = ligne voulue - ligne de l'écran.
+// ---------------------------------------------------------------- copper bars
+// Layer 1 holds a "texture": tile row q (16 lines) is bar q, in palette PAL_BAR + q;
+// row 63 is empty. Per-line scrolling picks, for each screen line, the texture line to show:
+// dy = wanted texture line - screen line.
 #define TEX_EMPTY (63 * 16)
 static int16_t target[240];
 
@@ -81,7 +81,7 @@ static void draw_bar(int q, int center, int top, int bottom) {
 static void update_copper(int t) {
   for (int y = 0; y < 240; y++) target[y] = TEX_EMPTY;
   int order[NB_BARS], z[NB_BARS];
-  for (int i = 0; i < NB_BARS; i++) {             // les barres du fond d'abord
+  for (int i = 0; i < NB_BARS; i++) {             // back bars first
     z[i] = COS(t * 2 + i * 18);
     int j = i;
     while (j > 0 && z[order[j - 1]] > z[i]) { order[j] = order[j - 1]; j--; }
@@ -91,7 +91,7 @@ static void update_copper(int t) {
     int i = order[k];
     draw_bar(i, 45 + SIN(t * 2 + i * 18) * 36 / 127, 0, 90);
   }
-  for (int r = 0; r < 8; r++) {                    // deux filets dorés fixes
+  for (int r = 0; r < 8; r++) {                    // two fixed golden rules
     target[90 + r] = (int16_t)(NB_BARS * 16 + 3 + r);
     target[190 + r] = (int16_t)(NB_BARS * 16 + 3 + r);
   }
@@ -106,7 +106,7 @@ static void update_copper(int t) {
 #define NB_SCROLL  23
 #define CELL_DOT   160
 #define CELL_CROSS 161
-#define CELL_FONT  192                              // rangée de cellules 6, 32 cellules par rangée
+#define CELL_FONT  192                              // cell row 6, 32 cells per row
 
 static void put_sprite(int n, int x, int y, int cell, int w, int h, int pal, int zoom) {
   mc_sprite(n, x, y, cell, w, h, pal, 4);
@@ -148,7 +148,7 @@ static void update_scroller(int t) {
   while (slot < NB_SCROLL) mc_sprite_hide(SPR_SCROLL + slot++);
 }
 
-// ---------------------------------------------------------------- musique (3 voies, 32 temps)
+// ---------------------------------------------------------------- music (3 voices, 32 beats)
 static const char *lead =
   "E5 - - D5 C5 - B4 C5 A4 - - - C5 - D5 - E5 - G5 - E5 - D5 C5 D5 - - - B4 - . . ";
 static const char *bass =
@@ -156,12 +156,12 @@ static const char *bass =
 static const char *arp =
   "A4 C5 E5 A5 E5 C5 A4 C5 F4 A4 C5 F5 C5 A4 F4 A4 C5 E5 G5 C6 G5 E5 C5 E5 G4 B4 D5 G5 D5 B4 G4 B4 ";
 
-// ---------------------------------------------------------------- ciel dégradé (raster)
-// Une interruption toutes les 2 lignes dans la bande centrale change la couleur de fond.
+// ---------------------------------------------------------------- gradient sky (raster)
+// One interrupt every 2 lines in the middle band changes the background colour.
 static void sky(void) {
   int y = mc_raster_line;
   if (y >= 190) { mc_color(4095, 0); return; }
-  int k = (y - 98) * 255 / 92;                     // 0 en haut, 255 en bas de la bande
+  int k = (y - 98) * 255 / 92;                     // 0 at the top, 255 at the bottom of the band
   mc_color(4095, MC_RGB(k / 6, 0, 40 + k / 3));
 }
 
@@ -171,7 +171,7 @@ static void text_center(int row, const char *s, int pal) {
   mc_text(0, (40 - n) / 2, row, s, pal);
 }
 
-static void inks(void) {                         // palettes 0-7 : police du SDK recolorée
+static void inks(void) {                         // palettes 0-7: recoloured SDK font
   static const uint8_t c[8][3] = {
     {255, 255, 255}, {255, 220, 60}, {80, 220, 255}, {90, 230, 90},
     {255, 80, 70}, {240, 100, 240}, {255, 150, 40}, {150, 150, 170}};
@@ -181,10 +181,10 @@ static void inks(void) {                         // palettes 0-7 : police du SDK
   }
 }
 
-// ---------------------------------------------------------------- programme
+// ---------------------------------------------------------------- program
 int main(void) {
   mc_init();
-  mc_text_layer(0, 3);                             // plan 0 : texte, devant tout
+  mc_text_layer(0, 3);                             // layer 0: text, in front of everything
   inks();
   mc_color(4095, 0);
   mc_background(4095);

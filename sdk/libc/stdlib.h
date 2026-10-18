@@ -1,4 +1,4 @@
-// Sous-ensemble de <stdlib.h> pour MONOCORE-1 (SDK mc)
+// Subset of <stdlib.h> for MONOCORE-1 (mc SDK)
 #pragma once
 #include <stddef.h>
 #define RAND_MAX 0x7FFFFFFF
@@ -16,5 +16,5 @@ unsigned long strtoul(const char *s, char **end, int base);
 int   rand(void);
 void  srand(unsigned seed);
 void  qsort(void *base, size_t count, size_t size, int (*cmp)(const void *, const void *));
-void  exit(int code) __attribute__((noreturn));   // arrête la console (boucle)
+void  exit(int code) __attribute__((noreturn));   // stops the console (endless loop)
 void  abort(void) __attribute__((noreturn));

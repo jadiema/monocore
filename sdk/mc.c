@@ -1,7 +1,7 @@
-// MONOCORE-1 « mc » : voir mc.h
+// MONOCORE-1 "mc" low-level SDK: see mc.h
 #include "mc.h"
 
-extern const uint8_t font_chr[], font_pal[];   // police du SDK, ajoutée par build.py
+extern const uint8_t font_chr[], font_pal[];   // SDK font, added by build.py
 int vsnprintf(char *buf, size_t size, const char *fmt, __builtin_va_list ap);
 
 volatile uint32_t mc_frames;
@@ -19,7 +19,7 @@ static raster_t rast[MC_RASTER_MAX];
 static volatile int rast_n, rast_i;
 
 static void raster_run_due(int cur) {
-  // exécute les effets dont la ligne est <= cur + 1, puis programme le suivant (une ligne avant)
+  // runs the effects whose line is <= cur + 1, then programs the next one (one line early)
   while (rast_i < rast_n && rast[rast_i].line <= cur + 1) {
     mc_raster_line = rast[rast_i].line;
     rast[rast_i].fn();
@@ -35,7 +35,7 @@ void irq_handler(void) {
     mc_frames++;
     if (vbl_fn) vbl_fn();
     rast_i = 0;
-    if (rast_n) raster_run_due(-1);                // effets de la ligne 0, puis le suivant
+    if (rast_n) raster_run_due(-1);                // effects of line 0, then the next one
   }
   if (st & IRQ_LINE) {
     IRQ_STATUS = IRQ_LINE;
@@ -77,7 +77,7 @@ void mc_on_timer(int t, uint32_t hz, mc_handler_t fn) {
   IRQ_ENABLE |= bit;
 }
 
-// ---------------------------------------------------------------- système
+// ---------------------------------------------------------------- system
 uint64_t mc_cycles(void) {
   uint32_t hi, lo;
   do { hi = CYCLE_HI; lo = CYCLE_LO; } while (hi != CYCLE_HI);
@@ -126,7 +126,7 @@ void mc_frame(void) {
   tunes_step();
 }
 
-// ---------------------------------------------------------------- vidéo
+// ---------------------------------------------------------------- video
 void mc_video_mode(int w, int h) { SCREEN_W = (uint32_t)w; SCREEN_H = (uint32_t)h; }
 int  mc_screen_w(void) { return SCREEN_W ? (int)SCREEN_W : 320; }
 int  mc_screen_h(void) { return SCREEN_H ? (int)SCREEN_H : 240; }
@@ -199,7 +199,7 @@ void mc_text(int n, int col, int row, const char *s, int pal) {
 }
 void mc_text_clear(int n) { mc_tilemap_fill(n, 0); }
 
-// ---------------------------------------------------------------- son
+// ---------------------------------------------------------------- sound
 void mc_pcm_play(int voice, const void *data, uint32_t samples, int format, uint32_t rate,
                  uint32_t loop, int vl, int vr) {
   volatile pcm_voice_t *v = &PCM[voice & 7];
@@ -224,7 +224,7 @@ typedef struct { const char *start, *p; int beat, count, volume, on; } track_t;
 static track_t track[8];
 static const uint16_t scale[12] = {4186, 4435, 4699, 4978, 5274, 5588, 5920, 6272, 6645, 7040, 7459, 7902};
 
-static int read_note(const char **pp, uint32_t *freq) {   // 1 note, 0 silence, 2 tenue, -1 fin
+static int read_note(const char **pp, uint32_t *freq) {   // 1 note, 0 rest, 2 hold, -1 end
   const char *p = *pp;
   while (*p == ' ') p++;
   if (!*p) { *pp = p; return -1; }
@@ -271,7 +271,7 @@ void mc_tune(int ch, const char *notes, int fpb, int vol) {
 }
 void mc_tune_stop(int ch) { track[ch & 7].on = 0; mc_psg_volume(ch, 0, 0); }
 
-// ---------------------------------------------------------------- entrées
+// ---------------------------------------------------------------- inputs
 uint32_t mc_pad(int p) { return pad_now[(p - 1) & 1]; }
 uint32_t mc_pad_pressed(int p) { int j = (p - 1) & 1; return pad_now[j] & ~pad_prev[j]; }
 uint32_t mc_pad_released(int p) { int j = (p - 1) & 1; return ~pad_now[j] & pad_prev[j]; }

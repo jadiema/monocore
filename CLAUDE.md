@@ -34,7 +34,9 @@ Quartus : ouvrir `mister/MONOCORE.qpf` (voir `mister/LISEZMOI.md`). `quartus_tri
 ## SDK
 
 - `sdk/monocore.h` : registres matériels. `sdk/easy.h` / `easy.c` : bibliothèque pour débutants (init, wait_frame, print, sprite, load_map, play…). `sdk/build.py` construit un jeu à partir d'un `project.txt`.
-- Le manuel (`manual/`) a un exemple par chapitre dans `manual/examples/`.
+- `sdk/mc.h` / `mc.c` : SDK bas niveau (interruptions en C, raster, sprites par table fantôme + DMA, CHR RAM, PCM/PSG, virgule fixe), avec une petite libc (`sdk/libc.c`, en-têtes dans `sdk/libc/`). Choisi par `library = mc` dans `project.txt` ; `easy` reste la valeur par défaut. Référence : `sdk/SDK_MC.md`. La clé `data =` embarque des fichiers bruts.
+- Le manuel (`manual/`) a un exemple par chapitre dans `manual/examples/`. Exemples `mc` : `examples/boot` (écran d'accueil, `boot.rom`), `examples/nebula` (shoot'em up complet), `examples/test_sdk`.
+- Chargement MiSTer : `boot.rom` est envoyé par MiSTer **pendant que le reset du core est maintenu** (`status[0]`), qui n'est relâché qu'après. Le chargeur (`rtl/mister/mc_system.v`) ne doit donc rien effacer sur `reset` pendant ou juste après un téléchargement ; `rtl/tb/tb_system.cpp` reproduit ce cas avec `HOLD_RESET=1`.
 
 ## Ce qui reste à faire
 

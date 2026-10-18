@@ -1,0 +1,5 @@
+# NEBULA: shoot'em up example of the low-level "mc" SDK (all graphics generated at start-up)
+name    = nebula
+title   = NEBULA
+library = mc
+sources = main.c

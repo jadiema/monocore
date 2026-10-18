@@ -1,4 +1,4 @@
-// <ctype.h> pour MONOCORE-1 (SDK mc), ASCII uniquement
+// <ctype.h> for MONOCORE-1 (mc SDK), ASCII only
 #pragma once
 static inline int isdigit(int c)  { return c >= '0' && c <= '9'; }
 static inline int isalpha(int c)  { return (c | 32) >= 'a' && (c | 32) <= 'z'; }
