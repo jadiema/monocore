@@ -1,6 +1,7 @@
 # Build outputs
 **/build/*
 !rom/build/testrom.mnc
+!examples/hello/build/hello.mnc
 *.o
 *.elf
 __pycache__/
