@@ -14,7 +14,7 @@ SCRIPT="$SCRIPT 389:p1=19 420:shot=sprites2 421:p1=0 500:shot=sprites3"
 node tools/run.js rom/build/testrom.mnc $W/js "$SCRIPT" > /dev/null
 rtl/obj_dir/Vmc_core rom/build/testrom.mnc $W/rtl "$SCRIPT" | head -1
 for n in menu card320 card256 card384 card224 planes planes2 sprites sprites2 sprites3; do
-	python3 tools/cmp_ppm.py $W/js/$n.ppm $W/rtl/$n.ppm $W/d_$n.png
+	python3 tools/cmp_ppm.py --cpu-meter $W/js/$n.ppm $W/rtl/$n.ppm $W/d_$n.png
 done
 echo "== ROM video aleatoire"
 tools/vidfuzz/run_cmp.sh tools/vidfuzz/vidfuzz.mnc $W/fuzz ${FUZZ_LAST:-61} > $W/fuzz.txt 2>&1
@@ -27,8 +27,11 @@ echo "images identiques : $(grep -c ' 0 pixels' $W/fuzzs.txt) sur $(grep -c 'pix
 grep -v " 0 pixels" $W/fuzzs.txt
 echo "fenetre de rendu max (image, cycles) : $(sort -k2 -n $W/fuzzs/rtl/windows.txt | tail -1)"
 echo "== Son"
-A=/tmp/claude-0/apu50
+# register write logs (tools/apu/logs: sessions of the test ROM and random writes), replayed by the
+# simulator's sound engine and by the RTL one; PCM data is read from the current test ROM
+A=tools/apu/logs
 for n in r1 r2 r3 w_adpcm w_s16; do
+	node tools/apu/apu_ref.js rom/build/testrom.mnc $A/$n.log $W/${n}_js.raw > /dev/null
 	rtl/obj_apu/Vmc_apu rom/build/testrom.mnc $A/$n.log $W/$n.raw | sed 's/^/  /'
-	python3 tools/apu/cmp_raw.py $A/${n}_js.raw $W/$n.raw | head -1
+	python3 tools/apu/cmp_raw.py $W/${n}_js.raw $W/$n.raw $A/$n.log | head -1
 done

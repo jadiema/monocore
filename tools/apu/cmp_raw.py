@@ -14,7 +14,7 @@ if diff:
     print('suivants :', [(j, a[2*j] - b[2*j]) for j in diff[:8]])
     if len(sys.argv) > 3:
         shown = 0
-    for line in open(sys.argv[3]):
+        for line in open(sys.argv[3]):
             if line.startswith('#'): continue
             k = int(line.split()[0])
             if i - 400 <= k <= i and shown < 12: print("   ecriture", line.strip()); shown += 1

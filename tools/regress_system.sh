@@ -18,7 +18,7 @@ rtl/obj_sys/Vmc_system tools/vidfuzz/vfs.mnc $W/fs/sys "$FZ" > $W/fs.log 2>&1 &
 wait
 echo "== ROM de test"; grep "frames\|debug" $W/sys.log
 for n in menu card320 card256 card384 card224 planes planes2 sprites sprites2 sprites3; do
-	python3 tools/cmp_ppm.py $W/js/$n.ppm $W/sys/$n.ppm $W/d_$n.png
+	python3 tools/cmp_ppm.py --cpu-meter $W/js/$n.ppm $W/sys/$n.ppm $W/d_$n.png
 done
 for d in fz fs; do
 	echo "== $d"; grep "frames" $W/$d.log
