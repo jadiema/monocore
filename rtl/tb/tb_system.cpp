@@ -5,6 +5,9 @@
 // usage: Vmc_system rom.mnc outdir [script]     (script syntax of tools/run.js: frame:p1=hex, frame:shot=name)
 //   also p3= p4=, a1=..a4= (ANALOG_Pn: right stick 31:16, left 15:0), d1=..d4= (paddle), s1=..s4= (spinner
 //   movement, signed 8 bits), kd= / ku= (key down / up through ps2_key, one event per frame)
+//   cart=1 / cart=0 (cartridge plugged / removed), cartload (OSD "Lire la cartouche").
+//   The cartridge holds the file named by $CART: two SPI Flash chips of 8 MB ($CART_CHIP_BITS to change it),
+//   modelled below (Read Data 0x03 and Fast Read Dual Output 0x3B). $CART_SPEED = 0-2, $CART_SINGLE = 1.
 // frame:load=path loads a second ROM while the first one runs, like choosing another file in the OSD.
 // env: RDLATE=1 selects the later read capture; SDLAT=n adds n cycles to the chip's read latency
 //
@@ -141,6 +144,63 @@ int main(int argc, char **argv) {
     auto joy = [](uint32_t c) { return (c & 0xFF0) | ((c & 1) << 3) | ((c & 2) << 1) | ((c & 4) >> 1) | ((c & 8) >> 3); };
     std::string next_rom;
     std::deque<uint32_t> keys;
+    // ---------------------------------------------------------------- cartridge: two SPI Flash chips
+    std::vector<uint8_t> cart;
+    if (getenv("CART")) cart = load(getenv("CART"));
+    const int chip_bits = getenv("CART_CHIP_BITS") ? atoi(getenv("CART_CHIP_BITS")) : 23;
+    struct Flash { int bits = 0, op = 0, out_bits = 0; uint32_t addr = 0, shift = 0; bool drive = false; int do_v = 1, di_v = 1; uint8_t cur = 0; int nib = 0; };
+    Flash fl[2];
+    bool cart_in = false; int cart_load_cycles = 0;
+    int prev_sck = 0, prev_cs[2] = {1, 1};
+    auto flash_byte = [&](int c, uint32_t a) -> uint8_t {
+        size_t o = ((size_t)c << chip_bits) + (a & ((1u << chip_bits) - 1));
+        return o < cart.size() ? cart[o] : 0xFF;
+    };
+    // one clk cycle: the lines as the FPGA leaves them (open drain: 1 = released, pulled up)
+    auto flash_step = [&]() {
+        uint32_t uo = top->user_out;
+        int sck = uo & 1, di = (uo >> 1) & 1, cs[2] = {(int)((uo >> 2) & 1), (int)((uo >> 5) & 1)};
+        for (int c = 0; c < 2; c++) {
+            Flash &f = fl[c];
+            if (!cart_in) { f.drive = false; prev_cs[c] = cs[c]; continue; }
+            if (cs[c]) { f.drive = false; f.bits = 0; prev_cs[c] = 1; continue; }
+            if (prev_cs[c]) { f.bits = 0; f.op = 0; f.shift = 0; f.drive = false; }
+            prev_cs[c] = 0;
+            int line_di = f.drive && f.op == 0x3B ? f.di_v : di;
+            if (sck && !prev_sck) {                       // rising edge: command, address, dummy
+                if (f.bits < 32) { f.shift = (f.shift << 1) | line_di; if (++f.bits == 8) f.op = f.shift & 0xFF; if (f.bits == 32) f.addr = f.shift & 0xFFFFFF; }
+                else f.bits++;
+            }
+            if (!sck && prev_sck) {                       // falling edge: data out
+                int start = f.op == 0x3B ? 40 : 32;
+                if (f.bits >= start && (f.op == 0x03 || f.op == 0x3B)) {
+                    if (f.op == 0x03) {
+                        int k = (f.bits - 32) & 7;
+                        if (k == 0) { f.cur = flash_byte(c, f.addr); f.addr++; }
+                        f.do_v = (f.cur >> (7 - k)) & 1; f.drive = true;
+                    } else {
+                        int k = (f.bits - 40) & 3;
+                        if (k == 0) { f.cur = flash_byte(c, f.addr); f.addr++; }
+                        f.do_v = (f.cur >> (7 - 2 * k)) & 1; f.di_v = (f.cur >> (6 - 2 * k)) & 1; f.drive = true;
+                    }
+                }
+            }
+        }
+        prev_sck = sck;
+        uint32_t ui = uo | 0x7F;                          // released lines read 1
+        ui &= ~(uint32_t)0x02; ui |= di << 1;
+        for (int c = 0; c < 2; c++) if (fl[c].drive) {
+            ui = (ui & ~0x10u) | (fl[c].do_v << 4);
+            if (fl[c].op == 0x3B) ui = (ui & ~0x02u) | ((fl[c].di_v & di) << 1);
+        }
+        if (cart_in) ui &= ~0x08u;                        // detection: grounded by the cartridge
+        top->user_in = ui & 0x7F;
+        top->cart_load = cart_load_cycles > 0; if (cart_load_cycles > 0) cart_load_cycles--;
+    };
+    top->cart_auto = 1;
+    top->cart_speed = getenv("CART_SPEED") ? atoi(getenv("CART_SPEED")) : 0;
+    top->cart_single = getenv("CART_SINGLE") ? 1 : 0;
+    top->user_in = 0x7F;
     auto apply = [&](int f) {
         if (!keys.empty()) {                       // one key event per frame, as ps2_key holds one
             uint32_t k = keys.front(); keys.pop_front();
@@ -167,6 +227,9 @@ int main(int argc, char **argv) {
                     top->spinner = sp;
                 }
             }
+            else if (a == "cart=1") { cart_in = true; fprintf(stderr, "cartridge plugged at frame %d\n", f); }
+            else if (a == "cart=0") cart_in = false;
+            else if (a == "cartload") cart_load_cycles = 1;
             else if (a.rfind("kd=", 0) == 0) keys.push_back(0x200 | (strtoul(a.c_str() + 3, 0, 16) & 0x1FF));
             else if (a.rfind("ku=", 0) == 0) keys.push_back(strtoul(a.c_str() + 3, 0, 16) & 0x1FF);
         }
@@ -242,6 +305,8 @@ int main(int argc, char **argv) {
                     } else { dl_state = 2; top->dl_active = 0; }
                 }
             }
+            flash_step();
+            { static int pb = 0; if (top->cart_busy != pb) { fprintf(stderr, "cartridge %s at clk cycle %llu%s\n", top->cart_busy ? "read starts" : "read ends", (unsigned long long)slow, (!top->cart_busy && top->cart_error) ? " (error)" : ""); pb = top->cart_busy; } }
             if (top->dbg_valid) dbg += (char)top->dbg_char;
             if (!top->running) peak_armed = true;
             if (top->running && peak_armed) { int a = abs((int16_t)top->audio_l), b = abs((int16_t)top->audio_r); if (a > audio_peak) audio_peak = a; if (b > audio_peak) audio_peak = b; }

@@ -18,7 +18,6 @@ module emu
 ///////// Default values for ports not used in this core /////////
 
 assign ADC_BUS  = 'Z;
-assign USER_OUT = '1;
 assign {UART_RTS, UART_TXD, UART_DTR} = 0;
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = '0;
@@ -49,6 +48,11 @@ localparam CONF_STR = {
 	"-;",
 	"O[122:121],Format d'image,Original,Plein ecran,[ARC1],[ARC2];",
 	"O[3],Lecture SDRAM,Normale,Retardee;",
+	"-;",
+	"T[4],Lire la cartouche;",
+	"O[5],Cartouche,Automatique,Manuelle;",
+	"O[7:6],Horloge cartouche,3 MHz,6 MHz,12 MHz;",
+	"O[8],Lecture cartouche,Double,Simple;",
 	"-;",
 	"J1,Bouton 1,Bouton 2,Bouton 3,Bouton 4,Bouton 5,Bouton 6,Start,Piece;",
 	"jn,A,B,X,Y,L,R,Start,Select;",
@@ -120,6 +124,7 @@ wire reset = RESET | status[0] | buttons[1];
 ///////////////////////   CONSOLE   //////////////////////////////
 
 wire        ce_pix, hs, vs, hblank, vblank, running;
+wire        cart_present, cart_busy, cart_error;
 wire  [7:0] r, g, b;
 wire [15:0] snd_l, snd_r;
 wire [15:0] dq_o;
@@ -149,6 +154,15 @@ mc_system system
 	.paddle({paddle_3, paddle_2, paddle_1, paddle_0}),
 	.spinner({spinner_3, spinner_2, spinner_1, spinner_0}),
 	.ps2_key(ps2_key),
+	.user_in(USER_IN),
+	.user_out(USER_OUT),
+	.cart_load(status[4]),
+	.cart_auto(~status[5]),
+	.cart_speed(status[7:6]),
+	.cart_single(status[8]),
+	.cart_present(cart_present),
+	.cart_busy(cart_busy),
+	.cart_error(cart_error),
 	.in_sys(3'd0),
 
 	.ce_pix(ce_pix),
@@ -225,8 +239,10 @@ assign AUDIO_S = 1;
 assign AUDIO_L = snd_l;
 assign AUDIO_R = snd_r;
 
-// LED: on while a ROM is loading
-assign LED_USER = ioctl_download;
+// LED: on while a ROM is loading (SD card or cartridge), blinking after a cartridge read error
+reg [24:0] led_cnt;
+always @(posedge clk_sys) led_cnt <= led_cnt + 1'd1;
+assign LED_USER = ioctl_download | cart_busy | (cart_error & led_cnt[24]);
 assign LED_DISK = {1'b0, ~running};
 
 endmodule

@@ -1,7 +1,9 @@
 // MONOCORE-1 system: the core with its SDRAM controller, ROM loader, scan-out and I/O, everything
 // below the MiSTer framework (emu, in monocore.sv, only adds hps_io, the PLL and the pins).
 // It is also the top level of the full-system simulation (tb/tb_system.cpp).
-module mc_system (
+module mc_system #(
+	parameter CART_CHIP_BITS = 23     // size of one cartridge Flash chip (8 MB); smaller in the tests
+) (
 	input  wire        clk,            // 50 MHz
 	input  wire        clk2,           // 100 MHz, aligned with clk
 	input  wire        reset,          // clk domain, active high (power-up, OSD reset)
@@ -28,6 +30,17 @@ module mc_system (
 	input  wire [35:0] spinner,
 	// keyboard (hps_io ps2_key): [10] toggles at each event, [9] pressed, [8] extended, [7:0] code
 	input  wire [10:0] ps2_key,
+	// cartridge on the USER port (see mc_cart.v): 0 CLK, 1 DI, 2 /CS0, 3 detection (grounded by
+	// the cartridge), 4 DO, 5 /CS1, 6 unused. Open drain: user_out = 1 releases the line.
+	input  wire [6:0]  user_in,
+	output wire [6:0]  user_out,
+	input  wire        cart_load,      // OSD: read the cartridge now
+	input  wire        cart_auto,      // read it at start-up and when it is plugged in
+	input  wire [1:0]  cart_speed,     // SPI clock: 3.125, 6.25, 12.5 MHz
+	input  wire        cart_single,    // single-line reads (0x03) instead of dual
+	output wire        cart_present,
+	output wire        cart_busy,
+	output wire        cart_error,
 	// video
 	output wire        ce_pix,
 	output wire [7:0]  vga_r,
@@ -63,9 +76,50 @@ module mc_system (
 	output wire        sd_nwe,
 	output wire        sd_cke
 );
+	// ---------------------------------------------------------------- cartridge
+	reg  [1:0]  det_s;
+	reg  [19:0] det_cnt;
+	reg         present;
+	always @(posedge clk) begin                     // detection line, debounced (about 20 ms)
+		det_s <= {det_s[0], !user_in[3]};
+		if (det_s[1] == present) det_cnt <= 20'd0;
+		else if (&det_cnt) present <= det_s[1];
+		else det_cnt <= det_cnt + 20'd1;
+	end
+	initial begin det_s = 0; det_cnt = 0; present = 0; end
+	assign cart_present = present;
+
+	// when to read it: at start-up once the SD card has been idle (boot.rom download included) for
+	// about 1.3 s, when it is plugged in, or from the OSD
+	reg  [25:0] boot_cnt;
+	reg         boot_done, present_d;
+	wire        cart_start = cart_load || (cart_auto && present &&
+	                         ((!boot_done && &boot_cnt) || (boot_done && !present_d)));
+	always @(posedge clk) begin
+		present_d <= present;
+		if (dl_active) boot_cnt <= 26'd0;
+		else if (!(&boot_cnt)) boot_cnt <= boot_cnt + 26'd1;
+		if (&boot_cnt) boot_done <= 1'b1;
+	end
+	initial begin boot_cnt = 0; boot_done = 0; present_d = 0; end
+
+	wire        c_sck, c_mosi, c_cs0_n, c_cs1_n, c_active, c_wr;
+	wire [26:0] c_addr;
+	wire [15:0] c_data;
+	mc_cart #(.CHIP_BITS(CART_CHIP_BITS)) cart (
+		.clk(clk), .start(cart_start), .speed(cart_speed), .single(cart_single), .hps_active(dl_active),
+		.sck(c_sck), .mosi(c_mosi), .mosi_in(user_in[1]), .miso_in(user_in[4]), .cs0_n(c_cs0_n), .cs1_n(c_cs1_n),
+		.dl_active(c_active), .dl_wr(c_wr), .dl_addr(c_addr), .dl_data(c_data), .dl_wait(w_pend),
+		.busy(cart_busy), .error(cart_error));
+	assign user_out = {1'b1, c_cs1_n, 1'b1, 1'b1, c_cs0_n, c_mosi, c_sck};
+
 	// ---------------------------------------------------------------- ROM loader
-	// Each 16-bit word of the download is written to the SDRAM (dl_wait holds the stream meanwhile).
-	// The header gives the ROM size (0x0C) and the default DIP switches (0x14).
+	// Each 16-bit word of the download (SD card or cartridge) is written to the SDRAM (dl_wait holds
+	// the stream meanwhile). The header gives the ROM size (0x0C) and the default DIP switches (0x14).
+	wire        l_active = dl_active | c_active;
+	wire        l_wr     = dl_active ? dl_wr : c_wr;
+	wire [26:0] l_addr   = dl_active ? dl_addr : c_addr;
+	wire [15:0] l_data   = dl_active ? dl_data : c_data;
 	reg        loaded;
 	reg [31:0] rom_size, dip_rom;
 	reg        w_pend;
@@ -74,17 +128,17 @@ module mc_system (
 	wire       sd_ready, w_ack;
 	assign dl_wait = w_pend;
 	always @(posedge clk) begin
-		if (dl_wr && dl_active) begin
-			w_pend <= 1'b1; w_addr <= dl_addr[25:0]; w_data <= dl_data;
-			case (dl_addr[26:0])
-			27'h0C: rom_size[15:0]  <= dl_data;
-			27'h0E: rom_size[31:16] <= dl_data;
-			27'h14: dip_rom[15:0]   <= dl_data;
-			27'h16: dip_rom[31:16]  <= dl_data;
+		if (l_wr && l_active) begin
+			w_pend <= 1'b1; w_addr <= l_addr[25:0]; w_data <= l_data;
+			case (l_addr[26:0])
+			27'h0C: rom_size[15:0]  <= l_data;
+			27'h0E: rom_size[31:16] <= l_data;
+			27'h14: dip_rom[15:0]   <= l_data;
+			27'h16: dip_rom[31:16]  <= l_data;
 			default: ;
 			endcase
 		end else if (w_ack) w_pend <= 1'b0;
-		if (dl_active) loaded <= 1'b0;
+		if (l_active) loaded <= 1'b0;
 		else if (!w_pend && rom_size != 0) loaded <= 1'b1;
 	end
 	initial begin loaded = 0; rom_size = 0; dip_rom = 0; w_pend = 0; end
@@ -93,7 +147,7 @@ module mc_system (
 	reg [3:0] rst_cnt;
 	reg       core_rst_n;
 	always @(posedge clk) begin
-		if (reset || dl_active || !loaded || !sd_ready) begin rst_cnt <= 0; core_rst_n <= 1'b0; end
+		if (reset || l_active || !loaded || !sd_ready) begin rst_cnt <= 0; core_rst_n <= 1'b0; end
 		else if (rst_cnt != 4'd15) rst_cnt <= rst_cnt + 4'd1;
 		else core_rst_n <= 1'b1;
 	end
@@ -175,7 +229,7 @@ module mc_system (
 
 	// ---------------------------------------------------------------- SDRAM
 	mc_sdram sdram (
-		.clk(clk), .clk2(clk2), .rst_n(core_rst_n || dl_active || w_pend), .rd_late(sd_rd_late),
+		.clk(clk), .clk2(clk2), .rst_n(core_rst_n || l_active || w_pend), .rd_late(sd_rd_late),
 		.rom_req(rom_req), .rom_addr(rom_addr), .rom_ack(rom_ack), .rom_valid(rom_valid), .rom_data(rom_data),
 		.gfx_req(gfx_req), .gfx_addr(gfx_addr), .gfx_rdy(gfx_rdy), .gfx_valid(gfx_valid), .gfx_data(gfx_data),
 		.wr_req(w_pend), .wr_addr(w_addr), .wr_data(w_data), .wr_be(2'b11), .wr_ack(w_ack),

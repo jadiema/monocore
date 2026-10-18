@@ -2,6 +2,7 @@ set_global_assignment -name AUTO_RAM_TO_LCELL_CONVERSION OFF
 set_global_assignment -name SEARCH_PATH ../rtl/hazard3
 set_global_assignment -name SEARCH_PATH ../rtl/hazard3/arith
 set_global_assignment -name SYSTEMVERILOG_FILE ../rtl/mister/mc_system.v
+set_global_assignment -name SYSTEMVERILOG_FILE ../rtl/mister/mc_cart.v
 set_global_assignment -name SYSTEMVERILOG_FILE ../rtl/mister/mc_sdram.v
 set_global_assignment -name SYSTEMVERILOG_FILE ../rtl/mister/mc_scanout.v
 set_global_assignment -name SYSTEMVERILOG_FILE ../rtl/mc_core.v

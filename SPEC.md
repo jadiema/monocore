@@ -241,6 +241,8 @@ La ROM est l'image brute de l'espace `0x0000_0000`. Les 256 premiers octets form
 | 0x20 | 32 | titre (UTF-8, complété par des zéros) |
 | 0x40 | 32 | origine (par exemple le nom du jeu MAME traduit) |
 
+Sur MiSTer, une ROM se charge depuis la carte SD (OSD, ou `boot.rom` au démarrage) ou depuis une **cartouche** branchée sur le port USER : une ou deux Flash SPI de 8 Mo (16 Mo au total) qui contiennent le fichier `.mnc` tel quel. Le core en vérifie l'en-tête puis la copie dans la SDRAM ; pour le jeu, les deux chargements sont identiques (voir `mister/LISEZMOI.md`).
+
 Le code commence en `0x100`. Une ROM traduite contient typiquement : le code 68000/Z80 recompilé, une petite bibliothèque d'exécution (gestion des interruptions, traduction des écritures matérielles), les graphismes convertis au format §4.3 et les échantillons au format §5.1.
 
 ## 8. Chaîne de portage visée
