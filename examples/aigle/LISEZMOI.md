@@ -13,7 +13,8 @@ Les données du jeu ne sont pas dans le dépôt. Elles se fabriquent à partir d
     python3 tools/prepare.py chemin/l-aigle-d-or_mo5.sd chemin/l-aigle-d-or_win.exe
 
 La disquette `.sd` donne l'image mémoire du jeu (`aigle_image.c`) puis le code traduit
-(`aigle_code.c`) ; l'exécutable DCMOTO donne la police du MO5 (`mo5font.c`, il faut `upx`).
+(`aigle_code.c`) ; l'exécutable DCMOTO donne la police du MO5 (`mo5font.c`) et les images de
+l'écran d'accueil (`intro_data.c`), il faut `upx`.
 Ces fichiers sont dans `.gitignore` : **ne les publie pas**.
 
 ## Construire
@@ -35,7 +36,7 @@ Ces fichiers sont dans `.gitignore` : **ne les publie pas**.
 
 ## Banc de test sur PC
 
-    gcc -O1 -o pc/game pc/pc_main.c game.c mo5rt.c mo5font.c aigle_image.c aigle_code.c -I.
+    gcc -O1 -o pc/game pc/pc_main.c intro.c game.c mo5rt.c mo5font.c aigle_image.c intro_data.c aigle_code.c -I.
     cd pc && ./game "5:k41 300:s 301:q" "1"     # touche MO5 41 (gauche) tenue, capture au tour 300
     python3 ../tools/vram2png.py shot01.vram shot01.png
 
@@ -49,4 +50,6 @@ Ces fichiers sont dans `.gitignore` : **ne les publie pas**.
   MO5 réel ou DCMOTO. Charge CPU mesurée dans le simulateur : environ 4 % en moyenne.
 - `RND` avec argument négatif est remplacé par une fonction déterministe : chaque salle garde
   toujours le même décor, mais pas exactement celui de l'original.
-- Pas encore porté : l'intro (aigle animé et texte de l'histoire).
+- L'écran d'accueil (`intro.c`) est le chargeur de la version cassette, plus propre que celui de la
+  disquette (dont les fichiers d'intro ont des octets dupliqués). Il utilise le même moteur de dessin
+  que le jeu, donc le même code traduit. La page des commandes décrit la manette.

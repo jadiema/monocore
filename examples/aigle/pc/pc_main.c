@@ -5,6 +5,7 @@
 #include "../mo5rt.h"
 #include "../game.h"
 extern const uint8_t aigle_image[0x7F00];
+extern const uint8_t intro_bin[0xC01], intro_des[0xDFC];
 static long ticks; static const char *script; static int shots;
 static int cur_key = -1;
 void plat_byte_changed(unsigned o) { (void)o; }
@@ -35,15 +36,20 @@ static int last_room=-1;
 void plat_tick(void) { ticks++; if (mem[0x5000+157]!=last_room){last_room=mem[0x5000+157]; printf("tick %ld: salle %d\n",ticks,last_room+1);} run_script(); if (ticks > 100000) exit(1); }
 int plat_menu_key(const char *keys) {
   shot();
+  if (!keys[0]) return 0;
   char c = menu_answers[menu_pos] ? menu_answers[menu_pos++] : keys[0];
   printf("menu [%s] -> %c\n", keys, c); return c;
 }
 int main(int argc, char **argv) {
   script = argc > 1 ? argv[1] : "";
   if (argc > 2) strncpy(menu_answers, argv[2], 63);
-  memcpy(&mem[0x2100], aigle_image, sizeof aigle_image);
   S = 0xAFF0;
   mo5_init();
+  if (getenv("INTRO")) {             // INTRO=1 ./game ... : title sequence first
+    memcpy(&mem[0x5000], intro_bin, sizeof intro_bin); memcpy(&mem[0x9204], intro_des, sizeof intro_des);
+    intro_run();
+  }
+  memcpy(&mem[0x2100], aigle_image, sizeof aigle_image);
   game_run();
   return 0;
 }

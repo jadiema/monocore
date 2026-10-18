@@ -2,4 +2,4 @@
 name    = aigle
 title   = L'AIGLE D'OR
 library = mc
-sources = main.c game.c mo5rt.c mo5font.c aigle_image.c aigle_code.c
+sources = main.c intro.c game.c mo5rt.c mo5font.c aigle_image.c intro_data.c aigle_code.c

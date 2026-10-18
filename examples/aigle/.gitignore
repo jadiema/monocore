@@ -3,6 +3,7 @@ aigle_image.c
 aigle_code.c
 aigle_mem.bin
 mo5font.c
+intro_data.c
 build/
 pc/game
 pc/*.vram

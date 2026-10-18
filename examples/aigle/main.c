@@ -7,6 +7,7 @@
 #include "game.h"
 
 extern const uint8_t aigle_image[0x7F00];
+extern const uint8_t intro_bin[0xC01], intro_des[0xDFC];
 
 #define TICK_FRAMES 5            // one pass of the game loop every 5 frames (12 per second)
 
@@ -68,9 +69,10 @@ int plat_key(void) {
 }
 
 int plat_menu_key(const char *keys) {               // B1, B2... choose keys[0], keys[1]...
-  for (;;) {
+  for (;;) {                                         // keys = "": any button
     mc_frame();
     uint32_t e = mc_pad_pressed(1);
+    if (!keys[0] && (e & (IN_START | IN_B(1) | IN_B(2) | IN_B(3) | IN_B(4) | IN_B(5) | IN_B(6)))) return 0;
     for (int i = 0; keys[i] && i < 6; i++) if (e & IN_B(i + 1)) return keys[i];
     if ((e & IN_START) && keys[0]) return keys[0];
   }
@@ -103,9 +105,12 @@ int main(void) {
     for (int x = 0; x < 40; x++) mc_tile(0, x, y, MC_TILE(y * 40 + x, 0, 0));
   mc_display(DISP_ON | DISP_LAYER(0));
 
-  memcpy(&mem[0x2100], aigle_image, sizeof aigle_image);
   S = 0xAFF0;
   mo5_init();
+  memcpy(&mem[0x5000], intro_bin, sizeof intro_bin);     // drawing engine and its variables
+  memcpy(&mem[0x9204], intro_des, sizeof intro_des);     // pictures of the title sequence
+  intro_run();
+  memcpy(&mem[0x2100], aigle_image, sizeof aigle_image);  // what LOADM "AIGLE.JEU" loads
   game_run();
   for (;;) mc_frame();
 }

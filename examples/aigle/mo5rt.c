@@ -29,7 +29,7 @@ static void put_byte(int off, uint8_t forme, uint8_t color) {
 
 // ---------------------------------------------------------------- text output
 static int cur_col, cur_row, fg = 7, bg = 0, win_top = 0, win_bot = 24;
-static int esc_state;
+static int esc_state, accent;
 
 void mo5_color(int f, int b) { if (f >= 0) fg = f & 15; if (b >= 0) bg = b & 15; }
 void mo5_console(int top, int bottom) { win_top = top; win_bot = bottom; cur_col = 0; cur_row = top; }
@@ -57,16 +57,26 @@ static void newline(void) {
   if (++cur_row > win_bot) { cur_row = win_bot; scroll(); }
 }
 
+// accents of the MO5 (0x16 then A grave, B acute, C circumflex, H diaeresis, then the letter)
+static const uint8_t accent_rows[4][2] = { { 0x20, 0x10 }, { 0x08, 0x10 }, { 0x10, 0x28 }, { 0x00, 0x24 } };
 static void draw_char(uint8_t c) {
   if (c < 0x20 || c > 0x7F) c = '?';
   const uint8_t *g = &mo5_font[(c - 0x20) * 8];
-  for (int y = 0; y < 8; y++) put_byte((cur_row * 8 + y) * 40 + cur_col, g[y], (uint8_t)(fg << 4 | bg));
+  for (int y = 0; y < 8; y++) {
+    uint8_t row = g[y];
+    if (accent && y < 2) row |= accent_rows[accent - 1][y];
+    put_byte((cur_row * 8 + y) * 40 + cur_col, row, (uint8_t)(fg << 4 | bg));
+  }
+  accent = 0;
   if (++cur_col >= 40) newline();
 }
 
 void mo5_putc(uint8_t c) {
   if (esc_state == 1) { cur_row = (c - 0x40) & 31; esc_state = 2; return; }     // US row col
   if (esc_state == 2) { cur_col = (c - 0x40) % 40; esc_state = 0; return; }
+  if (esc_state == 4) {                                                        // accent
+    esc_state = 0; accent = c == 'A' ? 1 : c == 'B' ? 2 : c == 'C' ? 3 : c == 'H' ? 4 : 0; return;
+  }
   if (esc_state == 3) {                                                        // ESC colour
     esc_state = 0;
     if (c >= 0x40 && c <= 0x47) fg = c - 0x40;
@@ -76,6 +86,7 @@ void mo5_putc(uint8_t c) {
   switch (c) {
   case 0x1F: esc_state = 1; return;
   case 0x1B: esc_state = 3; return;
+  case 0x16: esc_state = 4; return;
   case 0x0C: mo5_cls(); return;
   case 0x0D: cur_col = 0; return;
   case 0x0A: newline(); return;
