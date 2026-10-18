@@ -1,0 +1,3 @@
+name = sdktest
+library = mc
+sources = main.c

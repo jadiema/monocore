@@ -1,0 +1,7 @@
+# Écran d'accueil de la MONOCORE-1, façon intro Amiga
+name    = boot
+title   = MONOCORE-1
+sources = main.c
+sprites = sheet.png
+maps    = copper.png
+library = mc

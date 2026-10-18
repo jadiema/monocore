@@ -12,8 +12,10 @@ project.txt (one setting per line, # starts a comment):
                                                                        level_width, level_height
     sounds  = boom.wav              sounds (WAV), for play_sample() -> boom_data, boom_count, boom_rate
     maps8   = title.png             256-colour maps (8 bpp, 16 x 16 tiles)
+    data    = level1.dat music.bin  raw files, embedded as is   -> level1_file, level1_size
+    library = mc                    "easy" (default) or "mc", the low-level SDK (mc.h, libc)
 
-The SDK font and the "easy" library are always included.
+The SDK font is always included.
 """
 import os, struct, subprocess, sys, wave, shutil
 
@@ -48,7 +50,10 @@ CC = tool('clang', 'clang-18', 'clang-17', 'clang-16', 'clang-15', 'clang-14')
 LD = tool('ld.lld', 'ld.lld-18', 'ld.lld-17', 'ld.lld-16', 'ld.lld-15', 'ld.lld-14')
 OBJCOPY = tool('llvm-objcopy', 'llvm-objcopy-18', 'llvm-objcopy-17', 'llvm-objcopy-16', 'llvm-objcopy-15', 'llvm-objcopy-14')
 ARCH = ['--target=riscv32', '-march=rv32im', '-mabi=ilp32', '-mno-relax']
+LIBRARY = conf.get('library', 'easy')
+if LIBRARY not in ('easy', 'mc'): fail('library = easy ou mc')
 CFLAGS = ARCH + ['-O2', '-ffreestanding', '-fno-builtin', '-nostdlib', '-Wall', '-I' + SDK]
+if LIBRARY == 'mc': CFLAGS += ['-I' + os.path.join(SDK, 'libc')]
 
 os.makedirs('build', exist_ok=True)
 def run(cmd):
@@ -92,6 +97,11 @@ for f in conf.get('sounds', '').split():
     subprocess.run([sys.executable, os.path.join(TOOLS, 'wav2pcm.py'), f, 'build/%s.raw' % n, 's8'], stdout=subprocess.DEVNULL)
     blob(n + '_data', 'build/%s.raw' % n)
     word(n + '_count', os.path.getsize('build/%s.raw' % n)); word(n + '_rate', wave.open(f).getframerate())
+for f in conf.get('data', '').split():
+    if not os.path.exists(f): fail('file %s not found' % f)
+    n = ident(f)
+    blob(n + '_file', f)
+    word(n + '_size', os.path.getsize(f))
 open('build/data.S', 'w').write('\n'.join(asm) + '\n')
 
 # ---------------------------------------------------------------- compilation
@@ -100,7 +110,11 @@ def cc(src, obj, flags):
     run([CC] + flags + ['-c', src, '-o', obj]); objs.append(obj)
 cc(os.path.join(SDK, 'crt0.S'), 'build/crt0.o', ARCH)
 cc(os.path.join(SDK, 'mini.c'), 'build/mini.o', CFLAGS)
-cc(os.path.join(SDK, 'easy.c'), 'build/easy.o', CFLAGS)
+if LIBRARY == 'easy':
+    cc(os.path.join(SDK, 'easy.c'), 'build/easy.o', CFLAGS)
+else:
+    cc(os.path.join(SDK, 'mc.c'), 'build/mc.o', CFLAGS)
+    cc(os.path.join(SDK, 'libc.c'), 'build/libc.o', CFLAGS)
 cc('build/data.S', 'build/data.o', ARCH)
 for s in sources:
     cc(s, 'build/%s.o' % ident(s), CFLAGS)
