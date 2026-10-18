@@ -13,7 +13,7 @@ extern uint8_t vram_forme[8000], vram_color[8000];   // 40 bytes per line, 200 l
 void plat_byte_changed(unsigned offset);            // forme or couleur byte at offset changed
 int  plat_key(void);                                // MO5 key number 0-57, or -1 when none
 uint32_t plat_rand(void);
-void plat_beep(int freq_hz, int ms);                // PLAY: one note (0 Hz = rest)
+void plat_beep(int freq_hz, int ms);                // PLAY: waits for the previous note, starts this one
 
 // text screen (PUTC of the monitor, PRINT/LOCATE/COLOR/CONSOLE of BASIC)
 void mo5_init(void);
@@ -36,7 +36,9 @@ extern int mo5_gx, mo5_gy;                          // graphic cursor (also in $
 int   mo5_fg(void);
 int   mo5_row(void);
 void  mo5_border(int c);
-void  mo5_play(const char *tune);          // PLAY of MO5 BASIC (blocking, as on the MO5)
+void  mo5_play(const char *tune);          // PLAY of MO5 BASIC (the last note rings on, see plat_beep)
+void  mo5_play_short(const char *tune, int max_ms);   // same, notes cut to max_ms
+void  mo5_play_reset(void);                // default octave, length and tempo (start of a program)
 uint32_t mo5_rnd(int x);                   // RND(x) x 65536 (0-65535); x < 0: same value for the same x
 void  mo5_delay_loop(int n);               // FOR X=1 TO n:NEXT
 int   mo5_key_wait(const char *keys);      // INPUT$(1) restricted to these keys

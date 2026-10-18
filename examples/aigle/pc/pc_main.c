@@ -50,6 +50,7 @@ int main(int argc, char **argv) {
     intro_run();
   }
   memcpy(&mem[0x2100], aigle_image, sizeof aigle_image);
+  mo5_play_reset();
   game_run();
   return 0;
 }

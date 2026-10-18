@@ -283,7 +283,9 @@ l1400:
       I = 4; mo5_locate(15, 2); mo5_color(7, 1); PRINT("IMPOSSIBLE"); mo5_color(7, 4);
     }
     if (I > 0) { I--; if (I == 1) { mo5_locate(15, 2); PRINT("          "); } }   // 1435
-    if (PEEK(P + 228) > 0) mo5_play("O5A200T1SI");                            // 1437
+    // 1437: the footstep. On the MO5 this PLAY held the loop up for the whole note, which left a
+  // silence between two steps; the note is cut shorter than a pass of the loop to keep that gap.
+  if (PEEK(P + 228) > 0) mo5_play_short("O5A200T1SI", 50);
     if (R > 0) { R--; if (R == 1) mo5_cls(); }                                // 1440
   }
 l1500:

@@ -183,10 +183,15 @@ uint32_t mo5_rnd(int x) {
   return s >> 16;
 }
 
+static int oct = 4, len = 24, tempo = 5;     // PLAY settings, kept from one PLAY to the next
+void mo5_play_reset(void) { oct = 4; len = 24; tempo = 5; }   // as after RUN of a new program
+
+static int max_note_ms;                       // 0: no limit
+void mo5_play_short(const char *t, int max_ms) { max_note_ms = max_ms; mo5_play(t); max_note_ms = 0; }
+
 void mo5_play(const char *t) {
   static const int semis[7] = { 0, 2, 4, 5, 7, 9, 11 };      // DO RE MI FA SO LA SI
   static const char *names[7] = { "DO", "RE", "MI", "FA", "SO", "LA", "SI" };
-  static int oct = 4, len = 24, tempo = 5;
   while (*t) {
     char c = *t;
     if (c == 'O' || c == 'L' || c == 'T' || c == 'A') {
@@ -207,6 +212,8 @@ void mo5_play(const char *t) {
     while (st < 0) { f /= 2; st += 12; }
     static const uint16_t ratio[12] = { 1024, 1085, 1149, 1218, 1290, 1367, 1448, 1534, 1625, 1722, 1825, 1933 };
     f = f / 1024 * ratio[st] / 1024;
-    plat_beep((int)f, len * tempo * 4);
+    int ms = len * tempo * 4;
+    if (max_note_ms && ms > max_note_ms) ms = max_note_ms;
+    plat_beep((int)f, ms);
   }
 }
