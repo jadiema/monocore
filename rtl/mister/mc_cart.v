@@ -44,13 +44,14 @@ module mc_cart #(
 	reg        eng_go, eng_busy;
 	reg  [1:0] eng_op;
 	reg  [7:0] tx, rx;
+	reg  [7:0] tx_byte;                // byte to send, set by the sequencer, loaded by eng_go
 	reg  [3:0] nclk, div;
 	wire [3:0] half = speed == 2'd0 ? 4'd8 : speed == 2'd1 ? 4'd4 : 4'd2;
 	always @(posedge clk) begin
 		if (eng_go) begin
 			eng_busy <= 1'b1; sck <= 1'b0; div <= half - 4'd1;
 			nclk <= eng_op == 2'd2 ? 4'd4 : 4'd8;
-			mosi <= eng_op == 2'd0 ? tx[7] : 1'b1;
+			tx <= tx_byte; mosi <= eng_op == 2'd0 ? tx_byte[7] : 1'b1;
 		end else if (eng_busy) begin
 			if (div != 4'd0) div <= div - 4'd1;
 			else begin
@@ -108,7 +109,7 @@ module mc_cart #(
 		S_HCMD, S_OPEN: if (eng_done) begin               // send the command, then read
 			if (idx == ncmd) st <= st == S_HCMD ? S_HDR : S_LO;
 			else begin
-				eng_op <= idx == 3'd4 ? 2'd3 : 2'd0; tx <= cmd_byte; eng_go <= 1'b1;
+				eng_op <= idx == 3'd4 ? 2'd3 : 2'd0; tx_byte <= cmd_byte; eng_go <= 1'b1;
 				idx <= idx + 3'd1;
 			end
 		end
@@ -158,6 +159,6 @@ module mc_cart #(
 	initial begin
 		st = S_IDLE; cs0_n = 1; cs1_n = 1; dl_active = 0; dl_wr = 0; dl_addr = 0; dl_data = 0;
 		error = 0; loading = 0; eng_go = 0; idx = 0; hcnt = 0; magic = 0; size = 0; addr = 0;
-		end_addr = 0; lo = 0; gap = 0; eng_op = 0; rd_on = 0;
+		end_addr = 0; lo = 0; gap = 0; eng_op = 0; rd_on = 0; tx_byte = 0;
 	end
 endmodule
