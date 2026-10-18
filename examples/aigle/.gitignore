@@ -1,0 +1,9 @@
+# generated from the original game and the MO5 ROM by tools/prepare.py: never publish them
+aigle_image.c
+aigle_code.c
+aigle_mem.bin
+mo5font.c
+build/
+pc/game
+pc/*.vram
+pc/*.png

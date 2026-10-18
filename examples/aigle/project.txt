@@ -1,0 +1,5 @@
+# L'Aigle d'Or (Loriciels 1985, MO5) porte nativement sur MONOCORE-1
+name    = aigle
+title   = L'AIGLE D'OR
+library = mc
+sources = main.c game.c mo5rt.c mo5font.c aigle_image.c aigle_code.c
