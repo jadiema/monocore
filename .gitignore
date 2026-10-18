@@ -2,6 +2,7 @@
 **/build/*
 !rom/build/testrom.mnc
 !examples/hello/build/hello.mnc
+!examples/nebula/build/nebula.mnc
 *.o
 *.elf
 __pycache__/

@@ -67,6 +67,7 @@ void mc_tilemap_load(int n, const uint32_t *entries, int count);   // DMA
 #define MC_CHRRAM      ((volatile uint8_t *)CHRRAM_BASE)
 #define MC_CHRRAM_SIZE 0x20000u
 void mc_chr_upload(uint32_t offset, const void *src, uint32_t bytes);   // DMA
+#define MC_CHR(offset) ((const void *)(uintptr_t)(CHRRAM_BASE + (offset)))   // address for mc_layer / mc_sprite_sheet
 
 // sprites: 512 entries, a shadow table in WRAM sent by DMA at each mc_frame()
 // Size in 8-pixel cells (1-32); zoom 0x100 = 1, 0x200 = 2; priority 0-7.

@@ -74,7 +74,7 @@ h3 { font: 700 11pt 'Archivo', sans-serif; text-transform: uppercase; letter-spa
 .c1 .chap-num { background: var(--red); } .c2 .chap-num { background: var(--orange); } .c3 .chap-num { background: #d9a900; }
 .c4 .chap-num { background: var(--green); } .c5 .chap-num { background: var(--blue); } .c6 .chap-num { background: var(--red); }
 .c7 .chap-num { background: var(--orange); } .c8 .chap-num { background: #d9a900; } .c9 .chap-num { background: var(--green); }
-.c10 .chap-num { background: var(--blue); }
+.c10 .chap-num { background: var(--blue); } .c11 .chap-num { background: var(--red); } .c12 .chap-num { background: var(--orange); }
 
 /* ---------------- listings */
 .listing { border: 1.5px solid #2c2a25; background: var(--code-bg); margin-top: 2mm; margin-bottom: 4mm; box-shadow: 3px 3px 0 #2c2a25; }
@@ -138,7 +138,7 @@ table.notes th, table.notes td { text-align: center; }
  <div class="cover-sub">MANUEL DU PROGRAMMEUR</div>
  <div class="cover-shot"><img src="images/screen_07_title.png"></div>
  <div class="cover-bottom">Écrivez vos propres jeux · Tutoriels pas à pas · Référence complète</div>
- <div class="cover-ed">ÉDITION 1 · OCTOBRE 2026</div>
+ <div class="cover-ed">ÉDITION 2 · OCTOBRE 2026</div>
 </section><section class="toc-page"><h2>Sommaire</h2><ol class="toc">
 <li><a href="#ch1"><span class="tn">1</span><span class="tt">La MONOCORE-1 en un coup d'oeil</span><span class="tp"></span><span class="pg">3</span></a></li>
 <li><a href="#ch2"><span class="tn">2</span><span class="tt">Installer l'atelier</span><span class="tp"></span><span class="pg">5</span></a></li>
@@ -150,11 +150,14 @@ table.notes th, table.notes td { text-align: center; }
 <li><a href="#ch8"><span class="tn">8</span><span class="tt">Le décor</span><span class="tp"></span><span class="pg">20</span></a></li>
 <li><a href="#ch9"><span class="tn">9</span><span class="tt">Projet : ATTRAPE-ÉTOILES</span><span class="tp"></span><span class="pg">22</span></a></li>
 <li><a href="#ch10"><span class="tn">10</span><span class="tt">Sous le capot</span><span class="tp"></span><span class="pg">26</span></a></li>
-<li><a href="#chA"><span class="tn">A</span><span class="tt">La bibliothèque easy</span><span class="tp"></span><span class="pg">28</span></a></li>
-<li><a href="#chB"><span class="tn">B</span><span class="tt">Carte mémoire et registres</span><span class="tp"></span><span class="pg">30</span></a></li>
-<li><a href="#chC"><span class="tn">C</span><span class="tt">Limites et dépannage</span><span class="tp"></span><span class="pg">32</span></a></li>
+<li><a href="#ch11"><span class="tn">11</span><span class="tt">Passer au SDK mc</span><span class="tp"></span><span class="pg">28</span></a></li>
+<li><a href="#ch12"><span class="tn">12</span><span class="tt">Projet : NEBULA</span><span class="tp"></span><span class="pg">32</span></a></li>
+<li><a href="#chA"><span class="tn">A</span><span class="tt">La bibliothèque easy</span><span class="tp"></span><span class="pg">43</span></a></li>
+<li><a href="#chB"><span class="tn">B</span><span class="tt">Carte mémoire et registres</span><span class="tp"></span><span class="pg">45</span></a></li>
+<li><a href="#chC"><span class="tn">C</span><span class="tt">Limites et dépannage</span><span class="tp"></span><span class="pg">47</span></a></li>
+<li><a href="#chD"><span class="tn">D</span><span class="tt">Le SDK mc</span><span class="tp"></span><span class="pg">48</span></a></li>
 </ol></section>
-<section class="foreword"><h2>Avant-propos</h2><p>Bienvenue ! Vous avez entre les mains le manuel de la <b>MONOCORE-1</b>, une console de jeu qui n'a jamais existé dans le commerce : elle vit dans le circuit programmable (FPGA) de votre MiSTer. Elle a été conçue pour accueillir des adaptations de jeux d'arcade des années 1978 à 1995, mais aussi, et surtout, <b>vos propres jeux</b>.</p><p>Comme les ordinateurs familiaux de notre enfance, elle s'allume et attend qu'on lui dise quoi faire. Ce manuel vous apprend à le lui dire. <b>Aucune connaissance préalable n'est nécessaire</b> : nous partirons d'un écran vide pour arriver, au chapitre 9, à un jeu complet avec un titre, un score, des vies, de la musique et des explosions.</p><p>Chaque exemple de ce manuel est un vrai programme, fourni dans le dossier <code>manual/examples</code>. Les images d'écran ont été prises en le faisant tourner : ce que vous voyez est ce que vous obtiendrez.</p><div class="box know"><div class="box-t">Une langue pour le code</div><p>Comme dans presque tous les langages de programmation, les noms utilisés dans le code (fonctions, variables, fichiers, réglages) sont en <b>anglais</b> : <code>print</code> pour écrire, <code>wait_frame</code> pour attendre l'image suivante… Chaque nom est expliqué la première fois qu'il apparaît, et l'annexe A les traduit tous. Les textes affichés à l'écran, eux, sont en français.</p></div><div class="box tip"><div class="box-t">Comment lire ce manuel</div><ul><li>Les chapitres 1 à 3 installent l'atelier et font tourner un premier programme. Lisez-les dans l'ordre.</li><li>Les chapitres 4 à 8 présentent une notion chacun : le langage C, la manette, les sprites, le son, le décor.</li><li>Le chapitre 9 assemble tout dans un jeu. Le chapitre 10 ouvre le capot pour les curieux.</li><li>Les annexes servent de référence : gardez-les sous la main pendant que vous programmez.</li></ul></div><p>Bon courage, et amusez-vous bien !</p></section>
+<section class="foreword"><h2>Avant-propos</h2><p>Bienvenue ! Vous avez entre les mains le manuel de la <b>MONOCORE-1</b>, une console de jeu qui n'a jamais existé dans le commerce : elle vit dans le circuit programmable (FPGA) de votre MiSTer. Elle a été conçue pour accueillir des adaptations de jeux d'arcade des années 1978 à 1995, mais aussi, et surtout, <b>vos propres jeux</b>.</p><p>Comme les ordinateurs familiaux de notre enfance, elle s'allume et attend qu'on lui dise quoi faire. Ce manuel vous apprend à le lui dire. <b>Aucune connaissance préalable n'est nécessaire</b> : nous partirons d'un écran vide pour arriver, au chapitre 9, à un jeu complet avec un titre, un score, des vies, de la musique et des explosions.</p><p>Chaque exemple de ce manuel est un vrai programme, fourni dans le dossier <code>manual/examples</code>. Les images d'écran ont été prises en le faisant tourner : ce que vous voyez est ce que vous obtiendrez.</p><div class="box know"><div class="box-t">Une langue pour le code</div><p>Comme dans presque tous les langages de programmation, les noms utilisés dans le code (fonctions, variables, fichiers, réglages) sont en <b>anglais</b> : <code>print</code> pour écrire, <code>wait_frame</code> pour attendre l'image suivante… Chaque nom est expliqué la première fois qu'il apparaît, et l'annexe A les traduit tous. Les textes affichés à l'écran, eux, sont en français.</p></div><div class="box tip"><div class="box-t">Comment lire ce manuel</div><ul><li>Les chapitres 1 à 3 installent l'atelier et font tourner un premier programme. Lisez-les dans l'ordre.</li><li>Les chapitres 4 à 8 présentent une notion chacun : le langage C, la manette, les sprites, le son, le décor.</li><li>Le chapitre 9 assemble tout dans un jeu. Le chapitre 10 ouvre le capot pour les curieux.</li><li>Les chapitres 11 et 12 présentent le SDK bas niveau mc, pour les jeux plus ambitieux, avec un shoot'em up complet.</li><li>Les annexes servent de référence : gardez-les sous la main pendant que vous programmez.</li></ul></div><p>Bon courage, et amusez-vous bien !</p></section>
 <section class="chap-open c1"><div class="chap-num">1</div><div class="chap-band"></div><h1 id="ch1">La MONOCORE-1 en un coup d'oeil</h1><p class="lead">Ce qu'il y a dans la boîte, et comment l'image et le son sont fabriqués.</p></section>
 <p>La MONOCORE-1 est une console complète : un processeur, une mémoire, un circuit vidéo, un circuit sonore et deux manettes. Un programme de jeu, une <b>ROM</b>, est un fichier <code>.mnc</code> que l'on charge depuis le menu du MiSTer ou que l'on glisse dans le simulateur.</p>
 <table class="specs"><thead><tr><th>Élément</th><th>Caractéristiques</th></tr></thead><tbody><tr><td>Processeur</td><td>RISC-V 32 bits à 50 MHz, environ 47 millions d'instructions par seconde</td></tr><tr><td>Mémoire</td><td>128 Ko de mémoire de travail, 32 Ko de mémoire sauvegardée, ROM jusqu'à 32 Mo</td></tr><tr><td>Image</td><td>320 x 240 pixels par défaut (de 224 x 192 à 384 x 288), 60 images par seconde, 4096 couleurs à l'écran parmi 32 768</td></tr><tr><td>Plans</td><td>4 plans de tuiles qui défilent, chacun dans sa direction</td></tr><tr><td>Sprites</td><td>512 objets mobiles, agrandis ou réduits à volonté, retournés, jusqu'à 64 par ligne</td></tr><tr><td>Son</td><td>8 voix d'échantillons (dont le format ADPCM des bornes d'arcade), 8 générateurs de notes et de bruit, stéréo 48 kHz</td></tr><tr><td>Commandes</td><td>2 manettes : 4 directions, 6 boutons, START et COIN (pièce)</td></tr></tbody></table>
@@ -681,7 +684,634 @@ sounds  = boom.wav</pre></div>
 <p>Le DMA copie ou remplit la mémoire bien plus vite que le processeur : <code>dma_copy(destination, source, octets)</code> et <code>dma_fill(destination, motif, octets)</code>. Idéal pour charger une palette, une carte de décor, ou des dessins dans la <b>CHR RAM</b> (128 Ko de graphismes modifiables en cours de jeu, à l'adresse <code>CHRRAM_BASE</code>).</p>
 <h2>Le temps du processeur</h2>
 <p>Le processeur exécute environ <b>780 000 instructions par image</b>. C'est énorme : un 68000 de borne d'arcade en exécutait 25 000. Le moniteur du simulateur affiche la charge : si elle dépasse 100 %, le jeu ralentit. Gardez une marge, car le simulateur estime le temps à environ 10 % près.</p>
+<p>Pour utiliser tout cela sans écrire les registres un par un, le chapitre 11 présente le SDK <b>mc</b>.</p>
 <div class="box warn"><div class="box-t">Règle d'or</div><p>Ne comptez jamais sur un nombre de cycles pour régler la vitesse d'un jeu : synchronisez-vous toujours sur les images (<code>wait_frame()</code>) ou sur un timer. C'est ce qui garantit que le jeu tourne pareil dans le simulateur et sur la console.</p></div>
+<section class="chap-open c11"><div class="chap-num">11</div><div class="chap-band"></div><h1 id="ch11">Passer au SDK mc</h1><p class="lead">Quand easy devient trop petit : toute la console, toujours en C, sans assembleur.</p></section>
+<p>La bibliothèque <code>easy</code> range la console d'une façon simple et fixe : un plan de texte, un décor, 64 sprites de 16 x 16. C'est parfait pour apprendre, mais un jeu plus ambitieux, ou l'adaptation d'un jeu existant, a besoin de tout le reste : les quatre plans, les 512 sprites, les interruptions, la mémoire. Le chapitre 10 a montré qu'on peut tout faire avec les registres ; le SDK <b>mc</b> (pour <i>MONOCORE</i>) donne à ces registres des fonctions pratiques, sans rien cacher.</p>
+<table class=""><thead><tr><th></th><th>easy</th><th>mc</th></tr></thead><tbody><tr><td>Pour qui</td><td>débuter, petits jeux</td><td>jeux complexes, adaptations</td></tr><tr><td>Plans</td><td>texte (0) et décor (1)</td><td>les quatre, réglés librement</td></tr><tr><td>Sprites</td><td>64, de 16 x 16</td><td>512, de 8 x 8 à 256 x 256, zoom</td></tr><tr><td>Interruptions</td><td>cachées</td><td>VBLANK, deux timers, effets raster, en C</td></tr><tr><td>Mémoire</td><td>variables seulement</td><td><code>malloc</code>, <code>free</code>, CHR RAM</td></tr><tr><td>Bibliothèque C</td><td>—</td><td><code>string.h</code>, <code>stdlib.h</code>, <code>stdio.h</code>…</td></tr></tbody></table>
+<h2>Choisir mc</h2>
+<p>Une seule ligne dans <code>project.txt</code> suffit, et le programme inclut <code>mc.h</code> au lieu de <code>easy.h</code>. Toutes les fonctions commencent par <code>mc_</code>. On ne mélange pas les deux bibliothèques dans un même programme.</p>
+<div class="listing nonum"><div class="lst-cap"><span>LISTING</span> 11_mc/project.txt</div><pre># Chapter 11: first program with the low-level mc SDK
+name    = mcdemo
+title   = PREMIERS PAS AVEC MC
+library = mc
+sources = main.c</pre></div>
+<p>Le squelette ressemble à celui d'<code>easy</code> : <code>mc_init()</code> au début, puis une boucle qui commence par <code>mc_frame()</code>. Cette fonction attend l'image suivante, puis envoie les sprites à la console, lit les manettes et fait avancer les mélodies.</p>
+<h2>Un premier programme</h2>
+<figure class="tv"><div class="bezel"><img src="images/screen_11.png"></div><figcaption>Un arc-en-ciel fait de 30 effets raster, un titre qui ondule et 48 balles dessinées par le programme.</figcaption></figure>
+<div class="listing "><div class="lst-cap"><span>LISTING</span> 11_mc/main.c</div><pre><span class="ln">  1</span><span class="c-com">// Chapter 11: a first program with the low-level "mc" SDK.</span>
+<span class="ln">  2</span><span class="c-com">// Raster rainbow, a waving title (per-line scrolling), 48 bouncing balls drawn in CHR RAM,</span>
+<span class="ln">  3</span><span class="c-com">// heap memory and snprintf.</span>
+<span class="ln">  4</span><span class="c-pre">#include "mc.h"</span>
+<span class="ln">  5</span><span class="c-pre">#include &lt;stdio.h&gt;</span>
+<span class="ln">  6</span><span class="c-pre">#include &lt;stdlib.h&gt;</span>
+<span class="ln">  7</span> 
+<span class="ln">  8</span><span class="c-kw">typedef</span> <span class="c-kw">struct</span> { <span class="c-kw">int</span> x, y, vx, vy; } ball_t;      <span class="c-com">// positions in 1/256 pixel</span>
+<span class="ln">  9</span><span class="c-kw">static</span> ball_t *balls;
+<span class="ln"> 10</span><span class="c-pre">#define BALLS 48</span>
+<span class="ln"> 11</span> 
+<span class="ln"> 12</span><span class="c-kw">static</span> <span class="c-kw">void</span> rainbow(<span class="c-kw">void</span>) {                       <span class="c-com">// raster effect, called every 8 lines</span>
+<span class="ln"> 13</span>  <span class="c-kw">int</span> a = mc_raster_line * <span class="c-num">4</span>;                     <span class="c-com">// angle: one turn (1024) over the screen height</span>
+<span class="ln"> 14</span>  mc_color(<span class="c-num">4095</span>, <span class="c-cst">MC_RGB</span>(<span class="c-num">110</span> + (mc_sin(a) * <span class="c-num">90</span> &gt;&gt; <span class="c-num">16</span>), <span class="c-num">110</span> + (mc_sin(a + <span class="c-num">341</span>) * <span class="c-num">90</span> &gt;&gt; <span class="c-num">16</span>),
+<span class="ln"> 15</span>                        <span class="c-num">110</span> + (mc_sin(a + <span class="c-num">683</span>) * <span class="c-num">90</span> &gt;&gt; <span class="c-num">16</span>)));
+<span class="ln"> 16</span>}
+<span class="ln"> 17</span> 
+<span class="ln"> 18</span><span class="c-kw">static</span> <span class="c-kw">void</span> make_ball(<span class="c-kw">void</span>) {                     <span class="c-com">// an 8 x 8 disc, 4 bits per pixel, in CHR RAM</span>
+<span class="ln"> 19</span>  <span class="c-kw">uint8_t</span> cell[<span class="c-num">32</span>] = {<span class="c-num">0</span>};
+<span class="ln"> 20</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> y = <span class="c-num">0</span>; y &lt; <span class="c-num">8</span>; y++)
+<span class="ln"> 21</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> x = <span class="c-num">0</span>; x &lt; <span class="c-num">8</span>; x++) {
+<span class="ln"> 22</span>      <span class="c-kw">int</span> dx = <span class="c-num">2</span> * x - <span class="c-num">7</span>, dy = <span class="c-num">2</span> * y - <span class="c-num">7</span>, d = dx * dx + dy * dy;
+<span class="ln"> 23</span>      <span class="c-kw">int</span> colour = d &lt; <span class="c-num">12</span> ? <span class="c-num">2</span> : d &lt; <span class="c-num">50</span> ? <span class="c-num">1</span> : <span class="c-num">0</span>;   <span class="c-com">// 2: highlight, 1: body, 0: transparent</span>
+<span class="ln"> 24</span>      cell[y * <span class="c-num">4</span> + x / <span class="c-num">2</span>] |= (<span class="c-kw">uint8_t</span>)(colour &lt;&lt; (<span class="c-num">4</span> * (x &amp; <span class="c-num">1</span>)));
+<span class="ln"> 25</span>    }
+<span class="ln"> 26</span>  mc_chr_upload(<span class="c-num">0</span>, cell, <span class="c-kw">sizeof</span> cell);
+<span class="ln"> 27</span>  mc_sprite_sheet(<span class="c-cst">MC_CHR</span>(<span class="c-num">0</span>));
+<span class="ln"> 28</span>  mc_color(<span class="c-num">16</span> * <span class="c-num">16</span> + <span class="c-num">1</span>, <span class="c-cst">MC_RGB</span>(<span class="c-num">255</span>, <span class="c-num">120</span>, <span class="c-num">40</span>));    <span class="c-com">// palette 16: the balls</span>
+<span class="ln"> 29</span>  mc_color(<span class="c-num">16</span> * <span class="c-num">16</span> + <span class="c-num">2</span>, <span class="c-cst">MC_RGB</span>(<span class="c-num">255</span>, <span class="c-num">240</span>, <span class="c-num">200</span>));
+<span class="ln"> 30</span>}
+<span class="ln"> 31</span> 
+<span class="ln"> 32</span><span class="c-kw">int</span> main(<span class="c-kw">void</span>) {
+<span class="ln"> 33</span>  mc_init();
+<span class="ln"> 34</span>  mc_text_layer(<span class="c-num">0</span>, <span class="c-num">3</span>);
+<span class="ln"> 35</span>  mc_layer_linescroll(<span class="c-num">0</span>, <span class="c-kw">true</span>);                   <span class="c-com">// each line of the text layer can move</span>
+<span class="ln"> 36</span>  mc_background(<span class="c-num">4095</span>);
+<span class="ln"> 37</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> y = <span class="c-num">0</span>; y &lt; <span class="c-num">240</span>; y += <span class="c-num">8</span>) mc_raster_add(y, rainbow);
+<span class="ln"> 38</span>  make_ball();
+<span class="ln"> 39</span>  balls = calloc(<span class="c-cst">BALLS</span>, <span class="c-kw">sizeof</span>(ball_t));          <span class="c-com">// memory taken from the heap</span>
+<span class="ln"> 40</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">BALLS</span>; i++)
+<span class="ln"> 41</span>    balls[i] = (ball_t){(<span class="c-kw">int</span>)(mc_rand() % <span class="c-num">312</span>) &lt;&lt; <span class="c-num">8</span>, (<span class="c-num">80</span> + (<span class="c-kw">int</span>)(mc_rand() % <span class="c-num">152</span>)) &lt;&lt; <span class="c-num">8</span>,
+<span class="ln"> 42</span>                        (<span class="c-kw">int</span>)(mc_rand() % <span class="c-num">512</span>) - <span class="c-num">256</span>, (<span class="c-kw">int</span>)(mc_rand() % <span class="c-num">512</span>) - <span class="c-num">256</span>};
+<span class="ln"> 43</span>  mc_sprites_used(<span class="c-cst">BALLS</span>);
+<span class="ln"> 44</span>  mc_display(<span class="c-cst">DISP_ON</span> | <span class="c-cst">DISP_LAYER</span>(<span class="c-num">0</span>) | <span class="c-cst">DISP_SPRITES</span>);
+<span class="ln"> 45</span>  mc_text(<span class="c-num">0</span>, <span class="c-num">10</span>, <span class="c-num">6</span>, <span class="c-str">"BIENVENUE DANS MC !"</span>, <span class="c-num">0</span>);
+<span class="ln"> 46</span>  <span class="c-kw">char</span> line[<span class="c-num">41</span>];
+<span class="ln"> 47</span>  <span class="c-kw">for</span> (;;) {
+<span class="ln"> 48</span>    mc_frame();
+<span class="ln"> 49</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> y = <span class="c-num">40</span>; y &lt; <span class="c-num">64</span>; y++)                 <span class="c-com">// the title waves: one offset per line</span>
+<span class="ln"> 50</span>      mc_linescroll(<span class="c-num">0</span>)[y].dx = (<span class="c-kw">int16_t</span>)(mc_sin((<span class="c-kw">int</span>)mc_frames * <span class="c-num">8</span> + y * <span class="c-num">6</span>) * <span class="c-num">10</span> &gt;&gt; <span class="c-num">16</span>);
+<span class="ln"> 51</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">BALLS</span>; i++) {
+<span class="ln"> 52</span>      ball_t *b = &amp;balls[i];
+<span class="ln"> 53</span>      b-&gt;x += b-&gt;vx; b-&gt;y += b-&gt;vy;
+<span class="ln"> 54</span>      <span class="c-kw">if</span> (b-&gt;x &lt; <span class="c-num">0</span> || b-&gt;x &gt; (<span class="c-num">312</span> &lt;&lt; <span class="c-num">8</span>)) b-&gt;vx = -b-&gt;vx;
+<span class="ln"> 55</span>      <span class="c-kw">if</span> (b-&gt;y &lt; (<span class="c-num">80</span> &lt;&lt; <span class="c-num">8</span>) || b-&gt;y &gt; (<span class="c-num">232</span> &lt;&lt; <span class="c-num">8</span>)) b-&gt;vy = -b-&gt;vy;
+<span class="ln"> 56</span>      <span class="c-kw">int</span> zoom = <span class="c-num">0x100</span> + (mc_sin((<span class="c-kw">int</span>)mc_frames * <span class="c-num">6</span> + i * <span class="c-num">21</span>) &gt;&gt; <span class="c-num">9</span>);   <span class="c-com">// 0.5x to 1.5x</span>
+<span class="ln"> 57</span>      mc_sprite(i, b-&gt;x &gt;&gt; <span class="c-num">8</span>, b-&gt;y &gt;&gt; <span class="c-num">8</span>, <span class="c-num">0</span>, <span class="c-num">1</span>, <span class="c-num">1</span>, <span class="c-num">16</span>, <span class="c-num">4</span>);
+<span class="ln"> 58</span>      mc_sprite_zoom(i, zoom, zoom);
+<span class="ln"> 59</span>    }
+<span class="ln"> 60</span>    snprintf(line, <span class="c-kw">sizeof</span> line, <span class="c-str">"IMAGE %5u   TAS LIBRE %6u"</span>, (<span class="c-kw">unsigned</span>)mc_frames, (<span class="c-kw">unsigned</span>)mc_heap_free());
+<span class="ln"> 61</span>    mc_text(<span class="c-num">0</span>, <span class="c-num">5</span>, <span class="c-num">29</span>, line, <span class="c-num">0</span>);
+<span class="ln"> 62</span>  }
+<span class="ln"> 63</span>}</pre></div>
+<h2>Les effets raster</h2>
+<p>La console fabrique l'image ligne par ligne. <code>mc_raster_add(ligne, fonction)</code> demande d'appeler une fonction juste avant qu'une ligne soit dessinée : ce qu'elle change (une couleur, un défilement) s'applique à partir de cette ligne, au pixel près. Ici, 30 effets, un toutes les 8 lignes, changent la couleur de fond : c'est l'arc-en-ciel. Dans la fonction, <code>mc_raster_line</code> dit quelle ligne est en cours. On peut en poser 64 par image ; ils restent en place d'une image à l'autre.</p>
+<div class="box know"><div class="box-t">Le saviez-vous ?</div><p>L'Amiga avait un coprocesseur, le <i>Copper</i>, qui ne faisait que cela : changer des registres à des lignes précises. Les fameuses « barres copper » des démos en viennent. L'écran d'accueil de la console (<code>examples/boot</code>) en est un hommage.</p></div>
+<h2>Le défilement ligne par ligne</h2>
+<p><code>mc_layer_linescroll(plan, true)</code> autorise un décalage différent pour chaque ligne d'un plan ; <code>mc_linescroll(plan)[y].dx</code> est le décalage horizontal de la ligne <code>y</code>. En le faisant varier en sinus, le titre ondule comme un drapeau. Le même procédé donne les routes des jeux de course, les vagues ou les sols en perspective.</p>
+<h2>Dessiner dans la CHR RAM</h2>
+<p>Les dessins ne viennent pas forcément d'une image PNG. La <b>CHR RAM</b>, 128 Ko de dessins modifiables, peut recevoir ce que le programme calcule : <code>make_ball()</code> trace un disque pixel par pixel, l'envoie avec <code>mc_chr_upload</code>, et <code>MC_CHR(0)</code> donne l'adresse à utiliser comme planche de sprites. Un pixel occupe 4 bits : deux pixels par octet, celui de gauche dans les 4 bits de poids faible, 32 octets par case de 8 x 8.</p>
+<h2>Les sprites</h2>
+<p><code>mc_sprite(n, x, y, case, largeur, hauteur, palette, priorité)</code> place le sprite <code>n</code> (0 à 511). La largeur et la hauteur se comptent en cases de 8 pixels ; <code>mc_sprite_zoom</code> l'agrandit ou le réduit (256 = taille normale). Les sprites sont d'abord rangés dans une copie en mémoire, que <code>mc_frame()</code> envoie d'un coup par DMA : on ne voit jamais un sprite à moitié déplacé. <code>mc_sprites_used(48)</code> dit à la console de ne parcourir que les 48 premiers.</p>
+<h2>La mémoire et la bibliothèque C</h2>
+<p>Avec <code>mc</code>, les fichiers d'en-tête habituels du C sont disponibles. <code>calloc</code> réserve ici la place des 48 balles dans le <b>tas</b>, la mémoire libre entre les variables et la pile (environ 100 Ko) ; <code>free</code> la rend. <code>snprintf</code> fabrique une ligne de texte avec des nombres, et <code>printf</code> écrit sur la console de debug du simulateur.</p>
+<table class=""><thead><tr><th>En-tête</th><th>Ce qu'il apporte</th></tr></thead><tbody><tr><td><code>&lt;string.h&gt;</code></td><td>copier, comparer, chercher : <code>strcpy</code>, <code>strcmp</code>, <code>strlen</code>, <code>memcpy</code>…</td></tr><tr><td><code>&lt;stdlib.h&gt;</code></td><td><code>malloc</code>, <code>calloc</code>, <code>realloc</code>, <code>free</code>, <code>abs</code>, <code>atoi</code>, <code>rand</code>, <code>qsort</code></td></tr><tr><td><code>&lt;stdio.h&gt;</code></td><td><code>snprintf</code>, <code>sprintf</code>, et <code>printf</code> vers la console de debug</td></tr><tr><td><code>&lt;ctype.h&gt;</code></td><td><code>isdigit</code>, <code>toupper</code>…</td></tr><tr><td><code>&lt;assert.h&gt;</code></td><td><code>assert</code> : arrête le programme avec un message si une condition est fausse</td></tr></tbody></table>
+<div class="box warn"><div class="box-t">Pas de nombres à virgule</div><p>Le processeur de la console ne calcule qu'en nombres entiers. Le compilateur accepte <code>float</code>, mais l'imite très lentement. <code>mc</code> fournit la <b>virgule fixe</b> : un <code>fix16</code> est un entier qui compte en 65 536<sup>e</sup>, <code>FIX(1.5)</code> vaut 1,5, et <code>mc_sin</code>, <code>mc_cos</code>, <code>mc_atan2</code> travaillent avec des angles de 1024 pas par tour. Dans l'exemple, les positions des balles comptent en 256<sup>e</sup> de pixel, ce qui permet des vitesses fines.</p></div>
+<p>Toutes les fonctions sont rassemblées dans l'annexe D ; le fichier <code>sdk/SDK_MC.md</code> donne en plus les règles du matériel à connaître pour adapter un jeu existant.</p>
+<section class="chap-open c12"><div class="chap-num">12</div><div class="chap-band"></div><h1 id="ch12">Projet : NEBULA</h1><p class="lead">Un shoot'em up complet, dont tous les dessins sont calculés au démarrage.</p></section>
+<div class="pair"><figure class="tv small"><div class="bezel"><img src="images/screen_12_title.png"></div><figcaption>L'écran titre : des lettres de la police agrandies quatre fois.</figcaption></figure><figure class="tv small"><div class="bezel"><img src="images/screen_12_game.png"></div><figcaption>Une partie : soucoupes, tirs et traînée du réacteur.</figcaption></figure></div>
+<p>Le vaisseau traverse un paysage de montagnes et de collines ; des vagues de soucoupes arrivent en ondulant, et des orbes tirent vers le joueur. Le bouton 1 tire, la croix pilote. Le programme (505 lignes, dans <code>examples/nebula</code>) n'utilise <b>aucun fichier image ni son</b> : les sprites sont dessinés en caractères dans le code, et les décors sont calculés.</p>
+<h2>Organisation du programme</h2>
+<table class=""><thead><tr><th>Fonction</th><th>Rôle</th></tr></thead><tbody><tr><td><code>make_sprites</code></td><td>convertit les dessins en caractères (<code>art_ship</code>…) en cases de sprites, dans la CHR RAM</td></tr><tr><td><code>build_layer</code></td><td>découpe une image calculée de 512 x 256 pixels en tuiles, en partageant les tuiles identiques</td></tr><tr><td><code>make_backgrounds</code></td><td>calcule les profils des montagnes et des collines, construit les trois plans de décor</td></tr><tr><td><code>scroll_backgrounds</code></td><td>fait défiler les trois plans à trois vitesses, et le sol en perspective</td></tr><tr><td><code>sky</code></td><td>effet raster : une couleur de ciel toutes les 4 lignes</td></tr><tr><td><code>play_frame</code></td><td>une image de jeu : manette, tirs, vagues d'ennemis, collisions</td></tr><tr><td><code>fire_at_player</code></td><td>tir d'un orbe, dirigé vers le joueur avec <code>mc_atan2</code></td></tr><tr><td><code>explosion</code></td><td>lance des dizaines de particules dans toutes les directions</td></tr><tr><td><code>update_fx</code></td><td>fait vivre les particules : elles ralentissent, refroidissent et rétrécissent</td></tr><tr><td><code>title_screen</code></td><td>écran titre</td></tr><tr><td><code>game_over</code></td><td>fin de partie, avec le record gardé en mémoire sauvegardée (NVRAM)</td></tr></tbody></table>
+<h2>Des dessins en caractères</h2>
+<p>Chaque sprite est dessiné dans le code, une chaîne de 16 caractères par ligne : un point est transparent, une lettre de <code>A</code> à <code>O</code> désigne une couleur de 1 à 15. <code>pack_art</code> range ces pixels en cases de 8 x 8, dans l'ordre que la console attend pour un sprite de 2 x 2 cases : en haut à gauche, en haut à droite, en bas à gauche, en bas à droite.</p>
+<div class="listing nonum"><div class="lst-cap"><span>LISTING</span> examples/nebula/main.c : le dessin du vaisseau</div><pre><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> *<span class="c-kw">const</span> art_ship[<span class="c-num">16</span>] = {
+  <span class="c-str">"................"</span>, <span class="c-str">"................"</span>, <span class="c-str">"..AA............"</span>, <span class="c-str">"..ABA..........."</span>,
+  <span class="c-str">"...ABBA........."</span>, <span class="c-str">"...ACCBBAA......"</span>, <span class="c-str">"DDACCCCCBBBAA..."</span>, <span class="c-str">"EEACCCCFFFCCBBA."</span>,
+  <span class="c-str">"EEACCCCFFFCCBBA."</span>, <span class="c-str">"DDACCCCCBBBAA..."</span>, <span class="c-str">"...ACCBBAA......"</span>, <span class="c-str">"...ABBA........."</span>,
+  <span class="c-str">"..ABA..........."</span>, <span class="c-str">"..AA............"</span>, <span class="c-str">"................"</span>, <span class="c-str">"................"</span>};
+  ...</pre></div>
+<h2>Des décors calculés</h2>
+<p>Les montagnes sont une somme de trois sinus : <code>far_top[x]</code> donne la hauteur du sommet pour chaque colonne. La fonction <code>far_pixel(x, y)</code> dit la couleur de chaque point d'une image de 512 x 256 pixels : rien au-dessus du sommet, une ligne claire sur la crête, puis des bandes de plus en plus sombres. <code>build_layer</code> découpe cette image en 2 048 tuiles de 8 x 8, mais n'en garde qu'une centaine : les tuiles identiques (le ciel vide, les bandes pleines) sont partagées. Pour les reconnaître vite, chaque tuile reçoit une empreinte (un <i>hachage</i>), et on ne compare en détail que les tuiles de même empreinte.</p>
+<div class="box tip"><div class="box-t">Pourquoi des bandes de 16 lignes ?</div><p>Les bandes de couleur commencent sur des multiples de 16 lignes, donc sur des bords de tuiles. Toutes les tuiles à l'intérieur d'une bande sont alors identiques : une seule suffit pour toute la bande.</p></div>
+<h2>Trois plans et un sol</h2>
+<p>Les étoiles (plan 2) défilent d'un pixel toutes les 8 images, les montagnes (plan 1) toutes les 4 images, les collines (plan 3) d'un pixel par image : c'est la <b>parallaxe</b>. Les 24 dernières lignes, le damier du sol, défilent de plus en plus vite vers le bas grâce au défilement ligne par ligne : on croit voir un sol qui fuit vers l'horizon. Les priorités rangent le tout : le texte (plan 0, priorité 3) devant les sprites (priorité 4), devant les collines (priorité 2), devant les montagnes (priorité 1), devant les étoiles (priorité 0).</p>
+<div class="box know"><div class="box-t">La règle des priorités</div><p>Chaque pixel d'un plan a une priorité <i>effective</i> égale à deux fois celle du plan, plus 1 si la tuile porte la marque <code>T_PRIO</code>. Un sprite de priorité <i>p</i> passe devant les pixels de priorité effective inférieure ou égale à <i>p</i>. Le texte, de priorité effective 6, cache donc les sprites de priorité 4.</p></div>
+<h2>Viser le joueur</h2>
+<p><code>mc_atan2(dy, dx)</code> donne la direction qui va d'un orbe au vaisseau, en 1024 pas par tour. <code>mc_cos</code> et <code>mc_sin</code> la transforment en une vitesse horizontale et verticale. Les positions comptent en 256<sup>e</sup> de pixel (<code>FP</code> vaut 8) : le tir avance d'environ 1,6 pixel par image, dans n'importe quelle direction.</p>
+<h2>Des particules</h2>
+<p>Une explosion lance jusqu'à 48 particules. Leur réserve de 160 places est prise dans le tas avec <code>calloc</code>. À chaque image, une particule ralentit (sa vitesse est multipliée par 15/16), change de palette en refroidissant (blanc, jaune, orange, rouge sombre) et rétrécit grâce au zoom. Avec les tirs et les ennemis, le jeu peut afficher 233 sprites à la fois.</p>
+<h2>Le listing complet</h2>
+<div class="listing nonum"><div class="lst-cap"><span>LISTING</span> examples/nebula/project.txt</div><pre># NEBULA: shoot'em up example of the low-level "mc" SDK (all graphics generated at start-up)
+name    = nebula
+title   = NEBULA
+library = mc
+sources = main.c</pre></div>
+<div class="listing "><div class="lst-cap"><span>LISTING</span> examples/nebula/main.c</div><pre><span class="ln">  1</span><span class="c-com">// NEBULA - a horizontal shoot'em up for MONOCORE-1, written with the low-level "mc" SDK.</span>
+<span class="ln">  2</span><span class="c-com">//</span>
+<span class="ln">  3</span><span class="c-com">// Shows what mc adds to the console's C programs:</span>
+<span class="ln">  4</span><span class="c-com">//   - every graphic is generated at start-up in CHR RAM (no image file): sprites from ASCII art,</span>
+<span class="ln">  5</span><span class="c-com">//     three background layers from procedural height profiles (mc_chr_upload);</span>
+<span class="ln">  6</span><span class="c-com">//   - parallax on three layers, a perspective floor with per-line scrolling (mc_linescroll);</span>
+<span class="ln">  7</span><span class="c-com">//   - a sky gradient made of 54 raster effects (mc_raster_add);</span>
+<span class="ln">  8</span><span class="c-com">//   - up to 240 sprites a frame through the shadow sprite table (mc_sprite, mc_frame);</span>
+<span class="ln">  9</span><span class="c-com">//   - zoomed sprites (title letters, explosion particles), aimed enemy shots (mc_atan2, mc_cos);</span>
+<span class="ln"> 10</span><span class="c-com">//   - heap memory (calloc), snprintf, PSG sound effects and music (mc_psg, mc_tune).</span>
+<span class="ln"> 11</span><span class="c-pre">#include "mc.h"</span>
+<span class="ln"> 12</span><span class="c-pre">#include &lt;stdio.h&gt;</span>
+<span class="ln"> 13</span><span class="c-pre">#include &lt;stdlib.h&gt;</span>
+<span class="ln"> 14</span><span class="c-pre">#include &lt;string.h&gt;</span>
+<span class="ln"> 15</span> 
+<span class="ln"> 16</span><span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">uint8_t</span> font_chr[], font_pal[];   <span class="c-com">// SDK font, always added by build.py</span>
+<span class="ln"> 17</span> 
+<span class="ln"> 18</span><span class="c-com">// ---------------------------------------------------------------- memory map of CHR RAM</span>
+<span class="ln"> 19</span><span class="c-pre">#define CHR_SPR    0x0000                 // sprite cells</span>
+<span class="ln"> 20</span><span class="c-pre">#define CHR_STARS  0x1000                 // layer 2: stars</span>
+<span class="ln"> 21</span><span class="c-pre">#define CHR_FAR    0x2000                 // layer 1: far mountains (384 tiles at most)</span>
+<span class="ln"> 22</span><span class="c-pre">#define CHR_NEAR   0x5000                 // layer 3: near hills and floor (384 tiles at most)</span>
+<span class="ln"> 23</span><span class="c-pre">#define CHR_FONT   0x8000                 // copy of the SDK font, for the title letters</span>
+<span class="ln"> 24</span><span class="c-pre">#define CHR(off)   MC_CHR(off)</span>
+<span class="ln"> 25</span><span class="c-pre">#define CELL_FONT  (CHR_FONT / 32)</span>
+<span class="ln"> 26</span> 
+<span class="ln"> 27</span><span class="c-com">// sprite cells (8 x 8 each); a 16 x 16 sprite uses 4 cells in the order tile + cy * 2 + cx</span>
+<span class="ln"> 28</span><span class="c-pre">#define CELL_SHIP   0</span>
+<span class="ln"> 29</span><span class="c-pre">#define CELL_SAUCER 4</span>
+<span class="ln"> 30</span><span class="c-pre">#define CELL_ORB    8</span>
+<span class="ln"> 31</span><span class="c-pre">#define CELL_LASER  12</span>
+<span class="ln"> 32</span><span class="c-pre">#define CELL_SHOT   13</span>
+<span class="ln"> 33</span><span class="c-pre">#define CELL_SPARK  14</span>
+<span class="ln"> 34</span> 
+<span class="ln"> 35</span><span class="c-com">// palettes</span>
+<span class="ln"> 36</span><span class="c-pre">#define PAL_HUD    1                      // 1-3: recoloured SDK font</span>
+<span class="ln"> 37</span><span class="c-pre">#define PAL_LETTER 4                      // 4-9: title letters</span>
+<span class="ln"> 38</span><span class="c-pre">#define PAL_SPR    16</span>
+<span class="ln"> 39</span><span class="c-pre">#define PAL_FX     17                     // 17-20: particles, from hot to cold</span>
+<span class="ln"> 40</span><span class="c-pre">#define PAL_STARS  24</span>
+<span class="ln"> 41</span><span class="c-pre">#define PAL_FAR    25</span>
+<span class="ln"> 42</span><span class="c-pre">#define PAL_NEAR   26</span>
+<span class="ln"> 43</span><span class="c-pre">#define SKY        4095                   // background colour entry, changed line by line</span>
+<span class="ln"> 44</span> 
+<span class="ln"> 45</span><span class="c-com">// sprite slots</span>
+<span class="ln"> 46</span><span class="c-pre">#define S_PLAYER   0</span>
+<span class="ln"> 47</span><span class="c-pre">#define S_LASER    1</span>
+<span class="ln"> 48</span><span class="c-pre">#define N_LASER    16</span>
+<span class="ln"> 49</span><span class="c-pre">#define S_ENEMY    17</span>
+<span class="ln"> 50</span><span class="c-pre">#define N_ENEMY    24</span>
+<span class="ln"> 51</span><span class="c-pre">#define S_SHOT     41</span>
+<span class="ln"> 52</span><span class="c-pre">#define N_SHOT     32</span>
+<span class="ln"> 53</span><span class="c-pre">#define S_FX       73</span>
+<span class="ln"> 54</span><span class="c-pre">#define N_FX       160</span>
+<span class="ln"> 55</span><span class="c-pre">#define S_USED     (S_FX + N_FX)</span>
+<span class="ln"> 56</span> 
+<span class="ln"> 57</span><span class="c-pre">#define FP 8                              // positions in 8.8 fixed point</span>
+<span class="ln"> 58</span><span class="c-pre">#define PX(v) ((v) &gt;&gt; FP)</span>
+<span class="ln"> 59</span> 
+<span class="ln"> 60</span><span class="c-com">// ---------------------------------------------------------------- sprite art</span>
+<span class="ln"> 61</span><span class="c-com">// '.' = transparent, 'A' to 'O' = colours 1 to 15 of PAL_SPR (or of PAL_FX for the spark)</span>
+<span class="ln"> 62</span><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> *<span class="c-kw">const</span> art_ship[<span class="c-num">16</span>] = {
+<span class="ln"> 63</span>  <span class="c-str">"................"</span>, <span class="c-str">"................"</span>, <span class="c-str">"..AA............"</span>, <span class="c-str">"..ABA..........."</span>,
+<span class="ln"> 64</span>  <span class="c-str">"...ABBA........."</span>, <span class="c-str">"...ACCBBAA......"</span>, <span class="c-str">"DDACCCCCBBBAA..."</span>, <span class="c-str">"EEACCCCFFFCCBBA."</span>,
+<span class="ln"> 65</span>  <span class="c-str">"EEACCCCFFFCCBBA."</span>, <span class="c-str">"DDACCCCCBBBAA..."</span>, <span class="c-str">"...ACCBBAA......"</span>, <span class="c-str">"...ABBA........."</span>,
+<span class="ln"> 66</span>  <span class="c-str">"..ABA..........."</span>, <span class="c-str">"..AA............"</span>, <span class="c-str">"................"</span>, <span class="c-str">"................"</span>};
+<span class="ln"> 67</span><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> *<span class="c-kw">const</span> art_saucer[<span class="c-num">16</span>] = {
+<span class="ln"> 68</span>  <span class="c-str">"................"</span>, <span class="c-str">"................"</span>, <span class="c-str">"................"</span>, <span class="c-str">"......GGGG......"</span>,
+<span class="ln"> 69</span>  <span class="c-str">"....GHHHHHHG...."</span>, <span class="c-str">"...GHHIHHIHHG..."</span>, <span class="c-str">"..GJJJJJJJJJJG.."</span>, <span class="c-str">".GJKKJKKJKKJKJG."</span>,
+<span class="ln"> 70</span>  <span class="c-str">"GJJJJJJJJJJJJJJG"</span>, <span class="c-str">".GGJJJJJJJJJJGG."</span>, <span class="c-str">"...GGGGGGGGGG..."</span>, <span class="c-str">"....I..I..I..I.."</span>,
+<span class="ln"> 71</span>  <span class="c-str">"................"</span>, <span class="c-str">"................"</span>, <span class="c-str">"................"</span>, <span class="c-str">"................"</span>};
+<span class="ln"> 72</span><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> *<span class="c-kw">const</span> art_orb[<span class="c-num">16</span>] = {
+<span class="ln"> 73</span>  <span class="c-str">"................"</span>, <span class="c-str">".....LLLLLL....."</span>, <span class="c-str">"...LLMMMMMMLL..."</span>, <span class="c-str">"..LMMMMMMMMMML.."</span>,
+<span class="ln"> 74</span>  <span class="c-str">".LMMMNNNNNNMMML."</span>, <span class="c-str">".LMMNNOOOONNMML."</span>, <span class="c-str">"LMMMNOOLLOONMMML"</span>, <span class="c-str">"LMMMNOLLLLONMMML"</span>,
+<span class="ln"> 75</span>  <span class="c-str">"LMMMNOLLLLONMMML"</span>, <span class="c-str">"LMMMNOOLLOONMMML"</span>, <span class="c-str">".LMMNNOOOONNMML."</span>, <span class="c-str">".LMMMNNNNNNMMML."</span>,
+<span class="ln"> 76</span>  <span class="c-str">"..LMMMMMMMMMML.."</span>, <span class="c-str">"...LLMMMMMMLL..."</span>, <span class="c-str">".....LLLLLL....."</span>, <span class="c-str">"................"</span>};
+<span class="ln"> 77</span><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> *<span class="c-kw">const</span> art_laser[<span class="c-num">8</span>] = {
+<span class="ln"> 78</span>  <span class="c-str">"........"</span>, <span class="c-str">"........"</span>, <span class="c-str">"........"</span>, <span class="c-str">"EKKKKKKE"</span>, <span class="c-str">"EKKKKKKE"</span>, <span class="c-str">"........"</span>, <span class="c-str">"........"</span>, <span class="c-str">"........"</span>};
+<span class="ln"> 79</span><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> *<span class="c-kw">const</span> art_shot[<span class="c-num">8</span>] = {
+<span class="ln"> 80</span>  <span class="c-str">"........"</span>, <span class="c-str">"..NNNN.."</span>, <span class="c-str">".NNOONN."</span>, <span class="c-str">".NOOOON."</span>, <span class="c-str">".NOOOON."</span>, <span class="c-str">".NNOONN."</span>, <span class="c-str">"..NNNN.."</span>, <span class="c-str">"........"</span>};
+<span class="ln"> 81</span><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> *<span class="c-kw">const</span> art_spark[<span class="c-num">8</span>] = {
+<span class="ln"> 82</span>  <span class="c-str">"........"</span>, <span class="c-str">"........"</span>, <span class="c-str">"...BB..."</span>, <span class="c-str">"..BAAB.."</span>, <span class="c-str">"..BAAB.."</span>, <span class="c-str">"...BB..."</span>, <span class="c-str">"........"</span>, <span class="c-str">"........"</span>};
+<span class="ln"> 83</span> 
+<span class="ln"> 84</span><span class="c-kw">static</span> <span class="c-kw">int</span> art_colour(<span class="c-kw">char</span> c) { <span class="c-kw">return</span> (c &gt;= 'A' &amp;&amp; c &lt;= 'O') ? c - 'A' + <span class="c-num">1</span> : <span class="c-num">0</span>; }
+<span class="ln"> 85</span> 
+<span class="ln"> 86</span><span class="c-com">// packs an ASCII picture (w x h pixels, multiples of 8) into 4 bpp cells, in sprite order</span>
+<span class="ln"> 87</span><span class="c-kw">static</span> <span class="c-kw">void</span> pack_art(<span class="c-kw">uint8_t</span> *dst, <span class="c-kw">const</span> <span class="c-kw">char</span> *<span class="c-kw">const</span> *rows, <span class="c-kw">int</span> w, <span class="c-kw">int</span> h) {
+<span class="ln"> 88</span>  <span class="c-kw">int</span> cw = w / <span class="c-num">8</span>, ch = h / <span class="c-num">8</span>;
+<span class="ln"> 89</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> cy = <span class="c-num">0</span>; cy &lt; ch; cy++)
+<span class="ln"> 90</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> cx = <span class="c-num">0</span>; cx &lt; cw; cx++) {
+<span class="ln"> 91</span>      <span class="c-kw">uint8_t</span> *cell = dst + (cy * cw + cx) * <span class="c-num">32</span>;
+<span class="ln"> 92</span>      <span class="c-kw">for</span> (<span class="c-kw">int</span> y = <span class="c-num">0</span>; y &lt; <span class="c-num">8</span>; y++)
+<span class="ln"> 93</span>        <span class="c-kw">for</span> (<span class="c-kw">int</span> x = <span class="c-num">0</span>; x &lt; <span class="c-num">8</span>; x += <span class="c-num">2</span>) {
+<span class="ln"> 94</span>          <span class="c-kw">const</span> <span class="c-kw">char</span> *r = rows[cy * <span class="c-num">8</span> + y] + cx * <span class="c-num">8</span> + x;
+<span class="ln"> 95</span>          cell[y * <span class="c-num">4</span> + x / <span class="c-num">2</span>] = (<span class="c-kw">uint8_t</span>)(art_colour(r[<span class="c-num">0</span>]) | (art_colour(r[<span class="c-num">1</span>]) &lt;&lt; <span class="c-num">4</span>));
+<span class="ln"> 96</span>        }
+<span class="ln"> 97</span>    }
+<span class="ln"> 98</span>}
+<span class="ln"> 99</span> 
+<span class="ln">100</span><span class="c-kw">static</span> <span class="c-kw">void</span> make_sprites(<span class="c-kw">void</span>) {
+<span class="ln">101</span>  <span class="c-kw">static</span> <span class="c-kw">uint8_t</span> sheet[<span class="c-num">16</span> * <span class="c-num">32</span>];
+<span class="ln">102</span>  memset(sheet, <span class="c-num">0</span>, <span class="c-kw">sizeof</span> sheet);
+<span class="ln">103</span>  pack_art(sheet + <span class="c-cst">CELL_SHIP</span> * <span class="c-num">32</span>, art_ship, <span class="c-num">16</span>, <span class="c-num">16</span>);
+<span class="ln">104</span>  pack_art(sheet + <span class="c-cst">CELL_SAUCER</span> * <span class="c-num">32</span>, art_saucer, <span class="c-num">16</span>, <span class="c-num">16</span>);
+<span class="ln">105</span>  pack_art(sheet + <span class="c-cst">CELL_ORB</span> * <span class="c-num">32</span>, art_orb, <span class="c-num">16</span>, <span class="c-num">16</span>);
+<span class="ln">106</span>  pack_art(sheet + <span class="c-cst">CELL_LASER</span> * <span class="c-num">32</span>, art_laser, <span class="c-num">8</span>, <span class="c-num">8</span>);
+<span class="ln">107</span>  pack_art(sheet + <span class="c-cst">CELL_SHOT</span> * <span class="c-num">32</span>, art_shot, <span class="c-num">8</span>, <span class="c-num">8</span>);
+<span class="ln">108</span>  pack_art(sheet + <span class="c-cst">CELL_SPARK</span> * <span class="c-num">32</span>, art_spark, <span class="c-num">8</span>, <span class="c-num">8</span>);
+<span class="ln">109</span>  mc_chr_upload(<span class="c-cst">CHR_SPR</span>, sheet, <span class="c-kw">sizeof</span> sheet);
+<span class="ln">110</span>  mc_chr_upload(<span class="c-cst">CHR_FONT</span>, font_chr, <span class="c-num">96</span> * <span class="c-num">32</span>);
+<span class="ln">111</span>  mc_sprite_sheet(<span class="c-cst">CHR</span>(<span class="c-cst">CHR_SPR</span>));
+<span class="ln">112</span>}
+<span class="ln">113</span> 
+<span class="ln">114</span><span class="c-com">// ---------------------------------------------------------------- procedural backgrounds</span>
+<span class="ln">115</span><span class="c-com">// A layer is a 512 x 256 picture given by a function colour(x, y); it is cut into 8 x 8 tiles,</span>
+<span class="ln">116</span><span class="c-com">// identical tiles are shared (hash then compare) and the tiles go to CHR RAM, the map to the layer.</span>
+<span class="ln">117</span><span class="c-kw">typedef</span> <span class="c-kw">int</span> (*pixel_fn)(<span class="c-kw">int</span> x, <span class="c-kw">int</span> y);
+<span class="ln">118</span><span class="c-kw">static</span> <span class="c-kw">uint8_t</span> far_top[<span class="c-num">512</span>], near_top[<span class="c-num">512</span>];
+<span class="ln">119</span> 
+<span class="ln">120</span><span class="c-kw">static</span> <span class="c-kw">int</span> far_pixel(<span class="c-kw">int</span> x, <span class="c-kw">int</span> y) {
+<span class="ln">121</span>  <span class="c-kw">int</span> top = far_top[x];
+<span class="ln">122</span>  <span class="c-kw">if</span> (y &lt; top) <span class="c-kw">return</span> <span class="c-num">0</span>;
+<span class="ln">123</span>  <span class="c-kw">if</span> (y - top &lt; <span class="c-num">2</span>) <span class="c-kw">return</span> <span class="c-num">6</span>;                       <span class="c-com">// lit ridge</span>
+<span class="ln">124</span>  <span class="c-kw">int</span> band = (y - <span class="c-num">128</span>) / <span class="c-num">16</span>;                       <span class="c-com">// bands aligned on tiles: shared solid tiles</span>
+<span class="ln">125</span>  <span class="c-kw">return</span> <span class="c-num">1</span> + (band &lt; <span class="c-num">0</span> ? <span class="c-num">0</span> : band &gt; <span class="c-num">4</span> ? <span class="c-num">4</span> : band);
+<span class="ln">126</span>}
+<span class="ln">127</span> 
+<span class="ln">128</span><span class="c-kw">static</span> <span class="c-kw">int</span> near_pixel(<span class="c-kw">int</span> x, <span class="c-kw">int</span> y) {
+<span class="ln">129</span>  <span class="c-kw">if</span> (y &gt;= <span class="c-num">216</span>) <span class="c-kw">return</span> (((x &gt;&gt; <span class="c-num">4</span>) ^ (y &gt;&gt; <span class="c-num">3</span>)) &amp; <span class="c-num">1</span>) ? <span class="c-num">7</span> : <span class="c-num">8</span>;   <span class="c-com">// floor checkerboard</span>
+<span class="ln">130</span>  <span class="c-kw">int</span> top = near_top[x];
+<span class="ln">131</span>  <span class="c-kw">if</span> (y &lt; top) <span class="c-kw">return</span> <span class="c-num">0</span>;
+<span class="ln">132</span>  <span class="c-kw">if</span> (y - top &lt; <span class="c-num">2</span>) <span class="c-kw">return</span> <span class="c-num">6</span>;
+<span class="ln">133</span>  <span class="c-kw">int</span> band = (y - <span class="c-num">160</span>) / <span class="c-num">16</span>;
+<span class="ln">134</span>  <span class="c-kw">return</span> <span class="c-num">1</span> + (band &lt; <span class="c-num">0</span> ? <span class="c-num">0</span> : band &gt; <span class="c-num">4</span> ? <span class="c-num">4</span> : band);
+<span class="ln">135</span>}
+<span class="ln">136</span> 
+<span class="ln">137</span><span class="c-kw">static</span> <span class="c-kw">int</span> build_layer(<span class="c-kw">int</span> layer, <span class="c-kw">uint32_t</span> chr_off, <span class="c-kw">int</span> max_tiles, pixel_fn colour, <span class="c-kw">int</span> pal, <span class="c-kw">int</span> prio) {
+<span class="ln">138</span>  <span class="c-kw">uint8_t</span> (*tiles)[<span class="c-num">32</span>] = calloc((<span class="c-kw">size_t</span>)max_tiles, <span class="c-num">32</span>);
+<span class="ln">139</span>  <span class="c-kw">uint32_t</span> *hash = calloc((<span class="c-kw">size_t</span>)max_tiles, <span class="c-kw">sizeof</span>(<span class="c-kw">uint32_t</span>));
+<span class="ln">140</span>  <span class="c-kw">uint32_t</span> *map = malloc(<span class="c-num">64</span> * <span class="c-num">32</span> * <span class="c-kw">sizeof</span>(<span class="c-kw">uint32_t</span>));
+<span class="ln">141</span>  <span class="c-kw">if</span> (!tiles || !hash || !map) { printf(<span class="c-str">"build_layer: out of memory\n"</span>); abort(); }
+<span class="ln">142</span>  <span class="c-kw">int</span> count = <span class="c-num">1</span>;                                   <span class="c-com">// tile 0 stays empty</span>
+<span class="ln">143</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> ty = <span class="c-num">0</span>; ty &lt; <span class="c-num">32</span>; ty++)
+<span class="ln">144</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> tx = <span class="c-num">0</span>; tx &lt; <span class="c-num">64</span>; tx++) {
+<span class="ln">145</span>      <span class="c-kw">uint8_t</span> t[<span class="c-num">32</span>];
+<span class="ln">146</span>      <span class="c-kw">uint32_t</span> h = 2166136261u, any = <span class="c-num">0</span>;
+<span class="ln">147</span>      <span class="c-kw">for</span> (<span class="c-kw">int</span> y = <span class="c-num">0</span>; y &lt; <span class="c-num">8</span>; y++)
+<span class="ln">148</span>        <span class="c-kw">for</span> (<span class="c-kw">int</span> x = <span class="c-num">0</span>; x &lt; <span class="c-num">8</span>; x += <span class="c-num">2</span>) {
+<span class="ln">149</span>          <span class="c-kw">int</span> a = colour(tx * <span class="c-num">8</span> + x, ty * <span class="c-num">8</span> + y), b = colour(tx * <span class="c-num">8</span> + x + <span class="c-num">1</span>, ty * <span class="c-num">8</span> + y);
+<span class="ln">150</span>          <span class="c-kw">uint8_t</span> v = (<span class="c-kw">uint8_t</span>)(a | (b &lt;&lt; <span class="c-num">4</span>));
+<span class="ln">151</span>          t[y * <span class="c-num">4</span> + x / <span class="c-num">2</span>] = v; any |= v; h = (h ^ v) * 16777619u;
+<span class="ln">152</span>        }
+<span class="ln">153</span>      <span class="c-kw">int</span> n = <span class="c-num">0</span>;
+<span class="ln">154</span>      <span class="c-kw">if</span> (any) {
+<span class="ln">155</span>        <span class="c-kw">for</span> (n = <span class="c-num">1</span>; n &lt; count; n++) <span class="c-kw">if</span> (hash[n] == h &amp;&amp; !memcmp(tiles[n], t, <span class="c-num">32</span>)) <span class="c-kw">break</span>;
+<span class="ln">156</span>        <span class="c-kw">if</span> (n == count) {
+<span class="ln">157</span>          <span class="c-kw">if</span> (count == max_tiles) { printf(<span class="c-str">"build_layer: too many tiles\n"</span>); abort(); }
+<span class="ln">158</span>          memcpy(tiles[count], t, <span class="c-num">32</span>); hash[count] = h; count++;
+<span class="ln">159</span>        }
+<span class="ln">160</span>      }
+<span class="ln">161</span>      map[ty * <span class="c-num">64</span> + tx] = <span class="c-cst">MC_TILE</span>(n, pal, <span class="c-num">0</span>);
+<span class="ln">162</span>    }
+<span class="ln">163</span>  mc_chr_upload(chr_off, tiles, (<span class="c-kw">uint32_t</span>)count * <span class="c-num">32</span>);
+<span class="ln">164</span>  mc_layer(layer, <span class="c-cst">CHR</span>(chr_off), <span class="c-cst">MC_TILE8</span> | <span class="c-cst">MC_4BPP</span>, <span class="c-num">64</span>, <span class="c-num">32</span>, prio);
+<span class="ln">165</span>  mc_tilemap_load(layer, map, <span class="c-num">64</span> * <span class="c-num">32</span>);
+<span class="ln">166</span>  free(map); free(hash); free(tiles);
+<span class="ln">167</span>  <span class="c-kw">return</span> count;
+<span class="ln">168</span>}
+<span class="ln">169</span> 
+<span class="ln">170</span><span class="c-kw">static</span> <span class="c-kw">void</span> make_stars(<span class="c-kw">void</span>) {
+<span class="ln">171</span>  <span class="c-kw">static</span> <span class="c-kw">uint8_t</span> t[<span class="c-num">4</span>][<span class="c-num">32</span>];
+<span class="ln">172</span>  memset(t, <span class="c-num">0</span>, <span class="c-kw">sizeof</span> t);
+<span class="ln">173</span>  t[<span class="c-num">1</span>][<span class="c-num">3</span> * <span class="c-num">4</span> + <span class="c-num">1</span>] = <span class="c-num">0x01</span>;                          <span class="c-com">// one dim pixel</span>
+<span class="ln">174</span>  t[<span class="c-num">2</span>][<span class="c-num">4</span> * <span class="c-num">4</span> + <span class="c-num">2</span>] = <span class="c-num">0x02</span>;                          <span class="c-com">// one brighter pixel</span>
+<span class="ln">175</span>  t[<span class="c-num">3</span>][<span class="c-num">2</span> * <span class="c-num">4</span> + <span class="c-num">1</span>] = <span class="c-num">0x30</span>; t[<span class="c-num">3</span>][<span class="c-num">3</span> * <span class="c-num">4</span> + <span class="c-num">1</span>] = <span class="c-num">0x33</span>; t[<span class="c-num">3</span>][<span class="c-num">3</span> * <span class="c-num">4</span> + <span class="c-num">2</span>] = <span class="c-num">0x03</span>; t[<span class="c-num">3</span>][<span class="c-num">4</span> * <span class="c-num">4</span> + <span class="c-num">1</span>] = <span class="c-num">0x30</span>;   <span class="c-com">// small cross</span>
+<span class="ln">176</span>  mc_chr_upload(<span class="c-cst">CHR_STARS</span>, t, <span class="c-kw">sizeof</span> t);
+<span class="ln">177</span>  mc_layer(<span class="c-num">2</span>, <span class="c-cst">CHR</span>(<span class="c-cst">CHR_STARS</span>), <span class="c-cst">MC_TILE8</span> | <span class="c-cst">MC_4BPP</span>, <span class="c-num">64</span>, <span class="c-num">32</span>, <span class="c-num">0</span>);
+<span class="ln">178</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> y = <span class="c-num">0</span>; y &lt; <span class="c-num">32</span>; y++)
+<span class="ln">179</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> x = <span class="c-num">0</span>; x &lt; <span class="c-num">64</span>; x++) {
+<span class="ln">180</span>      <span class="c-kw">uint32_t</span> r = mc_rand() % <span class="c-num">100</span>;
+<span class="ln">181</span>      <span class="c-kw">int</span> n = r &lt; <span class="c-num">6</span> ? <span class="c-num">1</span> : r &lt; <span class="c-num">9</span> ? <span class="c-num">2</span> : r &lt; <span class="c-num">10</span> ? <span class="c-num">3</span> : <span class="c-num">0</span>;
+<span class="ln">182</span>      mc_tile(<span class="c-num">2</span>, x, y, <span class="c-cst">MC_TILE</span>(n, <span class="c-cst">PAL_STARS</span>, <span class="c-num">0</span>));
+<span class="ln">183</span>    }
+<span class="ln">184</span>}
+<span class="ln">185</span> 
+<span class="ln">186</span><span class="c-kw">static</span> <span class="c-kw">void</span> make_backgrounds(<span class="c-kw">void</span>) {
+<span class="ln">187</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> x = <span class="c-num">0</span>; x &lt; <span class="c-num">512</span>; x++) {                 <span class="c-com">// periodic profiles: angle = 1024 steps per turn</span>
+<span class="ln">188</span>    <span class="c-kw">int</span> a = x * <span class="c-num">2</span>;
+<span class="ln">189</span>    far_top[x]  = (<span class="c-kw">uint8_t</span>)(<span class="c-num">150</span> + ((mc_sin(a * <span class="c-num">2</span>) * <span class="c-num">18</span> + mc_sin(a * <span class="c-num">5</span>) * <span class="c-num">9</span> + mc_sin(a * <span class="c-num">11</span>) * <span class="c-num">4</span>) &gt;&gt; <span class="c-num">16</span>));
+<span class="ln">190</span>    near_top[x] = (<span class="c-kw">uint8_t</span>)(<span class="c-num">186</span> + ((mc_sin(a * <span class="c-num">3</span>) * <span class="c-num">13</span> + mc_sin(a * <span class="c-num">7</span>) * <span class="c-num">7</span> + mc_sin(a * <span class="c-num">17</span>) * <span class="c-num">3</span>) &gt;&gt; <span class="c-num">16</span>));
+<span class="ln">191</span>  }
+<span class="ln">192</span>  <span class="c-kw">int</span> nf = build_layer(<span class="c-num">1</span>, <span class="c-cst">CHR_FAR</span>, <span class="c-num">384</span>, far_pixel, <span class="c-cst">PAL_FAR</span>, <span class="c-num">1</span>);
+<span class="ln">193</span>  <span class="c-kw">int</span> nn = build_layer(<span class="c-num">3</span>, <span class="c-cst">CHR_NEAR</span>, <span class="c-num">384</span>, near_pixel, <span class="c-cst">PAL_NEAR</span>, <span class="c-num">2</span>);
+<span class="ln">194</span>  make_stars();
+<span class="ln">195</span>  mc_layer_linescroll(<span class="c-num">3</span>, <span class="c-kw">true</span>);
+<span class="ln">196</span>  printf(<span class="c-str">"backgrounds: %d + %d tiles, heap free %u\n"</span>, nf, nn, (<span class="c-kw">unsigned</span>)mc_heap_free());
+<span class="ln">197</span>}
+<span class="ln">198</span> 
+<span class="ln">199</span><span class="c-kw">static</span> <span class="c-kw">void</span> sky(<span class="c-kw">void</span>) {                           <span class="c-com">// raster effect: one sky colour every 4 lines</span>
+<span class="ln">200</span>  <span class="c-kw">int</span> k = mc_raster_line * <span class="c-num">255</span> / <span class="c-num">212</span>;
+<span class="ln">201</span>  mc_color(<span class="c-cst">SKY</span>, <span class="c-cst">MC_RGB</span>(<span class="c-num">8</span> + k * <span class="c-num">112</span> / <span class="c-num">255</span>, <span class="c-num">6</span> + k * <span class="c-num">34</span> / <span class="c-num">255</span>, <span class="c-num">30</span> + k * <span class="c-num">80</span> / <span class="c-num">255</span>));
+<span class="ln">202</span>}
+<span class="ln">203</span> 
+<span class="ln">204</span><span class="c-kw">static</span> <span class="c-kw">void</span> scroll_backgrounds(<span class="c-kw">uint32_t</span> t) {
+<span class="ln">205</span>  <span class="c-kw">int</span> far = (<span class="c-kw">int</span>)(t &gt;&gt; <span class="c-num">2</span>), near = (<span class="c-kw">int</span>)t, stars = (<span class="c-kw">int</span>)(t &gt;&gt; <span class="c-num">3</span>);
+<span class="ln">206</span>  mc_layer_scroll(<span class="c-num">2</span>, stars, <span class="c-num">0</span>);
+<span class="ln">207</span>  mc_layer_scroll(<span class="c-num">1</span>, far, <span class="c-num">0</span>);
+<span class="ln">208</span>  mc_layer_scroll(<span class="c-num">3</span>, near, <span class="c-num">0</span>);
+<span class="ln">209</span>  <span class="c-kw">volatile</span> linescroll_t *ls = mc_linescroll(<span class="c-num">3</span>);
+<span class="ln">210</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> y = <span class="c-num">216</span>; y &lt; <span class="c-num">240</span>; y++) ls[y].dx = (<span class="c-kw">int16_t</span>)(near * (y - <span class="c-num">214</span>) / <span class="c-num">6</span>);   <span class="c-com">// perspective floor</span>
+<span class="ln">211</span>  <span class="c-kw">int</span> tw = <span class="c-num">140</span> + (mc_sin((<span class="c-kw">int</span>)t * <span class="c-num">12</span>) * <span class="c-num">100</span> &gt;&gt; <span class="c-num">16</span>);                              <span class="c-com">// twinkling stars</span>
+<span class="ln">212</span>  mc_color(<span class="c-cst">PAL_STARS</span> * <span class="c-num">16</span> + <span class="c-num">3</span>, <span class="c-cst">MC_RGB</span>(tw, tw, <span class="c-num">255</span>));
+<span class="ln">213</span>}
+<span class="ln">214</span> 
+<span class="ln">215</span><span class="c-com">// ---------------------------------------------------------------- palettes and text</span>
+<span class="ln">216</span><span class="c-kw">static</span> <span class="c-kw">void</span> set_rgb(<span class="c-kw">int</span> pal, <span class="c-kw">int</span> i, <span class="c-kw">int</span> r, <span class="c-kw">int</span> g, <span class="c-kw">int</span> b) { mc_color(pal * <span class="c-num">16</span> + i, <span class="c-cst">MC_RGB</span>(r, g, b)); }
+<span class="ln">217</span><span class="c-kw">static</span> <span class="c-kw">int</span> font_white;
+<span class="ln">218</span> 
+<span class="ln">219</span><span class="c-kw">static</span> <span class="c-kw">void</span> make_palettes(<span class="c-kw">void</span>) {
+<span class="ln">220</span>  <span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">uint8_t</span> spr[<span class="c-num">16</span>][<span class="c-num">3</span>] = {
+<span class="ln">221</span>    {<span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>}, {<span class="c-num">20</span>, <span class="c-num">30</span>, <span class="c-num">90</span>}, {<span class="c-num">60</span>, <span class="c-num">120</span>, <span class="c-num">230</span>}, {<span class="c-num">200</span>, <span class="c-num">210</span>, <span class="c-num">225</span>}, {<span class="c-num">255</span>, <span class="c-num">140</span>, <span class="c-num">30</span>}, {<span class="c-num">255</span>, <span class="c-num">230</span>, <span class="c-num">80</span>},
+<span class="ln">222</span>    {<span class="c-num">120</span>, <span class="c-num">240</span>, <span class="c-num">255</span>}, {<span class="c-num">120</span>, <span class="c-num">20</span>, <span class="c-num">30</span>}, {<span class="c-num">230</span>, <span class="c-num">50</span>, <span class="c-num">60</span>}, {<span class="c-num">255</span>, <span class="c-num">220</span>, <span class="c-num">60</span>}, {<span class="c-num">110</span>, <span class="c-num">110</span>, <span class="c-num">130</span>}, {<span class="c-num">200</span>, <span class="c-num">200</span>, <span class="c-num">215</span>},
+<span class="ln">223</span>    {<span class="c-num">60</span>, <span class="c-num">20</span>, <span class="c-num">90</span>}, {<span class="c-num">150</span>, <span class="c-num">60</span>, <span class="c-num">200</span>}, {<span class="c-num">255</span>, <span class="c-num">90</span>, <span class="c-num">180</span>}, {<span class="c-num">255</span>, <span class="c-num">255</span>, <span class="c-num">255</span>}};
+<span class="ln">224</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">1</span>; i &lt; <span class="c-num">16</span>; i++) set_rgb(<span class="c-cst">PAL_SPR</span>, i, spr[i][<span class="c-num">0</span>], spr[i][<span class="c-num">1</span>], spr[i][<span class="c-num">2</span>]);
+<span class="ln">225</span>  <span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">uint8_t</span> fx[<span class="c-num">4</span>][<span class="c-num">2</span>][<span class="c-num">3</span>] = {
+<span class="ln">226</span>    {{<span class="c-num">255</span>, <span class="c-num">255</span>, <span class="c-num">230</span>}, {<span class="c-num">255</span>, <span class="c-num">220</span>, <span class="c-num">90</span>}}, {{<span class="c-num">255</span>, <span class="c-num">220</span>, <span class="c-num">90</span>}, {<span class="c-num">255</span>, <span class="c-num">130</span>, <span class="c-num">30</span>}},
+<span class="ln">227</span>    {{<span class="c-num">255</span>, <span class="c-num">130</span>, <span class="c-num">30</span>}, {<span class="c-num">200</span>, <span class="c-num">40</span>, <span class="c-num">20</span>}}, {{<span class="c-num">170</span>, <span class="c-num">40</span>, <span class="c-num">20</span>}, {<span class="c-num">80</span>, <span class="c-num">20</span>, <span class="c-num">30</span>}}};
+<span class="ln">228</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> k = <span class="c-num">0</span>; k &lt; <span class="c-num">4</span>; k++) {
+<span class="ln">229</span>    set_rgb(<span class="c-cst">PAL_FX</span> + k, <span class="c-num">1</span>, fx[k][<span class="c-num">0</span>][<span class="c-num">0</span>], fx[k][<span class="c-num">0</span>][<span class="c-num">1</span>], fx[k][<span class="c-num">0</span>][<span class="c-num">2</span>]);
+<span class="ln">230</span>    set_rgb(<span class="c-cst">PAL_FX</span> + k, <span class="c-num">2</span>, fx[k][<span class="c-num">1</span>][<span class="c-num">0</span>], fx[k][<span class="c-num">1</span>][<span class="c-num">1</span>], fx[k][<span class="c-num">1</span>][<span class="c-num">2</span>]);
+<span class="ln">231</span>  }
+<span class="ln">232</span>  set_rgb(<span class="c-cst">PAL_STARS</span>, <span class="c-num">1</span>, <span class="c-num">90</span>, <span class="c-num">90</span>, <span class="c-num">140</span>); set_rgb(<span class="c-cst">PAL_STARS</span>, <span class="c-num">2</span>, <span class="c-num">160</span>, <span class="c-num">160</span>, <span class="c-num">210</span>); set_rgb(<span class="c-cst">PAL_STARS</span>, <span class="c-num">3</span>, <span class="c-num">230</span>, <span class="c-num">230</span>, <span class="c-num">255</span>);
+<span class="ln">233</span>  <span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">uint8_t</span> far[<span class="c-num">7</span>][<span class="c-num">3</span>] = {{<span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>}, {<span class="c-num">90</span>, <span class="c-num">60</span>, <span class="c-num">140</span>}, {<span class="c-num">75</span>, <span class="c-num">50</span>, <span class="c-num">120</span>}, {<span class="c-num">60</span>, <span class="c-num">40</span>, <span class="c-num">100</span>}, {<span class="c-num">48</span>, <span class="c-num">32</span>, <span class="c-num">84</span>}, {<span class="c-num">36</span>, <span class="c-num">24</span>, <span class="c-num">66</span>}, {<span class="c-num">160</span>, <span class="c-num">120</span>, <span class="c-num">210</span>}};
+<span class="ln">234</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">1</span>; i &lt; <span class="c-num">7</span>; i++) set_rgb(<span class="c-cst">PAL_FAR</span>, i, far[i][<span class="c-num">0</span>], far[i][<span class="c-num">1</span>], far[i][<span class="c-num">2</span>]);
+<span class="ln">235</span>  <span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">uint8_t</span> near[<span class="c-num">9</span>][<span class="c-num">3</span>] = {{<span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>}, {<span class="c-num">20</span>, <span class="c-num">70</span>, <span class="c-num">80</span>}, {<span class="c-num">16</span>, <span class="c-num">58</span>, <span class="c-num">68</span>}, {<span class="c-num">12</span>, <span class="c-num">46</span>, <span class="c-num">56</span>}, {<span class="c-num">9</span>, <span class="c-num">36</span>, <span class="c-num">46</span>}, {<span class="c-num">6</span>, <span class="c-num">26</span>, <span class="c-num">36</span>},
+<span class="ln">236</span>                                     {<span class="c-num">70</span>, <span class="c-num">170</span>, <span class="c-num">150</span>}, {<span class="c-num">28</span>, <span class="c-num">36</span>, <span class="c-num">66</span>}, {<span class="c-num">48</span>, <span class="c-num">60</span>, <span class="c-num">100</span>}};
+<span class="ln">237</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">1</span>; i &lt; <span class="c-num">9</span>; i++) set_rgb(<span class="c-cst">PAL_NEAR</span>, i, near[i][<span class="c-num">0</span>], near[i][<span class="c-num">1</span>], near[i][<span class="c-num">2</span>]);
+<span class="ln">238</span>  <span class="c-com">// recoloured copies of the SDK font palette (palette 0, set by mc_text_layer)</span>
+<span class="ln">239</span>  font_white = <span class="c-num">1</span>;
+<span class="ln">240</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">1</span>; i &lt; <span class="c-num">16</span>; i++) <span class="c-kw">if</span> (<span class="c-cst">PALETTE</span>[i] == <span class="c-cst">MC_RGB</span>(<span class="c-num">255</span>, <span class="c-num">255</span>, <span class="c-num">255</span>)) font_white = i;
+<span class="ln">241</span>  <span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">uint8_t</span> ink[<span class="c-num">9</span>][<span class="c-num">3</span>] = {{<span class="c-num">255</span>, <span class="c-num">220</span>, <span class="c-num">60</span>}, {<span class="c-num">90</span>, <span class="c-num">220</span>, <span class="c-num">255</span>}, {<span class="c-num">255</span>, <span class="c-num">110</span>, <span class="c-num">200</span>},
+<span class="ln">242</span>                                    {<span class="c-num">255</span>, <span class="c-num">80</span>, <span class="c-num">80</span>}, {<span class="c-num">255</span>, <span class="c-num">170</span>, <span class="c-num">40</span>}, {<span class="c-num">255</span>, <span class="c-num">240</span>, <span class="c-num">80</span>}, {<span class="c-num">90</span>, <span class="c-num">240</span>, <span class="c-num">110</span>}, {<span class="c-num">80</span>, <span class="c-num">200</span>, <span class="c-num">255</span>}, {<span class="c-num">200</span>, <span class="c-num">110</span>, <span class="c-num">255</span>}};
+<span class="ln">243</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> p = <span class="c-num">0</span>; p &lt; <span class="c-num">9</span>; p++) {
+<span class="ln">244</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">16</span>; i++) <span class="c-cst">PALETTE</span>[(<span class="c-cst">PAL_HUD</span> + p) * <span class="c-num">16</span> + i] = <span class="c-cst">PALETTE</span>[i];
+<span class="ln">245</span>    set_rgb(<span class="c-cst">PAL_HUD</span> + p, font_white, ink[p][<span class="c-num">0</span>], ink[p][<span class="c-num">1</span>], ink[p][<span class="c-num">2</span>]);
+<span class="ln">246</span>  }
+<span class="ln">247</span>}
+<span class="ln">248</span> 
+<span class="ln">249</span><span class="c-kw">static</span> <span class="c-kw">void</span> text(<span class="c-kw">int</span> col, <span class="c-kw">int</span> row, <span class="c-kw">const</span> <span class="c-kw">char</span> *s, <span class="c-kw">int</span> pal) { mc_text(<span class="c-num">0</span>, col, row, s, pal); }
+<span class="ln">250</span><span class="c-kw">static</span> <span class="c-kw">void</span> text_center(<span class="c-kw">int</span> row, <span class="c-kw">const</span> <span class="c-kw">char</span> *s, <span class="c-kw">int</span> pal) { text((<span class="c-num">40</span> - (<span class="c-kw">int</span>)strlen(s)) / <span class="c-num">2</span>, row, s, pal); }
+<span class="ln">251</span><span class="c-kw">static</span> <span class="c-kw">void</span> text_clear(<span class="c-kw">void</span>) { mc_text_clear(<span class="c-num">0</span>); }
+<span class="ln">252</span> 
+<span class="ln">253</span><span class="c-com">// ---------------------------------------------------------------- sound</span>
+<span class="ln">254</span><span class="c-kw">static</span> <span class="c-kw">int</span> sfx_shot, sfx_boom, sfx_boom_freq;
+<span class="ln">255</span> 
+<span class="ln">256</span><span class="c-kw">static</span> <span class="c-kw">void</span> sfx_update(<span class="c-kw">void</span>) {
+<span class="ln">257</span>  <span class="c-kw">if</span> (sfx_shot &gt; <span class="c-num">0</span>) { sfx_shot--; mc_psg(<span class="c-num">2</span>, <span class="c-cst">PSG_SQUARE</span>, <span class="c-num">700</span> + sfx_shot * <span class="c-num">220</span>, <span class="c-num">96</span>, sfx_shot * <span class="c-num">9</span>, sfx_shot * <span class="c-num">9</span>); }
+<span class="ln">258</span>  <span class="c-kw">if</span> (sfx_boom &gt; <span class="c-num">0</span>) { sfx_boom -= <span class="c-num">6</span>; <span class="c-kw">if</span> (sfx_boom &lt; <span class="c-num">0</span>) sfx_boom = <span class="c-num">0</span>; mc_psg(<span class="c-num">3</span>, <span class="c-cst">PSG_NOISE</span>, (<span class="c-kw">uint32_t</span>)sfx_boom_freq, <span class="c-num">0</span>, sfx_boom, sfx_boom); }
+<span class="ln">259</span>}
+<span class="ln">260</span><span class="c-kw">static</span> <span class="c-kw">void</span> sfx_explode(<span class="c-kw">int</span> big) { sfx_boom = big ? <span class="c-num">230</span> : <span class="c-num">150</span>; sfx_boom_freq = big ? <span class="c-num">2500</span> : <span class="c-num">6000</span>; }
+<span class="ln">261</span> 
+<span class="ln">262</span><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> *tune_lead =
+<span class="ln">263</span>  <span class="c-str">"A4 - C5 E5 - D5 C5 - B4 - G4 - A4 - - . E5 - G5 A5 - G5 E5 - D5 - C5 - B4 - - . "</span>;
+<span class="ln">264</span><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> *tune_bass =
+<span class="ln">265</span>  <span class="c-str">"A2 A3 A2 A3 A2 A3 A2 A3 F2 F3 F2 F3 G2 G3 G2 G3 C3 C4 C3 C4 C3 C4 C3 C4 G2 G3 G2 G3 E2 E3 E2 E3 "</span>;
+<span class="ln">266</span> 
+<span class="ln">267</span><span class="c-kw">static</span> <span class="c-kw">void</span> music(<span class="c-kw">bool</span> on) {
+<span class="ln">268</span>  <span class="c-kw">if</span> (on) { mc_tune(<span class="c-num">0</span>, tune_lead, <span class="c-num">8</span>, <span class="c-num">40</span>); mc_tune(<span class="c-num">1</span>, tune_bass, <span class="c-num">8</span>, <span class="c-num">55</span>); }
+<span class="ln">269</span>  <span class="c-kw">else</span> { mc_tune_stop(<span class="c-num">0</span>); mc_tune_stop(<span class="c-num">1</span>); }
+<span class="ln">270</span>}
+<span class="ln">271</span> 
+<span class="ln">272</span><span class="c-com">// ---------------------------------------------------------------- game objects</span>
+<span class="ln">273</span><span class="c-kw">typedef</span> <span class="c-kw">struct</span> { <span class="c-kw">bool</span> on; <span class="c-kw">int</span> x, y, vx, vy; } shot_t;
+<span class="ln">274</span><span class="c-kw">typedef</span> <span class="c-kw">struct</span> { <span class="c-kw">bool</span> on; <span class="c-kw">int</span> type, x, y, base_y, phase, hp, t, flash; } enemy_t;
+<span class="ln">275</span><span class="c-kw">typedef</span> <span class="c-kw">struct</span> { <span class="c-kw">int</span> x, y, vx, vy, life; } particle_t;
+<span class="ln">276</span> 
+<span class="ln">277</span><span class="c-kw">static</span> shot_t lasers[<span class="c-cst">N_LASER</span>], shots[<span class="c-cst">N_SHOT</span>];
+<span class="ln">278</span><span class="c-kw">static</span> enemy_t enemies[<span class="c-cst">N_ENEMY</span>];
+<span class="ln">279</span><span class="c-kw">static</span> particle_t *fx;                            <span class="c-com">// N_FX particles, from the heap</span>
+<span class="ln">280</span><span class="c-kw">static</span> <span class="c-kw">int</span> fx_next;
+<span class="ln">281</span><span class="c-kw">static</span> <span class="c-kw">int</span> px, py, lives, invuln, cooldown;
+<span class="ln">282</span><span class="c-kw">static</span> <span class="c-kw">uint32_t</span> score, best;
+<span class="ln">283</span> 
+<span class="ln">284</span><span class="c-kw">static</span> <span class="c-kw">void</span> spr16(<span class="c-kw">int</span> n, <span class="c-kw">int</span> x, <span class="c-kw">int</span> y, <span class="c-kw">int</span> cell, <span class="c-kw">int</span> pal) {
+<span class="ln">285</span>  mc_sprite(n, x, y, cell, <span class="c-num">2</span>, <span class="c-num">2</span>, pal, <span class="c-num">4</span>); mc_sprite_zoom(n, <span class="c-num">0x100</span>, <span class="c-num">0x100</span>);
+<span class="ln">286</span>}
+<span class="ln">287</span><span class="c-kw">static</span> <span class="c-kw">void</span> spr8(<span class="c-kw">int</span> n, <span class="c-kw">int</span> x, <span class="c-kw">int</span> y, <span class="c-kw">int</span> cell, <span class="c-kw">int</span> pal) {
+<span class="ln">288</span>  mc_sprite(n, x, y, cell, <span class="c-num">1</span>, <span class="c-num">1</span>, pal, <span class="c-num">4</span>); mc_sprite_zoom(n, <span class="c-num">0x100</span>, <span class="c-num">0x100</span>);
+<span class="ln">289</span>}
+<span class="ln">290</span> 
+<span class="ln">291</span><span class="c-kw">static</span> <span class="c-kw">void</span> spark(<span class="c-kw">int</span> x, <span class="c-kw">int</span> y, <span class="c-kw">int</span> speed, <span class="c-kw">int</span> life) {     <span class="c-com">// x, y in pixels; speed in 1/256 px</span>
+<span class="ln">292</span>  particle_t *p = &amp;fx[fx_next]; fx_next = (fx_next + <span class="c-num">1</span>) % <span class="c-cst">N_FX</span>;
+<span class="ln">293</span>  <span class="c-kw">int</span> a = (<span class="c-kw">int</span>)(mc_rand() &amp; <span class="c-num">1023</span>), s = speed / <span class="c-num">2</span> + (<span class="c-kw">int</span>)(mc_rand() % (<span class="c-kw">uint32_t</span>)(speed + <span class="c-num">1</span>));
+<span class="ln">294</span>  p-&gt;x = x &lt;&lt; FP; p-&gt;y = y &lt;&lt; FP;
+<span class="ln">295</span>  p-&gt;vx = (mc_cos(a) * s) &gt;&gt; <span class="c-num">16</span>; p-&gt;vy = (mc_sin(a) * s) &gt;&gt; <span class="c-num">16</span>;
+<span class="ln">296</span>  p-&gt;life = life / <span class="c-num">2</span> + (<span class="c-kw">int</span>)(mc_rand() % (<span class="c-kw">uint32_t</span>)(life / <span class="c-num">2</span> + <span class="c-num">1</span>));
+<span class="ln">297</span>}
+<span class="ln">298</span><span class="c-kw">static</span> <span class="c-kw">void</span> explosion(<span class="c-kw">int</span> x, <span class="c-kw">int</span> y, <span class="c-kw">int</span> n, <span class="c-kw">int</span> speed) { <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; n; i++) spark(x, y, speed, <span class="c-num">40</span>); }
+<span class="ln">299</span> 
+<span class="ln">300</span><span class="c-kw">static</span> <span class="c-kw">void</span> update_fx(<span class="c-kw">void</span>) {
+<span class="ln">301</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">N_FX</span>; i++) {
+<span class="ln">302</span>    particle_t *p = &amp;fx[i];
+<span class="ln">303</span>    <span class="c-kw">if</span> (p-&gt;life &lt;= <span class="c-num">0</span>) { mc_sprite_hide(<span class="c-cst">S_FX</span> + i); <span class="c-kw">continue</span>; }
+<span class="ln">304</span>    p-&gt;life--; p-&gt;x += p-&gt;vx; p-&gt;y += p-&gt;vy;
+<span class="ln">305</span>    p-&gt;vx = p-&gt;vx * <span class="c-num">15</span> / <span class="c-num">16</span>; p-&gt;vy = p-&gt;vy * <span class="c-num">15</span> / <span class="c-num">16</span>;   <span class="c-com">// drag</span>
+<span class="ln">306</span>    <span class="c-kw">int</span> stage = p-&gt;life &gt; <span class="c-num">30</span> ? <span class="c-num">0</span> : p-&gt;life &gt; <span class="c-num">20</span> ? <span class="c-num">1</span> : p-&gt;life &gt; <span class="c-num">10</span> ? <span class="c-num">2</span> : <span class="c-num">3</span>;
+<span class="ln">307</span>    <span class="c-kw">int</span> z = <span class="c-num">0x80</span> + p-&gt;life * <span class="c-num">8</span>;                         <span class="c-com">// particles shrink as they cool</span>
+<span class="ln">308</span>    mc_sprite(<span class="c-cst">S_FX</span> + i, PX(p-&gt;x) - <span class="c-num">4</span>, PX(p-&gt;y) - <span class="c-num">4</span>, <span class="c-cst">CELL_SPARK</span>, <span class="c-num">1</span>, <span class="c-num">1</span>, <span class="c-cst">PAL_FX</span> + stage, <span class="c-num">4</span>);
+<span class="ln">309</span>    mc_sprite_zoom(<span class="c-cst">S_FX</span> + i, z, z);
+<span class="ln">310</span>  }
+<span class="ln">311</span>}
+<span class="ln">312</span> 
+<span class="ln">313</span><span class="c-kw">static</span> <span class="c-kw">void</span> reset_objects(<span class="c-kw">void</span>) {
+<span class="ln">314</span>  memset(lasers, <span class="c-num">0</span>, <span class="c-kw">sizeof</span> lasers); memset(shots, <span class="c-num">0</span>, <span class="c-kw">sizeof</span> shots); memset(enemies, <span class="c-num">0</span>, <span class="c-kw">sizeof</span> enemies);
+<span class="ln">315</span>  memset(fx, <span class="c-num">0</span>, <span class="c-cst">N_FX</span> * <span class="c-kw">sizeof</span>(particle_t));
+<span class="ln">316</span>  mc_sprites_hide_all();
+<span class="ln">317</span>}
+<span class="ln">318</span> 
+<span class="ln">319</span><span class="c-kw">static</span> <span class="c-kw">void</span> spawn_enemy(<span class="c-kw">int</span> type, <span class="c-kw">int</span> x, <span class="c-kw">int</span> y, <span class="c-kw">int</span> phase) {
+<span class="ln">320</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">N_ENEMY</span>; i++)
+<span class="ln">321</span>    <span class="c-kw">if</span> (!enemies[i].on) {
+<span class="ln">322</span>      enemy_t *e = &amp;enemies[i];
+<span class="ln">323</span>      e-&gt;on = <span class="c-kw">true</span>; e-&gt;type = type; e-&gt;x = x &lt;&lt; FP; e-&gt;y = e-&gt;base_y = y &lt;&lt; FP;
+<span class="ln">324</span>      e-&gt;phase = phase; e-&gt;hp = type ? <span class="c-num">4</span> : <span class="c-num">1</span>; e-&gt;t = (<span class="c-kw">int</span>)(mc_rand() % <span class="c-num">60</span>); e-&gt;flash = <span class="c-num">0</span>;
+<span class="ln">325</span>      <span class="c-kw">return</span>;
+<span class="ln">326</span>    }
+<span class="ln">327</span>}
+<span class="ln">328</span> 
+<span class="ln">329</span><span class="c-kw">static</span> <span class="c-kw">void</span> fire_at_player(<span class="c-kw">int</span> ex, <span class="c-kw">int</span> ey) {      <span class="c-com">// aimed shot: angle from mc_atan2</span>
+<span class="ln">330</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">N_SHOT</span>; i++)
+<span class="ln">331</span>    <span class="c-kw">if</span> (!shots[i].on) {
+<span class="ln">332</span>      <span class="c-kw">int</span> a = mc_atan2((py + <span class="c-num">8</span>) - ey, (px + <span class="c-num">8</span>) - ex);
+<span class="ln">333</span>      shots[i] = (shot_t){<span class="c-kw">true</span>, ex &lt;&lt; FP, ey &lt;&lt; FP, (mc_cos(a) * <span class="c-num">420</span>) &gt;&gt; <span class="c-num">16</span>, (mc_sin(a) * <span class="c-num">420</span>) &gt;&gt; <span class="c-num">16</span>};
+<span class="ln">334</span>      <span class="c-kw">return</span>;
+<span class="ln">335</span>    }
+<span class="ln">336</span>}
+<span class="ln">337</span> 
+<span class="ln">338</span><span class="c-kw">static</span> <span class="c-kw">bool</span> hit(<span class="c-kw">int</span> ax, <span class="c-kw">int</span> ay, <span class="c-kw">int</span> aw, <span class="c-kw">int</span> ah, <span class="c-kw">int</span> bx, <span class="c-kw">int</span> by, <span class="c-kw">int</span> bw, <span class="c-kw">int</span> bh) {
+<span class="ln">339</span>  <span class="c-kw">return</span> ax &lt; bx + bw &amp;&amp; bx &lt; ax + aw &amp;&amp; ay &lt; by + bh &amp;&amp; by &lt; ay + ah;
+<span class="ln">340</span>}
+<span class="ln">341</span> 
+<span class="ln">342</span><span class="c-kw">static</span> <span class="c-kw">void</span> hurt_player(<span class="c-kw">void</span>) {
+<span class="ln">343</span>  <span class="c-kw">if</span> (invuln) <span class="c-kw">return</span>;
+<span class="ln">344</span>  explosion(px + <span class="c-num">8</span>, py + <span class="c-num">8</span>, <span class="c-num">40</span>, <span class="c-num">700</span>);
+<span class="ln">345</span>  sfx_explode(<span class="c-num">1</span>);
+<span class="ln">346</span>  lives--; invuln = <span class="c-num">120</span>;
+<span class="ln">347</span>}
+<span class="ln">348</span> 
+<span class="ln">349</span><span class="c-com">// ---------------------------------------------------------------- one frame of play</span>
+<span class="ln">350</span><span class="c-kw">static</span> <span class="c-kw">void</span> hud(<span class="c-kw">void</span>) {
+<span class="ln">351</span>  <span class="c-kw">char</span> line[<span class="c-num">48</span>];
+<span class="ln">352</span>  snprintf(line, <span class="c-kw">sizeof</span> line, <span class="c-str">"SCORE %06u"</span>, (<span class="c-kw">unsigned</span>)score);   text(<span class="c-num">1</span>, <span class="c-num">0</span>, line, <span class="c-cst">PAL_HUD</span>);
+<span class="ln">353</span>  snprintf(line, <span class="c-kw">sizeof</span> line, <span class="c-str">"VIES %d"</span>, lives &lt; <span class="c-num">0</span> ? <span class="c-num">0</span> : lives); text(<span class="c-num">16</span>, <span class="c-num">0</span>, line, <span class="c-cst">PAL_HUD</span> + <span class="c-num">1</span>);
+<span class="ln">354</span>  snprintf(line, <span class="c-kw">sizeof</span> line, <span class="c-str">"RECORD %06u"</span>, (<span class="c-kw">unsigned</span>)best);   text(<span class="c-num">26</span>, <span class="c-num">0</span>, line, <span class="c-cst">PAL_HUD</span> + <span class="c-num">2</span>);
+<span class="ln">355</span>}
+<span class="ln">356</span> 
+<span class="ln">357</span><span class="c-kw">static</span> <span class="c-kw">void</span> play_frame(<span class="c-kw">uint32_t</span> t) {
+<span class="ln">358</span>  <span class="c-kw">uint32_t</span> pad = mc_pad(<span class="c-num">1</span>);
+<span class="ln">359</span>  <span class="c-kw">if</span> (pad &amp; <span class="c-cst">IN_LEFT</span>)  px -= <span class="c-num">2</span>;
+<span class="ln">360</span>  <span class="c-kw">if</span> (pad &amp; <span class="c-cst">IN_RIGHT</span>) px += <span class="c-num">2</span>;
+<span class="ln">361</span>  <span class="c-kw">if</span> (pad &amp; <span class="c-cst">IN_UP</span>)    py -= <span class="c-num">2</span>;
+<span class="ln">362</span>  <span class="c-kw">if</span> (pad &amp; <span class="c-cst">IN_DOWN</span>)  py += <span class="c-num">2</span>;
+<span class="ln">363</span>  px = px &lt; <span class="c-num">0</span> ? <span class="c-num">0</span> : px &gt; <span class="c-num">300</span> ? <span class="c-num">300</span> : px;
+<span class="ln">364</span>  py = py &lt; <span class="c-num">12</span> ? <span class="c-num">12</span> : py &gt; <span class="c-num">196</span> ? <span class="c-num">196</span> : py;
+<span class="ln">365</span> 
+<span class="ln">366</span>  <span class="c-com">// player lasers</span>
+<span class="ln">367</span>  <span class="c-kw">if</span> (cooldown &gt; <span class="c-num">0</span>) cooldown--;
+<span class="ln">368</span>  <span class="c-kw">if</span> ((pad &amp; <span class="c-cst">IN_B</span>(<span class="c-num">1</span>)) &amp;&amp; !cooldown &amp;&amp; lives &gt; <span class="c-num">0</span>) {
+<span class="ln">369</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">N_LASER</span>; i++)
+<span class="ln">370</span>      <span class="c-kw">if</span> (!lasers[i].on) { lasers[i] = (shot_t){<span class="c-kw">true</span>, (px + <span class="c-num">12</span>) &lt;&lt; FP, (py + <span class="c-num">4</span>) &lt;&lt; FP, <span class="c-num">7</span> &lt;&lt; FP, <span class="c-num">0</span>}; <span class="c-kw">break</span>; }
+<span class="ln">371</span>    cooldown = <span class="c-num">7</span>; sfx_shot = <span class="c-num">6</span>;
+<span class="ln">372</span>  }
+<span class="ln">373</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">N_LASER</span>; i++) {
+<span class="ln">374</span>    shot_t *s = &amp;lasers[i];
+<span class="ln">375</span>    <span class="c-kw">if</span> (s-&gt;on) { s-&gt;x += s-&gt;vx; <span class="c-kw">if</span> (PX(s-&gt;x) &gt; <span class="c-num">320</span>) s-&gt;on = <span class="c-kw">false</span>; }
+<span class="ln">376</span>    <span class="c-kw">if</span> (s-&gt;on) spr8(<span class="c-cst">S_LASER</span> + i, PX(s-&gt;x), PX(s-&gt;y), <span class="c-cst">CELL_LASER</span>, <span class="c-cst">PAL_SPR</span>); <span class="c-kw">else</span> mc_sprite_hide(<span class="c-cst">S_LASER</span> + i);
+<span class="ln">377</span>  }
+<span class="ln">378</span> 
+<span class="ln">379</span>  <span class="c-com">// waves: five saucers every 100 frames, an orb every 260</span>
+<span class="ln">380</span>  <span class="c-kw">if</span> (t % <span class="c-num">100</span> == <span class="c-num">0</span>) { <span class="c-kw">int</span> y = <span class="c-num">30</span> + (<span class="c-kw">int</span>)(mc_rand() % <span class="c-num">130</span>); <span class="c-kw">for</span> (<span class="c-kw">int</span> k = <span class="c-num">0</span>; k &lt; <span class="c-num">5</span>; k++) spawn_enemy(<span class="c-num">0</span>, <span class="c-num">330</span> + k * <span class="c-num">22</span>, y, k * <span class="c-num">60</span>); }
+<span class="ln">381</span>  <span class="c-kw">if</span> (t % <span class="c-num">260</span> == <span class="c-num">130</span>) spawn_enemy(<span class="c-num">1</span>, <span class="c-num">330</span>, <span class="c-num">40</span> + (<span class="c-kw">int</span>)(mc_rand() % <span class="c-num">130</span>), <span class="c-num">0</span>);
+<span class="ln">382</span> 
+<span class="ln">383</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">N_ENEMY</span>; i++) {
+<span class="ln">384</span>    enemy_t *e = &amp;enemies[i];
+<span class="ln">385</span>    <span class="c-kw">if</span> (!e-&gt;on) { mc_sprite_hide(<span class="c-cst">S_ENEMY</span> + i); <span class="c-kw">continue</span>; }
+<span class="ln">386</span>    e-&gt;t++;
+<span class="ln">387</span>    <span class="c-kw">if</span> (e-&gt;type == <span class="c-num">0</span>) { e-&gt;x -= <span class="c-num">320</span>; e-&gt;y = e-&gt;base_y + ((mc_sin(e-&gt;t * <span class="c-num">8</span> + e-&gt;phase) * <span class="c-num">26</span>) &gt;&gt; <span class="c-num">8</span>); }
+<span class="ln">388</span>    <span class="c-kw">else</span> {
+<span class="ln">389</span>      e-&gt;x -= <span class="c-num">128</span>; e-&gt;y = e-&gt;base_y + ((mc_sin(e-&gt;t * <span class="c-num">3</span>) * <span class="c-num">14</span>) &gt;&gt; <span class="c-num">8</span>);
+<span class="ln">390</span>      <span class="c-kw">if</span> (e-&gt;t % <span class="c-num">70</span> == <span class="c-num">0</span> &amp;&amp; PX(e-&gt;x) &lt; <span class="c-num">310</span>) fire_at_player(PX(e-&gt;x) + <span class="c-num">8</span>, PX(e-&gt;y) + <span class="c-num">8</span>);
+<span class="ln">391</span>    }
+<span class="ln">392</span>    <span class="c-kw">int</span> ex = PX(e-&gt;x), ey = PX(e-&gt;y);
+<span class="ln">393</span>    <span class="c-kw">if</span> (ex &lt; -<span class="c-num">20</span>) { e-&gt;on = <span class="c-kw">false</span>; mc_sprite_hide(<span class="c-cst">S_ENEMY</span> + i); <span class="c-kw">continue</span>; }
+<span class="ln">394</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> j = <span class="c-num">0</span>; j &lt; <span class="c-cst">N_LASER</span>; j++) {
+<span class="ln">395</span>      shot_t *s = &amp;lasers[j];
+<span class="ln">396</span>      <span class="c-kw">if</span> (s-&gt;on &amp;&amp; hit(PX(s-&gt;x), PX(s-&gt;y) + <span class="c-num">3</span>, <span class="c-num">8</span>, <span class="c-num">2</span>, ex + <span class="c-num">1</span>, ey + <span class="c-num">3</span>, <span class="c-num">14</span>, <span class="c-num">10</span>)) {
+<span class="ln">397</span>        s-&gt;on = <span class="c-kw">false</span>; e-&gt;hp--; e-&gt;flash = <span class="c-num">4</span>;
+<span class="ln">398</span>        <span class="c-kw">if</span> (e-&gt;hp &lt;= <span class="c-num">0</span>) {
+<span class="ln">399</span>          explosion(ex + <span class="c-num">8</span>, ey + <span class="c-num">8</span>, e-&gt;type ? <span class="c-num">48</span> : <span class="c-num">18</span>, e-&gt;type ? <span class="c-num">900</span> : <span class="c-num">600</span>);
+<span class="ln">400</span>          sfx_explode(e-&gt;type); score += e-&gt;type ? <span class="c-num">500</span> : <span class="c-num">100</span>;
+<span class="ln">401</span>          e-&gt;on = <span class="c-kw">false</span>; <span class="c-kw">break</span>;
+<span class="ln">402</span>        }
+<span class="ln">403</span>        spark(ex + <span class="c-num">2</span>, ey + <span class="c-num">8</span>, <span class="c-num">300</span>, <span class="c-num">12</span>);
+<span class="ln">404</span>      }
+<span class="ln">405</span>    }
+<span class="ln">406</span>    <span class="c-kw">if</span> (!e-&gt;on) { mc_sprite_hide(<span class="c-cst">S_ENEMY</span> + i); <span class="c-kw">continue</span>; }
+<span class="ln">407</span>    <span class="c-kw">if</span> (lives &gt; <span class="c-num">0</span> &amp;&amp; hit(ex + <span class="c-num">2</span>, ey + <span class="c-num">4</span>, <span class="c-num">12</span>, <span class="c-num">8</span>, px + <span class="c-num">3</span>, py + <span class="c-num">6</span>, <span class="c-num">10</span>, <span class="c-num">4</span>)) hurt_player();
+<span class="ln">408</span>    <span class="c-kw">if</span> (e-&gt;flash) e-&gt;flash--;
+<span class="ln">409</span>    spr16(<span class="c-cst">S_ENEMY</span> + i, ex, ey, e-&gt;type ? <span class="c-cst">CELL_ORB</span> : <span class="c-cst">CELL_SAUCER</span>, e-&gt;flash ? <span class="c-cst">PAL_FX</span> : <span class="c-cst">PAL_SPR</span>);
+<span class="ln">410</span>  }
+<span class="ln">411</span> 
+<span class="ln">412</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">N_SHOT</span>; i++) {
+<span class="ln">413</span>    shot_t *s = &amp;shots[i];
+<span class="ln">414</span>    <span class="c-kw">if</span> (s-&gt;on) {
+<span class="ln">415</span>      s-&gt;x += s-&gt;vx; s-&gt;y += s-&gt;vy;
+<span class="ln">416</span>      <span class="c-kw">int</span> sx = PX(s-&gt;x), sy = PX(s-&gt;y);
+<span class="ln">417</span>      <span class="c-kw">if</span> (sx &lt; -<span class="c-num">8</span> || sx &gt; <span class="c-num">328</span> || sy &lt; -<span class="c-num">8</span> || sy &gt; <span class="c-num">248</span>) s-&gt;on = <span class="c-kw">false</span>;
+<span class="ln">418</span>      <span class="c-kw">else</span> <span class="c-kw">if</span> (lives &gt; <span class="c-num">0</span> &amp;&amp; hit(sx - <span class="c-num">2</span>, sy - <span class="c-num">2</span>, <span class="c-num">4</span>, <span class="c-num">4</span>, px + <span class="c-num">4</span>, py + <span class="c-num">6</span>, <span class="c-num">8</span>, <span class="c-num">4</span>)) { s-&gt;on = <span class="c-kw">false</span>; hurt_player(); }
+<span class="ln">419</span>    }
+<span class="ln">420</span>    <span class="c-kw">if</span> (s-&gt;on) spr8(<span class="c-cst">S_SHOT</span> + i, PX(s-&gt;x) - <span class="c-num">4</span>, PX(s-&gt;y) - <span class="c-num">4</span>, <span class="c-cst">CELL_SHOT</span>, <span class="c-cst">PAL_SPR</span>); <span class="c-kw">else</span> mc_sprite_hide(<span class="c-cst">S_SHOT</span> + i);
+<span class="ln">421</span>  }
+<span class="ln">422</span> 
+<span class="ln">423</span>  <span class="c-com">// player, blinking while invulnerable, with an engine trail</span>
+<span class="ln">424</span>  <span class="c-kw">if</span> (invuln) invuln--;
+<span class="ln">425</span>  <span class="c-kw">if</span> (lives &gt; <span class="c-num">0</span> &amp;&amp; !(invuln &amp; <span class="c-num">4</span>)) spr16(<span class="c-cst">S_PLAYER</span>, px, py, <span class="c-cst">CELL_SHIP</span>, <span class="c-cst">PAL_SPR</span>); <span class="c-kw">else</span> mc_sprite_hide(<span class="c-cst">S_PLAYER</span>);
+<span class="ln">426</span>  <span class="c-kw">if</span> (lives &gt; <span class="c-num">0</span> &amp;&amp; (t &amp; <span class="c-num">1</span>)) {
+<span class="ln">427</span>    particle_t *p = &amp;fx[fx_next]; fx_next = (fx_next + <span class="c-num">1</span>) % <span class="c-cst">N_FX</span>;
+<span class="ln">428</span>    *p = (particle_t){(px + <span class="c-num">1</span>) &lt;&lt; FP, (py + <span class="c-num">8</span> + (<span class="c-kw">int</span>)(mc_rand() % <span class="c-num">3</span>) - <span class="c-num">1</span>) &lt;&lt; FP, -(<span class="c-num">300</span> + (<span class="c-kw">int</span>)(mc_rand() % <span class="c-num">200</span>)), <span class="c-num">0</span>, <span class="c-num">14</span>};
+<span class="ln">429</span>  }
+<span class="ln">430</span>  update_fx();
+<span class="ln">431</span>  <span class="c-kw">if</span> (score &gt; best) best = score;
+<span class="ln">432</span>}
+<span class="ln">433</span> 
+<span class="ln">434</span><span class="c-com">// ---------------------------------------------------------------- screens</span>
+<span class="ln">435</span><span class="c-kw">static</span> <span class="c-kw">void</span> save_best(<span class="c-kw">void</span>) {                     <span class="c-com">// NVRAM: 32 KB, not yet saved to the SD card by the core</span>
+<span class="ln">436</span>  memcpy((<span class="c-kw">void</span> *)<span class="c-cst">MC_NVRAM</span>, <span class="c-str">"NBLA"</span>, <span class="c-num">4</span>);
+<span class="ln">437</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">4</span>; i++) <span class="c-cst">MC_NVRAM</span>[<span class="c-num">4</span> + i] = (<span class="c-kw">uint8_t</span>)(best &gt;&gt; (<span class="c-num">8</span> * i));
+<span class="ln">438</span>}
+<span class="ln">439</span><span class="c-kw">static</span> <span class="c-kw">void</span> load_best(<span class="c-kw">void</span>) {
+<span class="ln">440</span>  best = <span class="c-num">5000</span>;
+<span class="ln">441</span>  <span class="c-kw">if</span> (!memcmp((<span class="c-kw">const</span> <span class="c-kw">void</span> *)<span class="c-cst">MC_NVRAM</span>, <span class="c-str">"NBLA"</span>, <span class="c-num">4</span>))
+<span class="ln">442</span>    best = <span class="c-cst">MC_NVRAM</span>[<span class="c-num">4</span>] | (<span class="c-cst">MC_NVRAM</span>[<span class="c-num">5</span>] &lt;&lt; <span class="c-num">8</span>) | ((<span class="c-kw">uint32_t</span>)<span class="c-cst">MC_NVRAM</span>[<span class="c-num">6</span>] &lt;&lt; <span class="c-num">16</span>) | ((<span class="c-kw">uint32_t</span>)<span class="c-cst">MC_NVRAM</span>[<span class="c-num">7</span>] &lt;&lt; <span class="c-num">24</span>);
+<span class="ln">443</span>}
+<span class="ln">444</span> 
+<span class="ln">445</span><span class="c-kw">static</span> <span class="c-kw">void</span> title_screen(<span class="c-kw">void</span>) {
+<span class="ln">446</span>  <span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> name[] = <span class="c-str">"NEBULA"</span>;
+<span class="ln">447</span>  reset_objects(); text_clear();
+<span class="ln">448</span>  <span class="c-kw">char</span> line[<span class="c-num">48</span>];
+<span class="ln">449</span>  text_center(<span class="c-num">15</span>, <span class="c-str">"UN EXEMPLE DU SDK MC"</span>, <span class="c-cst">PAL_HUD</span> + <span class="c-num">1</span>);
+<span class="ln">450</span>  text_center(<span class="c-num">18</span>, <span class="c-str">"CROIX : PILOTER   B1 : TIRER"</span>, <span class="c-num">0</span>);
+<span class="ln">451</span>  snprintf(line, <span class="c-kw">sizeof</span> line, <span class="c-str">"RECORD %06u"</span>, (<span class="c-kw">unsigned</span>)best); text_center(<span class="c-num">24</span>, line, <span class="c-cst">PAL_HUD</span> + <span class="c-num">2</span>);
+<span class="ln">452</span>  <span class="c-kw">for</span> (<span class="c-kw">uint32_t</span> t = <span class="c-num">0</span>;; t++) {
+<span class="ln">453</span>    mc_frame();
+<span class="ln">454</span>    scroll_backgrounds(mc_frames);
+<span class="ln">455</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">6</span>; i++) {                 <span class="c-com">// big letters: font cells zoomed x4, on a wave</span>
+<span class="ln">456</span>      <span class="c-kw">int</span> n = <span class="c-cst">S_ENEMY</span> + i;
+<span class="ln">457</span>      mc_sprite(n, <span class="c-num">64</span> + i * <span class="c-num">32</span>, <span class="c-num">40</span> + (mc_sin((<span class="c-kw">int</span>)t * <span class="c-num">10</span> + i * <span class="c-num">90</span>) * <span class="c-num">10</span> &gt;&gt; <span class="c-num">16</span>), <span class="c-cst">CELL_FONT</span> + name[i] - <span class="c-num">32</span>, <span class="c-num">1</span>, <span class="c-num">1</span>, <span class="c-cst">PAL_LETTER</span> + i, <span class="c-num">4</span>);
+<span class="ln">458</span>      mc_sprite_zoom(n, <span class="c-num">0x400</span>, <span class="c-num">0x400</span>);
+<span class="ln">459</span>    }
+<span class="ln">460</span>    text_center(<span class="c-num">21</span>, (t / <span class="c-num">30</span>) % <span class="c-num">2</span> ? <span class="c-str">"                 "</span> : <span class="c-str">"APPUYEZ SUR START"</span>, <span class="c-cst">PAL_HUD</span>);
+<span class="ln">461</span>    <span class="c-kw">if</span> (mc_pad_pressed(<span class="c-num">1</span>) &amp; <span class="c-cst">IN_START</span>) <span class="c-kw">break</span>;
+<span class="ln">462</span>  }
+<span class="ln">463</span>}
+<span class="ln">464</span> 
+<span class="ln">465</span><span class="c-kw">static</span> <span class="c-kw">void</span> game(<span class="c-kw">void</span>) {
+<span class="ln">466</span>  reset_objects(); text_clear();
+<span class="ln">467</span>  px = <span class="c-num">40</span>; py = <span class="c-num">100</span>; lives = <span class="c-num">3</span>; invuln = <span class="c-num">90</span>; cooldown = <span class="c-num">0</span>; score = <span class="c-num">0</span>;
+<span class="ln">468</span>  <span class="c-kw">for</span> (<span class="c-kw">uint32_t</span> t = <span class="c-num">1</span>; lives &gt; <span class="c-num">0</span> || invuln &gt; <span class="c-num">0</span>; t++) {
+<span class="ln">469</span>    mc_frame();
+<span class="ln">470</span>    scroll_backgrounds(mc_frames);
+<span class="ln">471</span>    play_frame(t);
+<span class="ln">472</span>    sfx_update();
+<span class="ln">473</span>    hud();
+<span class="ln">474</span>  }
+<span class="ln">475</span>}
+<span class="ln">476</span> 
+<span class="ln">477</span><span class="c-kw">static</span> <span class="c-kw">void</span> game_over(<span class="c-kw">void</span>) {
+<span class="ln">478</span>  text_center(<span class="c-num">11</span>, <span class="c-str">"PARTIE TERMINEE"</span>, <span class="c-cst">PAL_HUD</span> + <span class="c-num">3</span>);
+<span class="ln">479</span>  <span class="c-kw">if</span> (score &gt;= best) { save_best(); text_center(<span class="c-num">13</span>, <span class="c-str">"NOUVEAU RECORD !"</span>, <span class="c-cst">PAL_HUD</span>); }
+<span class="ln">480</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> t = <span class="c-num">0</span>; t &lt; <span class="c-num">240</span>; t++) {
+<span class="ln">481</span>    mc_frame();
+<span class="ln">482</span>    scroll_backgrounds(mc_frames);
+<span class="ln">483</span>    update_fx(); sfx_update();
+<span class="ln">484</span>    <span class="c-kw">if</span> (t &gt; <span class="c-num">60</span> &amp;&amp; (mc_pad_pressed(<span class="c-num">1</span>) &amp; <span class="c-cst">IN_START</span>)) <span class="c-kw">break</span>;
+<span class="ln">485</span>  }
+<span class="ln">486</span>}
+<span class="ln">487</span> 
+<span class="ln">488</span><span class="c-kw">int</span> main(<span class="c-kw">void</span>) {
+<span class="ln">489</span>  mc_init();
+<span class="ln">490</span>  mc_text_layer(<span class="c-num">0</span>, <span class="c-num">3</span>);                            <span class="c-com">// layer 0: text, in front of everything</span>
+<span class="ln">491</span>  make_palettes();
+<span class="ln">492</span>  mc_color(<span class="c-cst">SKY</span>, <span class="c-num">0</span>);
+<span class="ln">493</span>  mc_background(<span class="c-cst">SKY</span>);
+<span class="ln">494</span>  text_center(<span class="c-num">14</span>, <span class="c-str">"PREPARATION DES DECORS..."</span>, <span class="c-num">0</span>);
+<span class="ln">495</span>  mc_display(<span class="c-cst">DISP_ON</span> | <span class="c-cst">DISP_LAYER</span>(<span class="c-num">0</span>));
+<span class="ln">496</span>  make_sprites();
+<span class="ln">497</span>  make_backgrounds();
+<span class="ln">498</span>  fx = calloc(<span class="c-cst">N_FX</span>, <span class="c-kw">sizeof</span>(particle_t));
+<span class="ln">499</span>  mc_sprites_used(<span class="c-cst">S_USED</span>);
+<span class="ln">500</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> y = <span class="c-num">0</span>; y &lt;= <span class="c-num">212</span>; y += <span class="c-num">4</span>) mc_raster_add(y, sky);
+<span class="ln">501</span>  mc_display(<span class="c-cst">DISP_ON</span> | <span class="c-cst">DISP_LAYER</span>(<span class="c-num">0</span>) | <span class="c-cst">DISP_LAYER</span>(<span class="c-num">1</span>) | <span class="c-cst">DISP_LAYER</span>(<span class="c-num">2</span>) | <span class="c-cst">DISP_LAYER</span>(<span class="c-num">3</span>) | <span class="c-cst">DISP_SPRITES</span>);
+<span class="ln">502</span>  load_best();
+<span class="ln">503</span>  music(<span class="c-kw">true</span>);
+<span class="ln">504</span>  <span class="c-kw">for</span> (;;) { title_screen(); game(); game_over(); }
+<span class="ln">505</span>}</pre></div>
+<h2>Pour aller plus loin</h2>
+<ol><li>Changez les dessins du vaisseau et des ennemis, ou les couleurs du ciel.</li><li>Ajoutez un bonus qui donne un tir double pendant quelques secondes.</li><li>Faites apparaître un « boss » : un grand sprite de 64 x 64 (8 x 8 cases) qui encaisse 30 tirs.</li><li>Remplacez les décors calculés par un paysage dessiné, converti avec <code>maps = …</code> dans <code>project.txt</code>.</li><li>Passez l'écran en 384 x 224 avec <code>mc_video_mode</code>, comme une borne d'arcade.</li></ol>
 <section class="chap-open c1"><div class="chap-num">A</div><div class="chap-band"></div><h1 id="chA">La bibliothèque easy</h1><p class="lead">Toutes les fonctions, d'un coup d'oeil, avec la traduction de leur nom.</p></section>
 <table class="ref"><thead><tr><th>Fonction</th><th>Traduction</th><th>Description</th></tr></thead><tbody><tr><td><code>init()</code></td><td>initialiser</td><td>prépare la console : à appeler une fois, au début</td></tr><tr><td><code>wait_frame()</code></td><td>attendre l'image</td><td>attend l'image suivante (1/60 de seconde), lit les manettes, fait avancer les mélodies</td></tr><tr><td><code>frame_count</code></td><td>nombre d'images</td><td>variable : images depuis le démarrage</td></tr><tr><td><code>random(n)</code></td><td>au hasard</td><td>nombre au hasard de 0 à n - 1</td></tr><tr><td><code>background(r, g, b)</code></td><td>fond</td><td>couleur du fond (rouge, vert, bleu de 0 à 255)</td></tr><tr><td><code>ink(n, r, g, b)</code></td><td>encre</td><td>couleur de l'encre de texte n (0 à 7)</td></tr><tr><td><code>load_palette(n, pal)</code></td><td>charger une palette</td><td>range une palette de 16 couleurs (fichier .pal) en palette n</td></tr><tr><td><code>cls()</code></td><td>effacer l'écran</td><td>efface tout le texte (de <i>CLear Screen</i>)</td></tr><tr><td><code>print(col, row, text)</code></td><td>imprimer</td><td>écrit en blanc, colonne <i>col</i>, ligne <i>row</i></td></tr><tr><td><code>print_ink(col, row, text, ink)</code></td><td>imprimer en couleur</td><td>écrit avec l'encre choisie</td></tr><tr><td><code>print_num(col, row, n, digits, ink)</code></td><td>imprimer un nombre</td><td>écrit un nombre sur <i>digits</i> chiffres, complété par des zéros</td></tr><tr><td><code>held(player, button)</code></td><td>tenu</td><td>vrai si le bouton est enfoncé</td></tr><tr><td><code>pressed(player, button)</code></td><td>appuyé</td><td>vrai si le bouton vient d'être enfoncé</td></tr><tr><td><code>load_sprites(chr, pal, palette)</code></td><td>charger les sprites</td><td>choisit la planche de sprites</td></tr><tr><td><code>sprite(n, x, y, picture)</code></td><td>sprite</td><td>affiche le sprite n (0 à 63) avec le dessin <i>picture</i></td></tr><tr><td><code>hide_sprite(n)</code></td><td>cacher</td><td>cache le sprite n</td></tr><tr><td><code>flip_sprite(n, h, v)</code></td><td>retourner</td><td>retourne le sprite n</td></tr><tr><td><code>scale_sprite(n, percent)</code></td><td>mettre à l'échelle</td><td>agrandit ou réduit le sprite n</td></tr><tr><td><code>sprite_palette(n, palette)</code></td><td>palette du sprite</td><td>change la palette du sprite n</td></tr><tr><td><code>collide(x1, y1, x2, y2)</code></td><td>se heurter</td><td>vrai si deux sprites de 16 x 16 se touchent</td></tr><tr><td><code>load_map(chr, pal, map, w, h, palette)</code></td><td>charger le décor</td><td>installe un décor de w x h tuiles</td></tr><tr><td><code>scroll_map(x, y)</code></td><td>faire défiler</td><td>fait défiler le décor</td></tr><tr><td><code>tone(channel, freq, volume)</code></td><td>note</td><td>son carré sur un canal</td></tr><tr><td><code>noise(channel, volume)</code></td><td>bruit</td><td>bruit sur un canal</td></tr><tr><td><code>quiet(channel)</code></td><td>silence</td><td>fait taire un canal</td></tr><tr><td><code>play(channel, tune, frames, volume)</code></td><td>jouer</td><td>joue une mélodie en boucle</td></tr><tr><td><code>stop(channel)</code></td><td>arrêter</td><td>arrête la mélodie du canal</td></tr><tr><td><code>play_sample(voice, data, count, rate, volume)</code></td><td>jouer un échantillon</td><td>joue un son enregistré</td></tr></tbody></table>
 <p>Boutons : <code>UP</code> (haut), <code>DOWN</code> (bas), <code>LEFT</code> (gauche), <code>RIGHT</code> (droite), <code>B1</code> à <code>B6</code>, <code>START</code>, <code>COIN</code> (pièce). Encres par défaut : 0 blanc, 1 jaune, 2 cyan, 3 vert, 4 rouge, 5 violet, 6 orange, 7 gris.</p>
@@ -700,4 +1330,8 @@ sounds  = boom.wav</pre></div>
 <table class=""><thead><tr><th>Limite</th><th>Valeur</th></tr></thead><tbody><tr><td>Sprites par ligne</td><td>64, et 1280 pixels de sprites</td></tr><tr><td>Couleurs</td><td>15 par planche ou par décor (4 bits par pixel), 255 en mode 8 bits</td></tr><tr><td>Décor</td><td>1024 x 1024 pixels (64 x 64 tuiles de 16)</td></tr><tr><td>Mémoire de travail</td><td>128 Ko pour les variables et la pile</td></tr><tr><td>ROM</td><td>32 Mo</td></tr><tr><td>Son</td><td>8 voix d'échantillons + 8 canaux de notes</td></tr></tbody></table>
 <h3>Messages et problèmes fréquents</h3>
 <table class=""><thead><tr><th>Symptôme</th><th>Cause probable et remède</th></tr></thead><tbody><tr><td><code>error: expected ';'</code></td><td>il manque un point-virgule à la fin de la ligne indiquée (ou de la précédente)</td></tr><tr><td><code>undefined symbol: sheet_chr</code></td><td>l'image n'est pas déclarée dans <code>project.txt</code>, ou porte un autre nom</td></tr><tr><td><code>ERROR: tool not found: clang</code></td><td>LLVM n'est pas installé ou pas dans le chemin (chapitre 2)</td></tr><tr><td><code>ERROR: no project.txt file</code></td><td>la commande n'est pas lancée dans le dossier du programme</td></tr><tr><td>écran noir</td><td><code>init()</code> oublié, ou le programme n'appelle jamais <code>wait_frame()</code></td></tr><tr><td>sprite invisible</td><td>planche non chargée, sprite hors de l'écran, ou plus de 64 sprites sur la ligne</td></tr><tr><td>couleurs bizarres</td><td>plus de 15 couleurs dans l'image : réduisez la palette</td></tr><tr><td>le jeu ralentit</td><td>trop de calculs par image : regardez la charge dans le moniteur</td></tr><tr><td>rien sur le MiSTer</td><td>barrette SDRAM absente, ou essayer l'option « Lecture SDRAM : Retardée »</td></tr></tbody></table>
-<section class="colophon"><p>MONOCORE-1 · Manuel du programmeur · édition 1, octobre 2026.</p><p>Titres en Press Start 2P (Cody Boisclair), texte en Archivo (Omnibus-Type), listings en IBM Plex Mono : polices sous licence SIL Open Font License.</p><p>Les exemples se trouvent dans <code>manual/examples</code>. Ce manuel se régénère avec <code>python3 manual/tools/manual.py</code>.</p></section></body></html>
+<section class="chap-open c4"><div class="chap-num">D</div><div class="chap-band"></div><h1 id="chD">Le SDK mc</h1><p class="lead">Toutes les fonctions du SDK bas niveau, d'un coup d'oeil (mc.h).</p></section>
+<table class="ref"><thead><tr><th>Fonction</th><th>Description</th></tr></thead><tbody><tr><td><code>mc_init()</code></td><td>prépare la console : à appeler une fois, au début</td></tr><tr><td><code>mc_frame()</code></td><td>attend l'image suivante, envoie les sprites, lit les manettes, fait avancer les mélodies</td></tr><tr><td><code>mc_frames</code></td><td>variable : images depuis le démarrage</td></tr><tr><td><code>mc_cycles() / mc_micros()</code></td><td>temps écoulé, en cycles du processeur ou en microsecondes</td></tr><tr><td><code>mc_on_vblank(f)</code></td><td>appelle <i>f</i> au début de chaque pause verticale</td></tr><tr><td><code>mc_on_timer(t, hz, f)</code></td><td>appelle <i>f</i> <i>hz</i> fois par seconde (timer 0 ou 1)</td></tr><tr><td><code>mc_raster_add(ligne, f)</code></td><td>effet raster : <i>f</i> s'applique à partir de cette ligne (64 au plus)</td></tr><tr><td><code>mc_raster_line / mc_raster_clear()</code></td><td>ligne de l'effet en cours ; efface tous les effets</td></tr><tr><td><code>mc_video_mode(w, h)</code></td><td>taille de l'écran, de 224 à 384 x 192 à 288</td></tr><tr><td><code>mc_display(flags)</code></td><td>allume l'affichage, les plans et les sprites (<code>DISP_ON | DISP_LAYER(n) | DISP_SPRITES</code>)</td></tr><tr><td><code>mc_color(i, rgb) / MC_RGB(r, g, b)</code></td><td>change la couleur <i>i</i> (0 à 4095)</td></tr><tr><td><code>mc_palette(p, couleurs, n)</code></td><td>charge <i>n</i> couleurs à partir de la palette <i>p</i></td></tr><tr><td><code>mc_background(i)</code></td><td>choisit la couleur de fond</td></tr><tr><td><code>mc_layer(n, dessins, flags, w, h, prio)</code></td><td>règle le plan <i>n</i> : tuiles 8 ou 16, 4 ou 8 bits, taille de carte, priorité</td></tr><tr><td><code>mc_layer_scroll(n, x, y)</code></td><td>fait défiler le plan <i>n</i></td></tr><tr><td><code>mc_layer_linescroll(n, on) / mc_linescroll(n)</code></td><td>défilement ligne par ligne et sa table</td></tr><tr><td><code>mc_tile / mc_tilemap_fill / mc_tilemap_load</code></td><td>écrit une case, remplit ou charge la carte d'un plan</td></tr><tr><td><code>MC_TILE(tuile, palette, flags)</code></td><td>une case de carte, avec <code>T_HFLIP</code>, <code>T_VFLIP</code>, <code>T_PRIO</code></td></tr><tr><td><code>mc_chr_upload(décalage, source, octets)</code></td><td>copie des dessins dans la CHR RAM</td></tr><tr><td><code>MC_CHR(décalage)</code></td><td>adresse de dessins dans la CHR RAM, pour un plan ou les sprites</td></tr><tr><td><code>mc_sprite_sheet(dessins)</code></td><td>choisit la planche des sprites (ROM ou CHR RAM)</td></tr><tr><td><code>mc_sprite(n, x, y, case, w, h, pal, prio)</code></td><td>affiche le sprite <i>n</i> (0 à 511), taille en cases de 8 pixels</td></tr><tr><td><code>mc_sprite_zoom / mc_sprite_flip / mc_sprite_8bpp</code></td><td>agrandit, retourne, passe en 256 couleurs</td></tr><tr><td><code>mc_sprite_hide / mc_sprites_hide_all</code></td><td>cache un sprite, ou tous</td></tr><tr><td><code>mc_sprites_used(n)</code></td><td>nombre d'entrées parcourues par la console</td></tr><tr><td><code>mc_text_layer(n, prio) / mc_text / mc_text_clear</code></td><td>texte avec la police du SDK sur le plan <i>n</i></td></tr><tr><td><code>mc_psg(c, forme, hz, rapport, vol_g, vol_d)</code></td><td>note sur le canal <i>c</i> (<code>PSG_SQUARE</code>, <code>PSG_TRIANGLE</code>, <code>PSG_SAW</code>, <code>PSG_NOISE</code>)</td></tr><tr><td><code>mc_psg_volume / mc_psg_freq16</code></td><td>volume, fréquence en 1/16 de hertz</td></tr><tr><td><code>mc_pcm_play(v, données, n, format, hz, boucle, vol_g, vol_d)</code></td><td>joue un échantillon sur la voix <i>v</i></td></tr><tr><td><code>mc_pcm_stop / mc_pcm_pos / mc_master_volume</code></td><td>arrête une voix, sa position, volume général</td></tr><tr><td><code>mc_tune(c, notes, images, volume) / mc_tune_stop</code></td><td>mélodie en boucle, même écriture que <code>play</code> d'easy</td></tr><tr><td><code>mc_pad(j) / mc_pad_pressed(j) / mc_pad_released(j)</code></td><td>boutons tenus, enfoncés ou relâchés à cette image (joueur 1 ou 2)</td></tr><tr><td><code>mc_sys() / mc_dip()</code></td><td>boutons système, DIP switches</td></tr><tr><td><code>malloc / calloc / realloc / free</code></td><td>mémoire du tas ; <code>mc_heap_free()</code> donne ce qui reste</td></tr><tr><td><code>MC_NVRAM</code></td><td>32 Ko de mémoire sauvegardée</td></tr><tr><td><code>mc_copy / mc_fill</code></td><td>copie ou remplissage par DMA</td></tr><tr><td><code>fix16, FIX(x), fix_mul, fix_div</code></td><td>nombres à virgule fixe (16 bits après la virgule)</td></tr><tr><td><code>mc_sin / mc_cos / mc_atan2 / mc_isqrt</code></td><td>trigonométrie (1024 pas par tour) et racine carrée</td></tr><tr><td><code>mc_rand() / mc_srand(n)</code></td><td>nombres au hasard</td></tr><tr><td><code>mc_debug / printf / puts</code></td><td>écriture sur la console de debug du simulateur</td></tr></tbody></table>
+<h3>Le fichier project.txt</h3>
+<table class="ref"><thead><tr><th>Réglage</th><th>Contenu</th><th>Noms créés pour le programme</th></tr></thead><tbody><tr><td><code>library = mc</code></td><td>choisit le SDK mc (par défaut : easy)</td><td></td></tr><tr><td><code>data</code></td><td>fichiers bruts, copiés tels quels dans la ROM</td><td><code>x_file</code> <code>x_size</code></td></tr></tbody></table>
+<section class="colophon"><p>MONOCORE-1 · Manuel du programmeur · édition 2, octobre 2026.</p><p>Titres en Press Start 2P (Cody Boisclair), texte en Archivo (Omnibus-Type), listings en IBM Plex Mono : polices sous licence SIL Open Font License.</p><p>Les exemples se trouvent dans <code>manual/examples</code>. Ce manuel se régénère avec <code>python3 manual/tools/manual.py</code>.</p></section></body></html>

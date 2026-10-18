@@ -1,0 +1,5 @@
+# Chapter 11: first program with the low-level mc SDK
+name    = mcdemo
+title   = PREMIERS PAS AVEC MC
+library = mc
+sources = main.c

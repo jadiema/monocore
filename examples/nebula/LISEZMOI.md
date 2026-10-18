@@ -2,7 +2,7 @@
 
 Un petit shoot'em up horizontal : on pilote un vaisseau à travers trois plans de décor, on abat
 des vagues de soucoupes et des orbes qui visent le joueur. Il sert de démonstration du SDK bas
-niveau `mc` (voir `sdk/SDK_MC.md`) : tout ce qu'il affiche est **calculé au démarrage**, sans
+niveau `mc` (voir `sdk/SDK_MC.md` et les chapitres 11 et 12 du manuel) : tout ce qu'il affiche est **calculé au démarrage**, sans
 aucun fichier image ni son.
 
 ![NEBULA : écran titre et partie](apercu.png)
@@ -13,6 +13,8 @@ aucun fichier image ni son.
 cd examples/nebula
 python3 ../../sdk/build.py .        # -> build/nebula.mnc
 ```
+
+Une version déjà compilée est fournie dans `build/nebula.mnc`.
 
 Glisse `build/nebula.mnc` sur le simulateur (`dist/monocore.html`), ou copie-le dans
 `games/MONOCORE` sur la carte SD du MiSTer. Croix : piloter ; bouton 1 : tirer ; START : jouer.

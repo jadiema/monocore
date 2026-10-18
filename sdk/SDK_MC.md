@@ -41,7 +41,7 @@ musiques, données d'un jeu porté) : symboles `fichier_file` (données) et `fic
 | Effets raster | `mc_raster_add`, `mc_raster_clear`, `mc_raster_line` | jusqu'à 64 effets par image ; l'écriture faite dans l'effet s'applique **exactement** à partir de la ligne demandée (vérifié en simulation) |
 | Vidéo | `mc_video_mode`, `mc_display`, `mc_layer`, `mc_layer_scroll`, `mc_layer_linescroll`, `mc_tile`, `mc_tilemap_fill/load` | résolution de 224 à 384 × 192 à 288 ; 4 plans en tuiles 8 ou 16, 4 ou 8 bpp |
 | Couleurs | `mc_color`, `mc_palette`, `mc_background`, `MC_RGB` | 4096 couleurs RGB555 = 256 palettes de 16 |
-| Graphismes dynamiques | `mc_chr_upload`, `MC_CHRRAM` | 128 Ko de CHR RAM utilisables par les plans et les sprites, à la place de la ROM |
+| Graphismes dynamiques | `mc_chr_upload`, `MC_CHR`, `MC_CHRRAM` | 128 Ko de CHR RAM utilisables par les plans et les sprites, à la place de la ROM |
 | Sprites | `mc_sprite`, `mc_sprite_zoom`, `mc_sprite_flip`, `mc_sprite_8bpp`, `mc_sprite_hide`, `mc_sprites_used` | 512 sprites de 8 × 8 à 256 × 256, table fantôme `mc_spr[]` en WRAM |
 | Texte | `mc_text_layer`, `mc_text`, `mc_text_clear` | police du SDK, pour les menus et le débogage |
 | Son | `mc_pcm_play`, `mc_pcm_stop`, `mc_pcm_pos`, `mc_psg`, `mc_psg_freq16`, `mc_psg_volume`, `mc_master_volume`, `mc_tune` | 8 voies PCM (8/16 bits, ADPCM) et 8 voies PSG |

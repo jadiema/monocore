@@ -15,7 +15,7 @@ OUT_PDF = os.path.join(ROOT, 'MONOCORE-1_Manuel_du_programmeur.pdf')
 # ---------------------------------------------------------------- building blocks
 def esc(s): return html.escape(s, quote=False)
 
-KW = r'\b(int|void|static|const|char|for|while|if|else|return|break|continue|typedef|struct|uint8_t|uint16_t|uint32_t|int8_t|int16_t|volatile|extern|sizeof|unsigned)\b'
+KW = r'\b(int|void|static|const|char|for|while|if|else|return|break|continue|typedef|struct|uint8_t|uint16_t|uint32_t|int8_t|int16_t|volatile|extern|sizeof|unsigned|bool|size_t|true|false)\b'
 def highlight(code):
     """C colouring: comments, strings, directives, keywords, numbers, constants"""
     out = []
@@ -147,7 +147,7 @@ COVER = '''<section class="cover">
  <div class="cover-sub">MANUEL DU PROGRAMMEUR</div>
  <div class="cover-shot"><img src="images/screen_07_title.png"></div>
  <div class="cover-bottom">Écrivez vos propres jeux · Tutoriels pas à pas · Référence complète</div>
- <div class="cover-ed">ÉDITION 1 · OCTOBRE 2026</div>
+ <div class="cover-ed">ÉDITION 2 · OCTOBRE 2026</div>
 </section>'''
 
 A('@@TOC@@')
@@ -161,6 +161,7 @@ box('tip', 'Comment lire ce manuel', ul([
   "Les chapitres 1 à 3 installent l'atelier et font tourner un premier programme. Lisez-les dans l'ordre.",
   "Les chapitres 4 à 8 présentent une notion chacun : le langage C, la manette, les sprites, le son, le décor.",
   "Le chapitre 9 assemble tout dans un jeu. Le chapitre 10 ouvre le capot pour les curieux.",
+  "Les chapitres 11 et 12 présentent le SDK bas niveau mc, pour les jeux plus ambitieux, avec un shoot'em up complet.",
   "Les annexes servent de référence : gardez-les sous la main pendant que vous programmez."])) +
 p("Bon courage, et amusez-vous bien !") + '</section>')
 
@@ -392,7 +393,89 @@ A(h2('Le DMA'))
 A(p("Le DMA copie ou remplit la mémoire bien plus vite que le processeur : <code>dma_copy(destination, source, octets)</code> et <code>dma_fill(destination, motif, octets)</code>. Idéal pour charger une palette, une carte de décor, ou des dessins dans la <b>CHR RAM</b> (128 Ko de graphismes modifiables en cours de jeu, à l'adresse <code>CHRRAM_BASE</code>)."))
 A(h2('Le temps du processeur'))
 A(p("Le processeur exécute environ <b>780 000 instructions par image</b>. C'est énorme : un 68000 de borne d'arcade en exécutait 25 000. Le moniteur du simulateur affiche la charge : si elle dépasse 100 %, le jeu ralentit. Gardez une marge, car le simulateur estime le temps à environ 10 % près."))
+A(p("Pour utiliser tout cela sans écrire les registres un par un, le chapitre 11 présente le SDK <b>mc</b>."))
 A(box('warn', "Règle d'or", p("Ne comptez jamais sur un nombre de cycles pour régler la vitesse d'un jeu : synchronisez-vous toujours sur les images (<code>wait_frame()</code>) ou sur un timer. C'est ce qui garantit que le jeu tourne pareil dans le simulateur et sur la console.")))
+
+
+# ---------------------------------------------------------------- 11
+A(chapter(11, 'Passer au SDK mc', "Quand easy devient trop petit : toute la console, toujours en C, sans assembleur.", 11))
+A(p("La bibliothèque <code>easy</code> range la console d'une façon simple et fixe : un plan de texte, un décor, 64 sprites de 16 x 16. C'est parfait pour apprendre, mais un jeu plus ambitieux, ou l'adaptation d'un jeu existant, a besoin de tout le reste : les quatre plans, les 512 sprites, les interruptions, la mémoire. Le chapitre 10 a montré qu'on peut tout faire avec les registres ; le SDK <b>mc</b> (pour <i>MONOCORE</i>) donne à ces registres des fonctions pratiques, sans rien cacher."))
+A(table(['', 'easy', 'mc'], [
+  ['Pour qui', 'débuter, petits jeux', 'jeux complexes, adaptations'],
+  ['Plans', 'texte (0) et décor (1)', 'les quatre, réglés librement'],
+  ['Sprites', '64, de 16 x 16', '512, de 8 x 8 à 256 x 256, zoom'],
+  ['Interruptions', 'cachées', 'VBLANK, deux timers, effets raster, en C'],
+  ['Mémoire', 'variables seulement', '<code>malloc</code>, <code>free</code>, CHR RAM'],
+  ['Bibliothèque C', '—', '<code>string.h</code>, <code>stdlib.h</code>, <code>stdio.h</code>…']]))
+A(h2('Choisir mc'))
+A(p("Une seule ligne dans <code>project.txt</code> suffit, et le programme inclut <code>mc.h</code> au lieu de <code>easy.h</code>. Toutes les fonctions commencent par <code>mc_</code>. On ne mélange pas les deux bibliothèques dans un même programme."))
+A(listing(source('11_mc', 'project.txt'), '11_mc/project.txt', numbers=False, lang='txt'))
+A(p("Le squelette ressemble à celui d'<code>easy</code> : <code>mc_init()</code> au début, puis une boucle qui commence par <code>mc_frame()</code>. Cette fonction attend l'image suivante, puis envoie les sprites à la console, lit les manettes et fait avancer les mélodies."))
+A(h2('Un premier programme'))
+A(screen('screen_11.png', "Un arc-en-ciel fait de 30 effets raster, un titre qui ondule et 48 balles dessinées par le programme."))
+A(listing(source('11_mc'), '11_mc/main.c'))
+A(h2('Les effets raster'))
+A(p("La console fabrique l'image ligne par ligne. <code>mc_raster_add(ligne, fonction)</code> demande d'appeler une fonction juste avant qu'une ligne soit dessinée : ce qu'elle change (une couleur, un défilement) s'applique à partir de cette ligne, au pixel près. Ici, 30 effets, un toutes les 8 lignes, changent la couleur de fond : c'est l'arc-en-ciel. Dans la fonction, <code>mc_raster_line</code> dit quelle ligne est en cours. On peut en poser 64 par image ; ils restent en place d'une image à l'autre."))
+A(box('know', 'Le saviez-vous ?', p("L'Amiga avait un coprocesseur, le <i>Copper</i>, qui ne faisait que cela : changer des registres à des lignes précises. Les fameuses « barres copper » des démos en viennent. L'écran d'accueil de la console (<code>examples/boot</code>) en est un hommage.")))
+A(h2('Le défilement ligne par ligne'))
+A(p("<code>mc_layer_linescroll(plan, true)</code> autorise un décalage différent pour chaque ligne d'un plan ; <code>mc_linescroll(plan)[y].dx</code> est le décalage horizontal de la ligne <code>y</code>. En le faisant varier en sinus, le titre ondule comme un drapeau. Le même procédé donne les routes des jeux de course, les vagues ou les sols en perspective."))
+A(h2('Dessiner dans la CHR RAM'))
+A(p("Les dessins ne viennent pas forcément d'une image PNG. La <b>CHR RAM</b>, 128 Ko de dessins modifiables, peut recevoir ce que le programme calcule : <code>make_ball()</code> trace un disque pixel par pixel, l'envoie avec <code>mc_chr_upload</code>, et <code>MC_CHR(0)</code> donne l'adresse à utiliser comme planche de sprites. Un pixel occupe 4 bits : deux pixels par octet, celui de gauche dans les 4 bits de poids faible, 32 octets par case de 8 x 8."))
+A(h2('Les sprites'))
+A(p("<code>mc_sprite(n, x, y, case, largeur, hauteur, palette, priorité)</code> place le sprite <code>n</code> (0 à 511). La largeur et la hauteur se comptent en cases de 8 pixels ; <code>mc_sprite_zoom</code> l'agrandit ou le réduit (256 = taille normale). Les sprites sont d'abord rangés dans une copie en mémoire, que <code>mc_frame()</code> envoie d'un coup par DMA : on ne voit jamais un sprite à moitié déplacé. <code>mc_sprites_used(48)</code> dit à la console de ne parcourir que les 48 premiers."))
+A(h2('La mémoire et la bibliothèque C'))
+A(p("Avec <code>mc</code>, les fichiers d'en-tête habituels du C sont disponibles. <code>calloc</code> réserve ici la place des 48 balles dans le <b>tas</b>, la mémoire libre entre les variables et la pile (environ 100 Ko) ; <code>free</code> la rend. <code>snprintf</code> fabrique une ligne de texte avec des nombres, et <code>printf</code> écrit sur la console de debug du simulateur."))
+A(table(['En-tête', 'Ce qu\'il apporte'], [
+  [c('<string.h>'), "copier, comparer, chercher : <code>strcpy</code>, <code>strcmp</code>, <code>strlen</code>, <code>memcpy</code>…"],
+  [c('<stdlib.h>'), "<code>malloc</code>, <code>calloc</code>, <code>realloc</code>, <code>free</code>, <code>abs</code>, <code>atoi</code>, <code>rand</code>, <code>qsort</code>"],
+  [c('<stdio.h>'), "<code>snprintf</code>, <code>sprintf</code>, et <code>printf</code> vers la console de debug"],
+  [c('<ctype.h>'), "<code>isdigit</code>, <code>toupper</code>…"],
+  [c('<assert.h>'), "<code>assert</code> : arrête le programme avec un message si une condition est fausse"]]))
+A(box('warn', 'Pas de nombres à virgule', p("Le processeur de la console ne calcule qu'en nombres entiers. Le compilateur accepte <code>float</code>, mais l'imite très lentement. <code>mc</code> fournit la <b>virgule fixe</b> : un <code>fix16</code> est un entier qui compte en 65 536<sup>e</sup>, <code>FIX(1.5)</code> vaut 1,5, et <code>mc_sin</code>, <code>mc_cos</code>, <code>mc_atan2</code> travaillent avec des angles de 1024 pas par tour. Dans l'exemple, les positions des balles comptent en 256<sup>e</sup> de pixel, ce qui permet des vitesses fines.")))
+A(p("Toutes les fonctions sont rassemblées dans l'annexe D ; le fichier <code>sdk/SDK_MC.md</code> donne en plus les règles du matériel à connaître pour adapter un jeu existant."))
+
+# ---------------------------------------------------------------- 12
+A(chapter(12, 'Projet : NEBULA', "Un shoot'em up complet, dont tous les dessins sont calculés au démarrage.", 12))
+A('<div class="pair">' + screen('screen_12_title.png', "L'écran titre : des lettres de la police agrandies quatre fois.", True) + screen('screen_12_game.png', 'Une partie : soucoupes, tirs et traînée du réacteur.', True) + '</div>')
+n_neb = len(source('../../examples/nebula').rstrip('\n').split('\n'))
+A(p("Le vaisseau traverse un paysage de montagnes et de collines ; des vagues de soucoupes arrivent en ondulant, et des orbes tirent vers le joueur. Le bouton 1 tire, la croix pilote. Le programme (%d lignes, dans <code>examples/nebula</code>) n'utilise <b>aucun fichier image ni son</b> : les sprites sont dessinés en caractères dans le code, et les décors sont calculés." % n_neb))
+A(h2('Organisation du programme'))
+A(table(['Fonction', 'Rôle'], [
+  [c('make_sprites'), "convertit les dessins en caractères (<code>art_ship</code>…) en cases de sprites, dans la CHR RAM"],
+  [c('build_layer'), "découpe une image calculée de 512 x 256 pixels en tuiles, en partageant les tuiles identiques"],
+  [c('make_backgrounds'), "calcule les profils des montagnes et des collines, construit les trois plans de décor"],
+  [c('scroll_backgrounds'), "fait défiler les trois plans à trois vitesses, et le sol en perspective"],
+  [c('sky'), "effet raster : une couleur de ciel toutes les 4 lignes"],
+  [c('play_frame'), "une image de jeu : manette, tirs, vagues d'ennemis, collisions"],
+  [c('fire_at_player'), "tir d'un orbe, dirigé vers le joueur avec <code>mc_atan2</code>"],
+  [c('explosion'), "lance des dizaines de particules dans toutes les directions"],
+  [c('update_fx'), "fait vivre les particules : elles ralentissent, refroidissent et rétrécissent"],
+  [c('title_screen'), "écran titre"],
+  [c('game_over'), "fin de partie, avec le record gardé en mémoire sauvegardée (NVRAM)"]]))
+A(h2('Des dessins en caractères'))
+A(p("Chaque sprite est dessiné dans le code, une chaîne de 16 caractères par ligne : un point est transparent, une lettre de <code>A</code> à <code>O</code> désigne une couleur de 1 à 15. <code>pack_art</code> range ces pixels en cases de 8 x 8, dans l'ordre que la console attend pour un sprite de 2 x 2 cases : en haut à gauche, en haut à droite, en bas à gauche, en bas à droite."))
+_neb = source('../../examples/nebula').split('\n')
+_i = next(i for i, l in enumerate(_neb) if 'art_ship[16]' in l)
+A(listing('\n'.join(_neb[_i:_i + 5]) + '\n  ...', 'examples/nebula/main.c : le dessin du vaisseau', numbers=False))
+A(h2('Des décors calculés'))
+A(p("Les montagnes sont une somme de trois sinus : <code>far_top[x]</code> donne la hauteur du sommet pour chaque colonne. La fonction <code>far_pixel(x, y)</code> dit la couleur de chaque point d'une image de 512 x 256 pixels : rien au-dessus du sommet, une ligne claire sur la crête, puis des bandes de plus en plus sombres. <code>build_layer</code> découpe cette image en 2 048 tuiles de 8 x 8, mais n'en garde qu'une centaine : les tuiles identiques (le ciel vide, les bandes pleines) sont partagées. Pour les reconnaître vite, chaque tuile reçoit une empreinte (un <i>hachage</i>), et on ne compare en détail que les tuiles de même empreinte."))
+A(box('tip', 'Pourquoi des bandes de 16 lignes ?', p("Les bandes de couleur commencent sur des multiples de 16 lignes, donc sur des bords de tuiles. Toutes les tuiles à l'intérieur d'une bande sont alors identiques : une seule suffit pour toute la bande.")))
+A(h2('Trois plans et un sol'))
+A(p("Les étoiles (plan 2) défilent d'un pixel toutes les 8 images, les montagnes (plan 1) toutes les 4 images, les collines (plan 3) d'un pixel par image : c'est la <b>parallaxe</b>. Les 24 dernières lignes, le damier du sol, défilent de plus en plus vite vers le bas grâce au défilement ligne par ligne : on croit voir un sol qui fuit vers l'horizon. Les priorités rangent le tout : le texte (plan 0, priorité 3) devant les sprites (priorité 4), devant les collines (priorité 2), devant les montagnes (priorité 1), devant les étoiles (priorité 0)."))
+A(box('know', 'La règle des priorités', p("Chaque pixel d'un plan a une priorité <i>effective</i> égale à deux fois celle du plan, plus 1 si la tuile porte la marque <code>T_PRIO</code>. Un sprite de priorité <i>p</i> passe devant les pixels de priorité effective inférieure ou égale à <i>p</i>. Le texte, de priorité effective 6, cache donc les sprites de priorité 4.")))
+A(h2('Viser le joueur'))
+A(p("<code>mc_atan2(dy, dx)</code> donne la direction qui va d'un orbe au vaisseau, en 1024 pas par tour. <code>mc_cos</code> et <code>mc_sin</code> la transforment en une vitesse horizontale et verticale. Les positions comptent en 256<sup>e</sup> de pixel (<code>FP</code> vaut 8) : le tir avance d'environ 1,6 pixel par image, dans n'importe quelle direction."))
+A(h2('Des particules'))
+A(p("Une explosion lance jusqu'à 48 particules. Leur réserve de 160 places est prise dans le tas avec <code>calloc</code>. À chaque image, une particule ralentit (sa vitesse est multipliée par 15/16), change de palette en refroidissant (blanc, jaune, orange, rouge sombre) et rétrécit grâce au zoom. Avec les tirs et les ennemis, le jeu peut afficher 233 sprites à la fois."))
+A(h2('Le listing complet'))
+A(listing(source('../../examples/nebula', 'project.txt'), 'examples/nebula/project.txt', numbers=False, lang='txt'))
+A(listing(source('../../examples/nebula'), 'examples/nebula/main.c'))
+A(h2('Pour aller plus loin'))
+A(ol(["Changez les dessins du vaisseau et des ennemis, ou les couleurs du ciel.",
+      "Ajoutez un bonus qui donne un tir double pendant quelques secondes.",
+      "Faites apparaître un « boss » : un grand sprite de 64 x 64 (8 x 8 cases) qui encaisse 30 tirs.",
+      "Remplacez les décors calculés par un paysage dessiné, converti avec <code>maps = …</code> dans <code>project.txt</code>.",
+      "Passez l'écran en 384 x 224 avec <code>mc_video_mode</code>, comme une borne d'arcade."]))
 
 # ---------------------------------------------------------------- appendices
 A(chapter('A', 'La bibliothèque easy', "Toutes les fonctions, d'un coup d'oeil, avec la traduction de leur nom.", 1))
@@ -497,7 +580,55 @@ A(table(['Symptôme', 'Cause probable et remède'], [
   ['couleurs bizarres', "plus de 15 couleurs dans l'image : réduisez la palette"],
   ['le jeu ralentit', "trop de calculs par image : regardez la charge dans le moniteur"],
   ['rien sur le MiSTer', "barrette SDRAM absente, ou essayer l'option « Lecture SDRAM : Retardée »"]]))
-A('<section class="colophon">' + p("MONOCORE-1 · Manuel du programmeur · édition 1, octobre 2026.") +
+
+A(chapter('D', 'Le SDK mc', "Toutes les fonctions du SDK bas niveau, d'un coup d'oeil (mc.h).", 4))
+A(table(['Fonction', 'Description'], [
+  [c('mc_init()'), "prépare la console : à appeler une fois, au début"],
+  [c('mc_frame()'), "attend l'image suivante, envoie les sprites, lit les manettes, fait avancer les mélodies"],
+  [c('mc_frames'), "variable : images depuis le démarrage"],
+  [c('mc_cycles() / mc_micros()'), "temps écoulé, en cycles du processeur ou en microsecondes"],
+  [c('mc_on_vblank(f)'), "appelle <i>f</i> au début de chaque pause verticale"],
+  [c('mc_on_timer(t, hz, f)'), "appelle <i>f</i> <i>hz</i> fois par seconde (timer 0 ou 1)"],
+  [c('mc_raster_add(ligne, f)'), "effet raster : <i>f</i> s'applique à partir de cette ligne (64 au plus)"],
+  [c('mc_raster_line / mc_raster_clear()'), "ligne de l'effet en cours ; efface tous les effets"],
+  [c('mc_video_mode(w, h)'), "taille de l'écran, de 224 à 384 x 192 à 288"],
+  [c('mc_display(flags)'), "allume l'affichage, les plans et les sprites (<code>DISP_ON | DISP_LAYER(n) | DISP_SPRITES</code>)"],
+  [c('mc_color(i, rgb) / MC_RGB(r, g, b)'), "change la couleur <i>i</i> (0 à 4095)"],
+  [c('mc_palette(p, couleurs, n)'), "charge <i>n</i> couleurs à partir de la palette <i>p</i>"],
+  [c('mc_background(i)'), "choisit la couleur de fond"],
+  [c('mc_layer(n, dessins, flags, w, h, prio)'), "règle le plan <i>n</i> : tuiles 8 ou 16, 4 ou 8 bits, taille de carte, priorité"],
+  [c('mc_layer_scroll(n, x, y)'), "fait défiler le plan <i>n</i>"],
+  [c('mc_layer_linescroll(n, on) / mc_linescroll(n)'), "défilement ligne par ligne et sa table"],
+  [c('mc_tile / mc_tilemap_fill / mc_tilemap_load'), "écrit une case, remplit ou charge la carte d'un plan"],
+  [c('MC_TILE(tuile, palette, flags)'), "une case de carte, avec <code>T_HFLIP</code>, <code>T_VFLIP</code>, <code>T_PRIO</code>"],
+  [c('mc_chr_upload(décalage, source, octets)'), "copie des dessins dans la CHR RAM"],
+  [c('MC_CHR(décalage)'), "adresse de dessins dans la CHR RAM, pour un plan ou les sprites"],
+  [c('mc_sprite_sheet(dessins)'), "choisit la planche des sprites (ROM ou CHR RAM)"],
+  [c('mc_sprite(n, x, y, case, w, h, pal, prio)'), "affiche le sprite <i>n</i> (0 à 511), taille en cases de 8 pixels"],
+  [c('mc_sprite_zoom / mc_sprite_flip / mc_sprite_8bpp'), "agrandit, retourne, passe en 256 couleurs"],
+  [c('mc_sprite_hide / mc_sprites_hide_all'), "cache un sprite, ou tous"],
+  [c('mc_sprites_used(n)'), "nombre d'entrées parcourues par la console"],
+  [c('mc_text_layer(n, prio) / mc_text / mc_text_clear'), "texte avec la police du SDK sur le plan <i>n</i>"],
+  [c('mc_psg(c, forme, hz, rapport, vol_g, vol_d)'), "note sur le canal <i>c</i> (<code>PSG_SQUARE</code>, <code>PSG_TRIANGLE</code>, <code>PSG_SAW</code>, <code>PSG_NOISE</code>)"],
+  [c('mc_psg_volume / mc_psg_freq16'), "volume, fréquence en 1/16 de hertz"],
+  [c('mc_pcm_play(v, données, n, format, hz, boucle, vol_g, vol_d)'), "joue un échantillon sur la voix <i>v</i>"],
+  [c('mc_pcm_stop / mc_pcm_pos / mc_master_volume'), "arrête une voix, sa position, volume général"],
+  [c('mc_tune(c, notes, images, volume) / mc_tune_stop'), "mélodie en boucle, même écriture que <code>play</code> d'easy"],
+  [c('mc_pad(j) / mc_pad_pressed(j) / mc_pad_released(j)'), "boutons tenus, enfoncés ou relâchés à cette image (joueur 1 ou 2)"],
+  [c('mc_sys() / mc_dip()'), "boutons système, DIP switches"],
+  [c('malloc / calloc / realloc / free'), "mémoire du tas ; <code>mc_heap_free()</code> donne ce qui reste"],
+  [c('MC_NVRAM'), "32 Ko de mémoire sauvegardée"],
+  [c('mc_copy / mc_fill'), "copie ou remplissage par DMA"],
+  [c('fix16, FIX(x), fix_mul, fix_div'), "nombres à virgule fixe (16 bits après la virgule)"],
+  [c('mc_sin / mc_cos / mc_atan2 / mc_isqrt'), "trigonométrie (1024 pas par tour) et racine carrée"],
+  [c('mc_rand() / mc_srand(n)'), "nombres au hasard"],
+  [c('mc_debug / printf / puts'), "écriture sur la console de debug du simulateur"]], 'ref'))
+A(h3('Le fichier project.txt'))
+A(table(['Réglage', 'Contenu', 'Noms créés pour le programme'], [
+  [c('library = mc'), "choisit le SDK mc (par défaut : easy)", ''],
+  [c('data'), "fichiers bruts, copiés tels quels dans la ROM", c('x_file') + ' ' + c('x_size')]], 'ref'))
+
+A('<section class="colophon">' + p("MONOCORE-1 · Manuel du programmeur · édition 2, octobre 2026.") +
   p("Titres en Press Start 2P (Cody Boisclair), texte en Archivo (Omnibus-Type), listings en IBM Plex Mono : polices sous licence SIL Open Font License.") +
   p("Les exemples se trouvent dans <code>manual/examples</code>. Ce manuel se régénère avec <code>python3 manual/tools/manual.py</code>.") + '</section>')
 

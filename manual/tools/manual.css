@@ -73,7 +73,7 @@ h3 { font: 700 11pt 'Archivo', sans-serif; text-transform: uppercase; letter-spa
 .c1 .chap-num { background: var(--red); } .c2 .chap-num { background: var(--orange); } .c3 .chap-num { background: #d9a900; }
 .c4 .chap-num { background: var(--green); } .c5 .chap-num { background: var(--blue); } .c6 .chap-num { background: var(--red); }
 .c7 .chap-num { background: var(--orange); } .c8 .chap-num { background: #d9a900; } .c9 .chap-num { background: var(--green); }
-.c10 .chap-num { background: var(--blue); }
+.c10 .chap-num { background: var(--blue); } .c11 .chap-num { background: var(--red); } .c12 .chap-num { background: var(--orange); }
 
 /* ---------------- listings */
 .listing { border: 1.5px solid #2c2a25; background: var(--code-bg); margin-top: 2mm; margin-bottom: 4mm; box-shadow: 3px 3px 0 #2c2a25; }

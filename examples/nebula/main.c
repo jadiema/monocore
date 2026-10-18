@@ -21,7 +21,7 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, always added by buil
 #define CHR_FAR    0x2000                 // layer 1: far mountains (384 tiles at most)
 #define CHR_NEAR   0x5000                 // layer 3: near hills and floor (384 tiles at most)
 #define CHR_FONT   0x8000                 // copy of the SDK font, for the title letters
-#define CHR(off)   ((const void *)(uintptr_t)(CHRRAM_BASE + (off)))
+#define CHR(off)   MC_CHR(off)
 #define CELL_FONT  (CHR_FONT / 32)
 
 // sprite cells (8 x 8 each); a 16 x 16 sprite uses 4 cells in the order tile + cy * 2 + cx
