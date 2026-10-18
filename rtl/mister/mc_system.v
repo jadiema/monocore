@@ -76,7 +76,6 @@ module mc_system (
 		end else if (w_ack) w_pend <= 1'b0;
 		if (dl_active) loaded <= 1'b0;
 		else if (!w_pend && rom_size != 0) loaded <= 1'b1;
-		if (reset && !loaded) rom_size <= 32'd0;
 	end
 	initial begin loaded = 0; rom_size = 0; dip_rom = 0; w_pend = 0; end
 

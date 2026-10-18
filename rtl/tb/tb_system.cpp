@@ -196,7 +196,9 @@ int main(int argc, char **argv) {
                 (top->sd_dqmh << 1) | top->sd_dqml, 0);
         if (slow_edge) {
             slow++;
-            if (slow == 20) top->reset = 0;
+            static bool hold = getenv("HOLD_RESET") != nullptr;   // reset held during the download, as MiSTer does for boot.rom
+            if (!hold && slow == 20) top->reset = 0;
+            if (hold && dl_state == 2 && top->reset) { static int w = 0; if (++w == 1000) top->reset = 0; }
             // loader: one 16-bit word per write, waiting for dl_wait
             top->dl_wr = 0;
             if (!next_rom.empty() && dl_state == 2) {
