@@ -1,0 +1,7 @@
+# generated from the original game by tools/prepare.py and tools/m68kmap.py: never publish them
+p1.bin
+p1_be.bin
+spr.bin
+spr_map.bin
+fix.bin
+build/
