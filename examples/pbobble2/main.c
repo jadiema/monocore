@@ -98,16 +98,22 @@ static void layer_from_chain(int layer, int head, int ncols) {
 
 static void video_frame(void) {
   vframe++;
-  // 1. positions, sizes and chains (a sticky sprite continues the chain on its right)
-  int px = 0, ptop = 0, prows = 0, pzy = 0, pw = 0, head = 1;
+  // 1. positions, sizes and groups: a sticky sprite continues the chain on its right, and so does a
+  //    sprite of the same height and top, without shrink, exactly 16 pixels on the right of the
+  //    previous one (backgrounds are drawn both ways)
+  int px = 0, ptop = 0, prows = 0, pzy = 0, pw = 0, pzx = 0, head = 1;
   for (int n = 1; n < 381; n++) {
     uint32_t s2 = neo_vram[0x8000 + n], s3 = neo_vram[0x8200 + n], s4 = neo_vram[0x8400 + n];
     int zx = (s2 >> 8) & 15, x, top, rows, zy;
     if (s3 & 0x40) { x = (px + pw) & 0x1FF; top = ptop; rows = prows; zy = pzy; }
-    else { x = s4 >> 7; top = (0x200 - (s3 >> 7) - 16) & 0x1FF; rows = s3 & 0x3F; zy = s2 & 0xFF; head = n; }
+    else {
+      x = s4 >> 7; top = (0x200 - (s3 >> 7) - 16) & 0x1FF; rows = s3 & 0x3F; zy = s2 & 0xFF;
+      if (!(rows && rows == prows && top == ptop && zy == pzy && zx == 15 && pzx == 15 && x == ((px + 16) & 0x1FF)))
+        head = n;
+    }
     sp_x[n] = (int16_t)x; sp_top[n] = (int16_t)top; sp_rows[n] = (uint8_t)rows;
     sp_zx[n] = (uint8_t)zx; sp_zy[n] = (uint8_t)zy; sp_head[n] = (uint16_t)head; sp_layer[n] = 0;
-    px = x; ptop = top; prows = rows; pzy = zy; pw = zx + 1;
+    px = x; ptop = top; prows = rows; pzy = zy; pw = zx + 1; pzx = zx;
   }
   // 2. wide chains without shrink become layers: the first one (behind) is layer 3
   int layer = 3;
@@ -165,9 +171,14 @@ static void inputs(void) {
   neo.status_b = (uint8_t)(((a & IN_START) ? 1 : 0) | ((b & IN_START) ? 4 : 0));
 }
 
+static uint32_t conv_max, conv_sum;
 static void vblank(void) {
+  uint32_t t0 = (uint32_t)mc_cycles();
   inputs();
   video_frame();
+  uint32_t t = (uint32_t)mc_cycles() - t0;       // conversion time, reported every 10 s
+  conv_sum += t; if (t > conv_max) conv_max = t;
+  if (vframe % 600 == 0) { mc_debug("frame %u: conversion %u cycles on average, %u at most\n", vframe, conv_sum / 600, conv_max); conv_sum = conv_max = 0; }
   neo_vblank(&cpu);
 }
 
