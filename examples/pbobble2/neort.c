@@ -3,8 +3,8 @@
 
 const uint8_t *neo_rom;
 uint32_t neo_rom_size;
-uint8_t neo_ram[0x10000], neo_sram[0x10000];
-uint16_t neo_vram[0x8800];
+uint8_t neo_ram[0x10000], neo_sram[NEO_SRAM_SIZE];
+uint16_t *neo_vram;
 uint16_t neo_pal[2][0x1000];
 neo_state_t neo;
 
@@ -66,10 +66,13 @@ static uint32_t lspc_read(uint32_t reg) {
 static void lspc_write(uint32_t reg, uint32_t v) {
   switch (reg & 0xE) {
   case 0x0: neo.vram_addr = v; break;
-  case 0x2:
-    neo_vram[vram_index(neo.vram_addr)] = v;
+  case 0x2: {
+    uint32_t i = vram_index(neo.vram_addr);
+    neo_vram[i] = v;
+    if (i >= 0x7000 && i < 0x7500) neo_platform_fix((i - 0x7000) >> 5, i & 31, v);
     neo.vram_addr = (neo.vram_addr & 0x8000) | ((neo.vram_addr + neo.vram_mod) & 0x7FFF);
     break;
+  }
   case 0x4: neo.vram_mod = v; break;
   case 0x6: neo.lspc_mode = v; break;
   case 0xC:                                           // interrupt acknowledge
@@ -96,7 +99,7 @@ uint32_t neo_rd8(uint32_t a) {
   if (a >= 0x400000 && a < 0x800000) {
     uint32_t w = neo_pal[neo.pal_bank][(a >> 1) & 0xFFF]; return (a & 1) ? (w & 0xFF) : (w >> 8);
   }
-  if (a >= 0xD00000 && a < 0xE00000) return neo_sram[a & 0xFFFF];
+  if (a >= 0xD00000 && a < 0xE00000) return neo_sram[a & (NEO_SRAM_SIZE - 1)];
   return 0xFF;                                         // memory card, BIOS ROM: absent
 }
 
@@ -122,23 +125,26 @@ void neo_wr8(uint32_t a, uint32_t v) {
     switch (a & 0x1F) {
     case 0x0B: neo.fix_cart = 0; break;
     case 0x1B: neo.fix_cart = 1; break;
-    case 0x0F: neo.pal_bank = 1; break;
-    case 0x1F: neo.pal_bank = 0; break;
+    case 0x0F: if (neo.pal_bank != 1) { neo.pal_bank = 1; neo_platform_bank(); } break;
+    case 0x1F: if (neo.pal_bank != 0) { neo.pal_bank = 0; neo_platform_bank(); } break;
     }
     return;
   case 0x3C0000: lspc_write(a, v | (v << 8)); return;  // a byte write puts the byte on both halves
   }
   if (a >= 0x400000 && a < 0x800000) {
     uint16_t *p = &neo_pal[neo.pal_bank][(a >> 1) & 0xFFF];
-    *p = (a & 1) ? (*p & 0xFF00) | v : (*p & 0xFF) | (v << 8); neo.pal_dirty = 1; return;
+    *p = (a & 1) ? (*p & 0xFF00) | v : (*p & 0xFF) | (v << 8);
+    neo_platform_color((a >> 1) & 0xFFF, *p); return;
   }
-  if (a >= 0xD00000 && a < 0xE00000) { neo_sram[a & 0xFFFF] = v; return; }
+  if (a >= 0xD00000 && a < 0xE00000) { neo_sram[a & (NEO_SRAM_SIZE - 1)] = v; return; }
 }
 
 void neo_wr16(uint32_t a, uint32_t v) {
   a &= 0xFFFFFE; v &= 0xFFFF;
   if (a >= 0x3C0000 && a < 0x3D0000) { lspc_write(a, v); return; }
-  if (a >= 0x400000 && a < 0x800000) { neo_pal[neo.pal_bank][(a >> 1) & 0xFFF] = v; neo.pal_dirty = 1; return; }
+  if (a >= 0x400000 && a < 0x800000) {
+    neo_pal[neo.pal_bank][(a >> 1) & 0xFFF] = v; neo_platform_color((a >> 1) & 0xFFF, v); return;
+  }
   neo_wr8(a, v >> 8); neo_wr8(a + 1, v);
 }
 
@@ -184,6 +190,7 @@ void neo_reset(m68k_t *c) {
   cpu = c;
   for (uint32_t i = 0; i < sizeof neo_ram; i++) neo_ram[i] = 0;
   for (uint32_t i = 0; i < 0x8800; i++) neo_vram[i] = 0;
+  for (uint32_t i = 0; i < 0x1000; i++) neo_pal[0][i] = neo_pal[1][i] = 0;
   neo_state_t z = {0}; neo = z;
   neo.fix_cart = 1; neo.vram_mod = 1;
   for (int i = 0; i < 8; i++) { c->d[i] = 0; c->a[i] = 0; }
@@ -225,8 +232,8 @@ uint32_t neo_bios(m68k_t *c, uint32_t pc) {
   case CREDIT_CHECK: case CREDIT_DOWN: // AES: no credits to count
     return rts(c);
   case FIX_CLEAR:
-    for (uint32_t x = 0; x < 40; x++)
-      for (uint32_t y = 0; y < 32; y++) neo_vram[0x7000 + x * 32 + y] = 0x00FF;   // tile $FF is empty (tile $20 of this game is not)
+    for (uint32_t x = 0; x < 40; x++)        // tile $FF is empty (tile $20 of this game is not)
+      for (uint32_t y = 0; y < 32; y++) { neo_vram[0x7000 + x * 32 + y] = 0x00FF; neo_platform_fix(x, y, 0x00FF); }
     return rts(c);
   case LSP_1ST:
     for (uint32_t s = 0; s < 0x200; s++) { neo_vram[0x8000 + s] = 0x0FFF; neo_vram[0x8200 + s] = 0; neo_vram[0x8400 + s] = 0; }

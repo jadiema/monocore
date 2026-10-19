@@ -91,3 +91,16 @@
 046bd4  reached at frame 2011
 046c10  reached at frame 2012
 046d6c  reached at frame 2012
+02ada4  reached at frame 2336
+061e28  reached at frame 3234
+04661e  reached at frame 3030
+061890  reached at frame 3153
+061e70  reached at frame 3154
+042d2e  reached at frame 3077
+046640  reached at frame 3473
+044e7a  reached at frame 3234
+06ef26  reached at frame 3154
+044e98  reached at frame 3243
+061ec4  reached at frame 3205
+044eb4  reached at frame 3252
+062142  reached at frame 3237

@@ -15,6 +15,9 @@ puis `#include "mc.h"`. La compilation se fait comme d'habitude (`python3 …/sd
 Les en-têtes `<string.h>`, `<stdlib.h>`, `<stdio.h>`, `<ctype.h>` et `<assert.h>` deviennent
 disponibles, ce qui permet de compiler la plupart du code C portable sans modification.
 
+La clé `cflags = …` ajoute des options de compilation aux fichiers C du programme (chemins
+d'inclusion, avertissements), par exemple pour du code produit par un traducteur.
+
 La nouvelle clé `data = fichier.bin …` embarque des fichiers bruts dans la ROM (niveaux,
 musiques, données d'un jeu porté) : symboles `fichier_file` (données) et `fichier_size` (taille).
 

@@ -10,8 +10,12 @@
 extern const uint8_t *neo_rom;        // program ROM (p1.bin), at 0x000000
 extern uint32_t neo_rom_size;
 extern uint8_t neo_ram[0x10000];      // work RAM, 0x100000-0x10FFFF (mirrored up to 0x1FFFFF)
-extern uint8_t neo_sram[0x10000];     // backup RAM, 0xD00000-0xD0FFFF
-extern uint16_t neo_vram[0x8800];     // LSPC: 32K words of slow VRAM + 2K words of fast VRAM
+#ifndef NEO_SRAM_SIZE
+#define NEO_SRAM_SIZE 0x10000         // backup RAM at 0xD00000 (mirrored; the console keeps less)
+#endif
+extern uint8_t neo_sram[NEO_SRAM_SIZE];
+extern uint16_t *neo_vram;            // LSPC: 32K words of slow VRAM + 2K words of fast VRAM (0x8800
+                                      // words), given by the platform before neo_reset()
 extern uint16_t neo_pal[2][0x1000];   // palette RAM, two banks of 4096 colours
 
 typedef struct {
@@ -25,7 +29,6 @@ typedef struct {
   uint8_t user_request;               // last BIOS_USER_REQUEST given to the game
   uint32_t frame;                     // frames since the reset
   uint32_t sound_log[64]; uint32_t sound_count;   // last sound commands (for the bench)
-  uint32_t pal_dirty;                 // set when the palette changes (console layer)
 } neo_state_t;
 extern neo_state_t neo;
 
@@ -34,8 +37,11 @@ void neo_vblank(m68k_t *c);           // start of the vertical blank: raises the
 uint32_t neo_bios(m68k_t *c, uint32_t pc);   // BIOS entry points; returns the next address, or 0
                                              // if pc is not a BIOS entry point
 
-// provided by the platform layer: current raster line, 0-263 (0xF8 = start of the vertical blank)
-uint32_t neo_platform_line(void);
+// provided by the platform layer
+uint32_t neo_platform_line(void);     // current raster line, 0-263 (0xF8 = start of the vertical blank)
+void neo_platform_fix(uint32_t x, uint32_t y, uint32_t entry);   // a fix layer entry changed
+void neo_platform_color(uint32_t index, uint32_t color);        // a colour of the shown bank changed
+void neo_platform_bank(void);         // the palette bank changed: every colour must be sent again
 
 // hardware accesses, out of the fast paths of m68k_port.h
 uint32_t neo_rd8(uint32_t a);

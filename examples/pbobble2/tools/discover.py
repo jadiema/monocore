@@ -2,7 +2,9 @@
 """Translates the program, builds the PC bench and runs it; every untranslated address it reaches is
 added to the entry points (entries.txt), then everything is done again, until a run goes through.
 
-usage: python3 tools/discover.py FRAMES [SCRIPT]     (see pc/bench.c for the script)
+usage: python3 tools/discover.py FRAMES [SCRIPT]           PC bench (see pc/bench.c for the script)
+       python3 tools/discover.py --sim FRAMES [SCRIPT]     MONOCORE ROM in the simulator (tools/run.js;
+                                                           p1=HEX are bits of IN_P1, start = 400)
 entries.txt only holds addresses (no data from the game): it is kept in the repository.
 """
 import os, re, struct, subprocess, sys
@@ -40,15 +42,32 @@ def build():
                            os.path.join(root, 'pc', 'bench.c'), os.path.join(root, 'neort.c'), os.path.join(TR, 'pb2_code.c')])
 
 
+def run_sim(frames, script):
+    """Builds the ROM and runs it in the simulator; returns (output, unknown address match)."""
+    subprocess.check_call([sys.executable, os.path.join(top, 'sdk', 'build.py'), '.'], cwd=root, stdout=subprocess.DEVNULL)
+    out = os.path.join(root, 'build', 'sim'); os.makedirs(out, exist_ok=True)
+    last = int(frames)
+    r = subprocess.run(['node', os.path.join(top, 'tools', 'run.js'), os.path.join(root, 'build', 'pbobble2.mnc'), out,
+                        ('%s %d:shot=last' % (script, last - 1)).strip()], capture_output=True, text=True)
+    return r.stdout, re.search(r'UNKNOWN ([0-9A-F]{6}) \(frame (\d+)\)', r.stdout)
+
+
 def main():
-    frames = sys.argv[1] if len(sys.argv) > 1 else '600'
-    script = sys.argv[2] if len(sys.argv) > 2 else ''
+    args = [a for a in sys.argv[1:] if a != '--sim']
+    sim = '--sim' in sys.argv
+    frames = args[0] if args else '600'
+    script = args[1] if len(args) > 1 else ''
     for rnd in range(200):
         build()
-        r = subprocess.run([os.path.join(TR, 'bench'), root, frames, script], cwd=TR, capture_output=True, text=True)
-        print(r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr.strip())
-        m = re.search(r'UNKNOWN ([0-9A-F]{6}) frame (\d+)', r.stdout)
-        if r.returncode != 2 or not m: return r.returncode
+        if sim:
+            text, m = run_sim(frames, script)
+            print((text.strip().splitlines() or [''])[0])
+            if not m: return 0
+        else:
+            r = subprocess.run([os.path.join(TR, 'bench'), root, frames, script], cwd=TR, capture_output=True, text=True)
+            print(r.stdout.strip().splitlines()[-1] if r.stdout.strip() else r.stderr.strip())
+            m = re.search(r'UNKNOWN ([0-9A-F]{6}) frame (\d+)', r.stdout)
+            if r.returncode != 2 or not m: return r.returncode
         a = int(m.group(1), 16)
         if mem(a) is None or m68k.decode(mem, a) is None:
             print('-> %06X is not code in the ROM: to look at by hand' % a); return 2

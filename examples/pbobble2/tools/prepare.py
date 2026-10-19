@@ -8,6 +8,8 @@ usage: python3 tools/prepare.py pbobbl2n.zip [--sheets]
   - 248-c1..c4 (sprite tiles 16x16, 4 bpp, 4 bitplanes over two ROMs): converted to the MONOCORE
     4 bpp format (SPEC 4.3), identical tiles merged: spr.bin (tile 0 = empty tile) and spr_map.bin
     (uint16 per original tile number -> tile index in spr.bin)
+    spr_cells.bin holds the same tiles in the layout of MONOCORE sprites: four 8x8 cells per tile
+    (top left, top right, bottom left, bottom right), for the sprite tile cache of main.c
   - 248-s1.s1 (fix layer tiles 8x8, 4 bpp): converted to fix.bin
   - --sheets also writes contact sheets in build/check/ (fixed grey palette) to check the decoding
 These files come from the original game: keep them out of any public repository.
@@ -98,6 +100,9 @@ def main():
     for i, u in enumerate(order):
         if u is not None: tiles[i] = packed[first[u]]
     out('spr.bin', tiles.tobytes())
+    t16 = tiles.reshape(-1, 16, 8)                                  # 16 lines of 8 bytes
+    cells = np.concatenate([t16[:, 0:8, 0:4], t16[:, 0:8, 4:8], t16[:, 8:16, 0:4], t16[:, 8:16, 4:8]], axis=1)
+    out('spr_cells.bin', cells.reshape(-1, 128).tobytes())
     out('spr_map.bin', rank[inv.ravel()].astype('<u2').tobytes())
 
     fix = fix_pixels(r['s1'])

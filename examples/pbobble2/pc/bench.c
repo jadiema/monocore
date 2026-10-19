@@ -136,6 +136,10 @@ void bench_tick(uint32_t pc) {
   if (neo.frame >= frames_max) longjmp(done, 1);
 }
 uint32_t neo_platform_line(void) { return ticks * 264 / TICKS_PER_FRAME; }
+void neo_platform_fix(uint32_t x, uint32_t y, uint32_t entry) { (void)x; (void)y; (void)entry; }
+void neo_platform_color(uint32_t index, uint32_t color) { (void)index; (void)color; }
+void neo_platform_bank(void) {}
+static uint16_t vram_mem[0x8800];
 
 uint32_t m68k_external(m68k_t *c, uint32_t pc) {
   uint32_t r = neo_bios(c, pc);
@@ -169,6 +173,7 @@ int main(int argc, char **argv) {
   spr_map = (uint16_t *)load(argv[1], "spr_map.bin", &spr_map_count); spr_map_count /= 2;
   fix = load(argv[1], "fix.bin", &n);
   frames_max = atoi(argv[2]); script = argc > 3 ? argv[3] : "";
+  neo_vram = vram_mem;
   neo_reset(&cpu);
   if (!setjmp(done)) m68k_run(&cpu);
   if (getenv("BENCH_REPORT")) report();

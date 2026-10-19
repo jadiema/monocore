@@ -7,6 +7,7 @@ project.txt (one setting per line, # starts a comment):
     name    = stars                 output file: build/stars.mnc
     title   = ATTRAPE-ETOILES       title stored in the ROM header
     sources = main.c other.c        C files of the program
+    cflags  = -I../lib -Wno-unused  extra compiler options for these files (optional)
     sprites = sheet.png             sprite sheets (16 pixels wide)  -> sheet_chr, sheet_pal
     maps    = level.png             maps in 16 x 16 tiles           -> level_chr, level_pal, level_map,
                                                                        level_width, level_height
@@ -54,6 +55,7 @@ LIBRARY = conf.get('library', 'easy')
 if LIBRARY not in ('easy', 'mc'): fail('library = easy ou mc')
 CFLAGS = ARCH + ['-O2', '-ffreestanding', '-fno-builtin', '-nostdlib', '-Wall', '-I' + SDK]
 if LIBRARY == 'mc': CFLAGS += ['-I' + os.path.join(SDK, 'libc')]
+PCFLAGS = CFLAGS + conf.get('cflags', '').split()   # the C files of the program get the extra options
 
 os.makedirs('build', exist_ok=True)
 def run(cmd):
@@ -117,7 +119,7 @@ else:
     cc(os.path.join(SDK, 'libc.c'), 'build/libc.o', CFLAGS)
 cc('build/data.S', 'build/data.o', ARCH)
 for s in sources:
-    cc(s, 'build/%s.o' % ident(s), CFLAGS)
+    cc(s, 'build/%s.o' % ident(s), PCFLAGS)
 run([LD, '-T', os.path.join(SDK, 'link.ld')] + objs + ['-o', 'build/%s.elf' % name])
 run([OBJCOPY, '-O', 'binary', 'build/%s.elf' % name, 'build/%s.bin' % name])
 run([sys.executable, os.path.join(SDK, 'mkrom.py'), 'build/%s.bin' % name, 'build/%s.mnc' % name, title, conf.get('origin', 'MONOCORE-1')])
