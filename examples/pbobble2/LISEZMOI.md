@@ -47,8 +47,10 @@ python3 tools/m68kmap.py                         # carte du code -> build/check/
 
 ## Suite
 
-3. `tools/recomp68k/` (commun aux futurs portages 68000) : drapeaux calculés seulement quand ils sont
-   lus, sauts indirects par aiguillage, validation sur `tools/isatest`.
+3. Fait : `tools/recomp68k/` (voir son `LISEZMOI.md`), validé contre Musashi. Le programme se traduit
+   avec `python3 ../../tools/recomp68k/recomp68k.py p1_be.bin 0 build/tr/pb2_code.c --map
+   build/check/codemap.json --vectors` : 18 162 instructions, 50 fonctions C, 488 Ko de RV32IM en -O2,
+   sans avertissement. La découverte du reste du code se fera avec le runtime (étape 4).
 4. `neort.c` (BIOS remplacé, ombre de la VRAM du LSPC en CHR RAM, palettes, entrées) et `main.c`.
 5. Son : commandes `0x320000` vers les voix PCM et PSG, musiques FM pré-rendues hors ligne.
 6. Validation : banc PC, simulateur, MiSTer de dev.

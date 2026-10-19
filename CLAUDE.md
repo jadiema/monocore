@@ -43,4 +43,4 @@ Quartus : ouvrir `mister/MONOCORE.qpf` (voir `mister/LISEZMOI.md`). `quartus_tri
 - Core MiSTer : rotation d'écran (nécessite la DDRAM pour `screen_rotate`), sauvegarde NVRAM, DIP switches dans l'OSD.
 - Bloc FM compatible YM2151.
 - La ROM de stress déborde du blanking sur 2 images en mode 288 lignes.
-- Traducteur statique vers RV32IM (Z80 d'abord, puis 68000). Jeu candidat pour tester la puissance : Final Fight (CPS1), avec musiques pré-enregistrées ou bloc FM ; le grand plan 32 × 32 du CPS1 dépasse la taille de carte d'un plan.
+- Traducteur statique vers RV32IM : le 68000 est fait (`tools/recomp68k/`, validé contre Musashi), le Z80 reste à faire. Jeu candidat pour tester la puissance : Final Fight (CPS1), avec musiques pré-enregistrées ou bloc FM ; le grand plan 32 × 32 du CPS1 dépasse la taille de carte d'un plan.
