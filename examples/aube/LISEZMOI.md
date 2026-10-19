@@ -6,7 +6,7 @@ lueur, puis le nom de la console apparaît sur l'accord final, suivi de « INSÉ
 La musique est une courte pièce orchestrale (cordes, chœur, cors, célesta, harpe, timbales, environ
 30 s), de ré mineur vers ré majeur. START rejoue la séquence.
 
-- **Image** : tout passe par la palette. `scene.png` ne contient que la position de chaque pixel
+- **Image** : 360 × 270 pixels, soit exactement 4 fois l'écran en 1080p (1440 × 1080) : le scaler de la MiSTer n'interpole rien et chaque pixel reste net. Tout passe par la palette. `scene.png` ne contient que la position de chaque pixel
   (bande du ciel et niveau de lueur, plaine, monolithe, collines) ; `main.c` recalcule les 256
   couleurs à chaque image selon le temps, d'où le lever de soleil sans redessiner un pixel.
 - **Son** : la musique est synthétisée à l'avance par `make_music.py` (numpy, scipy) et jouée par
