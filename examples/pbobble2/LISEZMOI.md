@@ -51,6 +51,15 @@ python3 tools/m68kmap.py                         # carte du code -> build/check/
    avec `python3 ../../tools/recomp68k/recomp68k.py p1_be.bin 0 build/tr/pb2_code.c --map
    build/check/codemap.json --vectors` : 18 162 instructions, 50 fonctions C, 488 Ko de RV32IM en -O2,
    sans avertissement. La découverte du reste du code se fera avec le runtime (étape 4).
-4. `neort.c` (BIOS remplacé, ombre de la VRAM du LSPC en CHR RAM, palettes, entrées) et `main.c`.
+4. En cours. `neort.c` : carte mémoire Neo Geo, VRAM du LSPC, palettes, entrées, registre son et BIOS
+   remplacé (AES Europe : `SYSTEM_INT1`, `SYSTEM_RETURN`, `SYSTEM_IO` avec `PLAYER_START`,
+   `CREDIT_CHECK`, `FIX_CLEAR`, `LSP_1ST`). Banc PC `pc/bench.c` : cadence déterministe par
+   `M68K_TICK`, rendu de référence de l'écran Neo Geo en PPM, manettes scriptées, signalement des
+   adresses non traduites. `python3 tools/discover.py 1800` traduit, compile, exécute et ajoute à
+   `entries.txt` (des adresses seulement) chaque adresse atteinte, jusqu'à ce qu'une séance passe.
+   Le jeu recopie deux routines en RAM avant de les exécuter (`D3EFE→100000`, `D3E94→10FC00`,
+   déclarées dans `discover.py`). Sur 1 800 images, l'animation SNK, le logo Taito, la démo et les
+   écrans de fin s'affichent correctement. Reste `main.c`, la couche MONOCORE (ombre de la VRAM en
+   CHR RAM, sprites et plan fixe vers plans et sprites, palettes RGB555).
 5. Son : commandes `0x320000` vers les voix PCM et PSG, musiques FM pré-rendues hors ligne.
 6. Validation : banc PC, simulateur, MiSTer de dev.

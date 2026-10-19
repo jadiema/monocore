@@ -23,6 +23,8 @@ python3 tools/recomp68k/recomp68k.py image.bin 0 code.c --map codemap.json --vec
   dépile. Un code qui change de pile (noyau de tâches) fonctionne donc tel quel.
 - Les drapeaux ne sont calculés que si une instruction suivante peut les lire (vivacité sur le graphe
   de contrôle ; inconnu après `rts`, un saut indirect ou une exception).
+- `M68K_TICK(c, pc)` (vide par défaut) est appelé sur les branchements arrière et sur l'aiguillage : un banc de
+  test PC s'en sert pour cadencer les images de façon déterministe.
 - Interruptions : prises sur les branchements arrière, après une écriture de SR et sur `STOP`, quand
   `c->ipl` (posé par le portage) dépasse le masque. Exceptions : `trap`, `trapv`, `chk`, division par
   zéro, instructions illégales et lignes A et F.

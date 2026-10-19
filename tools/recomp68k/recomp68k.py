@@ -175,7 +175,9 @@ class Translator:
                  'fv = (_v >> 1) & 1; fc = _v & 1; } while (0)')
         w.append('#define SETSR(v) do { uint32_t _s = (v); SETCCR(_s); _s = (_s >> 8) & 0xA7; '
                  'if ((_s ^ srh) & 0x20) { uint32_t _t = a7; a7 = c->osp; c->osp = _t; } srh = _s; } while (0)')
-        w.append('#ifndef M68K_IACK\n#define M68K_IACK(c, level)\n#endif\n')
+        w.append('#ifndef M68K_IACK\n#define M68K_IACK(c, level)\n#endif')
+        w.append('#ifndef M68K_TICK   // called on backward branches and on dispatch: lets a test bench measure time\n'
+                 '#define M68K_TICK(c, pc)\n#endif\n')
         for ch in chunks: w.append('static uint32_t ch_%03x(m68k_t *c, uint32_t pc);' % ch)
         w.append('')
         for ch in chunks: self.gen_chunk(ch, w)
@@ -193,7 +195,7 @@ class Translator:
         w.append('static uint32_t ch_%03x(m68k_t *c, uint32_t pc) {' % ch)
         w.append('  uint32_t d0, d1, d2, d3, d4, d5, d6, d7, a0, a1, a2, a3, a4, a5, a6, a7, fx, fn, fz, fv, fc, srh, vec;')
         w.append('  LOAD;')
-        w.append('dispatch:\n  pc &= 0xFFFFFFu;\n  switch (pc) {')
+        w.append('dispatch:\n  M68K_TICK(c, pc);\n  pc &= 0xFFFFFFu;\n  switch (pc) {')
         for a in labels: w.append('  case 0x%x: goto L_%06x;' % (a, a))
         w.append('  default: if ((pc >> %d) != 0x%x) goto leave; goto ext;\n  }' % (self.cb, ch))
         w.append('ext:\n  STORE; pc = m68k_external(c, pc); LOAD;\n  if (pc == M68K_EXIT) goto leave;\n  goto dispatch;')
@@ -231,7 +233,7 @@ class Translator:
     def jump(self, t, src, poll=True):
         """Code that continues at t (a constant)."""
         if t in self.labels and self.chunk(t) == self.cur:
-            if poll and t <= src: return 'if (c->ipl > (srh & 7)) { pc = 0x%x; goto irq; } goto L_%06x;' % (t, t)
+            if poll and t <= src: return 'M68K_TICK(c, 0x%x); if (c->ipl > (srh & 7)) { pc = 0x%x; goto irq; } goto L_%06x;' % (t, t, t)
             return 'goto L_%06x;' % t
         return 'pc = 0x%x; goto dispatch;' % (t & 0xFFFFFF)
 
