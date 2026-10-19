@@ -5,6 +5,7 @@
 !examples/nebula/build/nebula.mnc
 !examples/horizon/build/horizon.mnc
 !examples/test_inputs/build/inputs.mnc
+!examples/aube/build/aube.mnc
 *.o
 *.elf
 __pycache__/

@@ -1,0 +1,9 @@
+# AUBE : écran d'accueil de la MONOCORE-1, épuré, façon PlayStation, avec une musique orchestrale
+name    = aube
+title   = MONOCORE-1
+library = mc
+sources = main.c
+maps8   = scene.png
+maps    = logo.png prompt.png
+sprites = mote.png
+data    = music_l.raw music_r.raw
