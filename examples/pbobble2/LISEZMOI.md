@@ -59,7 +59,9 @@ python3 tools/m68kmap.py                         # carte du code -> build/check/
    `entries.txt` (des adresses seulement) chaque adresse atteinte, jusqu'à ce qu'une séance passe.
    Le jeu recopie deux routines en RAM avant de les exécuter (`D3EFE→100000`, `D3E94→10FC00`,
    déclarées dans `discover.py`). Sur 1 800 images, l'animation SNK, le logo Taito, la démo et les
-   écrans de fin s'affichent correctement. Reste `main.c`, la couche MONOCORE (ombre de la VRAM en
+   écrans de fin s'affichent correctement ; avec la partie scriptée de `tools/play.txt`
+   (`python3 tools/discover.py 2400 "$(cat tools/play.txt)"`), le choix du mode, de la difficulté et
+   le Round 1 contre l'ordinateur se jouent (92 points d'entrée découverts). Reste `main.c`, la couche MONOCORE (ombre de la VRAM en
    CHR RAM, sprites et plan fixe vers plans et sprites, palettes RGB555).
 5. Son : commandes `0x320000` vers les voix PCM et PSG, musiques FM pré-rendues hors ligne.
 6. Validation : banc PC, simulateur, MiSTer de dev.
