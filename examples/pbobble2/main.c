@@ -77,23 +77,27 @@ static int16_t sp_x[381], sp_top[381];
 static uint8_t sp_rows[381], sp_zx[381], sp_zy[381], sp_layer[381];
 static uint16_t sp_head[381];
 
-static void layer_from_chain(int layer, int head, int ncols) {
+// A layer takes any tall column without shrink (a background is drawn as columns of sprites,
+// chained or not, sometimes split in several groups): the columns of one layer share the same
+// position modulo 16 (the scroll of the layer) and each takes its own column of the 32 x 32 map.
+static void layer_open(int layer, int x, int top) {
+  mc_fill(TILEMAP(layer), 0, 32 * 32 * 4);
+  mc_layer_scroll(layer, -(x & 15), -(top & 15));   // screen x = layer x - scroll
+}
+
+static void layer_column(int layer, int n) {
   volatile uint32_t *map = TILEMAP(layer);
-  mc_fill(map, 0, 32 * 32 * 4);
   const uint16_t *smap = (const uint16_t *)spr_map_file;
   uint32_t count = spr_map_size / 2;
-  int x0 = sp_x[head] & 0x1FF, top = sp_top[head] & 0x1FF, rows = sp_rows[head] > 32 ? 32 : sp_rows[head];
-  for (int k = 0; k < ncols; k++) {
-    int n = head + k, mx = ((x0 >> 4) + k) & 31;
-    for (int j = 0; j < rows; j++) {
-      uint32_t t0 = neo_vram[n * 64 + j * 2], t1 = neo_vram[n * 64 + j * 2 + 1];
-      uint32_t num = t0 | ((t1 & 0xF0) << 12);
-      if (num >= count) continue;
-      uint32_t e = MC_TILE(smap[num], t1 >> 8, ((t1 & 1) ? T_HFLIP : 0) | ((t1 & 2) ? T_VFLIP : 0));
-      map[(((top >> 4) + j) & 31) * 32 + mx] = e;
-    }
+  int x = sp_x[n] & 0x1FF, top = sp_top[n] & 0x1FF, rows = sp_rows[n] > 32 ? 32 : sp_rows[n];
+  int mx = (x >> 4) & 31;
+  for (int j = 0; j < rows; j++) {
+    uint32_t t0 = neo_vram[n * 64 + j * 2], t1 = neo_vram[n * 64 + j * 2 + 1];
+    uint32_t num = t0 | ((t1 & 0xF0) << 12);
+    if (num >= count) continue;
+    map[(((top >> 4) + j) & 31) * 32 + mx] =
+        MC_TILE(smap[num], t1 >> 8, ((t1 & 1) ? T_HFLIP : 0) | ((t1 & 2) ? T_VFLIP : 0));
   }
-  mc_layer_scroll(layer, -(x0 & 15), -(top & 15));   // screen x = layer x - scroll
 }
 
 static void video_frame(void) {
@@ -115,22 +119,23 @@ static void video_frame(void) {
     sp_zx[n] = (uint8_t)zx; sp_zy[n] = (uint8_t)zy; sp_head[n] = (uint16_t)head; sp_layer[n] = 0;
     px = x; ptop = top; prows = rows; pzy = zy; pw = zx + 1; pzx = zx;
   }
-  // 2. wide chains without shrink become layers: the first one (behind) is layer 3
-  int layer = 3;
-  for (int n = 1; n < 381 && layer >= 1;) {
-    int m = n + 1;
-    while (m < 381 && sp_head[m] == n) m++;
-    int ok = m - n >= 8 && sp_rows[n] >= 8 && sp_zy[n] == 0xFF;
-    for (int k = n; k < m && ok; k++) ok = sp_zx[k] == 15;
-    if (ok) {
-      for (int k = n; k < m; k++) sp_layer[k] = (uint8_t)layer;
-      layer_from_chain(layer, n, m - n);
-      layer--;
+  // 2. tall columns without shrink go to layers, the first ones (behind) on layer 3; a column that
+  //    does not fit the current layer opens the next one, so the Neo Geo drawing order is kept
+  int layer = 4, lx = 0, ly = 0;
+  uint32_t used = 0;
+  for (int n = 1; n < 381; n++) {
+    if (sp_rows[n] < 8 || sp_zx[n] != 15 || sp_zy[n] != 0xFF) continue;
+    int x = sp_x[n] & 0x1FF, top = sp_top[n] & 0x1FF, mx = (x >> 4) & 31;
+    if (layer > 3 || (x & 15) != lx || (top & 15) != ly || (used >> mx) & 1) {
+      if (layer == 1) break;                       // no layer left: the rest stays as sprites
+      layer--; lx = x & 15; ly = top & 15; used = 0;
+      layer_open(layer, x, top);
     }
-    n = m;
+    used |= 1u << mx; sp_layer[n] = (uint8_t)layer;
+    layer_column(layer, n);
   }
   uint32_t disp = DISP_ON | DISP_SPRITES | DISP_LAYER(0);
-  for (int l = 3; l > layer; l--) disp |= DISP_LAYER(l);
+  for (int l = 3; l >= layer && l >= 1; l--) disp |= DISP_LAYER(l);
   // 3. the other columns, one sprite per visible tile; the Neo Geo draws higher numbers in front,
   //    MONOCORE lower numbers: go backwards
   const uint16_t *smap = (const uint16_t *)spr_map_file;

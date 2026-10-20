@@ -77,7 +77,7 @@ n'est pas vide).
 |---|---|
 | plan fixe | plan 0 (tuiles 8 × 8 lues en ROM), écrit au fil des écritures du jeu |
 | palettes | 4 096 couleurs converties en RGB555 à chaque écriture et au changement de banque |
-| décors : suites de colonnes de même hauteur espacées de 16 pixels, chaînées ou non | plans 1 à 3 (tuiles 16 × 16 lues en ROM) |
+| décors : colonnes hautes (8 tuiles ou plus) sans réduction, chaînées ou non | plans 1 à 3 (tuiles 16 × 16 lues en ROM) : un plan prend toute colonne de même position modulo 16 qui ne chevauche pas une colonne déjà placée ; une colonne incompatible ouvre le plan suivant, ce qui garde l'ordre d'affichage |
 | autres colonnes | un sprite 16 × 16 par tuile, via un cache de 480 tuiles en CHR RAM (le numéro de cellule d'un sprite n'adresse que 2 Mo, le jeu a 4,2 Mo de tuiles) |
 | VRAM du LSPC | ombre en CHR RAM (68 Ko), à côté du cache |
 
