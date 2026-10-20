@@ -52,9 +52,11 @@ dans la console de débogage (`UNKNOWN 0xxxxx (frame …)`). L'ajouter à `entri
 - Le reste est atteint par des adresses calculées pendant le jeu. Deux sources complètent la carte :
   `entries.txt` (adresses relevées à l'exécution, des adresses seulement, commité) et la récolte des
   adresses de code rangées comme données dans la ROM (tables de pointeurs, scripts) : toute valeur
-  32 bits qui pointe dans la ROM et se décode proprement, environ 6 500, en cache dans
-  `build/check/harvest.txt`. La récolte trouve d'avance la moitié des adresses dynamiques ; ses faux
-  positifs sont des données traduites comme du code, qui ne s'exécutent jamais.
+  32 bits qui pointe dans la ROM et se décode proprement, plus les cibles des `lea`/`pea` relatifs
+  au PC (les tâches du jeu rangent leur étape suivante par `lea suite(pc),a6 / move.l a6,(a4) /
+  rts`), environ 7 000 en tout, en cache dans `build/check/harvest2.txt`. La récolte trouve d'avance
+  plus des deux tiers des adresses dynamiques ; ses faux positifs sont des données traduites comme
+  du code, qui ne s'exécutent jamais.
 - Le jeu recopie deux routines en RAM avant de les exécuter (`D3EFE→100000`, `D3E94→10FC00`) :
   traduites avec `--alias`, déclarées dans `discover.py`.
 - **Noyau multitâche** du jeu : `trap #1` crée une tâche, `trap #5` change de tâche en changeant

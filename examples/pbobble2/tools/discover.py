@@ -30,12 +30,17 @@ def harvest():
     """Code addresses stored as data in the ROM (pointer tables, scripts of the game): every aligned
     32-bit value that points into the ROM and decodes cleanly (m68kmap.Mapper.plausible). About half
     of the addresses reached at run time are found this way, before running anything; the false
-    positives are data translated as code that never runs. Computed once (build/check/harvest.txt)."""
-    path = os.path.join(root, 'build', 'check', 'harvest.txt')
+    positives are data translated as code that never runs. Also the targets of lea/pea d16(pc): the
+    game's tasks store their next step with "lea next(pc),a6 / move.l a6,(a4) / rts", a 16-bit
+    displacement the scan of 32-bit values misses. Computed once (build/check/harvest2.txt)."""
+    path = os.path.join(root, 'build', 'check', 'harvest2.txt')
     if not os.path.exists(path):
         sys.path.insert(0, here); import m68kmap
         mp = m68kmap.Mapper(rom)
         cand = {struct.unpack('>I', rom[a:a + 4])[0] for a in range(0, len(rom) - 3, 2)}
+        for a in range(0, len(rom) - 4, 2):                    # lea d16(pc),An and pea d16(pc)
+            w = struct.unpack('>H', rom[a:a + 2])[0]
+            if (w & 0xF1FF) == 0x41FA or w == 0x487A: cand.add(a + 2 + struct.unpack('>h', rom[a + 2:a + 4])[0])
         found = sorted(v for v in cand if 0x200 <= v < 0x100000 and v % 2 == 0 and mp.plausible(v))
         open(path, 'w').write('\n'.join('%x' % v for v in found) + '\n')
     return open(path).read().split()
