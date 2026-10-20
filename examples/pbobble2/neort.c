@@ -30,6 +30,15 @@ neo_state_t neo;
 #define LSP_1ST        0xC004C8
 #define AFTER_START    0xC0F000         // private: where PLAYER_START returns to the BIOS
 
+// The Z80 driver reads the commands one by one: 0A, 0E, 14, 15 and 18-1E take the next byte as
+// their parameter, 00 is ignored, 03 resets the driver at once (tools/sound/events.py).
+static void sound_byte(uint32_t v) {
+  if (neo.sound_prefix) { uint32_t p = neo.sound_prefix; neo.sound_prefix = 0; neo_platform_sound(p, v); return; }
+  if (v == 0) return;
+  if (v == 0x0A || v == 0x0E || v == 0x14 || v == 0x15 || (v >= 0x18 && v <= 0x1E)) { neo.sound_prefix = v; return; }
+  neo_platform_sound(0, v);
+}
+
 static inline uint32_t ram8(uint32_t a) { return neo_ram[(a & 0xFFFF) ^ 1]; }
 static inline void wram8(uint32_t a, uint32_t v) { neo_ram[(a & 0xFFFF) ^ 1] = v; }
 static inline uint32_t rom32(uint32_t a) {
@@ -118,6 +127,8 @@ void neo_wr8(uint32_t a, uint32_t v) {
   case 0x320000:
     if (!(a & 1)) {
       neo.sound_cmd = v; neo.sound_reply = v;          // the Z80 driver answers with the command
+      if (v == 3) neo.sound_prefix = 0;
+      sound_byte(v);
       neo.sound_log[neo.sound_count++ & 63] = v;
 #ifdef NEO_SOUND_TRACE
       neo_sound_trace(v);

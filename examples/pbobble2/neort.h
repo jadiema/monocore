@@ -22,7 +22,7 @@ typedef struct {
   uint16_t vram_addr, vram_mod, lspc_mode;
   uint8_t pal_bank, fix_cart;         // palette bank shown by the CPU, fix tiles from the cartridge
   uint8_t vbl_pending, timer_pending;
-  uint8_t sound_cmd, sound_reply;
+  uint8_t sound_cmd, sound_reply, sound_prefix;   // sound_prefix: a two-byte command waiting
   uint8_t p1, p2, status_b;           // inputs set by the platform layer, 1 = pressed:
                                       // p1/p2 bits 0 up, 1 down, 2 left, 3 right, 4 A, 5 B, 6 C, 7 D;
                                       // status_b bits 0 P1 start, 1 P1 select, 2 P2 start, 3 P2 select
@@ -42,6 +42,8 @@ uint32_t neo_platform_line(void);     // current raster line, 0-263 (0xF8 = star
 void neo_platform_fix(uint32_t x, uint32_t y, uint32_t entry);   // a fix layer entry changed
 void neo_platform_color(uint32_t index, uint32_t color);        // a colour of the shown bank changed
 void neo_platform_bank(void);         // the palette bank changed: every colour must be sent again
+void neo_platform_sound(uint32_t prefix, uint32_t code);   // a sound event of the Z80 driver: a command
+                                      // alone (prefix 0) or a prefix 0A/0E/14/15/18-1E and its parameter
 
 #ifdef NEO_SOUND_TRACE
 void neo_sound_trace(uint32_t command);   // test bench: every sound command

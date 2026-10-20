@@ -7,8 +7,8 @@ la MONOCORE-1. Rien n'est émulé sur la console. Les fichiers tirés du jeu (do
 traduit, ROM construite) restent hors du dépôt (`.gitignore`) : ne jamais pousser `pbobble2.mnc`.
 
 **État** : le jeu se joue dans le simulateur (démo, Player vs Computer, Puzzle Game, deux joueurs),
-une session de test de plus de 15 minutes sans arrêt. Il est muet : le son est en cours. Pas encore
-essayé sur la MiSTer.
+une session de test de plus de 15 minutes sans arrêt, et jusqu'au niveau 2 contre l'ordinateur.
+Musiques et bruitages sont là. Pas encore essayé sur la MiSTer.
 
 ## Construire la ROM
 
@@ -19,7 +19,8 @@ pip install numpy pillow capstone
 python3 tools/prepare.py pbobbl2n.zip      # données tirées de ta copie
 python3 tools/m68kmap.py                    # carte du code 68000
 python3 tools/translate.py                  # programme traduit : build/tr/pb2_code.c (environ une minute)
-python3 ../../sdk/build.py .                # build/pbobble2.mnc (13,5 Mo)
+sh tools/sound/build.sh && python3 tools/sound/cuts.py && python3 tools/sound/make_sounds.py   # le son
+python3 ../../sdk/build.py .                # build/pbobble2.mnc (20,5 Mo)
 ```
 
 Il faut aussi clang, ld.lld et llvm-objcopy (comme pour tout le SDK). La ROM se charge dans
@@ -97,15 +98,40 @@ suivante dans une boucle active.
   (banc), `tools/play_sim.txt` (Player vs Computer), `tools/play_puzzle.txt` (Puzzle Game jusqu'au
   classement), `tools/play_2p.txt` (deux joueurs) ; sans script, la démo (9 000 images passent).
 
-## Le son (en cours)
+## Le son
 
-`tools/sound/build.sh` construit `build/snd/render` (ymfm, BSD-3, et un cœur Z80, MIT, récupérés à
-la compilation, jamais commités ; le script corrige le cœur pour transmettre l'octet haut des
-adresses d'E/S, qui choisit les banques sur la Neo Geo). Il fait tourner hors ligne le vrai pilote
-Z80 du jeu avec un YM2610 : `render m1.bin v.bin out/c 6 42` rend une commande, `render … -trace
-trace.txt` une trace de partie. Une partie n'envoie que 19 commandes différentes ; `42`, `24` et
-`21` démarrent des sons longs (musiques probables), `19` un bruitage, `1A` et `14` aucun son seul.
+Le pilote son du jeu tourne sur le Z80 et pilote un YM2610, que la MONOCORE n'a pas : chaque son
+est **rendu hors ligne** par le vrai pilote, puis joué sur les voix PCM. Rien n'est émulé sur la
+console.
 
-Suite : lire la table de commandes du pilote pour classer musiques, bruitages et commandes de
-contrôle, pré-rendre les clips, puis les jouer sur les voix PCM depuis `neort.c` quand le jeu écrit
-en `0x320000`.
+```sh
+sh tools/sound/build.sh                 # build/snd/render (ymfm BSD-3 et un cœur Z80 MIT, récupérés, jamais commités)
+python3 tools/sound/cuts.py              # quel son coupe quel son (quelques minutes)
+python3 tools/sound/make_sounds.py       # sounds.bin et sounds_tab.bin (6,3 Mo), puis sdk/build.py
+```
+
+- **Protocole** (désassemblage du pilote) : le gestionnaire de NMI range chaque octet dans une file
+  de 64 entrées ; la boucle principale les lit un par un. `0A`, `0E`, `14`, `15` et `18`–`1E` lisent
+  un octet de paramètre : `1A 42` joue le son `42` dans la case de `1A` (le tir), `14 19` arrête la
+  case de `19`. Une table du pilote (`$2FF4`) classe les commandes seules : `20`–`47` sont des
+  musiques qui se remplacent, `60`–`63`, `7F`, `FE`, `FF` des bruitages ; `01`, `03`, `04`, `0D`, `20`
+  arrêtent tout, `05` fait un fondu. `tools/sound/events.py` découpe un flux de commandes de la même
+  façon, et `neort.c` aussi, en C.
+- **Sons du jeu** : `tools/sound/sounds.txt` (des numéros seulement), relevés sur les séances
+  scriptées avec une ROM qui trace les commandes (`-DNEO_SOUND_TRACE`). 27 événements. Trois d'entre
+  eux (`1A 14`, `1A 19`, `1D 19`) sont muets dans le jeu, mais rendus seuls, hors de leur contexte,
+  donnent des minutes d'ADPCM-B saturé : ils sont marqués `silent`.
+- **Boucles** : `tools/sound/period.py` les cherche dans les écritures du pilote au YM2610
+  (`render … -writes`), qui se répètent pas pour pas, alors que le son ne se répète pas au bit près.
+  `2E` (la partie) reboucle toutes les 281 s, `21` toutes les 60 s ; les longs morceaux qui finissent
+  d'eux-mêmes sont gardés 60 s (le jeu les coupe en 20 s au plus).
+- **Format** : ADPCM OKI à 22 050 Hz, mono, un même gain pour tous les sons. L'ADPCM ne boucle pas :
+  introduction et boucle sont encodées à part, et le VBLANK relance la boucle (une coupure d'au plus
+  une image, toutes les 1 à 5 minutes).
+- **Console** (`main.c`) : chaque son prend une voix (la sienne s'il joue déjà, sinon une libre, sinon
+  le bruitage le plus ancien) ; il coupe les sons dont il prend les canaux YM2610 dans le pilote
+  (table mesurée par `cuts.py` : les sons de la case `19` se coupent entre eux, ceux de la case `1A` se
+  superposent) ; un son absent de la table est signalé `SOUND xx yy missing` dans la console de
+  débogage. Comparé au pilote sur la même partie, l'enveloppe du son a une corrélation de 0,91.
+- **Taille** : la ROM passe à 20,5 Mo : elle tient sur la carte SD (32 Mo), plus sur la cartouche
+  (16 Mo).

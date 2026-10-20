@@ -144,6 +144,7 @@ uint32_t neo_platform_line(void) { return ticks * 264 / TICKS_PER_FRAME; }
 void neo_platform_fix(uint32_t x, uint32_t y, uint32_t entry) { (void)x; (void)y; (void)entry; }
 void neo_platform_color(uint32_t index, uint32_t color) { (void)index; (void)color; }
 void neo_platform_bank(void) {}
+void neo_platform_sound(uint32_t prefix, uint32_t code) { (void)prefix; (void)code; }
 void neo_sound_trace(uint32_t command) { if (getenv("BENCH_SOUND")) printf("SND %u %02X\n", neo.frame, command); }
 static uint16_t vram_mem[0x8800];
 

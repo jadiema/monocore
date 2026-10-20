@@ -5,5 +5,5 @@ title   = BUST-A-MOVE AGAIN
 origin  = pbobbl2n (Neo Geo)
 library = mc
 sources = main.c neort.c build/tr/pb2_code.c
-data    = p1.bin spr.bin spr_cells.bin spr_map.bin fix.bin
+data    = p1.bin spr.bin spr_cells.bin spr_map.bin fix.bin sounds.bin sounds_tab.bin
 cflags  = -I. -I../../tools/recomp68k -DNEO_SRAM_SIZE=0x1000 -Wno-unused-label -Wno-unused-variable -Wno-unused-but-set-variable
