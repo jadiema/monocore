@@ -215,6 +215,14 @@ void neo_reset(m68k_t *c) {
   c->pc = call_user(c, 0);
 }
 
+// The main loop of the game (2AEC-2B24) runs its task scheduler again and again while it waits for
+// the next frame; once a turn found no new frame, the next one would find none either: sleep.
+void neo_idle(void) {
+  static uint32_t seen;
+  if (neo.frame == seen) neo_platform_wait(seen);
+  seen = neo.frame;
+}
+
 void neo_vblank(m68k_t *c) {
   neo.frame++;
   neo.vbl_pending = 1;

@@ -2,6 +2,7 @@
 // Both memories keep 16-bit words little-endian, as p1.bin does (byte access at address ^ 1).
 #include <stdint.h>
 #include "neort.h"
+#define M68K_IDLE(c) neo_idle()           // the wait loops given to the translator with --idle
 static inline uint32_t RD16(uint32_t a) {
   a &= 0xFFFFFF;
   if (a < 0x100000) return *(const uint16_t *)(neo_rom + a);

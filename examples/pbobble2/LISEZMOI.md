@@ -84,8 +84,15 @@ n'est pas vide).
 
 La conversion se fait à chaque VBLANK : environ 50 000 à 85 000 cycles par image en moyenne, 163 000
 au plus (10 à 20 % d'une image à 50 MHz), affichés toutes les 600 images dans la console de
-débogage. La charge CPU du simulateur reste élevée parce que le programme Neo Geo attend l'image
-suivante dans une boucle active.
+débogage.
+
+**Attente de l'image** : la boucle principale du jeu (`2AEC`–`2B24`) relance son ordonnanceur de
+tâches sans arrêt en attendant l'image suivante : le processeur tournait à 100 %, et le simulateur du
+navigateur, qui doit alors calculer chaque cycle, ne tenait plus le temps réel (le son « pulsait » et
+grésillait). Le branchement `2B24` (et l'attente de l'animation de démarrage en `100920`) est traduit
+avec `--idle` : `neo_idle()` endort le processeur (`wfi`) quand aucune image n'est passée depuis le
+tour précédent, ce qui laisse au moins un tour par image, comme une Neo Geo chargée. Charge moyenne :
+42 à 51 % au lieu de 89 à 100 %.
 
 ## Outils de mise au point
 

@@ -14,6 +14,9 @@ import m68k
 TR = os.path.join(root, 'build', 'tr'); os.makedirs(TR, exist_ok=True)
 ENTRIES = os.path.join(root, 'entries.txt')
 # code the program copies to RAM before running it (source:destination:length, hexadecimal)
+# branches that close the game's wait loops (see neo_idle in neort.c)
+IDLE = ['2B24',                   # main loop: bra $2AEC after the task scheduler
+        '100920']                 # eye catcher (copied to RAM): waits for SYSTEM_INT1
 ALIASES = ['D3EFE:100000:114A',      # copied by D3DCA (0x8A5 words), called at 100000
            'D3E94:10FC00:6A']        # copied by D3E80 up to its rts, run at a5+$7C00
 rom = open(os.path.join(root, 'p1_be.bin'), 'rb').read()
@@ -56,7 +59,7 @@ def translate():
     subprocess.check_call([sys.executable, os.path.join(top, 'tools', 'recomp68k', 'recomp68k.py'),
                            os.path.join(root, 'p1_be.bin'), '0', os.path.join(TR, 'pb2_code.c'),
                            '--map', os.path.join(root, 'build', 'check', 'codemap.json'), '--vectors']
-                          + sum((['--alias', x] for x in ALIASES), []) + [x.split(':')[1] for x in ALIASES] + entries()
+                          + sum((['--alias', x] for x in ALIASES), []) + sum((['--idle', x] for x in IDLE), []) + [x.split(':')[1] for x in ALIASES] + entries()
                           + ([] if '--no-harvest' in sys.argv else harvest()),
                           stdout=subprocess.DEVNULL)
 

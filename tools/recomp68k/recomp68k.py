@@ -8,6 +8,8 @@ usage: python3 recomp68k.py IMAGE BASE OUT.c [options] [ENTRY ...]
   --alias SRC:DST:LEN  code copied at run time from SRC (in the image) to DST: translated as if at DST
   --chunk N    log2 of the address range of one C function (default 12, 4 KB)
   --vectors    also take every exception vector of the image as an entry point
+  --idle ADDR  the branch at ADDR closes a wait loop: it calls M68K_IDLE(c) first (empty unless the
+               port defines it), so that the port can let the processor sleep until an interrupt
 
 Method (same as recomp6809.py): every instruction becomes C; registers are locals of the C function
 that holds its 4 KB address range; branches are gotos; returns, indirect jumps and jumps to another
@@ -60,8 +62,8 @@ class Image:
 
 
 class Translator:
-    def __init__(self, img, chunk_bits=12):
-        self.img, self.cb = img, chunk_bits
+    def __init__(self, img, chunk_bits=12, idle=()):
+        self.img, self.cb, self.idle = img, chunk_bits, set(idle)
         self.ins = {}            # address -> Insn
         self.labels = set()
         self.missing = set()     # targets that could not be decoded
@@ -176,6 +178,8 @@ class Translator:
         w.append('#define SETSR(v) do { uint32_t _s = (v); SETCCR(_s); _s = (_s >> 8) & 0xA7; '
                  'if ((_s ^ srh) & 0x20) { uint32_t _t = a7; a7 = c->osp; c->osp = _t; } srh = _s; } while (0)')
         w.append('#ifndef M68K_IACK\n#define M68K_IACK(c, level)\n#endif')
+        w.append('#ifndef M68K_IDLE   // called on the branches given with --idle: a wait loop\n'
+                 '#define M68K_IDLE(c)\n#endif')
         w.append('#ifndef M68K_TICK   // called on backward branches and on dispatch: lets a test bench measure time\n'
                  '#define M68K_TICK(c, pc)\n#endif\n')
         for ch in chunks: w.append('static uint32_t ch_%03x(m68k_t *c, uint32_t pc);' % ch)
@@ -214,6 +218,7 @@ class Translator:
             w.append('  // %06X  %s' % (a, m68k.text(i)))
             try:
                 body = self.gen_insn(i)
+                if a in self.idle: body = ['STORE; M68K_IDLE(c); LOAD;'] + body
             except NotImplementedError as e:
                 body = ['pc = 0x%x; goto ext; /* not translated: %s */' % (a, e)]
             w.extend('  ' + l for l in body)
@@ -643,7 +648,7 @@ def main():
     args = sys.argv[1:]
     if len(args) < 3: sys.exit(__doc__)
     path, base, out = args[0], int(args[1], 16), args[2]
-    entries, aliases, cb, mapf, vectors = [], [], 12, None, False
+    entries, aliases, cb, mapf, vectors, idle = [], [], 12, None, False, []
     k = 3
     while k < len(args):
         x = args[k]
@@ -651,6 +656,7 @@ def main():
         if x == '--alias': aliases.append(tuple(int(v, 16) for v in args[k + 1].split(':'))); k += 2; continue
         if x == '--chunk': cb = int(args[k + 1]); k += 2; continue
         if x == '--vectors': vectors = True; k += 1; continue
+        if x == '--idle': idle.append(int(args[k + 1], 16)); k += 2; continue
         entries.append(int(x, 16)); k += 1
     data = open(path, 'rb').read()
     img = Image(data, base, aliases)
@@ -663,7 +669,7 @@ def main():
             t = (img.word(base + 4 * v) or 0) << 16 | (img.word(base + 4 * v + 2) or 0)
             if t >= base + 0x100 and img.word(t) is not None: entries.append(t)   # 0 = unused vector
     entries = [e for e in entries if img.word(e) is not None]
-    t = Translator(img, cb)
+    t = Translator(img, cb, idle)
     t.discover(entries)
     t.generate(out)
     print('%s: %d instructions, %d labels, %d C functions%s' % (

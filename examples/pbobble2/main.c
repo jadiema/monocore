@@ -37,6 +37,9 @@ void neo_platform_bank(void) {
 void neo_platform_fix(uint32_t x, uint32_t y, uint32_t e) {
   TILEMAP(0)[y * 64 + x] = MC_TILE(e & 0xFFF, e >> 12, 0);
 }
+void neo_platform_wait(uint32_t frame) {   // sleep until the vblank (neo.frame changes in the handler:
+  while (*(volatile uint32_t *)&neo.frame == frame) wfi();   // read it again on every turn)
+}
 uint32_t neo_platform_line(void) {                 // MONOCORE line -> Neo Geo line from the vblank
   uint32_t total = (uint32_t)mc_screen_h() + 24, v = VCOUNT;
   uint32_t from_vbl = (v + total - (uint32_t)mc_screen_h()) % total;

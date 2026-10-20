@@ -38,6 +38,8 @@ uint32_t neo_bios(m68k_t *c, uint32_t pc);   // BIOS entry points; returns the n
                                              // if pc is not a BIOS entry point
 
 // provided by the platform layer
+void neo_idle(void);                  // the game's wait loop: sleeps if no frame went by since its last turn
+void neo_platform_wait(uint32_t frame);   // waits until neo.frame differs from frame (wfi on the console)
 uint32_t neo_platform_line(void);     // current raster line, 0-263 (0xF8 = start of the vertical blank)
 void neo_platform_fix(uint32_t x, uint32_t y, uint32_t entry);   // a fix layer entry changed
 void neo_platform_color(uint32_t index, uint32_t color);        // a colour of the shown bank changed

@@ -141,6 +141,7 @@ void bench_tick(uint32_t pc) {
   if (neo.frame >= frames_max) longjmp(done, 1);
 }
 uint32_t neo_platform_line(void) { return ticks * 264 / TICKS_PER_FRAME; }
+void neo_platform_wait(uint32_t frame) { while (neo.frame == frame) { ticks = TICKS_PER_FRAME - 1; bench_tick(0xFFFFFFFF); } }
 void neo_platform_fix(uint32_t x, uint32_t y, uint32_t entry) { (void)x; (void)y; (void)entry; }
 void neo_platform_color(uint32_t index, uint32_t color) { (void)index; (void)color; }
 void neo_platform_bank(void) {}

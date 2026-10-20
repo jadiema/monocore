@@ -32,6 +32,9 @@ python3 tools/recomp68k/recomp68k.py image.bin 0 code.c --map codemap.json --vec
   signale une adresse atteinte pendant le jeu, à ajouter aux points d'entrée avant de retraduire.
 - Le portage fournit `m68k_port.h`, avec les accès mémoire `RD8/RD16/RD32/WR8/WR16/WR32` (adresses
   de 24 bits, accès mot aux adresses paires).
+- `--idle ADDR` : le branchement en ADDR ferme une boucle d'attente ; il appelle d'abord
+  `M68K_IDLE(c)` (vide par défaut), registres à jour dans `*c`, pour que le portage endorme le
+  processeur jusqu'à une interruption au lieu de tourner à vide.
 - `--alias SRC:DST:LEN` traduit du code que le programme recopie en RAM avant de l'exécuter.
 
 ## Validation
