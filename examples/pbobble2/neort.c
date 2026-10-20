@@ -119,6 +119,9 @@ void neo_wr8(uint32_t a, uint32_t v) {
     if (!(a & 1)) {
       neo.sound_cmd = v; neo.sound_reply = v;          // the Z80 driver answers with the command
       neo.sound_log[neo.sound_count++ & 63] = v;
+#ifdef NEO_SOUND_TRACE
+      neo_sound_trace(v);
+#endif
     }
     return;
   case 0x3A0000:

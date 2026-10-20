@@ -66,7 +66,13 @@ python3 tools/m68kmap.py                         # carte du code -> build/check/
    chaînes de colonnes (les décors) sur les plans 1 à 3, autres colonnes en sprites 16 × 16 lus dans
    un cache de tuiles en CHR RAM (à côté de l'ombre de la VRAM), manettes lues au VBLANK. Construire :
    `python3 ../../sdk/build.py .` (12 Mo). `python3 tools/discover.py --sim 3600 "$(cat tools/play_sim.txt)"`
-   poursuit la découverte dans le simulateur MONOCORE. Reste `main.c`, la couche MONOCORE (ombre de la VRAM en
+   poursuit la découverte dans le simulateur MONOCORE. `tools/play_puzzle.txt` joue une partie de
+   Puzzle Game jusqu'au classement, `tools/play_2p.txt` une partie à deux (113 points d'entrée). Reste `main.c`, la couche MONOCORE (ombre de la VRAM en
    CHR RAM, sprites et plan fixe vers plans et sprites, palettes RGB555).
-5. Son : commandes `0x320000` vers les voix PCM et PSG, musiques FM pré-rendues hors ligne.
+5. Son, en cours. `tools/sound/build.sh` construit `build/snd/render` (ymfm, BSD-3, et un cœur Z80,
+   MIT, récupérés à la compilation) : le vrai pilote Z80 du jeu (`m1.bin`) et un YM2610 rendent hors
+   ligne une commande son (`render m1.bin v.bin out/c 6 42`) ou une trace de partie
+   (`render … -trace trace.txt`). Une partie n'envoie que 19 commandes différentes ; `42`, `24` et
+   `21` démarrent des sons longs, `19` un bruitage, `1A` et `14` aucun son seul : reste à lire la
+   table de commandes du pilote pour classer musiques, bruitages et commandes de contrôle.
 6. Validation : banc PC, simulateur, MiSTer de dev.

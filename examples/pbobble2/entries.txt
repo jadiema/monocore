@@ -105,3 +105,9 @@
 044eb4  reached at frame 3252
 062142  reached at frame 3237
 062160  reached at frame 3181
+02376c  reached at frame 2382
+028a50  reached at frame 1081
+027aca  reached at frame 1151
+06f830  reached at frame 1575
+03b518  reached at frame 2693
+03b5be  reached at frame 2693

@@ -11,6 +11,7 @@ usage: python3 tools/prepare.py pbobbl2n.zip [--sheets]
     spr_cells.bin holds the same tiles in the layout of MONOCORE sprites: four 8x8 cells per tile
     (top left, top right, bottom left, bottom right), for the sprite tile cache of main.c
   - 248-s1.s1 (fix layer tiles 8x8, 4 bpp): converted to fix.bin
+  - 248-m1.m1 and 248-v1/v2 (Z80 sound driver, YM2610 samples): m1.bin and v.bin, for tools/sound
   - --sheets also writes contact sheets in build/check/ (fixed grey palette) to check the decoding
 These files come from the original game: keep them out of any public repository.
 """
@@ -85,6 +86,7 @@ def main():
     assert be[0x100:0x107] == b'NEO-GEO', 'not a Neo Geo program ROM'
     out = lambda name, data: open(os.path.join(root, name), 'wb').write(data)
     out('p1.bin', p1); out('p1_be.bin', be)
+    out('m1.bin', r['m1']); out('v.bin', r['v1'] + r['v2'])    # sound driver and samples (tools/sound)
 
     spr = np.concatenate([sprite_pixels(r['c1'], r['c2']), sprite_pixels(r['c3'], r['c4'])])
     packed = pack4(spr)                                            # (n, 128)

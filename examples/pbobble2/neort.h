@@ -43,6 +43,10 @@ void neo_platform_fix(uint32_t x, uint32_t y, uint32_t entry);   // a fix layer 
 void neo_platform_color(uint32_t index, uint32_t color);        // a colour of the shown bank changed
 void neo_platform_bank(void);         // the palette bank changed: every colour must be sent again
 
+#ifdef NEO_SOUND_TRACE
+void neo_sound_trace(uint32_t command);   // test bench: every sound command
+#endif
+
 // hardware accesses, out of the fast paths of m68k_port.h
 uint32_t neo_rd8(uint32_t a);
 uint32_t neo_rd16(uint32_t a);
