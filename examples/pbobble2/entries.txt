@@ -111,3 +111,9 @@
 06f830  reached at frame 1575
 03b518  reached at frame 2693
 03b5be  reached at frame 2693
+06f3c2  reached at frame 2333 (simulateur web, Jeremie)
+03b5b6  reached at frame 3522
+03b5e0  reached at frame 3522
+03b616  reached at frame 3601
+03b636  reached at frame 3601
+03b6ba  reached at frame 3626
