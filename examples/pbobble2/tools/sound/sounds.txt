@@ -29,5 +29,6 @@
 1A 30
 1A 42     # shot
 1A 54
+1A 59
 1C 19     # silent alone: kept with length 0 so that it is known
 1D 19     # silent (as 1A 14)

@@ -177,10 +177,9 @@ void neo_sound_trace(uint32_t command) { mc_debug("SND %u %02X\n", neo.frame, co
 // --- sound: clips rendered offline from the game's own Z80 driver (tools/sound/make_sounds.py) ---
 // Every event plays on a voice of its own (sounds of a slot overlap, as in the driver); 14 xx stops
 // the sounds started with the prefix xx, a music alone replaces the previous one, 01/03/04/0D/20
-// stop everything, 05 fades out. Loops are made here (ADPCM does not loop): the vblank handler
-// starts the loop part again when it is over.
-typedef struct { uint32_t key, off, len, loop, format, rate, cuts; } snd_t;   // cuts: sounds it stops
-#define SND_VOL 255
+// stop everything, 05 fades out. The clips are PCM (16-bit, or 8-bit for musics), musics loop in
+// hardware (LOOP).
+typedef struct { uint32_t key, off, len, loop, format, rate, vol, cuts; } snd_t;   // cuts: sounds it stops
 #define FADE_FRAMES 90
 static struct { const snd_t *s; uint8_t prefix, music, looping; uint32_t age; } voice[PCM_VOICES];
 static uint32_t snd_age, fade;
@@ -193,11 +192,10 @@ static const snd_t *snd_find(uint32_t key) {
 }
 
 static void voice_part(int v, int loop_part) {
+  (void)loop_part;
   const snd_t *s = voice[v].s;
-  uint32_t vol = fade ? SND_VOL * fade / FADE_FRAMES : SND_VOL;
-  if (s->loop == PCM_NOLOOP) mc_pcm_play(v, sounds_file + s->off, s->len, (int)s->format, s->rate, PCM_NOLOOP, (int)vol, (int)vol);
-  else if (!loop_part && s->loop) mc_pcm_play(v, sounds_file + s->off, s->loop, (int)s->format, s->rate, PCM_NOLOOP, (int)vol, (int)vol);
-  else mc_pcm_play(v, sounds_file + s->off + s->loop / 2, s->len - s->loop, (int)s->format, s->rate, PCM_NOLOOP, (int)vol, (int)vol);
+  uint32_t vol = fade ? s->vol * fade / FADE_FRAMES : s->vol;
+  mc_pcm_play(v, sounds_file + s->off, s->len, (int)s->format, s->rate, s->loop, (int)vol, (int)vol);
 }
 
 static void voice_stop(int v) { mc_pcm_stop(v); voice[v].s = 0; voice[v].looping = 0; }
@@ -235,13 +233,11 @@ void neo_platform_sound(uint32_t prefix, uint32_t code) {
   voice_part(pick, 0);
 }
 
-static void sound_frame(void) {                 // vblank: loops and fade-out
-  for (int v = 0; v < PCM_VOICES; v++)
-    if (voice[v].s && voice[v].looping && !(PCM[v].ctrl & 1)) voice_part(v, 1);
+static void sound_frame(void) {                 // vblank: fade-out
   if (fade) {
     if (--fade == 0) { snd_stop_all(); return; }
-    uint32_t vol = SND_VOL * fade / FADE_FRAMES;
-    for (int v = 0; v < PCM_VOICES; v++) if (voice[v].s) PCM[v].vol_l = PCM[v].vol_r = (uint8_t)vol;
+    for (int v = 0; v < PCM_VOICES; v++)
+      if (voice[v].s) PCM[v].vol_l = PCM[v].vol_r = (uint8_t)(voice[v].s->vol * fade / FADE_FRAMES);
   }
 }
 

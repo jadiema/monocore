@@ -20,7 +20,7 @@ python3 tools/prepare.py pbobbl2n.zip      # données tirées de ta copie
 python3 tools/m68kmap.py                    # carte du code 68000
 python3 tools/translate.py                  # programme traduit : build/tr/pb2_code.c (environ une minute)
 sh tools/sound/build.sh && python3 tools/sound/cuts.py && python3 tools/sound/make_sounds.py   # le son
-python3 ../../sdk/build.py .                # build/pbobble2.mnc (20,5 Mo)
+python3 ../../sdk/build.py .                # build/pbobble2.mnc (31,2 Mo)
 ```
 
 Il faut aussi clang, ld.lld et llvm-objcopy (comme pour tout le SDK). La ROM se charge dans
@@ -107,7 +107,7 @@ console.
 ```sh
 sh tools/sound/build.sh                 # build/snd/render (ymfm BSD-3 et un cœur Z80 MIT, récupérés, jamais commités)
 python3 tools/sound/cuts.py              # quel son coupe quel son (quelques minutes)
-python3 tools/sound/make_sounds.py       # sounds.bin et sounds_tab.bin (6,3 Mo), puis sdk/build.py
+python3 tools/sound/make_sounds.py       # sounds.bin et sounds_tab.bin (18,8 Mo), puis sdk/build.py
 ```
 
 - **Protocole** (désassemblage du pilote) : le gestionnaire de NMI range chaque octet dans une file
@@ -124,14 +124,17 @@ python3 tools/sound/make_sounds.py       # sounds.bin et sounds_tab.bin (6,3 Mo)
 - **Boucles** : `tools/sound/period.py` les cherche dans les écritures du pilote au YM2610
   (`render … -writes`), qui se répètent pas pour pas, alors que le son ne se répète pas au bit près.
   `2E` (la partie) reboucle toutes les 281 s, `21` toutes les 60 s ; les longs morceaux qui finissent
-  d'eux-mêmes sont gardés 60 s (le jeu les coupe en 20 s au plus).
-- **Format** : ADPCM OKI à 22 050 Hz, mono, un même gain pour tous les sons. L'ADPCM ne boucle pas :
-  introduction et boucle sont encodées à part, et le VBLANK relance la boucle (une coupure d'au plus
-  une image, toutes les 1 à 5 minutes).
+  d'eux-mêmes sont gardés 30 s (le jeu les coupe en 20 s au plus).
+- **Format** : PCM 16 bits mono ; les sons courts (12 s au plus) à 22 050 Hz, les musiques et longs
+  morceaux à 16 000 Hz pour que tout tienne dans 32 Mo. Chaque son est normalisé à sa crête, et son
+  niveau dans le jeu est rendu par le volume de lecture. Les musiques bouclent dans le matériel
+  (`LOOP`). Essayés d'abord et abandonnés : l'ADPCM OKI (rapport signal sur bruit de 14 dB sur le tir,
+  21 dB sur la musique : le son grésille) et le PCM 8 bits (36 à 39 dB : un souffle audible) ; le
+  PCM 16 bits donne 80 à 87 dB.
 - **Console** (`main.c`) : chaque son prend une voix (la sienne s'il joue déjà, sinon une libre, sinon
   le bruitage le plus ancien) ; il coupe les sons dont il prend les canaux YM2610 dans le pilote
   (table mesurée par `cuts.py` : les sons de la case `19` se coupent entre eux, ceux de la case `1A` se
   superposent) ; un son absent de la table est signalé `SOUND xx yy missing` dans la console de
   débogage. Comparé au pilote sur la même partie, l'enveloppe du son a une corrélation de 0,91.
-- **Taille** : la ROM passe à 20,5 Mo : elle tient sur la carte SD (32 Mo), plus sur la cartouche
-  (16 Mo).
+- **Taille** : la ROM passe à 31,2 Mo : elle tient sur la carte SD (32 Mo, de justesse), plus sur la
+  cartouche (16 Mo).

@@ -6,17 +6,19 @@ Every event of tools/sound/sounds.txt is rendered by the game's own Z80 driver a
 (build/snd/render), then:
   - a sound that falls silent is kept up to there;
   - a sound still playing after 140 s is a music: its loop comes from the YM2610 writes of the
-    driver (period.py, exact step for step); a piece that ends by itself is kept 60 s at most (the
+    driver (period.py, exact step for step); a piece that ends by itself is kept 30 s at most (the
     game stops those within 20 s);
-  - all in OKI ADPCM (4 bits) at 22050 Hz, mono, with one gain for every sound so that their levels
-    stay as in the game. A loop is encoded apart from its intro (the decoder starts again from
-    zero there), since the console loops ADPCM in software.
+  - stored as 16-bit PCM, mono: short sounds (12 s at most) at 22050 Hz, musics and long pieces at
+    16000 Hz (the ADPCM samples of the Neo Geo are 18.5 kHz) so that everything fits in 32 MB; each
+    sound normalised to its own peak, its level in the game given back by its playback volume.
+    Tried first: OKI ADPCM (about 36 dB for musics, 13-20 dB for sound effects, which crackle) and
+    8-bit PCM for musics (31-37 dB, an audible hiss).
 Writes sounds.bin (the samples) and sounds_tab.bin (the table read by main.c). Both come from the
 game: they stay out of the repository.
 
-sounds_tab.bin: u32 count, then per sound seven u32: key (prefix << 8 | code, prefix 0 for a command
-alone), offset in sounds.bin, length in samples, loop start in samples (0xFFFFFFFF = none; even, and
-the loop part starts on a byte of its own), format (2 = ADPCM), rate in Hz, and the mask of the
+sounds_tab.bin: u32 count, then per sound eight u32: key (prefix << 8 | code, prefix 0 for a command
+alone), offset in sounds.bin, length in samples, loop start in samples (0xFFFFFFFF = none), format
+(0 = 8-bit PCM, 1 = 16-bit PCM), rate in Hz, playback volume (0-255), and the mask of the
 sounds of the table it cuts when it starts (build/snd/cuts.txt from cuts.py: the driver gives it
 their YM2610 channels). A sound silent alone is kept with length 0, so that it is known.
 """
@@ -28,7 +30,7 @@ from scipy.signal import resample_poly
 
 here = os.path.dirname(os.path.abspath(__file__)); root = os.path.dirname(os.path.dirname(here))
 SND = os.path.join(root, 'build', 'snd'); RENDER = os.path.join(SND, 'render')
-RATE_IN, RATE = 55555, 22050
+RATE_IN, RATE, RATE_LONG = 55555, 22050, 16000
 OKI_STEP = [int(16.0 * (11.0 / 10.0) ** i) for i in range(49)]
 OKI_ADJ = [-1, -1, -1, -1, 2, 4, 6, 8]
 
@@ -131,14 +133,15 @@ def main():
                 clips.append((ev, x[:intro + p], intro & ~1))
                 print('%-6s music: intro %.2f s, loop %.2f s' % (name, intro / RATE, p / RATE))
             else:
-                n = min(kind[1], 60 * RATE)
+                n = min(kind[1], 30 * RATE)
                 x = render(ev, n / RATE + 1) if n > len(x) else x
                 clips.append((ev, x[:n], None))
                 print('%-6s long piece, ends at %.0f s, kept %.0f s' % (name, kind[1] / RATE, n / RATE))
         else:
             end = min(len(x), loud[-1] + RATE // 10)
             clips.append((ev, x[:end], None)); print('%-6s sound %.2f s' % (name, end / RATE))
-    gain = 30000.0 / max(np.max(np.abs(c[1])) for c in clips if len(c[1]))
+    top = max(np.max(np.abs(c[1])) for c in clips if len(c[1]))     # the loudest sound plays at 255
+    rng = np.random.default_rng(1)
     names = [' '.join('%02X' % v for v in c[0]) for c in clips]
     cuts = {}
     cpath = os.path.join(SND, 'cuts.txt')
@@ -151,19 +154,25 @@ def main():
     data, tab = bytearray(), []
     for ev, x, loop in clips:
         key = (ev[0] << 8 | ev[1]) if len(ev) == 2 else ev[0]
-        y = x * gain
         while len(data) % 4: data.append(0)
         off = len(data)
-        q = np.clip(np.round(y / 16), -2048, 2047)               # 12-bit signal of the decoder
-        if loop is not None:                                    # intro and loop encoded apart
-            data += adpcm(q[:loop]); data += adpcm(q[loop:])
-            tab.append((key, off, len(q), loop, 2, RATE, cuts.get(names[len(tab)], 0)))
-        else:
-            data += adpcm(q); tab.append((key, off, len(q), 0xFFFFFFFF, 2, RATE, cuts.get(names[len(tab)], 0)))
+        cut = cuts.get(names[len(tab)], 0)
+        if not len(x): tab.append((key, off, 0, 0xFFFFFFFF, 1, RATE, 0, cut)); continue
+        peak = np.max(np.abs(x)); vol = max(1, int(round(255 * peak / top)))
+        y = x / peak                                            # this sound at full scale
+        if loop is None and len(y) <= 12 * RATE:                # short: 22050 Hz
+            rate, lp = RATE, 0xFFFFFFFF
+        else:                                                   # long: 16000 Hz
+            n = len(y)
+            y = resample_poly(y, 320, 441)[:int(round(n * RATE_LONG / RATE))]
+            y = y / max(1e-9, np.max(np.abs(y)))
+            rate, lp = RATE_LONG, 0xFFFFFFFF if loop is None else int(round(loop * RATE_LONG / RATE))
+        pcm = np.clip(np.round(y * 32000), -32768, 32767).astype('<i2')
+        data += pcm.tobytes(); tab.append((key, off, len(pcm), lp, 1, rate, vol, cut))
     open(os.path.join(root, 'sounds.bin'), 'wb').write(bytes(data))
     with open(os.path.join(root, 'sounds_tab.bin'), 'wb') as f:
         f.write(struct.pack('<I', len(tab)))
-        for t in tab: f.write(struct.pack('<7I', *t))
+        for t in tab: f.write(struct.pack('<8I', *t))
     print('sounds.bin: %d sounds, %.1f MB' % (len(tab), len(data) / 2 ** 20))
 
 
