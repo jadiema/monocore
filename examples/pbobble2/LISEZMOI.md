@@ -67,7 +67,12 @@ python3 tools/m68kmap.py                         # carte du code -> build/check/
    un cache de tuiles en CHR RAM (à côté de l'ombre de la VRAM), manettes lues au VBLANK. Construire :
    `python3 ../../sdk/build.py .` (12 Mo). `python3 tools/discover.py --sim 3600 "$(cat tools/play_sim.txt)"`
    poursuit la découverte dans le simulateur MONOCORE. `tools/play_puzzle.txt` joue une partie de
-   Puzzle Game jusqu'au classement, `tools/play_2p.txt` une partie à deux (113 points d'entrée). Reste `main.c`, la couche MONOCORE (ombre de la VRAM en
+   Puzzle Game jusqu'au classement, `tools/play_2p.txt` une partie à deux. `discover.py` ajoute aussi
+   d'office les adresses de code rangées comme données dans la ROM (tables de pointeurs, scripts) :
+   toute valeur 32 bits qui pointe dans la ROM et se décode proprement (environ 6 500, en cache
+   dans `build/check/harvest.txt` ; `--no-harvest` pour s'en passer). Elle trouve d'avance la moitié
+   des adresses atteintes pendant le jeu ; la ROM passe de 12,3 à 13,5 Mo. La démo complète
+   (9 000 images sans entrée) passe (134 points d'entrée). Reste `main.c`, la couche MONOCORE (ombre de la VRAM en
    CHR RAM, sprites et plan fixe vers plans et sprites, palettes RGB555).
 5. Son, en cours. `tools/sound/build.sh` construit `build/snd/render` (ymfm, BSD-3, et un cœur Z80,
    MIT, récupérés à la compilation) : le vrai pilote Z80 du jeu (`m1.bin`) et un YM2610 rendent hors

@@ -117,3 +117,19 @@
 03b616  reached at frame 3601
 03b636  reached at frame 3601
 03b6ba  reached at frame 3626
+026bd4  reached at frame 2335 (simulateur web, Jeremie)
+043114  reached at frame 3401
+042d16  reached at frame 3402
+03cc9e  reached at frame 3960
+03ccac  reached at frame 3960
+03cd08  reached at frame 4027
+03cc30  reached at frame 4027
+03cf16  reached at frame 4027
+03cd38  reached at frame 4028
+03cf4a  reached at frame 4028
+03d1d4  reached at frame 4036
+0237f0  reached at frame 4036
+023764  reached at frame 4040
+03cdde  reached at frame 4098
+03cc4a  reached at frame 4165
+03c96c  reached at frame 5441

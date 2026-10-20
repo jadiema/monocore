@@ -2,7 +2,7 @@
 """Translates the program, builds the PC bench and runs it; every untranslated address it reaches is
 added to the entry points (entries.txt), then everything is done again, until a run goes through.
 
-usage: python3 tools/discover.py FRAMES [SCRIPT]           PC bench (see pc/bench.c for the script)
+usage: python3 tools/discover.py [--no-harvest] FRAMES [SCRIPT]   PC bench (see pc/bench.c for the script)
        python3 tools/discover.py --sim FRAMES [SCRIPT]     MONOCORE ROM in the simulator (tools/run.js;
                                                            p1=HEX are bits of IN_P1, start = 400)
 entries.txt only holds addresses (no data from the game): it is kept in the repository.
@@ -26,6 +26,21 @@ def mem(a):
     return struct.unpack('>H', rom[a:a + 2])[0] if 0 <= a < len(rom) - 1 and a % 2 == 0 else None
 
 
+def harvest():
+    """Code addresses stored as data in the ROM (pointer tables, scripts of the game): every aligned
+    32-bit value that points into the ROM and decodes cleanly (m68kmap.Mapper.plausible). About half
+    of the addresses reached at run time are found this way, before running anything; the false
+    positives are data translated as code that never runs. Computed once (build/check/harvest.txt)."""
+    path = os.path.join(root, 'build', 'check', 'harvest.txt')
+    if not os.path.exists(path):
+        sys.path.insert(0, here); import m68kmap
+        mp = m68kmap.Mapper(rom)
+        cand = {struct.unpack('>I', rom[a:a + 4])[0] for a in range(0, len(rom) - 3, 2)}
+        found = sorted(v for v in cand if 0x200 <= v < 0x100000 and v % 2 == 0 and mp.plausible(v))
+        open(path, 'w').write('\n'.join('%x' % v for v in found) + '\n')
+    return open(path).read().split()
+
+
 def entries():
     if not os.path.exists(ENTRIES): return []
     return [l.split()[0] for l in open(ENTRIES) if l.strip() and not l.startswith('#')]
@@ -35,7 +50,8 @@ def build():
     subprocess.check_call([sys.executable, os.path.join(top, 'tools', 'recomp68k', 'recomp68k.py'),
                            os.path.join(root, 'p1_be.bin'), '0', os.path.join(TR, 'pb2_code.c'),
                            '--map', os.path.join(root, 'build', 'check', 'codemap.json'), '--vectors']
-                          + sum((['--alias', x] for x in ALIASES), []) + [x.split(':')[1] for x in ALIASES] + entries(),
+                          + sum((['--alias', x] for x in ALIASES), []) + [x.split(':')[1] for x in ALIASES] + entries()
+                          + ([] if '--no-harvest' in sys.argv else harvest()),
                           stdout=subprocess.DEVNULL)
     subprocess.check_call(['gcc', '-O1', '-w', '-include', os.path.join(root, 'pc', 'tick.h'),
                            '-I', root, '-I', os.path.join(top, 'tools', 'recomp68k'), '-o', os.path.join(TR, 'bench'),
@@ -53,7 +69,7 @@ def run_sim(frames, script):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if a != '--sim']
+    args = [a for a in sys.argv[1:] if a not in ('--sim', '--no-harvest')]
     sim = '--sim' in sys.argv
     frames = args[0] if args else '600'
     script = args[1] if len(args) > 1 else ''
