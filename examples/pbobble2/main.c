@@ -100,6 +100,7 @@ static void layer_column(int layer, int n) {
   }
 }
 
+static uint32_t frames_short, tall_left;          // frames where tall columns had to stay sprites
 static void video_frame(void) {
   vframe++;
   // 1. positions, sizes and groups: a sticky sprite continues the chain on its right, and so does a
@@ -127,7 +128,7 @@ static void video_frame(void) {
     if (sp_rows[n] < 8 || sp_zx[n] != 15 || sp_zy[n] != 0xFF) continue;
     int x = sp_x[n] & 0x1FF, top = sp_top[n] & 0x1FF, mx = (x >> 4) & 31;
     if (layer > 3 || (x & 15) != lx || (top & 15) != ly || (used >> mx) & 1) {
-      if (layer == 1) break;                       // no layer left: the rest stays as sprites
+      if (layer == 1) { frames_short++; tall_left++; break; }   // no layer left: the rest stays as sprites
       layer--; lx = x & 15; ly = top & 15; used = 0;
       layer_open(layer, x, top);
     }
@@ -183,7 +184,11 @@ static void vblank(void) {
   video_frame();
   uint32_t t = (uint32_t)mc_cycles() - t0;       // conversion time, reported every 10 s
   conv_sum += t; if (t > conv_max) conv_max = t;
-  if (vframe % 600 == 0) { mc_debug("frame %u: conversion %u cycles on average, %u at most\n", vframe, conv_sum / 600, conv_max); conv_sum = conv_max = 0; }
+  if (vframe % 600 == 0) {
+    mc_debug("frame %u: conversion %u cycles on average, %u at most; %u frames short of layers\n",
+             vframe, conv_sum / 600, conv_max, frames_short);
+    conv_sum = conv_max = 0; frames_short = 0;
+  }
   neo_vblank(&cpu);
 }
 
