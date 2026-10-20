@@ -46,13 +46,19 @@ def entries():
     return [l.split()[0] for l in open(ENTRIES) if l.strip() and not l.startswith('#')]
 
 
-def build():
+def translate():
+    """The translated program, build/tr/pb2_code.c."""
     subprocess.check_call([sys.executable, os.path.join(top, 'tools', 'recomp68k', 'recomp68k.py'),
                            os.path.join(root, 'p1_be.bin'), '0', os.path.join(TR, 'pb2_code.c'),
                            '--map', os.path.join(root, 'build', 'check', 'codemap.json'), '--vectors']
                           + sum((['--alias', x] for x in ALIASES), []) + [x.split(':')[1] for x in ALIASES] + entries()
                           + ([] if '--no-harvest' in sys.argv else harvest()),
                           stdout=subprocess.DEVNULL)
+
+
+def build():
+    """The translated program and the PC bench."""
+    translate()
     subprocess.check_call(['gcc', '-O1', '-w', '-include', os.path.join(root, 'pc', 'tick.h'),
                            '-I', root, '-I', os.path.join(top, 'tools', 'recomp68k'), '-o', os.path.join(TR, 'bench'),
                            os.path.join(root, 'pc', 'bench.c'), os.path.join(root, 'neort.c'), os.path.join(TR, 'pb2_code.c')])

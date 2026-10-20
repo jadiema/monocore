@@ -6,6 +6,22 @@ puis en RV32IM, le matériel Neo Geo est remplacé par une petite bibliothèque 
 la MONOCORE-1. Rien n'est émulé sur la console. Les fichiers tirés du jeu restent hors du dépôt
 (`.gitignore`).
 
+## Construire la ROM
+
+Depuis `examples/pbobble2/`, avec ta copie du jeu (`pbobbl2n.zip`) :
+
+```sh
+pip install numpy pillow capstone
+python3 tools/prepare.py pbobbl2n.zip      # données tirées de ta copie
+python3 tools/m68kmap.py                    # carte du code 68000
+python3 tools/translate.py                  # programme traduit : build/tr/pb2_code.c (environ une minute)
+python3 ../../sdk/build.py .                # build/pbobble2.mnc (13,5 Mo)
+```
+
+Il faut aussi clang, ld.lld et llvm-objcopy (comme pour tout le SDK). La ROM se charge dans
+`dist/monocore.html` ou se copie sur la MiSTer (`/media/fat/games/MONOCORE/`). Entrée = Start,
+flèches, Z = tirer.
+
 ## Préparer les données
 
 ```sh
