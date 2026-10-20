@@ -34,8 +34,16 @@ Quartus : ouvrir `mister/MONOCORE.qpf` (voir `mister/LISEZMOI.md`). `quartus_tri
 ## SDK
 
 - `sdk/monocore.h` : registres matériels. `sdk/easy.h` / `easy.c` : bibliothèque pour débutants (init, wait_frame, print, sprite, load_map, play…). `sdk/build.py` construit un jeu à partir d'un `project.txt`.
-- `sdk/mc.h` / `mc.c` : SDK bas niveau (interruptions en C, raster, sprites par table fantôme + DMA, CHR RAM, PCM/PSG, virgule fixe), avec une petite libc (`sdk/libc.c`, en-têtes dans `sdk/libc/`). Choisi par `library = mc` dans `project.txt` ; `easy` reste la valeur par défaut. Référence : `sdk/SDK_MC.md`. La clé `data =` embarque des fichiers bruts.
-- Le manuel (`manual/`) a un exemple par chapitre dans `manual/examples/`. Exemples `mc` : `examples/boot` (écran d'accueil, `boot.rom`), `examples/nebula` (shoot'em up complet), `examples/horizon` (course en fausse 3D), `examples/test_sdk`.
+- `sdk/mc.h` / `mc.c` : SDK bas niveau (interruptions en C, raster, sprites par table fantôme + DMA, CHR RAM, PCM/PSG, virgule fixe), avec une petite libc (`sdk/libc.c`, en-têtes dans `sdk/libc/`). Choisi par `library = mc` dans `project.txt` ; `easy` reste la valeur par défaut. Référence : `sdk/SDK_MC.md`. La clé `data =` embarque des fichiers bruts ; `cflags =` ajoute des options de compilation aux seuls fichiers du programme (chemins d'inclusion, code produit par un traducteur).
+- Le manuel (`manual/`) a un exemple par chapitre dans `manual/examples/`. Exemples `mc` : `examples/aube` (écran d'accueil actuel, `boot.rom`), `examples/boot` (l'ancien), `examples/nebula` (shoot'em up complet), `examples/horizon` (course en fausse 3D), `examples/test_inputs`, `examples/test_sdk`.
+
+## Portages (jeux traduits, jamais émulés)
+
+- Les fichiers tirés du jeu original (données, programme, code traduit, ROM construite) restent **hors du dépôt** (`.gitignore` de chaque portage) : ils sont produits par les outils à partir de sa propre copie. Le dépôt est public : ne jamais y pousser une ROM `.mnc` d'un portage. Une liste d'adresses (`entries.txt`) n'est pas une donnée du jeu et se commite.
+- `examples/aigle` : L'Aigle d'Or (MO5, 6809), méthode de référence (BASIC traduit à la main, code machine par `recomp6809.py`, runtime MO5 `mo5rt.c`).
+- `examples/pbobble2` : Puzzle Bobble 2 (Neo Geo, 68000). Chaîne : `prepare.py` (données) → `m68kmap.py` (carte du code) → `translate.py` (`build/tr/pb2_code.c`) → `sdk/build.py`. `neort.c` = runtime Neo Geo portable (mémoire, LSPC, palettes, BIOS remplacé en AES) ; `main.c` = couche MONOCORE (plan fixe → plan 0, décors → plans 1-3, autres colonnes → sprites via un cache de tuiles en CHR RAM, ombre de la VRAM en CHR RAM). `discover.py` (banc PC `pc/bench.c`, ou `--sim` avec `tools/run.js`) ajoute à `entries.txt` les adresses atteintes à l'exécution ; il récolte aussi les adresses de code rangées comme données dans la ROM. Son : `tools/sound/` (pilote Z80 réel + YM2610 ymfm, hors ligne), en cours.
+- Traducteur 68000 : `tools/recomp68k/` (décodeur, générateur, `m68k_rt.h`) ; toute modification se valide par `python3 tools/recomp68k/test/fuzz.py 4000 1 3` (0 différence attendue contre Musashi).
+- Piège : dans le bac à sable, ne pas tuer un processus par `pkill -f` avec un motif qui figure aussi dans la commande en cours (la commande se tue elle-même).
 - Chargement MiSTer : `boot.rom` est envoyé par MiSTer **pendant que le reset du core est maintenu** (`status[0]`), qui n'est relâché qu'après. Le chargeur (`rtl/mister/mc_system.v`) ne doit donc rien effacer sur `reset` pendant ou juste après un téléchargement ; `rtl/tb/tb_system.cpp` reproduit ce cas avec `HOLD_RESET=1`.
 
 ## Ce qui reste à faire
@@ -43,4 +51,6 @@ Quartus : ouvrir `mister/MONOCORE.qpf` (voir `mister/LISEZMOI.md`). `quartus_tri
 - Core MiSTer : rotation d'écran (nécessite la DDRAM pour `screen_rotate`), sauvegarde NVRAM, DIP switches dans l'OSD.
 - Bloc FM compatible YM2151.
 - La ROM de stress déborde du blanking sur 2 images en mode 288 lignes.
-- Traducteur statique vers RV32IM : le 68000 est fait (`tools/recomp68k/`, validé contre Musashi), le Z80 reste à faire. Jeu candidat pour tester la puissance : Final Fight (CPS1), avec musiques pré-enregistrées ou bloc FM ; le grand plan 32 × 32 du CPS1 dépasse la taille de carte d'un plan.
+- Traducteur statique vers RV32IM : 6809 et 68000 faits, Z80 à faire.
+- Puzzle Bobble 2 : son (classer les 19 commandes du pilote, pré-rendre, jouer sur les voix PCM), essai sur la MiSTer.
+- Jeu candidat pour tester la puissance : Final Fight (CPS1), avec musiques pré-enregistrées ou bloc FM ; le grand plan 32 × 32 du CPS1 dépasse la taille de carte d'un plan.
