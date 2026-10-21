@@ -374,6 +374,13 @@ static void video_four(void) {
       int lx, ly, f = four_field(sp_x[n], sp_top[n] + ((k * 16 * (zy + 1)) >> 8), &lx, &ly);
       if (f < 0) continue;
       uint32_t t0 = neo_vram[n * 64 + k * 2], t1 = neo_vram[n * 64 + k * 2 + 1];
+      // the little character between the two fields of the Neo Geo screen and the counters of the
+      // rounds under it (player 1 against player 2: they mean nothing with four players, and the
+      // character fell half in each field): the central band under line 176, the counters
+      // (palettes 116, 122) under line 208
+      { int nx = sp_x[n] & 0x1FF, ny = (sp_top[n] + ((k * 16 * (zy + 1)) >> 8)) & 0x1FF;
+        if (ny >= 176 && ny < 240 && ((nx >= 144 && nx < 176) ||
+            (ny >= 208 && nx >= 120 && nx < 200 && ((t1 >> 8) == 116 || (t1 >> 8) == 122)))) continue; }
       uint32_t num = t0 | ((t1 & 0xF0) << 12);
       if (t1 & 8) num = (num & ~7u) | anim; else if (t1 & 4) num = (num & ~3u) | (anim & 3);
       if (num >= count || smap[num] == 0) continue;
