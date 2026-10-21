@@ -121,14 +121,16 @@ static void layer_column(int layer, int n) {
 }
 
 // --- four players (DESIGN_4P.md, step 4): the four fields side by side ---
-// When tasks 7 and 8 run (patches/four.s), the screen is 384 pixels wide and every field is shown
-// at 5/8 of its size (a 16-pixel tile is 10 pixels: no seam between the tiles of a character).
+// When tasks 7 and 8 run (patches/four.s), the screen is 384 x 288, the four fields in 2 x 2,
+// every field shown at 5/8 of its size (a 16-pixel tile is 10 pixels: no seam between the tiles of
+// a character); names and scores in the margins.
 // Where the sprites of a field are (patches/band.s): players 1 and 2 on the Neo Geo screen, left
 // and right; players 3 and 4 in the band 256 lines below, on the right, player 4 256 pixels
 // further. Each field is the 152 useful pixels of its half of the Neo Geo screen.
-#define FOUR_W      384
-#define FOUR_SLOT   96                             // width of a field on the screen
-#define FOUR_TOP    22                             // first line of the fields
+#define FOUR_W      384                            // 2 x 2 fields: each line of the screen crosses two
+#define FOUR_H      288                            // fields only (64 sprites per line at most)
+static const int16_t four_x[4] = {64, 224, 64, 224};   // player 1 top left, 2 top right,
+static const int16_t four_y[4] = {0, 0, 144, 144};     // 3 bottom left, 4 bottom right
 #define FOUR_SCALE  160                            // 5/8 in 8.8
 #define LIST_FIRST  118                            // the list of the frame starts at this sprite: below, the fixed decor
 #define DECOR_BASE  (CHRRAM_BASE + MC_CHRRAM_SIZE - DECOR_BYTES)
@@ -272,26 +274,29 @@ static void hud_text(int col, int row, const char *t, int pal) {
   for (; *t; t++, col++) TILEMAP(0)[row * 64 + col] = MC_TILE((uint8_t)*t, pal, 0);
 }
 #define FIX_EMPTY 0xFF                             // the empty tile of the fix layer (the game clears with it)
-static void decor_layer_open(void) {             // layer 1: the decor cells, four times side by side
-  mc_layer(1, MC_CHR(DECOR_BASE - CHRRAM_BASE), MC_TILE8 | MC_8BPP, 64, 32, 0);
-  mc_layer_scroll(1, 0, -FOUR_TOP);                // screen y = layer y + FOUR_TOP
+static void decor_layer_open(void) {             // layer 1: the decor cells behind each of the four fields
+  mc_layer(1, MC_CHR(DECOR_BASE - CHRRAM_BASE), MC_TILE8 | MC_8BPP, 64, 64, 0);
+  mc_layer_scroll(1, 0, 0);
   mc_fill((volatile void *)(DECOR_BASE + DECOR_W * DECOR_H * 64), 0, 64);   // the empty cell
-  for (int y = 0; y < 32; y++)
-    for (int x = 0; x < 64; x++) {
-      int f = x / DECOR_W, cx = x % DECOR_W;
-      uint32_t t = (f < 4 && y < DECOR_H) ? (uint32_t)(y * DECOR_W + cx) : DECOR_W * DECOR_H;
-      TILEMAP(1)[y * 64 + x] = MC_TILE(t, DECOR_PAL, 0);
-    }
+  for (int i = 0; i < 64 * 64; i++) TILEMAP(1)[i] = MC_TILE(DECOR_W * DECOR_H, DECOR_PAL, 0);
+  for (int f = 0; f < 4; f++)
+    for (int cy = 0; cy < DECOR_H; cy++)
+      for (int cx = 0; cx < DECOR_W; cx++)
+        TILEMAP(1)[(four_y[f] / 8 + cy) * 64 + four_x[f] / 8 + cx] = MC_TILE(cy * DECOR_W + cx, DECOR_PAL, 0);
 }
+// where the name and score of each player go, in the margins (columns and rows of 8 pixels)
+static const uint8_t hud_col[4] = {0, 40, 0, 40}, hud_row[4] = {2, 2, 20, 20};
 static void hud_open(void) {
   decor_layer_open();
-  for (int i = 0; i < 64 * 32; i++) TILEMAP(0)[i] = MC_TILE(FIX_EMPTY, 0, 0);
+  mc_layer(0, fix_file, MC_TILE8 | MC_4BPP, 64, 64, 3);   // the whole 384 x 288 screen
+  mc_layer_scroll(0, 0, 0);
+  for (int i = 0; i < 64 * 64; i++) TILEMAP(0)[i] = MC_TILE(FIX_EMPTY, 0, 0);
   for (int k = 0; k < 4; k++) {                    // the font: 1 = the letter, 2 = its box (opaque)
     uint32_t c = hud_rgb[k];
     uint16_t v = (uint16_t)(((c >> 19) << 10) | (((c >> 11) & 31) << 5) | ((c >> 3) & 31));
     for (int i = 1; i < 16; i++) PALETTE[(HUD_PAL + k) * 16 + i] = i == 1 ? v : 0;
     char name[] = "PLAYER 1"; name[7] = (char)('1' + k);
-    hud_text(k * 12 + 2, 23, name, HUD_PAL + k);
+    hud_text(hud_col[k], hud_row[k], name, HUD_PAL + k);
   }
 }
 static void hud_frame(void) {
@@ -299,11 +304,13 @@ static void hud_frame(void) {
     uint32_t v = ram16(score_at[k]) << 16 | ram16(score_at[k] + 2);
     char t[9]; t[8] = 0;
     for (int i = 7; i >= 0; i--) { t[i] = (char)(v || i == 7 ? '0' + v % 10 : ' '); v /= 10; }
-    hud_text(k * 12 + 2, 25, t, HUD_PAL + k);
+    hud_text(hud_col[k], hud_row[k] + 2, t, HUD_PAL + k);
   }
 }
 static void hud_close(void) {                      // the game's fix layer again, and layer 1
   mc_layer(1, spr_file, MC_TILE16 | MC_4BPP, 32, 32, 0);
+  mc_layer(0, fix_file, MC_TILE8 | MC_4BPP, 64, 32, 3);
+  mc_layer_scroll(0, 0, 16);
   for (uint32_t x = 0; x < 40; x++)
     for (uint32_t y = 0; y < 32; y++) {
       uint32_t e = neo_vram[0x7000 + x * 32 + y];
@@ -329,8 +336,8 @@ static void video_four(void) {
       int slot = cache_get(smap[num]);
       if (slot < 0) continue;
       sprite_t *s = &mc_spr[out++];
-      s->x = (int16_t)(f * FOUR_SLOT + 1 + ((lx * FOUR_SCALE) >> 8));
-      s->y = (int16_t)(FOUR_TOP + ((ly * FOUR_SCALE) >> 8));
+      s->x = (int16_t)(four_x[f] + ((lx * FOUR_SCALE) >> 8));
+      s->y = (int16_t)(four_y[f] + ((ly * FOUR_SCALE) >> 8));
       s->tile = (uint16_t)(slot * 4);
       s->pal = (uint8_t)(t1 >> 8); s->w = 2; s->h = 2;
       s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | ((t1 & 1) ? SA_HFLIP : 0) | ((t1 & 2) ? SA_VFLIP : 0));
@@ -350,7 +357,7 @@ static void video_frame(void) {
   vframe++;
   int four = four_running();
   if (four != four_mode) {
-    four_mode = four; mc_video_mode(four ? FOUR_W : 320, 224);
+    four_mode = four; mc_video_mode(four ? FOUR_W : 320, four ? FOUR_H : 224);
     if (four) hud_open();
     else { neo_platform_bank(); hud_close(); }      // the palettes 208-255 and the fix layer of the game again
     decor_sign = 1;

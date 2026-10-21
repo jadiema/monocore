@@ -124,7 +124,12 @@ octet qui diffère dépend de cet appui.
       Outils de mesure ajoutés au banc (compilés à la demande) : `-DNEO_VRAM_OWNER` (tâche qui
       écrit chaque sprite), `-DNEO_RAM_OWNER` (tâches qui écrivent chaque mot de RAM, depuis
       `OWNER_FROM`), `-DNEO_READ_TRACE` (dernière adresse lue avant chaque position de sprite).
-4. L'écran à 4 aires dans `main.c` : **fait**. Quand les tâches 7 et 8 sont les aires des joueurs 3
+4. L'écran à 4 aires dans `main.c` : **fait**, en **2 × 2** (384 × 288 : joueur 1 en haut à gauche,
+   2 en haut à droite, 3 en bas à gauche, 4 en bas à droite ; colonnes à 64 et 224, rangées à 0 et
+   144 ; noms et scores dans les marges de 64 pixels). D'abord quatre aires côte à côte en
+   384 × 224 : chaque ligne traversait alors quatre aires, et les lignes chargées dépassaient la
+   limite de 64 sprites ; en 2 × 2, une ligne n'en traverse que deux, à la même taille de bulles.
+   Détails : Quand les tâches 7 et 8 sont les aires des joueurs 3
    et 4 (octets `FIELD7` / `FIELD8`, posés au démarrage de l'aire, effacés quand la tâche se
    termine : le jeu se sert de ces numéros de tâche pour autre chose sur d'autres écrans), l'écran
    passe à 384 pixels :

@@ -205,43 +205,44 @@ kbd {
               <h2>Joueur 1</h2>
               <dl class="keymap">
                 <dt>Direction</dt><dd><kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd></dd>
-                <dt>Boutons 1–3</dt><dd><kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd></dd>
-                <dt>Boutons 4–6</dt><dd><kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></dd>
-                <dt>Start / pièce</dt><dd><kbd>1</kbd> ou <kbd>Entrée</kbd> · <kbd>5</kbd></dd>
+                <dt>Boutons 1–3</dt><dd><kbd data-code="KeyZ">Z</kbd> <kbd data-code="KeyX">X</kbd> <kbd data-code="KeyC">C</kbd></dd>
+                <dt>Boutons 4–6</dt><dd><kbd data-code="KeyA">A</kbd> <kbd data-code="KeyS">S</kbd> <kbd data-code="KeyD">D</kbd></dd>
+                <dt>Start / pièce</dt><dd><kbd data-code="Digit1">1</kbd> ou <kbd>Entrée</kbd> · <kbd data-code="Digit5">5</kbd></dd>
               </dl>
             </section>
             <section>
               <h2>Joueur 2</h2>
               <dl class="keymap">
-                <dt>Direction</dt><dd><kbd>J</kbd> <kbd>I</kbd> <kbd>K</kbd> <kbd>L</kbd></dd>
-                <dt>Boutons 1–3</dt><dd><kbd>N</kbd> <kbd>M</kbd> <kbd>,</kbd></dd>
-                <dt>Boutons 4–6</dt><dd><kbd>H</kbd> <kbd>U</kbd> <kbd>O</kbd></dd>
-                <dt>Start / pièce</dt><dd><kbd>2</kbd> · <kbd>6</kbd></dd>
+                <dt>Direction</dt><dd><kbd data-code="KeyJ">J</kbd> <kbd data-code="KeyI">I</kbd> <kbd data-code="KeyK">K</kbd> <kbd data-code="KeyL">L</kbd></dd>
+                <dt>Boutons 1–3</dt><dd><kbd data-code="KeyN">N</kbd> <kbd data-code="KeyM">M</kbd> <kbd data-code="Comma">,</kbd></dd>
+                <dt>Boutons 4–6</dt><dd><kbd data-code="KeyH">H</kbd> <kbd data-code="KeyU">U</kbd> <kbd data-code="KeyO">O</kbd></dd>
+                <dt>Start / pièce</dt><dd><kbd data-code="Digit2">2</kbd> · <kbd data-code="Digit6">6</kbd></dd>
               </dl>
             </section>
             <section>
               <h2>Joueur 3</h2>
               <dl class="keymap">
-                <dt>Direction</dt><dd><kbd>E</kbd> <kbd>R</kbd> <kbd>F</kbd> <kbd>G</kbd></dd>
-                <dt>Boutons 1–3</dt><dd><kbd>Q</kbd> <kbd>W</kbd> <kbd>V</kbd></dd>
-                <dt>Start</dt><dd><kbd>3</kbd></dd>
+                <dt>Direction</dt><dd><kbd data-code="KeyE">E</kbd> <kbd data-code="KeyR">R</kbd> <kbd data-code="KeyF">F</kbd> <kbd data-code="KeyG">G</kbd></dd>
+                <dt>Boutons 1–3</dt><dd><kbd data-code="KeyQ">Q</kbd> <kbd data-code="KeyW">W</kbd> <kbd data-code="KeyV">V</kbd></dd>
+                <dt>Start</dt><dd><kbd data-code="Digit3">3</kbd></dd>
               </dl>
             </section>
             <section>
               <h2>Joueur 4 (pavé numérique)</h2>
               <dl class="keymap">
-                <dt>Direction</dt><dd><kbd>4</kbd> <kbd>8</kbd> <kbd>5</kbd> <kbd>6</kbd></dd>
-                <dt>Boutons 1–3</dt><dd><kbd>0</kbd> <kbd>.</kbd> <kbd>Entrée</kbd></dd>
-                <dt>Start</dt><dd><kbd>4</kbd> (rangée du haut)</dd>
+                <dt>Direction</dt><dd><kbd>pavé 4</kbd> <kbd>pavé 8</kbd> <kbd>pavé 5</kbd> <kbd>pavé 6</kbd></dd>
+                <dt>Boutons 1–3</dt><dd><kbd>pavé 0</kbd> <kbd>pavé .</kbd> <kbd>pavé Entrée</kbd></dd>
+                <dt>Start</dt><dd><kbd>pavé +</kbd></dd>
               </dl>
             </section>
             <section>
               <h2>Système et manettes</h2>
               <dl class="keymap">
-                <dt>Service / test</dt><dd><kbd>9</kbd> · <kbd>0</kbd></dd>
-                <dt>Tilt</dt><dd><kbd>T</kbd></dd>
+                <dt>Service / test</dt><dd><kbd data-code="Digit9">9</kbd> · <kbd data-code="Digit0">0</kbd></dd>
+                <dt>Tilt</dt><dd><kbd data-code="KeyT">T</kbd></dd>
                 <dt>Manettes</dt><dd>jusqu'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris</dd>
                 <dt>Clavier</dt><dd><label><input type="checkbox" id="kbdMode"> clavier de la console</label> (<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 à 4</dd>
+                <dt id="layoutNote">Disposition</dt><dd id="layoutText">les lettres sont celles de ton clavier quand le navigateur sait les lire (Chrome, Edge) ; sinon ce sont les positions d'un clavier QWERTY (en AZERTY : A↔Q, Z↔W, M→virgule)</dd>
               </dl>
             </section>
           </div>
@@ -2246,7 +2247,7 @@ int main(void) {
     KeyR: [3, 0], KeyF: [3, 1], KeyE: [3, 2], KeyG: [3, 3],
     KeyQ: [3, 4], KeyW: [3, 5], KeyV: [3, 6], Digit3: [3, 10],
     Numpad8: [4, 0], Numpad5: [4, 1], Numpad2: [4, 1], Numpad4: [4, 2], Numpad6: [4, 3],
-    Numpad0: [4, 4], NumpadDecimal: [4, 5], NumpadEnter: [4, 6], Digit4: [4, 10],
+    Numpad0: [4, 4], NumpadDecimal: [4, 5], NumpadEnter: [4, 6], NumpadAdd: [4, 10],
   };
   // the console's keyboard: KeyboardEvent.code -> PS/2 set 2 code (0x100 + code = extended, E0)
   const PS2 = {
@@ -2266,6 +2267,12 @@ int main(void) {
     Numpad6: 0x74, Numpad7: 0x6C, Numpad8: 0x75, Numpad9: 0x7D, NumpadDecimal: 0x71, NumpadAdd: 0x79,
     NumpadSubtract: 0x7B, NumpadMultiply: 0x7C, NumpadDivide: 0x14A, NumpadEnter: 0x15A, NumLock: 0x77,
   };
+  // the help shows the keys of the keyboard in use (the table above gives positions: KeyboardEvent.code)
+  if (navigator.keyboard && navigator.keyboard.getLayoutMap)
+    navigator.keyboard.getLayoutMap().then((map) => {
+      document.querySelectorAll('kbd[data-code]').forEach((e) => { const c = map.get(e.dataset.code); if (c) e.textContent = c.toUpperCase(); });
+      $('layoutText').textContent = 'les lettres affichées sont celles de ton clavier';
+    }).catch(() => {});
   const keyState = [0, 0, 0, 0, 0];                 // players 1 and 2, system, players 3 and 4
   const kbdDown = new Set();
   function kbdRelease() { if (m) kbdDown.forEach((c) => m.keyEvent(c & 0xff, c > 0xff, false)); kbdDown.clear(); }
