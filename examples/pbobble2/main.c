@@ -228,8 +228,9 @@ void neo_platform_sound(uint32_t prefix, uint32_t code) {
   int pick = -1;
   for (int v = 0; v < PCM_VOICES && pick < 0; v++) if (voice[v].s == s) pick = v;          // same sound: again
   for (int v = 0; v < PCM_VOICES && pick < 0; v++) if (!voice[v].s || !(PCM[v].ctrl & 1)) if (!voice[v].looping) pick = v;
-  for (int v = 0; v < PCM_VOICES; v++)                                                      // else the oldest one-shot
-    if (!voice[v].looping && (pick < 0 || voice[v].age < voice[pick].age)) pick = v;
+  if (pick < 0)                                                                             // else the oldest one-shot
+    for (int v = 0; v < PCM_VOICES; v++)
+      if (!voice[v].looping && (pick < 0 || voice[v].age < voice[pick].age)) pick = v;
   if (pick < 0) pick = 0;
   voice[pick].s = s; voice[pick].prefix = (uint8_t)prefix; voice[pick].music = (uint8_t)music;
   voice[pick].looping = s->loop != PCM_NOLOOP; voice[pick].age = ++snd_age;
