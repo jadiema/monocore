@@ -107,9 +107,22 @@ octet qui diffère dépend de cet appui.
       à 2 joueurs hors de la RAM des joueurs 3 et 4 (les tâches 7 et 8 n'y sont pas créées). Les
       joueurs 3 et 4 sont encore dessinés sur l'aire du joueur 2, et les manches ne connaissent
       que les joueurs 1 et 2 (étape 5).
-   b. La position des aires : décaler les joueurs 3 et 4 hors de l'écran Neo Geo (par exemple de
-      256 lignes vers le bas), là où rien n'est affiché, pour que la couche MONOCORE reconnaisse
-      chaque aire à sa bande et la place à l'écran ; puis traiter les aiguillages qui comptent
-      vraiment (palettes, orientation).
+   b. La bande invisible : **fait** (`patches/band.s`). Chaque tâche ajoute ses sprites à la
+      liste de l'image (`$1001CE`, pointeur d'écriture `-29066(a5)`, 106 routines le font), que la
+      routine d'image (`$D36`) envoie dans la VRAM ; le noyau fait tourner les tâches l'une après
+      l'autre, donc les entrées d'une tâche se trouvent entre le pointeur quand la tâche
+      précédente rend la main et celui où elle la rend. L'ordonnanceur (`$2A54`, où aboutissent
+      tous les appels système) les note pour les tâches 7 et 8 ; avant l'envoi de la liste, leurs
+      entrées sont déplacées : joueur 3 de 256 lignes vers le bas, joueur 4 de 256 lignes et 256
+      pixels (bit 15 des mots de position verticale `+6` et horizontale `+8` d'une entrée de
+      12 octets). Les joueurs 3 et 4 dessinent tous deux du côté du joueur 2 ; dans la bande,
+      leurs plages horizontales ne se recouvrent pas. Mesuré dans la VRAM : 42 sprites du joueur
+      3 et 41 du joueur 4 dans la bande, l'écran Neo Geo ne montre plus que les joueurs 1 et 2 ;
+      contre l'ordinateur, la RAM reste identique au portage à 2 joueurs (le crochet garde ses
+      registres hors de la pile des tâches). Une seconde liste (`$100DFE`, `-29062(a5)`) sert aux
+      grands objets ; à traiter si des sprites des joueurs 3 et 4 y passent.
+      Outils de mesure ajoutés au banc (compilés à la demande) : `-DNEO_VRAM_OWNER` (tâche qui
+      écrit chaque sprite), `-DNEO_RAM_OWNER` (tâches qui écrivent chaque mot de RAM, depuis
+      `OWNER_FROM`), `-DNEO_READ_TRACE` (dernière adresse lue avant chaque position de sprite).
 4. L'écran à 4 aires dans `main.c`.
 5. Les règles à 4 : choix du mode, attaques partagées, fin de partie, menus.

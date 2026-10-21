@@ -20,6 +20,16 @@
 
 #define TICKS_PER_FRAME 200000
 static jmp_buf done;
+static uint32_t owner_from = 0xFFFFFFFF;
+#ifdef NEO_VRAM_OWNER
+// which task wrote each sprite (SCB1 words 0x0000-0x6FFF: 64 words per sprite; SCB3 0x8200, SCB4 0x8400)
+static uint32_t owner_count[512][16];
+void neo_vram_owner(uint32_t i, uint32_t task) {
+  uint32_t spr = i < 0x7000 ? i >> 6 : (i >= 0x8200 && i < 0x8600) ? (i & 0x1FF) : 0x1FF;
+  static uint32_t calls; if (++calls == 1 || (neo.frame >= owner_from && calls % 5000 == 0)) fprintf(stderr, "owner call %u frame %u i %X task %u\n", calls, neo.frame, i, task);
+  if (spr < 512 && task < 16 && neo.frame >= owner_from) owner_count[spr][task]++;
+}
+#endif
 static m68k_t cpu;
 static uint32_t ticks, frames_max;
 static const char *script;
@@ -188,6 +198,45 @@ static void report(void) {
          neo.user_request, neo_ram[0xFD80 ^ 1], neo_ram[0xFDAF ^ 1], nv, np, neo.pal_bank, neo.fix_cart ? "cart" : "board");
 }
 
+#ifdef NEO_READ_TRACE
+// for each write of a vertical sprite position (SCB3), the last RAM address read before it
+uint32_t neo_last_read;
+static uint32_t src_count[0x10000];
+void neo_scb_source(uint32_t i, uint32_t v) {
+  if (i >= 0x8200 && i < 0x8400 && neo.frame >= owner_from && (neo_last_read & 0xFF0000) == 0x100000)
+    src_count[neo_last_read & 0xFFFF]++;
+}
+static void scb_source_report(void) {
+  printf("sources of the SCB3 writes (last RAM read):\n");
+  for (int k = 0; k < 0x10000; k++) if (src_count[k] > 20) printf("  $%06X %u\n", 0x100000 + k, src_count[k]);
+}
+#endif
+#ifdef NEO_RAM_OWNER
+// task (0-15, 31 outside the tasks) that wrote each word of RAM, from frame owner_from: bit mask
+static uint32_t ram_tasks[0x8000];
+void neo_ram_owner(uint32_t a) {
+  if ((a & 0xFF0000) == 0x100000 && neo.frame >= owner_from) {
+    uint32_t t = neo_ram[0x34C4] | neo_ram[0x34C5] << 8;
+    ram_tasks[(a & 0xFFFF) >> 1] |= 1u << (t & 31);
+  }
+}
+static void ram_owner_report(void) {
+  FILE *f = fopen("ram_tasks.bin", "wb"); fwrite(ram_tasks, 4, 0x8000, f); fclose(f);
+}
+#endif
+#ifdef NEO_VRAM_OWNER
+static void owner_report(void) {
+  printf("sprite owners (task: writes) from frame %u\n", owner_from);
+  for (int s = 0; s < 512; s++) {
+    uint32_t t = 0; for (int k = 0; k < 16; k++) t += owner_count[s][k];
+    if (!t) continue;
+    printf("spr %3d:", s);
+    for (int k = 0; k < 16; k++) if (owner_count[s][k]) printf(" t%d:%u", k, owner_count[s][k]);
+    printf("\n");
+  }
+}
+#endif
+
 int main(int argc, char **argv) {
   if (argc < 3) { fprintf(stderr, "usage: bench DIR FRAMES [SCRIPT]\n"); return 1; }
   uint32_t n;
@@ -198,7 +247,17 @@ int main(int argc, char **argv) {
   frames_max = atoi(argv[2]); script = argc > 3 ? argv[3] : "";
   neo_vram = vram_mem;
   neo_reset(&cpu);
+  if (getenv("OWNER_FROM")) owner_from = atoi(getenv("OWNER_FROM"));
   if (!setjmp(done)) m68k_run(&cpu);
+#ifdef NEO_VRAM_OWNER
+  owner_report();
+#endif
+#ifdef NEO_RAM_OWNER
+  ram_owner_report();
+#endif
+#ifdef NEO_READ_TRACE
+  scb_source_report();
+#endif
   if (getenv("BENCH_REPORT")) report();
   if (getenv("BENCH_DUMP")) {            // raw VRAM and palettes, for scripts
     FILE *f = fopen("vram.bin", "wb"); fwrite(neo_vram, 2, 0x8800, f); fclose(f);

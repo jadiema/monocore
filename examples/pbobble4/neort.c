@@ -85,6 +85,12 @@ static void lspc_write(uint32_t reg, uint32_t v) {
   case 0x2: {
     uint32_t i = vram_index(neo.vram_addr);
     neo_vram[i] = v;
+#ifdef NEO_READ_TRACE
+    { extern void neo_scb_source(uint32_t i, uint32_t v); neo_scb_source(i, v); }
+#endif
+#ifdef NEO_VRAM_OWNER
+    { extern void neo_vram_owner(uint32_t i, uint32_t task); neo_vram_owner(i, neo_ram[0x34C4] | neo_ram[0x34C5] << 8); }   // debug (pc/bench.c)
+#endif
     if (i >= 0x7000 && i < 0x7500) neo_platform_fix((i - 0x7000) >> 5, i & 31, v);
     neo.vram_addr = (neo.vram_addr & 0x8000) | ((neo.vram_addr + neo.vram_mod) & 0x7FFF);
     break;
