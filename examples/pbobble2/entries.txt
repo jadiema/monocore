@@ -138,3 +138,5 @@
 02ae22  reached at frame 1271 (simulateur web)
 027f50  reached at frame 1402
 027ad2  reached at frame 1461
+028a64  reached at frame 869 (simulateur web, mode HARD)
+02a238  reached by Julien (MiSTer)
