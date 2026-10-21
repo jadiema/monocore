@@ -181,8 +181,12 @@ octet qui diffère dépend de cet appui.
    à deux joueurs, c'est le jeu d'origine (RAM identique contre l'ordinateur). Vérifié sur le banc
    (`-DNEO_WATCH`, `WATCH=adresses` : chaque écriture d'un mot surveillé, avec la tâche) et dans le
    simulateur : les joueurs perdent l'un après l'autre, les autres continuent, le dernier gagne.
-   Reste : les bandeaux WON/LOST du bilan de manche, dessinés pour deux côtés seulement, et ses
-   compteurs de manches gagnées.
+   **Bilan de manche** : il ne connaît que deux côtés (le vainqueur en `-10290(a5)`, le perdant en
+   `-10288(a5)`, les manches gagnées dans des tables à 2 entrées comme `-10236(a5)`), et ses
+   bandeaux WON/LOST sont des lettres-objets (`$32570` → `$32682`, `$327AE`) qui relisent le côté
+   à chaque image. À quatre, il reçoit un résultat à deux joueurs valide (l'autre côté du
+   vainqueur) et ne dessine pas ses bandeaux ; l'écran de `main.c` écrit WINNER et OUT sous le
+   score de chaque joueur. Reste le texte « PASSAGE TIME » du bilan, sur les aires 1 et 2.
    Les règles à 4 restantes : choix du mode, attaques partagées, fin de manche et de partie, menus ; et ce
    que l'écran à quatre montre encore : les joueurs 3 et 4 ont l'apparence du joueur 2 (côté
    droit), les en-têtes de score du jeu (sprites) restent en haut des aires 1 et 2, les scores des

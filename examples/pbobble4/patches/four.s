@@ -114,6 +114,7 @@ init34:
 	jsr	0x74D68				| end of the initialisation of player 2, as before
 	clr.l	0x10F660			| a new round: nobody is out (patches/rules.s)
 	clr.l	0x10F664
+	clr.l	0x10F668			| no winner yet
 	lea	P3S, %a4
 	move.w	#0, (%a4)			| played by a person (1: by the computer)
 	move.w	#2, 2(%a4)			| player number

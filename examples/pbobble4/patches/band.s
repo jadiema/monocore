@@ -9,7 +9,8 @@
 | are moved:
 |   player 3 (task 7): 256 lines down    (bit 15 of the vertical position word, +6 of an entry)
 |   player 4 (task 8): 256 lines down and 256 pixels right (bit 15 of +6 and of +8)
-| Players 3 and 4 both draw on the side of player 2 for now; in the band, their x ranges do not
+| The second list (big objects: banners, characters; $100DFE, -29062(a5)) is noted and moved the
+| same way. Players 3 and 4 both draw on the side of player 2 for now; in the band, their x ranges do not
 | overlap, which tells them apart. An entry (12 bytes): +0 sprite tiles, +4 attributes,
 | +6 ((0xFFF0 - y) << 7) | height, +8 x << 7, +10 shrink.
 
@@ -22,7 +23,13 @@
 	.equ	SAVE_A0, 0x10F658		| (the RAM of the game stays as without the patch)
 	.equ	FIELD7, 0x10F65C		| 1: task 7 is the field of player 3 (set as the field starts,
 	.equ	FIELD8, 0x10F65D		| patches/field.s; cleared here when the task ends)
+	.equ	LAST2, 0x10F670		| the same for the second list ($100DFE, -29062(a5)): the
+	.equ	S7B, 0x10F674			| big objects of several tiles (the WON and LOST banners,
+	.equ	E7B, 0x10F678			| the characters)
+	.equ	S8B, 0x10F67C
+	.equ	E8B, 0x10F680
 	.equ	LIST, 0x1001CE
+	.equ	LIST2, 0x100DFE
 
 | expect 002A54 6 crc32 0x88fbfcb6	(lea -19260(a5),a4 / move.w (a4),d0)
 	.section .p_002A54,"ax"
@@ -51,13 +58,18 @@ sched_hook:
 	beq.s	1f
 	move.l	LAST, S7
 	move.l	%a0, E7
+	move.l	LAST2, S7B
+	move.l	-29062(%a5), E7B
 1:	cmpi.w	#8, %d1
 	bne.s	2f
 	tst.b	FIELD8
 	beq.s	2f
 	move.l	LAST, S8
 	move.l	%a0, E8
+	move.l	LAST2, S8B
+	move.l	-29062(%a5), E8B
 2:	move.l	%a0, LAST
+	move.l	-29062(%a5), LAST2
 	movea.l	SAVE_A0, %a0
 	move.l	SAVE_D1, %d1
 	lea	-19260(%a5), %a4		| what the two replaced instructions did
@@ -81,10 +93,31 @@ band34:
 	lea	12(%a0), %a0
 4:	cmpa.l	%a1, %a0
 	bcs.s	3b
-	clr.l	S7				| the list starts again after this frame
+	movea.l	S7B, %a0			| the second list: player 3
+	movea.l	E7B, %a1
+	bra.s	6f
+5:	eori.w	#0x8000, 6(%a0)
+	lea	12(%a0), %a0
+6:	cmpa.l	%a1, %a0
+	bcs.s	5b
+	movea.l	S8B, %a0			| player 4
+	movea.l	E8B, %a1
+	bra.s	8f
+7:	eori.w	#0x8000, 6(%a0)
+	eori.w	#0x8000, 8(%a0)
+	lea	12(%a0), %a0
+8:	cmpa.l	%a1, %a0
+	bcs.s	7b
+	clr.l	S7				| the lists start again after this frame
 	clr.l	E7
 	clr.l	S8
 	clr.l	E8
+	clr.l	S7B
+	clr.l	E7B
+	clr.l	S8B
+	clr.l	E8B
 	move.l	#LIST, LAST
+	move.l	#LIST2, LAST2
 	lea	LIST, %a0			| what the replaced instruction did
 	rts
+

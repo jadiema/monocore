@@ -299,7 +299,14 @@ static void hud_open(void) {
     hud_text(hud_col[k], hud_row[k], name, HUD_PAL + k);
   }
 }
+// WINNER and OUT under the scores (patches/rules.s: OUT bytes at $10F660, the structure of the
+// winner at $10F668): the banners of the game are drawn for two players only
 static void hud_frame(void) {
+  uint32_t w = ram16(0x10F668) << 16 | ram16(0x10F66A), winner = w ? ram16(w + 2) : 99;
+  for (int k = 0; k < 4; k++) {
+    const char *state = (uint32_t)k == winner ? "WINNER! " : neo_ram[(0xF660 + k) ^ 1] ? "OUT     " : "        ";
+    hud_text(hud_col[k], hud_row[k] + 4, state, HUD_PAL + k);
+  }
   for (int k = 0; k < 4; k++) {
     uint32_t v = ram16(score_at[k]) << 16 | ram16(score_at[k] + 2);
     char t[9]; t[8] = 0;

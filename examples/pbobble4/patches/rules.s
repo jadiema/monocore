@@ -17,6 +17,7 @@
 	.equ	FIELD8, 0x10F65D
 	.equ	OUT, 0x10F660			| 4 bytes: the player is out of this round
 	.equ	LASTOUT, 0x10F664		| structure of the last player out
+	.equ	WINNER, 0x10F668		| structure of the winner of the round (patches/band.s)
 
 | expect 061E2E 34 crc32 0xd679758b	(the player has just lost: freeze the opponent)
 	.section .p_061E2E,"ax"
@@ -38,6 +39,11 @@
 	jsr	give_won
 	bra.s	.+0x1C-6
 	.fill	10,2,0x4e71
+| expect 032570 10 crc32 0x7b97dc0c	(bsr $32682 / bsr $327AE / rts: the WON and LOST banners)
+	.section .p_032570,"ax"
+	jmp	banners4
+	nop
+	nop
 | expect 0621D6 6 crc32 0x09f0a25a	(end of WON: the opponent, for the result)
 	.section .p_0621D6,"ax"
 	jsr	the_loser
@@ -48,7 +54,7 @@
 	.section .p_062224,"ax"
 	jsr	the_loser
 
-	.section .p_0F0600,"ax"
+	.section .p_0F0800,"ax"
 | d1 = number of players still in the round, a1 = the structure of the last one of them
 | (players 1 and 2 always have a field; 3 and 4 when their task is a field)
 in_round:
@@ -106,19 +112,35 @@ give_won:					| end of LOST: the last player left gets the WON
 	cmpi.w	#1, %d1
 	bne.s	1f
 	move.w	#10, 4(%a1)
+	move.l	%a1, WINNER
 1:	movem.l	(%sp)+, %d1/%a1
 	rts
 
-| a0 = the opponent of the winner, for the result: the last player out with four players, the
-| other player of the table of the game otherwise (replaces asl.w #2,d0 / movea.l $62252(pc,d0.w),a0)
+| a0 = the opponent of the winner, for the result (replaces asl.w #2,d0 / movea.l $62252(pc,d0.w),a0).
+| The result of the game knows two sides only, and counts the rounds won in 2-entry tables
+| (-10236(a5)...): with four players it gets a valid 2-player result, the other side of the
+| winner (player 2 when player 1 wins, player 1 otherwise); its banners are not drawn
+| (banners4 below), the screen of main.c says WINNER and OUT for each player.
 the_loser:
 	tst.w	FIELD7				| FIELD7 and FIELD8 together
 	beq.s	1f
-	movea.l	LASTOUT, %a0
-	cmpa.w	#0, %a0
+	lea	P1S, %a0
+	movea.l	WINNER, %a1
+	cmpa.w	#0, %a1
+	beq.s	2f
+	tst.w	2(%a1)
 	bne.s	2f
+	lea	P2S, %a0			| player 1 won
+	bra.s	2f
 1:	asl.w	#2, %d0
 	movea.l	opponents(%pc,%d0.w), %a0
 2:	rts
 opponents:
 	.long	P2S, P1S, P4S, P3S
+
+banners4:					| the banners of the result, with two players only
+	tst.w	FIELD7
+	bne.s	1f
+	jsr	0x32682				| WON
+	jsr	0x327AE				| LOST
+1:	rts
