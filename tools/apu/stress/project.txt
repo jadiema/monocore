@@ -1,0 +1,9 @@
+# Generated: python3 make_stress.py (main.c, noise.bin), then python3 ../../../sdk/build.py .
+# APU stress: the CPU runs ~200 KB of code and reads data from the ROM without locality while
+# 8 voices play 16-bit PCM from the ROM. With rtl/obj_sys (Verilator), the APU reports the samples
+# it computes late or loses (lines "APU second n").
+name    = apustress
+title   = APU STRESS
+library = mc
+sources = main.c
+data    = noise.bin
