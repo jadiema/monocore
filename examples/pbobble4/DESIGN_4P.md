@@ -47,6 +47,30 @@ Ces résultats viennent de parties du banc PC (`pc/bench.c`, actions `ramdump=` 
 `BENCH_FOOTPRINT=1`) qui ne diffèrent que par l'appui d'un joueur : le banc est déterministe, tout
 octet qui diffère dépend de cet appui.
 
+## Inventaire pour l'étape 3
+
+- **Manettes.** Le jeu tient un bloc de 4 octets par manette (`-28688(a5)` Start/Select,
+  `-28684(a5)` joueur 1, `-28680(a5)` joueur 2 : état courant inversé, précédent, fronts), rempli
+  par `$246C`/`$24BE` depuis les variables du BIOS. La lecture de manette de l'aire (`$62264`) passe
+  par trois tables à **4 entrées** (`$62496`, `$624A6`, `$624B6`) : le moteur de Taito prévoit 4
+  joueurs, mais les entrées 3 et 4 pointent vers `$100FFC` / `$101000`, que le jeu utilise pour
+  autre chose. Correctif : rediriger ces entrées vers de la RAM libre, et remplir les blocs 3 et 4
+  depuis les manettes 3 et 4 de la MONOCORE (dans `$246C`).
+- **RAM libre.** `$10598C`–`$108F9F` (13,8 Ko) ne change jamais, contre l'ordinateur comme à deux
+  joueurs : prévu pour les joueurs 3 et 4 : structures `$106000` / `$106100`, tampons `$106800` /
+  `$107000`, blocs de manette `$106200` / `$106204`. À revérifier sur le Puzzle Game et les autres
+  modes.
+- **Le numéro de joueur `2(a4)` est lu à 79 endroits** :
+  - une dizaine de **tables indexées à 2 entrées** (`$4337A`, `$44D38`, `$459D0`, `$5FD28`, `$5FD76`,
+    `$620CA`, `$485E4`, `$62B24`, `$74E16`) : à étendre à 4 entrées, sinon les joueurs 3 et 4
+    liraient hors de la table ;
+  - environ 65 **aiguillages à deux voies** (`tst.w 2(a4)` puis `bne`/`beq`) : position à l'écran
+    (`#$20` pour l'aire gauche, `#$B0` pour la droite), orientation, palettes. Les joueurs 3 et 4
+    prendraient la voie du joueur 2 et seraient dessinés sur son aire.
+- **Initialisation.** `$74D2A` initialise les deux structures (drapeau actif, numéro, pointeur de
+  tampon en `126(a4)`, puis `$74D68`) ; `$74EE8` écrit une valeur dans `98(a4)` des deux ; `$22B50`
+  crée les tâches 5 et 6.
+
 ## Étapes
 
 1. Cartographie (faite pour l'essentiel, `tools/map4p.py`).
@@ -60,6 +84,12 @@ octet qui diffère dépend de cet appui.
    pile), au lieu de « tâche 5 : joueur 1, sinon joueur 2 ». Vérifié au bit près : la RAM est
    identique, image par image, à celle du portage à 2 joueurs sur 2 401 images, à un joueur contre
    l'ordinateur comme à deux joueurs.
-3. 4 aires en mémoire : tâches 7 et 8, structures 3 et 4, manettes 3 et 4 ; affichage provisoire.
+3. a. 4 aires en mémoire : tâches 7 et 8, structures et tampons 3 et 4, manettes 3 et 4, les
+      tables indexées étendues. Les joueurs 3 et 4 seront dessinés par-dessus le joueur 2 : on
+      valide la logique par la RAM (le banc PC).
+   b. La position des aires : décaler les joueurs 3 et 4 hors de l'écran Neo Geo (par exemple de
+      256 lignes vers le bas), là où rien n'est affiché, pour que la couche MONOCORE reconnaisse
+      chaque aire à sa bande et la place à l'écran ; puis traiter les aiguillages qui comptent
+      vraiment (palettes, orientation).
 4. L'écran à 4 aires dans `main.c`.
 5. Les règles à 4 : choix du mode, attaques partagées, fin de partie, menus.
