@@ -1,0 +1,9 @@
+# Puzzle Bobble 2 / Bust-A-Move Again (Neo Geo, Taito 1995), translated for MONOCORE-1: the 4-player version.
+# Before building: tools/prepare.py (data from your copy) and tools/discover.py (translated code).
+name    = pbobble4
+title   = BUST-A-MOVE AGAIN 4P
+origin  = pbobbl2n (Neo Geo)
+library = mc
+sources = main.c neort.c build/tr/pb2_code.c
+data    = p1.bin spr.bin spr_cells.bin spr_map.bin fix.bin sounds.bin sounds_tab.bin music.bin music_tab.bin
+cflags  = -I. -I../../tools/recomp68k -DNEO_SRAM_SIZE=0x1000 -Wno-unused-label -Wno-unused-variable -Wno-unused-but-set-variable

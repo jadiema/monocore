@@ -1,0 +1,48 @@
+# A line marked "music" is one of the musics of the game, replaced by tools/sound/make_music.py: it is
+# not rendered here.
+# A line marked "silent" is kept empty: in the game it makes no sound (rendered alone, out of its
+# context, the driver plays garbage: saturated ADPCM-B for minutes).
+# Sound events of the game, as the Z80 driver reads them (tools/sound/events.py): a command alone,
+# or a prefix 18-1E and its parameter (the sound to play in the slot of that prefix). Found in the
+# sound commands of game sessions; make_sounds.py renders each of them. Codes only, no data.
+02        # start-up jingle (eye catcher)
+21        # music: game over (make_music.py)
+2E        # music: vs computer (make_music.py)
+19 10     # music: Puzzle Game (make_music.py)
+19 1A     # music: menus (make_music.py)
+19 1C     # music: map (make_music.py)
+19 21
+1A 14     # silent: sent after 14 19 / 14 1A, makes no sound there
+# sounds of slot 1A
+1A 19     # silent (as 1A 14)
+1A 21
+1A 22
+1A 24
+1A 25
+1A 26
+1A 27
+1A 28
+1A 29
+1A 2A
+1A 2B
+1A 2C
+1A 2E
+1A 2F
+1A 30
+1A 42     # shot
+1A 54
+1A 59
+1C 19     # silent alone: kept with length 0 so that it is known
+1D 19     # silent (as 1A 14)
+# found in long scripted sessions (vs computer, Puzzle Game, two players)
+24        # music: map of the paths A-E (make_music.py)
+23        # music: Puzzle Game, second world (make_music.py)
+19 13     # music: Puzzle Game, second world (make_music.py)
+19 15     # music: two players, gears stage (make_music.py)
+19 16     # music: two players, beach stage (make_music.py)
+19 23     # end of a Puzzle Game round, score
+1A 1A     # moving on the map of the paths
+1A 4E     # bubbles coming down late in a round
+1A 55     # big fall of bubbles (Puzzle Game)
+1A 56     # attack sent to the other side (two players)
+1A 57
