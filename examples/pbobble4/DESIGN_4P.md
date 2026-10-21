@@ -124,5 +124,29 @@ octet qui diffère dépend de cet appui.
       Outils de mesure ajoutés au banc (compilés à la demande) : `-DNEO_VRAM_OWNER` (tâche qui
       écrit chaque sprite), `-DNEO_RAM_OWNER` (tâches qui écrivent chaque mot de RAM, depuis
       `OWNER_FROM`), `-DNEO_READ_TRACE` (dernière adresse lue avant chaque position de sprite).
-4. L'écran à 4 aires dans `main.c`.
-5. Les règles à 4 : choix du mode, attaques partagées, fin de partie, menus.
+4. L'écran à 4 aires dans `main.c` : **fait**. Quand les tâches 7 et 8 sont les aires des joueurs 3
+   et 4 (octets `FIELD7` / `FIELD8`, posés au démarrage de l'aire, effacés quand la tâche se
+   termine : le jeu se sert de ces numéros de tâche pour autre chose sur d'autres écrans), l'écran
+   passe à 384 pixels :
+   - **aires** : chaque tuile de sprite de la liste de l'image est rattachée à son aire d'après sa
+     position (écran Neo Geo gauche/droite, bande), recadrée sur les 152 pixels utiles d'une
+     moitié d'écran, réduite à 5/8 (une tuile de 16 pixels fait exactement 10 pixels : pas de
+     jointure) et placée dans sa colonne de 96 pixels ;
+   - **décor** : les plans ne se réduisent pas ; les sprites fixes (en dessous du sprite 118, où
+     commence la liste de l'image) de l'aire gauche sont composés à 5/8 dans un sprite 8 bpp de
+     96 × 144 pixels en fin de CHR RAM, affiché derrière chacune des quatre aires (4 sprites par
+     ligne). Ses pixels désignent une fenêtre de palettes (240–254) où sont recopiées à chaque
+     image les palettes du décor (9 au plus mesurées) : couleurs exactes et fondus du jeu. Une
+     empreinte des sprites fixes détecte un changement de décor ; la composition prend environ
+     2,8 millions de cycles, une fois par décor ;
+   - **scores** : sur le plan 0, avec la police du plan fixe du jeu (codes ASCII, tuile vide
+     `$FF`), « PLAYER n » et le score (entier 32 bits) de chacun dans sa couleur (palettes
+     208–211). Le jeu n'utilise jamais les palettes 208–254 (mesuré) ; ses écritures y sont
+     ignorées pendant l'écran à quatre et restaurées ensuite, avec son plan fixe.
+   Vérifié dans le simulateur (`tools/play_4p.txt`) : les quatre aires, leur décor et leurs scores,
+   un changement de décor entre deux manches, le retour à l'écran à deux joueurs.
+5. Les règles à 4 : choix du mode, attaques partagées, fin de manche et de partie, menus ; et ce
+   que l'écran à quatre montre encore : les joueurs 3 et 4 ont l'apparence du joueur 2 (côté
+   droit), les en-têtes de score du jeu (sprites) restent en haut des aires 1 et 2, les scores des
+   joueurs 3 et 4 sont à vérifier (d'autres chemins de score peuvent viser les adresses des
+   joueurs 1 et 2), la limite de 64 sprites par ligne est à surveiller (`SPR_PEAK`).

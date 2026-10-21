@@ -20,6 +20,8 @@
 	.equ	E8, 0x10F650
 	.equ	SAVE_D1, 0x10F654		| registers kept here, not on the stack of the task
 	.equ	SAVE_A0, 0x10F658		| (the RAM of the game stays as without the patch)
+	.equ	FIELD7, 0x10F65C		| 1: task 7 is the field of player 3 (set as the field starts,
+	.equ	FIELD8, 0x10F65D		| patches/field.s; cleared here when the task ends)
 	.equ	LIST, 0x1001CE
 
 | expect 002A54 6 crc32 0x88fbfcb6	(lea -19260(a5),a4 / move.w (a4),d0)
@@ -34,14 +36,25 @@
 sched_hook:
 	move.l	%d1, SAVE_D1
 	move.l	%a0, SAVE_A0
-	move.w	-19260(%a5), %d1		| the task that gave the hand
+	move.l	-19258(%a5), %d1		| tasks alive: a task 7 or 8 that ended is no field any more
+	btst	#7, %d1
+	bne.s	5f
+	clr.b	FIELD7
+5:	btst	#8, %d1
+	bne.s	6f
+	clr.b	FIELD8
+6:	move.w	-19260(%a5), %d1		| the task that gave the hand
 	movea.l	-29066(%a5), %a0		| the list as it ends now
 	cmpi.w	#7, %d1
 	bne.s	1f
+	tst.b	FIELD7
+	beq.s	1f
 	move.l	LAST, S7
 	move.l	%a0, E7
 1:	cmpi.w	#8, %d1
 	bne.s	2f
+	tst.b	FIELD8
+	beq.s	2f
 	move.l	LAST, S8
 	move.l	%a0, E8
 2:	move.l	%a0, LAST

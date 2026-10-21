@@ -16,7 +16,10 @@ extern const uint32_t p1_size, spr_map_size;
 extern const uint8_t sounds_file[], sounds_tab_file[], music_file[], music_tab_file[];
 
 #define VRAM_BYTES  0x11000u                       // 0x8800 words
-#define CACHE_SLOTS ((MC_CHRRAM_SIZE - VRAM_BYTES) / 128)
+#define DECOR_W     12                             // decor of the four fields: 96 x 144 pixels, 8 bpp,
+#define DECOR_H     18                             // at the end of CHR RAM (see video_four)
+#define DECOR_BYTES (DECOR_W * DECOR_H * 64)
+#define CACHE_SLOTS ((MC_CHRRAM_SIZE - VRAM_BYTES - DECOR_BYTES) / 128)
 #define CACHE_BASE  (CHRRAM_BASE + VRAM_BYTES)
 #define SPR_PRIO    2                              // in front of layers 1-3, behind the fix layer
 
@@ -29,12 +32,22 @@ static inline uint16_t rgb555(uint32_t c) {
            b = ((c << 1) & 0x1E) | ((c >> 12) & 1);
   return (uint16_t)((r << 10) | (g << 5) | b);
 }
-void neo_platform_color(uint32_t index, uint32_t color) { PALETTE[index & 0xFFF] = rgb555(color); }
+static int four_mode;
+#define HUD_PAL     208                            // palettes 208-254 are never used by the game:
+#define DECOR_PAL   240                            // 208-211 the four players, 240-254 the decor window
+#define DECOR_SLOTS 15                             // (palette 255 holds the backdrop colour, 0xFFF)
+void neo_platform_color(uint32_t index, uint32_t color) {
+  index &= 0xFFF;                                  // ours in the 4-player screen (kept in neo_pal)
+  if (four_mode && index >= HUD_PAL * 16 && index < 255 * 16) return;
+  PALETTE[index] = rgb555(color);
+}
+
 void neo_platform_bank(void) {
   const uint16_t *p = neo_pal[neo.pal_bank];
   for (int i = 0; i < 0x1000; i++) PALETTE[i] = rgb555(p[i]);
 }
 void neo_platform_fix(uint32_t x, uint32_t y, uint32_t e) {
+  if (four_mode) return;                           // layer 0 shows the scores of the four players
   TILEMAP(0)[y * 64 + x] = MC_TILE(e & 0xFFF, e >> 12, 0);
 }
 void neo_platform_wait(uint32_t frame) {   // sleep until the vblank (neo.frame changes in the handler:
@@ -104,9 +117,219 @@ static void layer_column(int layer, int n) {
   }
 }
 
+// --- four players (DESIGN_4P.md, step 4): the four fields side by side ---
+// When tasks 7 and 8 run (patches/four.s), the screen is 384 pixels wide and every field is shown
+// at 5/8 of its size (a 16-pixel tile is 10 pixels: no seam between the tiles of a character).
+// Where the sprites of a field are (patches/band.s): players 1 and 2 on the Neo Geo screen, left
+// and right; players 3 and 4 in the band 256 lines below, on the right, player 4 256 pixels
+// further. Each field is the 152 useful pixels of its half of the Neo Geo screen.
+#define FOUR_W      384
+#define FOUR_SLOT   96                             // width of a field on the screen
+#define FOUR_TOP    22                             // first line of the fields
+#define FOUR_SCALE  160                            // 5/8 in 8.8
+#define LIST_FIRST  118                            // the list of the frame starts at this sprite: below, the fixed decor
+#define DECOR_BASE  (CHRRAM_BASE + MC_CHRRAM_SIZE - DECOR_BYTES)
+
+static inline uint32_t ram16(uint32_t a) { a &= 0xFFFF; return neo_ram[a] | neo_ram[a + 1] << 8; }
+// tasks 7 and 8 are the fields of players 3 and 4 (bytes FIELD7 and FIELD8, patches/band.s: the
+// game uses these task numbers for other things on other screens)
+static int four_running(void) { return neo_ram[0xF65C ^ 1] | neo_ram[0xF65D ^ 1]; }
+
+// field (0-3) and position in it of a tile at Neo Geo (x, y) in the 512 x 512 space; -1: none
+static int four_field(int x, int y, int *lx, int *ly) {
+  int yy = y & 0x1FF, xx = x & 0x1FF, k;
+  if (yy < 240 || yy >= 0x1F0) {                   // the Neo Geo screen: players 1 and 2
+    int xs = xx >= 0x1E0 ? xx - 0x200 : xx;
+    k = xs + 8 < 160 ? 0 : 1;
+    *lx = xs - (k ? 164 : 4); *ly = yy >= 0x1F0 ? yy - 0x200 : yy;
+  } else {                                         // the band: players 3 and 4
+    *ly = yy - 256;
+    if (xx >= 0x60 && xx < 0x160) { k = 2; *lx = xx - 164; }
+    else { int xp = (xx - 256) & 0x1FF; if (xp >= 0x1E0) xp -= 0x200; k = 3; *lx = xp - 164; }
+  }
+  if (*lx <= -16 || *lx >= 152 || *ly <= -16 || *ly >= 224) return -1;
+  return k;
+}
+
+// The decor of a field (the fixed sprites, below the list of the frame): the layers of the
+// MONOCORE do not shrink, so the decor of the left field is drawn once, at 5/8, into one 8 bpp
+// sprite of 96 x 144 pixels, and shown behind each of the four fields. Its pixels are
+// slot * 16 + colour: the up to 16 palettes of the decor are copied into the palettes 240-255
+// every frame (the decor follows the fades of the game). Drawn again when the decor changes.
+static const uint8_t zoom_x[16][16] = {   // pixels kept by the horizontal shrink of the Neo Geo
+  {0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0}, {0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0},
+  {0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0}, {0,0,1,0,1,0,0,0,1,0,0,0,1,0,0,0},
+  {0,0,1,0,1,0,0,0,1,0,0,0,1,0,1,0}, {0,0,1,0,1,0,1,0,1,0,0,0,1,0,1,0},
+  {0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0}, {1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0},
+  {1,0,1,0,1,0,1,0,1,1,1,0,1,0,1,0}, {1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0},
+  {1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1}, {1,0,1,1,1,0,1,1,1,1,1,0,1,0,1,1},
+  {1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,1}, {1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1},
+  {1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1}, {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}};
+static uint8_t decor_slot[256];                    // Neo Geo palette -> slot + 1 (0: none yet)
+static uint8_t decor_pal_of[16], decor_slots;
+static uint32_t decor_sign = 1;
+
+// one line of the decor: the fixed sprites on the Neo Geo line sl, x 4-155 (the left field)
+static void decor_line(int sl, uint16_t *line) {
+  const uint16_t *smap = (const uint16_t *)spr_map_file;
+  uint32_t count = spr_map_size / 2;
+  for (int x = 0; x < 152; x++) line[x] = 0xFFFF;
+  int px = 0, py = 0, prows = 0, pzy = 0, pw = 0;
+  for (int n = 1; n < LIST_FIRST; n++) {
+    uint32_t s2 = neo_vram[0x8000 + n], s3 = neo_vram[0x8200 + n], s4 = neo_vram[0x8400 + n];
+    int zx = (s2 >> 8) & 15, zy, rows, sx, sy;
+    if (s3 & 0x40) { sx = (px + pw) & 0x1FF; sy = py; rows = prows; zy = pzy; }
+    else { sx = s4 >> 7; sy = 0x200 - (s3 >> 7); rows = s3 & 0x3F; zy = s2 & 0xFF; }
+    px = sx; py = sy; prows = rows; pzy = zy; pw = zx + 1;
+    if (!rows) continue;
+    int x = sx >= 0x1E0 ? sx - 0x200 : sx;
+    if (x >= 156 || x <= 4 - 16) continue;
+    int sline = (sl - sy) & 0x1FF, zline = sline & 0xFF, invert = sline & 0x100;
+    if (invert) zline ^= 0xFF;
+    if (rows > 0x20) {
+      zline %= (zy + 1) << 1;
+      if (zline > zy) { zline = ((zy + 1) << 1) - 1 - zline; invert = !invert; }
+    } else if (sline >= (rows << 4) || zline > zy) continue;
+    int src = zy == 0xFF ? zline : zline * 256 / (zy + 1);
+    int tile = (src >> 4) & 0x1F, ty = src & 15;
+    if (invert) { ty ^= 15; tile ^= 0x1F; }
+    uint32_t t0 = neo_vram[n * 64 + tile * 2], t1 = neo_vram[n * 64 + tile * 2 + 1];
+    uint32_t num = t0 | ((t1 & 0xF0) << 12);
+    if (t1 & 2) ty ^= 15;
+    if (num >= count || !smap[num]) continue;
+    const uint8_t *row = spr_file + smap[num] * 128 + ty * 8;
+    for (int k = 0; k < 16; k++) {
+      int kk = (t1 & 1) ? 15 - k : k;
+      if (!zoom_x[zx][kk]) continue;
+      int p = (row[kk >> 1] >> ((kk & 1) * 4)) & 15, lx = x - 4;
+      if (p && lx >= 0 && lx < 152) line[lx] = (uint16_t)(((t1 >> 8) << 4) | p);
+      x++;
+    }
+  }
+}
+
+static void decor_draw(void) {
+  static uint16_t line[152];
+  static uint8_t cells[DECOR_W * 64];
+  for (int i = 0; i < 256; i++) decor_slot[i] = 0;
+  decor_slots = 0;
+  for (int ty = 0; ty < DECOR_H * 8; ty++) {
+    int sy = ty * 8 / 5;
+    if (sy < 224) decor_line(sy + 16, line); else for (int x = 0; x < 152; x++) line[x] = 0xFFFF;
+    for (int tx = 0; tx < DECOR_W * 8; tx++) {
+      int sx = tx * 8 / 5; uint32_t v = sx < 152 ? line[sx] : 0xFFFF; uint8_t b = 0;
+      if (v != 0xFFFF) {
+        uint32_t pal = v >> 4, slot = decor_slot[pal];
+        if (!slot && decor_slots < DECOR_SLOTS) { decor_pal_of[decor_slots] = (uint8_t)pal; slot = decor_slot[pal] = ++decor_slots; }
+        if (slot) b = (uint8_t)(((slot - 1) << 4) | (v & 15));
+      }
+      cells[(tx >> 3) * 64 + (ty & 7) * 8 + (tx & 7)] = b;
+    }
+    if ((ty & 7) == 7) mc_copy((volatile void *)(DECOR_BASE + (ty >> 3) * DECOR_W * 64), cells, sizeof cells);
+  }
+}
+
+static void decor_frame(void) {
+  uint32_t h = 2166136261u;                        // the decor changes: draw it again
+  for (int n = 1; n < LIST_FIRST; n++) {
+    h = (h ^ neo_vram[0x8000 + n]) * 16777619u; h = (h ^ neo_vram[0x8200 + n]) * 16777619u;
+    h = (h ^ neo_vram[0x8400 + n]) * 16777619u; h = (h ^ neo_vram[n * 64]) * 16777619u;
+    h = (h ^ neo_vram[n * 64 + 1]) * 16777619u; h = (h ^ neo_vram[n * 64 + 12]) * 16777619u;
+  }
+  if (h != decor_sign) { decor_sign = h; decor_draw(); }
+  const uint16_t *p = neo_pal[neo.pal_bank];        // its palettes, with the fades of the game
+  for (int k = 0; k < decor_slots; k++)
+    for (int c = 0; c < 16; c++) PALETTE[(DECOR_PAL + k) * 16 + c] = rgb555(p[decor_pal_of[k] * 16 + c]);
+}
+
+// The names and scores of the four players, under the fields, on layer 0 with the font of the
+// game's fix layer (ASCII codes). Scores: 32-bit binary, players 1 and 2 at $1057DC / $1057E0,
+// players 3 and 4 at $10F620 / $10F624 (patches/four.s).
+static const uint32_t score_at[4] = {0x1057DC, 0x1057E0, 0x10F620, 0x10F624};
+static const uint32_t hud_rgb[4] = {0x50C8FF, 0xFF6E6E, 0x78E678, 0xFAC83C};
+static void hud_text(int col, int row, const char *t, int pal) {
+  for (; *t; t++, col++) TILEMAP(0)[row * 64 + col] = MC_TILE((uint8_t)*t, pal, 0);
+}
+#define FIX_EMPTY 0xFF                             // the empty tile of the fix layer (the game clears with it)
+static void hud_open(void) {
+  for (int i = 0; i < 64 * 32; i++) TILEMAP(0)[i] = MC_TILE(FIX_EMPTY, 0, 0);
+  for (int k = 0; k < 4; k++) {                    // the font: 1 = the letter, 2 = its box (opaque)
+    uint32_t c = hud_rgb[k];
+    uint16_t v = (uint16_t)(((c >> 19) << 10) | (((c >> 11) & 31) << 5) | ((c >> 3) & 31));
+    for (int i = 1; i < 16; i++) PALETTE[(HUD_PAL + k) * 16 + i] = i == 1 ? v : 0;
+    char name[] = "PLAYER 1"; name[7] = (char)('1' + k);
+    hud_text(k * 12 + 2, 23, name, HUD_PAL + k);
+  }
+}
+static void hud_frame(void) {
+  for (int k = 0; k < 4; k++) {
+    uint32_t v = ram16(score_at[k]) << 16 | ram16(score_at[k] + 2);
+    char t[9]; t[8] = 0;
+    for (int i = 7; i >= 0; i--) { t[i] = (char)(v || i == 7 ? '0' + v % 10 : ' '); v /= 10; }
+    hud_text(k * 12 + 2, 25, t, HUD_PAL + k);
+  }
+}
+static void hud_close(void) {                      // the game's fix layer again
+  for (uint32_t x = 0; x < 40; x++)
+    for (uint32_t y = 0; y < 32; y++) {
+      uint32_t e = neo_vram[0x7000 + x * 32 + y];
+      TILEMAP(0)[y * 64 + x] = MC_TILE(e & 0xFFF, e >> 12, 0);
+    }
+  for (uint32_t x = 40; x < 64; x++) for (uint32_t y = 0; y < 32; y++) TILEMAP(0)[y * 64 + x] = MC_TILE(FIX_EMPTY, 0, 0);
+}
+
+static void video_four(void) {
+  const uint16_t *smap = (const uint16_t *)spr_map_file;
+  uint32_t count = spr_map_size / 2, anim = (neo.frame / ((neo.lspc_mode >> 8) + 1)) & 7;
+  int out = 0;
+  for (int n = 380; n >= LIST_FIRST && out < MC_SPRITES; n--) {
+    if (!sp_rows[n]) continue;
+    int rows = sp_rows[n] > 32 ? 32 : sp_rows[n], zy = sp_zy[n], zx = sp_zx[n];
+    for (int k = 0; k < rows && out < MC_SPRITES; k++) {
+      int lx, ly, f = four_field(sp_x[n], sp_top[n] + ((k * 16 * (zy + 1)) >> 8), &lx, &ly);
+      if (f < 0) continue;
+      uint32_t t0 = neo_vram[n * 64 + k * 2], t1 = neo_vram[n * 64 + k * 2 + 1];
+      uint32_t num = t0 | ((t1 & 0xF0) << 12);
+      if (t1 & 8) num = (num & ~7u) | anim; else if (t1 & 4) num = (num & ~3u) | (anim & 3);
+      if (num >= count || smap[num] == 0) continue;
+      int slot = cache_get(smap[num]);
+      if (slot < 0) continue;
+      sprite_t *s = &mc_spr[out++];
+      s->x = (int16_t)(f * FOUR_SLOT + 1 + ((lx * FOUR_SCALE) >> 8));
+      s->y = (int16_t)(FOUR_TOP + ((ly * FOUR_SCALE) >> 8));
+      s->tile = (uint16_t)(slot * 4);
+      s->pal = (uint8_t)(t1 >> 8); s->w = 2; s->h = 2;
+      s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | ((t1 & 1) ? SA_HFLIP : 0) | ((t1 & 2) ? SA_VFLIP : 0));
+      s->zoomx = (uint16_t)((((zx + 1) << 4) * FOUR_SCALE) >> 8);
+      s->zoomy = (uint16_t)(((zy + 1) * FOUR_SCALE) >> 8);
+    }
+  }
+  decor_frame();                                   // the decor, behind every other sprite
+  for (int f = 0; f < 4 && out < MC_SPRITES; f++) {
+    sprite_t *s = &mc_spr[out++];
+    s->x = (int16_t)(f * FOUR_SLOT); s->y = (int16_t)FOUR_TOP;
+    s->tile = (uint16_t)((DECOR_BASE - CACHE_BASE) / 64);
+    s->pal = (uint8_t)DECOR_PAL; s->w = DECOR_W; s->h = DECOR_H;
+    s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | SA_8BPP);
+    s->zoomx = s->zoomy = 0x100;
+  }
+  mc_sprites_used(out);
+  mc_copy(SPRITES, mc_spr, (uint32_t)out * sizeof(sprite_t));
+  hud_frame();
+  DISP_CTRL = DISP_ON | DISP_SPRITES | DISP_LAYER(0);
+}
+
 static uint32_t frames_short, tall_left;          // frames where tall columns had to stay sprites
 static void video_frame(void) {
   vframe++;
+  int four = four_running();
+  if (four != four_mode) {
+    four_mode = four; mc_video_mode(four ? FOUR_W : 320, 224);
+    if (four) hud_open();
+    else { neo_platform_bank(); hud_close(); }      // the palettes 208-255 and the fix layer of the game again
+    decor_sign = 1;
+    mc_debug("FOUR %d frame %u tasks %04X%04X\n", four, neo.frame, ram16(0x1034C6), ram16(0x1034C8));
+  }
   // 1. positions, sizes and groups: a sticky sprite continues the chain on its right, and so does a
   //    sprite of the same height and top, without shrink, exactly 16 pixels on the right of the
   //    previous one (backgrounds are drawn both ways)
@@ -124,6 +347,7 @@ static void video_frame(void) {
     sp_zx[n] = (uint8_t)zx; sp_zy[n] = (uint8_t)zy; sp_head[n] = (uint16_t)head; sp_layer[n] = 0;
     px = x; ptop = top; prows = rows; pzy = zy; pw = zx + 1; pzx = zx;
   }
+  if (four_mode) { video_four(); return; }
   // 2. tall columns without shrink go to layers, the first ones (behind) on layer 3; a column that
   //    does not fit the current layer opens the next one, so the Neo Geo drawing order is kept
   int layer = 4, lx = 0, ly = 0;

@@ -13,7 +13,13 @@
 | a4 = structure of the player whose field is the running task (task 5 = player 1 ... 8 = player 4).
 | No data register and no stack: a4 itself is the index (4 bytes per entry of the table).
 field_struct:
-	movea.w	-19260(%a5),%a4			| number of the running task
+	cmpi.w	#7, -19260(%a5)			| tasks 7 and 8 are fields of players 3 and 4 from now on
+	bne.s	1f				| (the game uses these task numbers for other things on
+	move.b	#1, 0x10F65C			|  other screens: patches/band.s, main.c)
+1:	cmpi.w	#8, -19260(%a5)
+	bne.s	2f
+	move.b	#1, 0x10F65D
+2:	movea.w	-19260(%a5),%a4			| number of the running task
 	adda.w	%a4,%a4
 	adda.w	%a4,%a4				| x 4
 	movea.l	field_table-20(%pc,%a4.w),%a4	| entry for tasks 5-8 (the table starts at task 5)
