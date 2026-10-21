@@ -133,9 +133,10 @@ octet qui diffère dépend de cet appui.
      moitié d'écran, réduite à 5/8 (une tuile de 16 pixels fait exactement 10 pixels : pas de
      jointure) et placée dans sa colonne de 96 pixels ;
    - **décor** : les plans ne se réduisent pas ; les sprites fixes (en dessous du sprite 118, où
-     commence la liste de l'image) de l'aire gauche sont composés à 5/8 dans un sprite 8 bpp de
-     96 × 144 pixels en fin de CHR RAM, affiché derrière chacune des quatre aires (4 sprites par
-     ligne). Ses pixels désignent une fenêtre de palettes (240–254) où sont recopiées à chaque
+     commence la liste de l'image) de l'aire gauche sont composés à 5/8 dans 12 × 18 cellules de
+     8 × 8 en 8 bpp en fin de CHR RAM, que le plan 1 montre derrière chacune des quatre aires.
+     (D'abord quatre sprites : derniers de la table, ils étaient les premiers ignorés sur les
+     lignes de plus de 64 sprites, et le décor disparaissait quand les aires se remplissaient.) Ses pixels désignent une fenêtre de palettes (240–254) où sont recopiées à chaque
      image les palettes du décor (9 au plus mesurées) : couleurs exactes et fondus du jeu. Une
      empreinte des sprites fixes détecte un changement de décor ; la composition prend environ
      2,8 millions de cycles, une fois par décor ;

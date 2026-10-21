@@ -18,7 +18,7 @@ extern const uint8_t sounds_file[], sounds_tab_file[], music_file[], music_tab_f
 #define VRAM_BYTES  0x11000u                       // 0x8800 words
 #define DECOR_W     12                             // decor of the four fields: 96 x 144 pixels, 8 bpp,
 #define DECOR_H     18                             // at the end of CHR RAM (see video_four)
-#define DECOR_BYTES (DECOR_W * DECOR_H * 64)
+#define DECOR_BYTES ((DECOR_W * DECOR_H + 1) * 64)  // + one empty cell for the rest of layer 1
 #define CACHE_SLOTS ((MC_CHRRAM_SIZE - VRAM_BYTES - DECOR_BYTES) / 128)
 #define CACHE_BASE  (CHRRAM_BASE + VRAM_BYTES)
 #define SPR_PRIO    2                              // in front of layers 1-3, behind the fix layer
@@ -155,8 +155,10 @@ static int four_field(int x, int y, int *lx, int *ly) {
 }
 
 // The decor of a field (the fixed sprites, below the list of the frame): the layers of the
-// MONOCORE do not shrink, so the decor of the left field is drawn once, at 5/8, into one 8 bpp
-// sprite of 96 x 144 pixels, and shown behind each of the four fields. Its pixels are
+// MONOCORE do not shrink, so the decor of the left field is drawn once, at 5/8, into 12 x 18
+// cells of 8 x 8 pixels in 8 bpp in CHR RAM, and layer 1 shows them behind each of the four
+// fields (no sprite: sprites of the decor, the last ones of the table, were the first ones left
+// out on the lines with more than 64 sprites, and the decor disappeared there). Its pixels are
 // slot * 16 + colour: the up to 16 palettes of the decor are copied into the palettes 240-255
 // every frame (the decor follows the fades of the game). Drawn again when the decor changes.
 static const uint8_t zoom_x[16][16] = {   // pixels kept by the horizontal shrink of the Neo Geo
@@ -254,7 +256,19 @@ static void hud_text(int col, int row, const char *t, int pal) {
   for (; *t; t++, col++) TILEMAP(0)[row * 64 + col] = MC_TILE((uint8_t)*t, pal, 0);
 }
 #define FIX_EMPTY 0xFF                             // the empty tile of the fix layer (the game clears with it)
+static void decor_layer_open(void) {             // layer 1: the decor cells, four times side by side
+  mc_layer(1, MC_CHR(DECOR_BASE - CHRRAM_BASE), MC_TILE8 | MC_8BPP, 64, 32, 0);
+  mc_layer_scroll(1, 0, -FOUR_TOP);                // screen y = layer y + FOUR_TOP
+  mc_fill((volatile void *)(DECOR_BASE + DECOR_W * DECOR_H * 64), 0, 64);   // the empty cell
+  for (int y = 0; y < 32; y++)
+    for (int x = 0; x < 64; x++) {
+      int f = x / DECOR_W, cx = x % DECOR_W;
+      uint32_t t = (f < 4 && y < DECOR_H) ? (uint32_t)(y * DECOR_W + cx) : DECOR_W * DECOR_H;
+      TILEMAP(1)[y * 64 + x] = MC_TILE(t, DECOR_PAL, 0);
+    }
+}
 static void hud_open(void) {
+  decor_layer_open();
   for (int i = 0; i < 64 * 32; i++) TILEMAP(0)[i] = MC_TILE(FIX_EMPTY, 0, 0);
   for (int k = 0; k < 4; k++) {                    // the font: 1 = the letter, 2 = its box (opaque)
     uint32_t c = hud_rgb[k];
@@ -272,7 +286,8 @@ static void hud_frame(void) {
     hud_text(k * 12 + 2, 25, t, HUD_PAL + k);
   }
 }
-static void hud_close(void) {                      // the game's fix layer again
+static void hud_close(void) {                      // the game's fix layer again, and layer 1
+  mc_layer(1, spr_file, MC_TILE16 | MC_4BPP, 32, 32, 0);
   for (uint32_t x = 0; x < 40; x++)
     for (uint32_t y = 0; y < 32; y++) {
       uint32_t e = neo_vram[0x7000 + x * 32 + y];
@@ -307,19 +322,11 @@ static void video_four(void) {
       s->zoomy = (uint16_t)(((zy + 1) * FOUR_SCALE) >> 8);
     }
   }
-  decor_frame();                                   // the decor, behind every other sprite
-  for (int f = 0; f < 4 && out < MC_SPRITES; f++) {
-    sprite_t *s = &mc_spr[out++];
-    s->x = (int16_t)(f * FOUR_SLOT); s->y = (int16_t)FOUR_TOP;
-    s->tile = (uint16_t)((DECOR_BASE - CACHE_BASE) / 64);
-    s->pal = (uint8_t)DECOR_PAL; s->w = DECOR_W; s->h = DECOR_H;
-    s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | SA_8BPP);
-    s->zoomx = s->zoomy = 0x100;
-  }
+  decor_frame();                                   // the decor, on layer 1
   mc_sprites_used(out);
   mc_copy(SPRITES, mc_spr, (uint32_t)out * sizeof(sprite_t));
   hud_frame();
-  DISP_CTRL = DISP_ON | DISP_SPRITES | DISP_LAYER(0);
+  DISP_CTRL = DISP_ON | DISP_SPRITES | DISP_LAYER(0) | DISP_LAYER(1);
 }
 
 static uint32_t frames_short, tall_left;          // frames where tall columns had to stay sprites
