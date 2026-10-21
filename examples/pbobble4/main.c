@@ -50,8 +50,11 @@ void neo_platform_fix(uint32_t x, uint32_t y, uint32_t e) {
   if (four_mode) return;                           // layer 0 shows the scores of the four players
   TILEMAP(0)[y * 64 + x] = MC_TILE(e & 0xFFF, e >> 12, 0);
 }
+static uint32_t idle_cycles, waits;                 // load, reported every 10 s
 void neo_platform_wait(uint32_t frame) {   // sleep until the vblank (neo.frame changes in the handler:
+  uint32_t t0 = (uint32_t)mc_cycles(); waits++;
   while (*(volatile uint32_t *)&neo.frame == frame) wfi();   // read it again on every turn)
+  idle_cycles += (uint32_t)mc_cycles() - t0;
 }
 uint32_t neo_platform_line(void) {                 // MONOCORE line -> Neo Geo line from the vblank
   uint32_t total = (uint32_t)mc_screen_h() + 24, v = VCOUNT;
@@ -513,10 +516,12 @@ static void vblank(void) {
   video_frame();
   uint32_t t = (uint32_t)mc_cycles() - t0;       // conversion time, reported every 10 s
   conv_sum += t; if (t > conv_max) conv_max = t;
-  if (vframe % 600 == 0) {
-    mc_debug("frame %u: conversion %u cycles on average, %u at most; %u frames short of layers\n",
-             vframe, conv_sum / 600, conv_max, frames_short);
-    conv_sum = conv_max = 0; frames_short = 0;
+  if (vframe % 600 == 0) {                         // per frame: 833 333 cycles at 50 MHz and 60 Hz
+    uint32_t idle = idle_cycles > conv_sum ? idle_cycles - conv_sum : 0;   // the conversion runs while the game waits
+    mc_debug("frame %u: conversion %u cycles on average, %u at most; game %u%% of the time, %u of 600 frames on time%s\n",
+             vframe, conv_sum / 600, conv_max, 100 - (uint32_t)((uint64_t)idle * 100 / (600ull * CPU_HZ / 60)),
+             waits, four_mode ? " (4 players)" : "");
+    conv_sum = conv_max = 0; frames_short = 0; idle_cycles = 0; waits = 0;
   }
   neo_vblank(&cpu);
 }

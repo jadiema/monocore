@@ -145,6 +145,18 @@ octet qui diffère dépend de cet appui.
      ignorées pendant l'écran à quatre et restaurées ensuite, avec son plan fixe.
    Vérifié dans le simulateur (`tools/play_4p.txt`) : les quatre aires, leur décor et leurs scores,
    un changement de décor entre deux manches, le retour à l'écran à deux joueurs.
+   **Vitesse.** Sur la MiSTer, la partie à quatre ralentissait : mesuré dans le simulateur (`main.c`
+   donne toutes les 10 s la charge et le nombre d'images à l'heure), le jeu ne tenait que 300 images
+   sur 600 (30 images/s), le travail d'une image dépassant un peu le budget (833 000 cycles à
+   50 MHz). Profil réel (`tools/prof.js` échantillonne le compteur ordinal du simulateur après
+   chaque ligne, `tools/prof.py` rattache les adresses aux lignes du code traduit — construction
+   avec `-gline-tables-only`, puis aux routines du 68000) : l'envoi de la liste de sprites à la
+   VRAM par l'interruption d'image (`$D36`–`$E18`, mot par mot à travers les registres LSPC
+   émulés) prenait 11 % du temps. Il est maintenant fait en C (`neort.c`, `native_sprites`,
+   appelé par `patches/sprites.s` à l'adresse `$C00F00` que le runtime traite comme le BIOS) :
+   VRAM et registres LSPC identiques à l'original à chaque image (2 600 images à quatre et contre
+   l'ordinateur, `BENCH_VHASH=1`). Résultat : 562 à 575 images sur 600 à quatre (environ 57
+   images/s), charge 84–87 %.
 5. Les règles à 4 : choix du mode, attaques partagées, fin de manche et de partie, menus ; et ce
    que l'écran à quatre montre encore : les joueurs 3 et 4 ont l'apparence du joueur 2 (côté
    droit), les en-têtes de score du jeu (sprites) restent en haut des aires 1 et 2, les scores des

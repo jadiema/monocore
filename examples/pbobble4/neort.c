@@ -246,8 +246,80 @@ void neo_vblank(m68k_t *c) {
   update_ipl(c);
 }
 
+// --- the sending of the sprite list, in C (4-player version, patches/sprites.s) ---
+// The vertical-blank routine of the game ($D36-$E18) writes every sprite of the frame list into
+// the video RAM word by word through the LSPC registers; with four fields this was 11 % of the
+// time of the console. This is the same work from $D40 to $E12, writing the video RAM directly
+// (with the address rule of the LSPC), leaving the LSPC registers as the original leaves them.
+#define NATIVE_SPRITES 0xC00F00
+static uint32_t nv_addr, nv_mod;                    // the LSPC address and modulo, as the original sets them
+static inline void nv_put(uint32_t v) {
+  uint32_t i = vram_index(nv_addr);
+  neo_vram[i] = (uint16_t)v;
+  if (i >= 0x7000 && i < 0x7500) neo_platform_fix((i - 0x7000) >> 5, i & 31, v);
+  nv_addr = (nv_addr & 0x8000) | ((nv_addr + nv_mod) & 0x7FFF);
+}
+static inline uint32_t gw16(uint32_t a) {           // a word anywhere (sprite definitions are in ROM)
+  a &= 0xFFFFFF;
+  if ((a & 0xF00000) == 0x100000) return mem16(a);
+  if (a < neo_rom_size) return *(const uint16_t *)(neo_rom + (a & ~1u));
+  return neo_rd16(a) & 0xFFFF;
+}
+// $F5A (and $FD0 when bit 0 of +4 is set: the columns from right to left): a sprite of several
+// tiles, d0 = (rows - 1) << 8 | (columns - 1)
+static void nv_block(uint32_t a0, uint32_t *a1, uint32_t d0, uint32_t *d3, uint32_t *d4) {
+  uint32_t cols = d0 & 0xFF, rows = (d0 >> 8) & 0xFF, flip = gw16(a0 + 4) & 1;
+  uint32_t first = flip ? (*d3 + (cols << 6)) & 0xFFFF : *d3, saved = first;
+  uint32_t x3 = first;
+  for (uint32_t col = 0; col <= cols; col++) {
+    nv_addr = *d4; nv_mod = 0x200;
+    nv_put(gw16(a0 + 10));
+    nv_put(col ? 0x40 : (gw16(a0 + 6) + rows) & 0xFFFF);
+    if (!col) nv_put(gw16(a0 + 8));
+    uint32_t d7 = gw16(a0 + 4);
+    nv_addr = x3; nv_mod = 1;
+    for (uint32_t r = 0; r <= rows; r++) {
+      nv_put(gw16(*a1)); uint32_t d2 = gw16(*a1 + 2); *a1 += 4;
+      nv_put(d7 ^ d2);
+    }
+    x3 = flip ? (x3 - 0x40) & 0xFFFF : (x3 + 0x40) & 0xFFFF;
+    *d4 = (*d4 + 1) & 0xFFFF;
+  }
+  *d3 = flip ? (saved + 0x40) & 0xFFFF : x3;
+}
+static void native_sprites(m68k_t *c) {
+  uint32_t a5 = c->a[5], d3 = 0x1D80, d4 = 0x8076, a0, a1, d0;
+  wmem16(mem32(a5 - 29066), 0xFFFF);                // end of the frame list
+  for (a0 = 0x1001CE; !(mem32(a0) & 0x80000000u); a0 += 12) {
+    a1 = mem32(a0); d0 = gw16(a1); a1 += 2;
+    if (d0) { nv_block(a0, &a1, d0, &d3, &d4); continue; }
+    nv_addr = d3; nv_mod = 1;                      // one tile: SCB1, then SCB2-4
+    nv_put(gw16(a1));
+    nv_put(gw16(a0 + 4) ^ gw16(a1 + 2));
+    d3 = (d3 + 0x40) & 0xFFFF;
+    nv_addr = d4; nv_mod = 0x200;
+    nv_put(gw16(a0 + 10)); nv_put(gw16(a0 + 6)); nv_put(gw16(a0 + 8));
+    d4 = (d4 + 1) & 0xFFFF;
+  }
+  wmem16(mem32(a5 - 29062), 0xFFFF);                // the second list: blocks only
+  for (a0 = 0x100DFE; !(mem32(a0) & 0x80000000u); a0 += 12) {
+    a1 = mem32(a0); d0 = gw16(a1); a1 += 2;
+    nv_block(a0, &a1, d0, &d3, &d4);
+  }
+  wmem32(a5 - 29066, 0x1001CE); wmem32(a5 - 29062, 0x100DFE);
+  d0 = ((mem16(a5 - 11000) ? 0x8160 : 0x817D) - d4) & 0xFFFF;   // the vertical positions of the
+  d4 = (d4 + 0x200) & 0xFFFF;                       // sprites left over: 0 (dbf: d0 + 1 words)
+  nv_addr = d4; nv_mod = 1;
+  for (uint32_t n = d0 + 1; n; n--) nv_put(0);
+  neo.vram_addr = nv_addr; neo.vram_mod = nv_mod;
+  c->d[3] = (c->d[3] & 0xFFFF0000u) | d3;           // (registers are restored by $E14 anyway)
+}
+
 uint32_t neo_bios(m68k_t *c, uint32_t pc) {
   switch (pc) {
+  case NATIVE_SPRITES:
+    native_sprites(c);
+    return rts(c);
   case SYSTEM_INT1:                    // vertical blank while the BIOS owns the machine
     neo.vbl_pending = 0; update_ipl(c);
     wram8(BIOS_VBL_WAIT, 0);

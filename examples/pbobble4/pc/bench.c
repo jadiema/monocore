@@ -160,11 +160,18 @@ static void actions(uint32_t frame) {
 }
 
 static uint32_t hot[0x88000];          // samples per 68000 word address (ROM and RAM), for the report
+static uint32_t hot_from;                 // HOT_FROM=frame: samples from that frame only
 void bench_tick(uint32_t pc) {
-  if (pc < 0x110000) hot[pc >> 1]++;
+  if (pc < 0x110000 && neo.frame >= hot_from) hot[pc >> 1]++;
   if (++ticks < TICKS_PER_FRAME) return;
   ticks = 0;
   actions(neo.frame + 1);
+  if (getenv("BENCH_VHASH")) {          // one hash of the video RAM and LSPC registers per frame
+    uint32_t h = 2166136261u;
+    for (int i = 0; i < 0x8800; i++) h = (h ^ neo_vram[i]) * 16777619u;
+    h = (h ^ neo.vram_addr) * 16777619u; h = (h ^ neo.vram_mod) * 16777619u;
+    printf("frame %u vram %08X\n", neo.frame, h);
+  }
   if (getenv("BENCH_HASH")) {           // one hash of the work RAM per frame, to compare two builds
     uint32_t h = 2166136261u;
     for (int i = 0; i < 0x10000; i++) h = (h ^ neo_ram[i]) * 16777619u;
@@ -264,6 +271,7 @@ int main(int argc, char **argv) {
   neo_vram = vram_mem;
   neo_reset(&cpu);
   if (getenv("OWNER_FROM")) owner_from = atoi(getenv("OWNER_FROM"));
+  if (getenv("HOT_FROM")) hot_from = atoi(getenv("HOT_FROM"));
   if (!setjmp(done)) m68k_run(&cpu);
 #ifdef NEO_VRAM_OWNER
   owner_report();
@@ -275,6 +283,9 @@ int main(int argc, char **argv) {
   scb_source_report();
 #endif
   if (getenv("BENCH_REPORT")) report();
+  if (getenv("BENCH_HOT")) {             // the samples, for tools: u32 per 68000 word address
+    FILE *f = fopen(getenv("BENCH_HOT"), "wb"); fwrite(hot, 4, 0x88000, f); fclose(f);
+  }
   if (getenv("BENCH_DUMP")) {            // raw VRAM and palettes, for scripts
     FILE *f = fopen("vram.bin", "wb"); fwrite(neo_vram, 2, 0x8800, f); fclose(f);
     f = fopen("pal.bin", "wb"); fwrite(neo_pal, 2, 0x2000, f); fclose(f);
