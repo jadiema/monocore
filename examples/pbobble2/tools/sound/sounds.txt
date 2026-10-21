@@ -34,3 +34,15 @@
 1A 59
 1C 19     # silent alone: kept with length 0 so that it is known
 1D 19     # silent (as 1A 14)
+# found in long scripted sessions (vs computer, Puzzle Game, two players)
+24        # music: map of the paths A-E (make_music.py)
+23        # music: Puzzle Game, second world (make_music.py)
+19 13     # music: Puzzle Game, second world (make_music.py)
+19 15     # music: two players, gears stage (make_music.py)
+19 16     # music: two players, beach stage (make_music.py)
+19 23     # end of a Puzzle Game round, score
+1A 1A     # moving on the map of the paths
+1A 4E     # bubbles coming down late in a round
+1A 55     # big fall of bubbles (Puzzle Game)
+1A 56     # attack sent to the other side (two players)
+1A 57

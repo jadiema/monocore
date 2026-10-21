@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """Splits a stream of sound commands into the events of the Z80 driver of the game.
 
-The driver queues every byte the 68000 writes, then reads them one by one: 0A, 0E, 14, 15 and
-18-1E read one more byte (their parameter), every other command is alone. Used by make_sounds.py
+The driver queues every byte the 68000 writes, then reads them one by one: 0A, 0E, 14 and 18-1E
+read one more byte (their parameter), 15 reads two (15 a b: sound b of the slot a, used for the
+second player), every other command is alone. Used by make_sounds.py
 and, written again in C, by neort.c.
 """
-TWO = {0x0A, 0x0E, 0x14, 0x15} | set(range(0x18, 0x1F))
+TWO = {0x0A, 0x0E, 0x14} | set(range(0x18, 0x1F))
+THREE = {0x15}
 
 
 def split(cmds):
     out, k = [], 0
     while k < len(cmds):
         c = cmds[k]
-        if c in TWO and k + 1 < len(cmds): out.append((c, cmds[k + 1])); k += 2
+        if c in THREE and k + 2 < len(cmds): out.append((c, cmds[k + 1], cmds[k + 2])); k += 3
+        elif c in TWO and k + 1 < len(cmds): out.append((c, cmds[k + 1])); k += 2
         else: out.append((c,)); k += 1
     return out
 

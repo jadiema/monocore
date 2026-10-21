@@ -22,7 +22,8 @@ typedef struct {
   uint16_t vram_addr, vram_mod, lspc_mode;
   uint8_t pal_bank, fix_cart;         // palette bank shown by the CPU, fix tiles from the cartridge
   uint8_t vbl_pending, timer_pending;
-  uint8_t sound_cmd, sound_reply, sound_prefix;   // sound_prefix: a two-byte command waiting
+  uint8_t sound_cmd, sound_reply, sound_prefix, sound_left, sound_first;   // a command waiting for its
+                                      // parameters: sound_left more bytes, sound_first the first one
   uint8_t p1, p2, status_b;           // inputs set by the platform layer, 1 = pressed:
                                       // p1/p2 bits 0 up, 1 down, 2 left, 3 right, 4 A, 5 B, 6 C, 7 D;
                                       // status_b bits 0 P1 start, 1 P1 select, 2 P2 start, 3 P2 select

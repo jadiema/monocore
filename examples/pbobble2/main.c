@@ -238,7 +238,7 @@ void neo_platform_sound(uint32_t prefix, uint32_t code) {
   }
   if (prefix && (prefix < 0x18 || prefix > 0x1E)) return;     // 0A, 0E, 15: settings of the driver
   const mus_t *m = music_find(prefix << 8 | code);
-  if (m) { if (m != music_now) music_play(m); return; }
+  if (m) { if (!music_now || m->off_l != music_now->off_l) music_play(m); return; }   // same piece: goes on
   const snd_t *s = snd_find(prefix << 8 | code);
   if (!s) {
     if (prefix || code >= 0x20 || code == 0x02) mc_debug("SOUND %02X %02X missing: add it to tools/sound/sounds.txt\n", prefix, code);

@@ -200,7 +200,16 @@ MUSICS = [
                                     [1, 0.5, 0.5, 0.5, 0.5, 1], 'brass', 'marimba', 41)),
     ('gameover', 0x0021, lambda: song(96, 'D', ['Dm', 'Bb', 'Gm', 'A', 'Dm', 'Bb', 'Gm', 'A7'],
                                       [2, 1, 1], 'marimba', 'marimba', 53, drums='soft')),
+    ('gears', 0x1913, lambda: song(140, 'A', ['Am', 'F', 'G', 'Em', 'Am', 'F', 'Dm', 'E7',
+                                              'F', 'G', 'Em', 'Am', 'Dm', 'G', 'Am', 'E7'],
+                                   [0.5, 0.5, 0.5, 0.5, 1, 1], 'brass', 'marimba', 67)),
 ]
+# other events of the game that start a music: they play one of the pieces above (a music already
+# playing is not started again)
+ALIASES = [(0x0024, 'map'),          # the map of the paths A-E (vs computer)
+           (0x0023, 'gears'),        # Puzzle Game, second world
+           (0x1915, 'gears'),        # two players, gears stage
+           (0x1916, 'game')]         # two players, beach stage
 
 
 def main():
@@ -216,6 +225,8 @@ def main():
         while len(data) % 4: data.append(0)
         off = len(data); data += np.clip(np.round((L + R) * 0.5 * g), -32768, 32767).astype('<i2').tobytes()
         tab.append((key, off, off, len(L)))
+        for akey, aname in ALIASES:
+            if aname == name: tab.append((akey, off, off, len(L)))
     open(os.path.join(root, 'music.bin'), 'wb').write(bytes(data))
     with open(os.path.join(root, 'music_tab.bin'), 'wb') as f:
         f.write(struct.pack('<I', len(tab)))

@@ -21,7 +21,7 @@ python3 tools/m68kmap.py                    # carte du code 68000
 python3 tools/translate.py                  # programme traduit : build/tr/pb2_code.c (environ une minute)
 python3 tools/sound/make_music.py           # musiques
 python3 tools/sound/make_sfx.py             # bruitages
-python3 ../../sdk/build.py .                # build/pbobble2.mnc (23,2 Mo)
+python3 ../../sdk/build.py .                # build/pbobble2.mnc (25,8 Mo)
 ```
 
 Il faut aussi clang, ld.lld et llvm-objcopy (comme pour tout le SDK). La ROM se charge dans
@@ -114,8 +114,10 @@ musique `2E` est muette ; dans la vraie partie, elle joue autrement que rendue s
 pré-rendus ne peuvent donc pas reproduire ses musiques en jeu. Comme le portage servira de base à
 une version 4 joueurs, les musiques sont remplacées par des **compositions originales** de style
 arcade (marimba, cuivres, basse, percussions), synthétisées par `tools/sound/make_music.py` comme la
-musique d'AUBE : menus (`19 1A`), carte (`19 1C`), partie contre l'ordinateur (`2E`), Puzzle Game
-(`19 10`), game over (`21`). Mono, 16 bits, 22 050 Hz, 8,9 Mo ; chaque morceau est rendu deux fois
+musique d'AUBE : menus (`19 1A`), carte (`19 1C`, et `24` pour la carte des chemins), partie contre
+l'ordinateur (`2E`, et `19 16` à deux joueurs), Puzzle Game (`19 10`), engrenages (`19 13` et `23`
+au 2e monde du Puzzle Game, `19 15` à deux joueurs), game over (`21`). Mono, 16 bits, 22 050 Hz,
+11,2 Mo ; chaque morceau est rendu deux fois
 et la seconde passe est gardée, pour que sa fin rejoigne son début (réverbération comprise) et
 qu'il boucle dans le matériel sans couture.
 
@@ -125,7 +127,17 @@ choisi d'après ce que fait le jeu quand il l'envoie (relevé contre la manette 
 séances) : `1A 42` rotation du lanceur (clic), `1A 21` tir, `1A 24` bulle qui touche ou s'accroche,
 `1A 22` éclatement, `1A 25`/`2A` chute de bulles, `1A 26`/`28`/`29` gros combo, `1A 2B`/`2C`
 validation, `1A 27` curseur, `1A 2E`/`2F` début de manche et READY GO, `1A 30` fin de manche,
-`19 21` manche gagnée, `02` animation NEOGEO. La table a le même format qu'avant.
+`19 21` et `19 23` manche gagnée, `02` animation NEOGEO, et, trouvés dans de longues parties
+scriptées (`tools/play_long_*.txt`) : `1A 1A` déplacement sur la carte des chemins, `1A 4E` bulles
+qui descendent, `1A 55` grande chute de bulles, `1A 56`/`57` attaque envoyée à l'adversaire. La
+table a le même format qu'avant.
+
+**Tous les sons possibles.** Le jeu demande ses sons par un numéro logique (`move.w #n, -18014(a5)`
+puis `jsr $2ECE`), que `$2ECE` traduit par une table de 256 mots en `$2CCE` (et coupe pendant la démo
+selon un réglage du BIOS) avant de ranger les deux octets dans la file d'envoi (`$2F04`). Le
+programme utilise 80 numéros, soit 72 commandes différentes ; une trentaine, sans doute des voix et
+réactions des personnages des manches avancées et de l'histoire, n'a encore été rencontrée dans
+aucune partie : quand le jeu en demande une, la console de débogage affiche `SOUND xx yy missing`.
 
 ```sh
 python3 tools/sound/make_music.py        # music.bin, music_tab.bin
@@ -138,7 +150,8 @@ comprendre le pilote et ne sont plus nécessaires pour construire la ROM.
 
 - **Protocole** (désassemblage du pilote) : le gestionnaire de NMI range chaque octet dans une file
   de 64 entrées ; la boucle principale les lit un par un. `0A`, `0E`, `14`, `15` et `18`–`1E` lisent
-  un octet de paramètre : `1A 42` joue le son `42` dans la case de `1A` (le tir). Une table du pilote
+  un octet de paramètre : `1A 42` joue le son `42` dans la case de `1A` (le tir) ; `15` en lit deux
+  (`15 1A 42` : le même son pour le second joueur, traité comme `1A 42`). Une table du pilote
   (`$2FF4`) classe les commandes seules. `tools/sound/events.py`, et `neort.c` en C, découpent les
   commandes de la même façon.
 - **Sons du jeu** : `tools/sound/sounds.txt` (des numéros seulement), relevés sur les séances
@@ -150,4 +163,4 @@ comprendre le pilote et ne sont plus nécessaires pour construire la ROM.
   bruitages (la leur s'ils rejouent, sinon une libre, sinon le plus ancien) ; `MUSIC_VOL` et
   `SFX_GAIN` règlent l'équilibre (crêtes de 0,36 à 0,45 sur les séances) ; un son absent est
   signalé `SOUND xx yy missing`.
-- **Taille** : la ROM fait 23,2 Mo (carte SD).
+- **Taille** : la ROM fait 25,8 Mo (carte SD).

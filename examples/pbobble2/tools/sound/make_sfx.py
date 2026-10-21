@@ -129,6 +129,29 @@ def beep(f, dur):
     return x
 
 
+def steps():                    # moving along the map of the paths
+    return fade_out(mix([(blip(), 0, 0.8), (blip(), 0.09, 0.6)], 0.25))
+
+
+def danger():                   # bubbles coming down late in a round
+    r = midi('E3')
+    return fade_out(mix([(chord_hit([r, r + 6], 0.18), 0.0, 0.35), (chord_hit([r + 1, r + 7], 0.18), 0.25, 0.35),
+                         (KICK, 0, 0.6), (KICK, 0.25, 0.6), (beep(660, 0.08), 0.5, 0.3), (beep(660, 0.08), 0.62, 0.3)], 1.0))
+
+
+def big_clear():                # a big fall of bubbles with stars
+    parts = [(cascade('C5'), 0, 0.5), (cascade('G5'), 0.35, 0.4)]
+    parts += [(bell(midi('C7') + s, 0.15), 0.6 + 0.05 * k, 0.15) for k, s in enumerate([0, 7, 12, 16, 19, 24, 28, 31])]
+    return fade_out(mix(parts, 1.8))
+
+
+def sent_attack(root="C3"):     # an attack sent to the other side
+    r = midi(root)
+    return fade_out(mix([(sweep(200, 1400, 0.25, 0.3), 0, 0.4), (noise(0.3, 1500, 7000, 0.12), 0, 0.15),
+                         (KICK, 0.28, 0.9), (chord_hit([r + 12, r + 19, r + 24], 0.3), 0.28, 0.3),
+                         (noise(0.4, 200, 2000, 0.12), 0.28, 0.3)], 1.0))
+
+
 def alert():                    # rare, a warning
     return fade_out(mix([(beep(990, 0.09), 0.2 * k, 0.35) for k in range(3)]
                         + [(beep(740, 0.09), 0.2 * k + 0.1, 0.35) for k in range(3)], 0.8))
@@ -157,6 +180,12 @@ SOUNDS = [
     (0x1A2F, ready_go, 200),
     (0x1A30, fanfare, 190),
     (0x1A54, alert, 150),
+    (0x1A1A, steps, 130),
+    (0x1A4E, danger, 170),
+    (0x1A55, big_clear, 190),
+    (0x1A56, sent_attack, 190),
+    (0x1A57, lambda: sent_attack("D3"), 190),
+    (0x1923, lambda: fanfare('G4', 3.2), 180),
     (0x1A59, chime, 150),
 ]
 SILENT = [0x1A14, 0x1A19, 0x1C19, 0x1D19]      # no sound in the game
