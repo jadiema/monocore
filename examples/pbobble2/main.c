@@ -184,7 +184,7 @@ void neo_sound_trace(uint32_t command) { mc_debug("SND %u %02X\n", neo.frame, co
 // hardware (LOOP).
 typedef struct { uint32_t key, off, len, loop, format, rate, vol, cuts; } snd_t;   // cuts: sounds it stops
 #define FADE_FRAMES 90
-#define SFX_GAIN 154            /* /256: room for the music and for sounds playing together */
+#define SFX_GAIN 210            /* /256: room for the music and for sounds playing together */
 static struct { const snd_t *s; uint8_t prefix, music, looping; uint32_t age; } voice[PCM_VOICES];
 static uint32_t snd_age, fade;
 
@@ -193,7 +193,7 @@ static uint32_t snd_age, fade;
 // game sends one at each change of screen), and so do the stops of everything and the fade-out.
 typedef struct { uint32_t key, off_l, off_r, len; } mus_t;
 #define MUSIC_VOICE 0
-#define MUSIC_VOL 150
+#define MUSIC_VOL 195
 static const mus_t *music_now;
 
 static const mus_t *music_find(uint32_t key) {

@@ -8,7 +8,7 @@ traduit, ROM construite) restent hors du dépôt (`.gitignore`) : ne jamais pous
 
 **État** : le jeu se joue dans le simulateur (démo, Player vs Computer, Puzzle Game, deux joueurs),
 une session de test de plus de 15 minutes sans arrêt, et jusqu'au niveau 2 contre l'ordinateur.
-Musiques originales (style arcade) et bruitages d'origine. Essayé sur la MiSTer.
+Musiques et bruitages originaux, de style arcade. Essayé sur la MiSTer.
 
 ## Construire la ROM
 
@@ -19,9 +19,9 @@ pip install numpy pillow capstone
 python3 tools/prepare.py pbobbl2n.zip      # données tirées de ta copie
 python3 tools/m68kmap.py                    # carte du code 68000
 python3 tools/translate.py                  # programme traduit : build/tr/pb2_code.c (environ une minute)
-sh tools/sound/build.sh && python3 tools/sound/cuts.py && python3 tools/sound/make_sounds.py   # bruitages
 python3 tools/sound/make_music.py           # musiques
-python3 ../../sdk/build.py .                # build/pbobble2.mnc (27,8 Mo)
+python3 tools/sound/make_sfx.py             # bruitages
+python3 ../../sdk/build.py .                # build/pbobble2.mnc (23,2 Mo)
 ```
 
 Il faut aussi clang, ld.lld et llvm-objcopy (comme pour tout le SDK). La ROM se charge dans
@@ -119,15 +119,22 @@ musique d'AUBE : menus (`19 1A`), carte (`19 1C`), partie contre l'ordinateur (`
 et la seconde passe est gardée, pour que sa fin rejoigne son début (réverbération comprise) et
 qu'il boucle dans le matériel sans couture.
 
-**Bruitages et voix d'origine.** Rendus hors ligne par le vrai pilote et un YM2610 (chacun est
-identique au pilote), PCM 16 bits, 5,6 Mo :
+**Bruitages originaux.** Les bruitages du jeu sont remplacés aussi, par des sons faits avec les
+mêmes instruments (`tools/sound/make_sfx.py`, 1 Mo) : chaque événement du pilote reçoit un son
+choisi d'après ce que fait le jeu quand il l'envoie (relevé contre la manette et l'écran dans les
+séances) : `1A 42` rotation du lanceur (clic), `1A 21` tir, `1A 24` bulle qui touche ou s'accroche,
+`1A 22` éclatement, `1A 25`/`2A` chute de bulles, `1A 26`/`28`/`29` gros combo, `1A 2B`/`2C`
+validation, `1A 27` curseur, `1A 2E`/`2F` début de manche et READY GO, `1A 30` fin de manche,
+`19 21` manche gagnée, `02` animation NEOGEO. La table a le même format qu'avant.
 
 ```sh
-sh tools/sound/build.sh                 # build/snd/render (ymfm BSD-3 et un cœur Z80 MIT, récupérés, jamais commités)
-python3 tools/sound/cuts.py              # quel son coupe quel son (quelques minutes)
-python3 tools/sound/make_sounds.py       # sounds.bin, sounds_tab.bin
 python3 tools/sound/make_music.py        # music.bin, music_tab.bin
+python3 tools/sound/make_sfx.py          # sounds.bin, sounds_tab.bin
 ```
+
+Les outils qui rendaient les sons d'origine avec le vrai pilote Z80 et un YM2610 restent dans
+`tools/sound/` (`build.sh`, `render.cpp`, `make_sounds.py`, `cuts.py`, `period.py`) : ils ont servi à
+comprendre le pilote et ne sont plus nécessaires pour construire la ROM.
 
 - **Protocole** (désassemblage du pilote) : le gestionnaire de NMI range chaque octet dans une file
   de 64 entrées ; la boucle principale les lit un par un. `0A`, `0E`, `14`, `15` et `18`–`1E` lisent
@@ -140,7 +147,7 @@ python3 tools/sound/make_music.py        # music.bin, music_tab.bin
   joue des minutes d'ADPCM-B saturé).
 - **Console** (`main.c`) : la voix 0 joue la musique (un événement de musique la remplace, tout
   `14 xx` l'arrête : le jeu en envoie un à chaque changement d'écran) ; les voix 1 à 7 jouent les
-  bruitages (la leur s'ils rejouent, sinon une libre, sinon le plus ancien) ; un son coupe ceux dont
-  il prend les canaux YM2610 dans le pilote (table de `cuts.py`) ; un gain global laisse de la marge
-  (crêtes de 0,4 à 0,55 sur les séances) ; un son absent est signalé `SOUND xx yy missing`.
-- **Taille** : la ROM fait 27,8 Mo (carte SD).
+  bruitages (la leur s'ils rejouent, sinon une libre, sinon le plus ancien) ; `MUSIC_VOL` et
+  `SFX_GAIN` règlent l'équilibre (crêtes de 0,36 à 0,45 sur les séances) ; un son absent est
+  signalé `SOUND xx yy missing`.
+- **Taille** : la ROM fait 23,2 Mo (carte SD).
