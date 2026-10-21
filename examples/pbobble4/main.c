@@ -276,6 +276,8 @@ static void inputs(void) {
   uint32_t a = IN_P1, b = IN_P2;
   neo.p1 = (uint8_t)(a & 0xFF);                     // directions, then buttons 1-4 as A-D
   neo.p2 = (uint8_t)(b & 0xFF);
+  neo.p3 = (uint8_t)(IN_P3 & 0xFF);                 // players 3 and 4 (patches/four.s)
+  neo.p4 = (uint8_t)(IN_P4 & 0xFF);
   neo.status_b = (uint8_t)(((a & IN_START) ? 1 : 0) | ((b & IN_START) ? 4 : 0));
 }
 

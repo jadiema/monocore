@@ -56,10 +56,15 @@ octet qui diffère dépend de cet appui.
   joueurs, mais les entrées 3 et 4 pointent vers `$100FFC` / `$101000`, que le jeu utilise pour
   autre chose. Correctif : rediriger ces entrées vers de la RAM libre, et remplir les blocs 3 et 4
   depuis les manettes 3 et 4 de la MONOCORE (dans `$246C`).
-- **RAM libre.** `$10598C`–`$108F9F` (13,8 Ko) ne change jamais, contre l'ordinateur comme à deux
-  joueurs : prévu pour les joueurs 3 et 4 : structures `$106000` / `$106100`, tampons `$106800` /
-  `$107000`, blocs de manette `$106200` / `$106204`. À revérifier sur le Puzzle Game et les autres
-  modes.
+- **RAM libre.** Attention : « ne change jamais pendant une partie » ne suffit pas.
+  `$10598C`–`$108F98` est la **table des objets** du jeu (320 entrées de 44 octets depuis
+  `-10088(a5)`, presque vides), et `$10B140`–`$10D4D4` la fin d'un tableau de 16 Ko commençant en
+  `$1094D4` (256 × 64 octets) : écrire dans la table des objets crée un faux objet que le jeu
+  exécute. La RAM retenue n'est ni désignée par le code (aucun `d16(a5)`, adresse absolue ni base
+  de tableau) ni modifiée pendant les parties : la **RAM de travail du BIOS d'origine**
+  (`$10F300`–`$10FBFF`, que le portage n'utilise pas ; la pile du jeu descend depuis `$10F300`) pour
+  les structures, blocs de manette, manettes brutes, scores et compteurs des joueurs 3 et 4
+  (`$10F400`–`$10F62B`), et `$1041D6`–`$105476` pour leurs deux tampons (`$104200`, `$104A00`).
 - **Le numéro de joueur `2(a4)` est lu à 79 endroits** :
   - une dizaine de **tables indexées à 2 entrées** (`$4337A`, `$44D38`, `$459D0`, `$5FD28`, `$5FD76`,
     `$620CA`, `$485E4`, `$62B24`, `$74E16`) : à étendre à 4 entrées, sinon les joueurs 3 et 4
@@ -67,7 +72,14 @@ octet qui diffère dépend de cet appui.
   - environ 65 **aiguillages à deux voies** (`tst.w 2(a4)` puis `bne`/`beq`) : position à l'écran
     (`#$20` pour l'aire gauche, `#$B0` pour la droite), orientation, palettes. Les joueurs 3 et 4
     prendraient la voie du joueur 2 et seraient dessinés sur son aire.
-- **Initialisation.** `$74D2A` initialise les deux structures (drapeau actif, numéro, pointeur de
+- **Le drapeau en `(a4)`** n'est pas « actif » : 0 = aire jouée par une personne, 1 = par
+  l'ordinateur ; les chemins de création le posent (`21966(a5)`, `21968(a5)`) avant de lancer les
+  tâches. Les aires sont créées à plusieurs endroits, un par mode (`$22B48`, `$22B94`, `$22BD4` pour
+  deux joueurs, `$22C68`…) ; `-10200(a5)` veut dire « deux aires », y compris contre l'ordinateur.
+- **Le cœur de l'attaque** : `$620D4` ajoute les bulles envoyées à `56(a0)` de la structure adverse,
+  prise dans une table indexée par le joueur (`$620FC`) ; `$459DC` lit le champ `+$14` de
+  l'adversaire (`$45A0E`).
+- **Initialisation.** `$74D2A` initialise les deux structures (drapeau personne/ordinateur, numéro, pointeur de
   tampon en `126(a4)`, puis `$74D68`) ; `$74EE8` écrit une valeur dans `98(a4)` des deux ; `$22B50`
   crée les tâches 5 et 6.
 
@@ -84,9 +96,17 @@ octet qui diffère dépend de cet appui.
    pile), au lieu de « tâche 5 : joueur 1, sinon joueur 2 ». Vérifié au bit près : la RAM est
    identique, image par image, à celle du portage à 2 joueurs sur 2 401 images, à un joueur contre
    l'ordinateur comme à deux joueurs.
-3. a. 4 aires en mémoire : tâches 7 et 8, structures et tampons 3 et 4, manettes 3 et 4, les
-      tables indexées étendues. Les joueurs 3 et 4 seront dessinés par-dessus le joueur 2 : on
-      valide la logique par la RAM (le banc PC).
+3. a. 4 aires en mémoire : **fait** (`patches/four.s`). Quand les joueurs 1 et 2 sont deux
+      personnes, l'aire du joueur 2 crée en démarrant les tâches 7 et 8 ; les structures et
+      tampons 3 et 4 sont initialisés avec ceux de 1 et 2 ; les manettes 3 et 4 de la MONOCORE
+      (`main.c` → `neort.c`, octets `$10F610`/`$10F611`) remplissent leurs blocs comme `$246C` ;
+      les six tables indexées par le joueur ont 4 entrées ; les joueurs 3 et 4 s'affrontent pour
+      l'instant (tables d'adversaire). Vérifié sur le banc : 6 000 images à quatre joueurs au
+      hasard sans erreur, les 4 tâches d'aire tournent en manche, chaque lanceur suit sa manette
+      et chaque grille se remplit ; contre l'ordinateur, la RAM est identique à celle du portage
+      à 2 joueurs hors de la RAM des joueurs 3 et 4 (les tâches 7 et 8 n'y sont pas créées). Les
+      joueurs 3 et 4 sont encore dessinés sur l'aire du joueur 2, et les manches ne connaissent
+      que les joueurs 1 et 2 (étape 5).
    b. La position des aires : décaler les joueurs 3 et 4 hors de l'écran Neo Geo (par exemple de
       256 lignes vers le bas), là où rien n'est affiché, pour que la couche MONOCORE reconnaisse
       chaque aire à sa bande et la place à l'écran ; puis traiter les aiguillages qui comptent

@@ -230,8 +230,12 @@ void neo_idle(void) {
   seen = neo.frame;
 }
 
+// pads of players 3 and 4, read by the 4-player patches (patches/four.s: RAW3, RAW4)
+#define RAW34 0x10F610
+
 void neo_vblank(m68k_t *c) {
   neo.frame++;
+  wram8(RAW34, neo.p3); wram8(RAW34 + 1, neo.p4);
   neo.vbl_pending = 1;
   update_ipl(c);
 }

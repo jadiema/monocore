@@ -21,5 +21,5 @@ field_struct:
 field_table:
 	.long	0x10D5D2			| player 1 (task 5)
 	.long	0x10D668			| player 2 (task 6)
-	.long	0x10D5D2			| players 3 and 4: not created yet (step 3)
-	.long	0x10D668
+	.long	0x10F400			| player 3 (task 7, patches/four.s)
+	.long	0x10F500			| player 4 (task 8)

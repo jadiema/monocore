@@ -8,6 +8,7 @@
 //           frame:p1=HEX      P1 buttons (bits 0 up, 1 down, 2 left, 3 right, 4 A, 5 B, 6 C, 7 D)
 //           frame:st=HEX      start/select (bit 0 P1 start, bit 2 P2 start)
 //           frame:dump=NAME   writes the video RAM to NAME.vram
+//           frame:ramdump=NAME writes the work RAM to NAME.ram
 // Exit code 2 and a line "UNKNOWN xxxxxx" when the program reaches an untranslated address.
 // Time: one frame every TICKS_PER_FRAME calls of M68K_TICK (backward branches and dispatches).
 #include <setjmp.h>
@@ -117,6 +118,10 @@ static void actions(uint32_t frame) {
       else if (!strncmp(a, "dump=", 5)) {        // raw VRAM of this frame: NAME.vram
         char n[128]; int l = end - a - 5; snprintf(n, sizeof n, "%.*s.vram", l, a + 5);
         FILE *f = fopen(n, "wb"); fwrite(neo_vram, 2, 0x8800, f); fclose(f);
+      }
+      else if (!strncmp(a, "ramdump=", 8)) {     // work RAM of this frame: NAME.ram (as p1.bin: words little-endian)
+        char n[128]; int l = end - a - 8; snprintf(n, sizeof n, "%.*s.ram", l, a + 8);
+        FILE *f = fopen(n, "wb"); fwrite(neo_ram, 1, 0x10000, f); fclose(f);
       }
       else if (!strncmp(a, "p1=", 3)) neo.p1 = strtoul(a + 3, 0, 16);
       else if (!strncmp(a, "p2=", 3)) neo.p2 = strtoul(a + 3, 0, 16);
