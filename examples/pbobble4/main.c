@@ -16,7 +16,7 @@ extern const uint32_t p1_size, spr_map_size;
 extern const uint8_t sounds_file[], sounds_tab_file[], music_file[], music_tab_file[];
 
 #define VRAM_BYTES  0x11000u                       // 0x8800 words
-#define DECOR_W     15                             // decor of the four fields: 120 x 144 pixels, 8 bpp,
+#define DECOR_W     14                             // decor of the four fields: 112 x 144 pixels, 8 bpp,
 #define DECOR_H     18                             // at the end of CHR RAM (see video_four)
 #define DECOR_BYTES ((DECOR_W * DECOR_H + 1) * 64)  // + one empty cell for the rest of layer 1
 #define CACHE_SLOTS ((MC_CHRRAM_SIZE - VRAM_BYTES - DECOR_BYTES) / 128)
@@ -122,19 +122,19 @@ static void layer_column(int layer, int n) {
 
 // --- four players (DESIGN_4P.md, step 4): the four fields side by side ---
 // When tasks 7 and 8 run (patches/four.s), the screen is 384 x 288, the four fields in 2 x 2 side
-// by side, every field shown at 3/4 of its size (a 16-pixel tile is 12 pixels: no seam between the
-// tiles of a character): 152 x 192 pixels of the Neo Geo field (its header and bottom bar left
-// out) make 114 x 144; names and scores in two panels, left and right.
+// by side, every field shown at 11/16 of its size (a 16-pixel tile is 11 pixels: no seam between
+// the tiles of a character): 152 x 208 pixels of the Neo Geo field (all but its header) make
+// 104 x 143; names and scores in two panels, left and right.
 // Where the sprites of a field are (patches/band.s): players 1 and 2 on the Neo Geo screen, left
 // and right; players 3 and 4 in the band 256 lines below, on the right, player 4 256 pixels
 // further. Each field is the 152 useful pixels of its half of the Neo Geo screen.
 #define FOUR_W      384                            // 2 x 2 fields side by side: each line of the screen
 #define FOUR_H      288                            // crosses two fields only (64 sprites per line at most)
-#define FOUR_TOP    20                             // the Neo Geo lines shown: 20-211 (the bubbles from the
-#define FOUR_LINES  192                            // ceiling, the launcher, NEXT; not the header nor the bar)
-static const int16_t four_x[4] = {72, 192, 72, 192};   // player 1 top left, 2 top right,
+#define FOUR_TOP    16                             // the Neo Geo lines shown: 16-223 (all the field but its
+#define FOUR_LINES  208                            // header: the ceiling down to the launcher and the dragon)
+static const int16_t four_x[4] = {80, 192, 80, 192};   // player 1 top left, 2 top right,
 static const int16_t four_y[4] = {0, 0, 144, 144};     // 3 bottom left, 4 bottom right
-#define FOUR_SCALE  192                            // 3/4 in 8.8: a 16-pixel tile is 12 pixels
+#define FOUR_SCALE  176                            // 11/16 in 8.8: a 16-pixel tile is 11 pixels
 #define LIST_FIRST  118                            // the list of the frame starts at this sprite: below, the fixed decor
 #define DECOR_BASE  (CHRRAM_BASE + MC_CHRRAM_SIZE - DECOR_BYTES)
 
@@ -161,7 +161,7 @@ static int four_field(int x, int y, int *lx, int *ly) {
 }
 
 // The decor of a field (the fixed sprites, below the list of the frame): the layers of the
-// MONOCORE do not shrink, so the decor of the left field is drawn once, at 3/4, into 15 x 18
+// MONOCORE do not shrink, so the decor of the left field is drawn once, at 11/16, into 14 x 18
 // cells of 8 x 8 pixels in 8 bpp in CHR RAM, and layer 1 shows them behind each of the four
 // fields (no sprite: sprites of the decor, the last ones of the table, were the first ones left
 // out on the lines with more than 64 sprites, and the decor disappeared there). Its pixels are
@@ -226,10 +226,10 @@ static void decor_draw(void) {
   for (int i = 0; i < 256; i++) decor_slot[i] = 0;
   decor_slots = 0;
   for (int ty = 0; ty < DECOR_H * 8; ty++) {
-    int sy = FOUR_TOP + ty * 4 / 3;
+    int sy = FOUR_TOP + ty * 16 / 11;
     if (sy < 224) decor_line(sy + 16, line); else for (int x = 0; x < 152; x++) line[x] = 0xFFFF;
     for (int tx = 0; tx < DECOR_W * 8; tx++) {
-      int sx = tx * 4 / 3; uint32_t v = sx < 152 ? line[sx] : 0xFFFF; uint8_t b = 0;
+      int sx = tx * 16 / 11; uint32_t v = sx < 152 ? line[sx] : 0xFFFF; uint8_t b = 0;
       if (v != 0xFFFF) {
         uint32_t pal = v >> 4, slot = decor_slot[pal];
         if (!slot && decor_slots < DECOR_SLOTS) { decor_pal_of[decor_slots] = (uint8_t)pal; slot = decor_slot[pal] = ++decor_slots; }
@@ -252,7 +252,7 @@ static int decor_empty(void) {                    // one line in 16 of the decor
   static uint16_t line[152];                       // less than a quarter covered is no decor
   uint32_t full = 0, all = 0;
   for (int ty = 0; ty < DECOR_H * 8; ty += 16) {
-    decor_line(FOUR_TOP + ty * 4 / 3 + 16, line);
+    decor_line(FOUR_TOP + ty * 16 / 11 + 16, line);
     for (int x = 0; x < 152; x++) { all++; full += line[x] != 0xFFFF; }
   }
   return full * 4 < all;
@@ -273,7 +273,7 @@ static void decor_frame(void) {
 // game's fix layer (ASCII codes). Scores: 32-bit binary, players 1 and 2 at $1057DC / $1057E0,
 // players 3 and 4 at $10F620 / $10F624 (patches/four.s).
 static const uint32_t score_at[4] = {0x1057DC, 0x1057E0, 0x10F620, 0x10F624};
-static const uint32_t hud_rgb[4] = {0x50C8FF, 0xFF6E6E, 0x78E678, 0xFAC83C};
+static const uint32_t hud_rgb[4] = {0x78E678, 0x50A8FF, 0xFF6060, 0xFAD23C};   // the colours of the dragons
 static void hud_text(int col, int row, const char *t, int pal) {
   for (; *t; t++, col++) TILEMAP(0)[row * 64 + col] = MC_TILE((uint8_t)*t, pal, 0);
 }
@@ -290,7 +290,7 @@ static void decor_layer_open(void) {             // layer 1: the decor cells beh
 }
 // two panels, left and right of the fields (margins of 72 pixels, cells of 8): players 1 and 3 on
 // the left, 2 and 4 on the right, each facing its field: name, score, WINNER or OUT
-static const uint8_t hud_col[4] = {0, 39, 0, 39}, hud_row[4] = {2, 2, 20, 20};
+static const uint8_t hud_col[4] = {0, 38, 0, 38}, hud_row[4] = {2, 2, 20, 20};
 static void hud_open(void) {
   decor_layer_open();
   mc_layer(0, fix_file, MC_TILE8 | MC_4BPP, 64, 64, 3);   // the whole 384 x 288 screen
@@ -331,6 +331,38 @@ static void hud_close(void) {                      // the game's fix layer again
   for (uint32_t x = 40; x < 64; x++) for (uint32_t y = 0; y < 32; y++) TILEMAP(0)[y * 64 + x] = MC_TILE(FIX_EMPTY, 0, 0);
 }
 
+// The dragons: player 1 has Bub (green, palette 16), players 2, 3 and 4 Bob (blue, palette 21,
+// used by the dragon only): the dragon of player 3 takes palette 212, red, of player 4 palette
+// 213, yellow: copies of palette 21 made every frame (with the fades of the game) where the blue
+// colours only take the hue of the player.
+#define DRAGON_PAL  21
+#define DRAGON3_PAL 212
+#define DRAGON4_PAL 213
+static uint16_t hue_to(uint16_t c, int target) {   // RGB555; target hue in 0-1535 (6 x 256)
+  int r = (c >> 10) & 31, g = (c >> 5) & 31, b = c & 31;
+  int mx = r > g ? (r > b ? r : b) : (g > b ? g : b), mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+  int d = mx - mn;
+  if (d < 6 || mx != b) return c;                  // greys, whites, blacks and the non-blue colours stay
+  int h = 1024 + ((r - g) * 256) / d;              // blue sector (768-1279 around 1024)
+  if (h < 768 || h > 1279) return c;
+  h = target; int sector = h >> 8, f = h & 255;
+  int p = mn, q = mx - (d * f) / 256, t = mn + (d * f) / 256, v = mx;
+  switch (sector) {
+  case 0: r = v; g = t; b = p; break;  case 1: r = q; g = v; b = p; break;
+  case 2: r = p; g = v; b = t; break;  case 3: r = p; g = q; b = v; break;
+  case 4: r = t; g = p; b = v; break;  default: r = v; g = p; b = q; break;
+  }
+  return (uint16_t)((r << 10) | (g << 5) | b);
+}
+static void dragons_frame(void) {
+  const uint16_t *p = neo_pal[neo.pal_bank];
+  for (int i = 0; i < 16; i++) {
+    uint16_t c = rgb555(p[DRAGON_PAL * 16 + i]);
+    PALETTE[DRAGON3_PAL * 16 + i] = hue_to(c, 0);         // red
+    PALETTE[DRAGON4_PAL * 16 + i] = hue_to(c, 230);       // yellow
+  }
+}
+
 static void video_four(void) {
   const uint16_t *smap = (const uint16_t *)spr_map_file;
   uint32_t count = spr_map_size / 2, anim = (neo.frame / ((neo.lspc_mode >> 8) + 1)) & 7;
@@ -347,17 +379,20 @@ static void video_four(void) {
       if (num >= count || smap[num] == 0) continue;
       int slot = cache_get(smap[num]);
       if (slot < 0) continue;
+      uint32_t pal = t1 >> 8;
+      if (pal == DRAGON_PAL && f >= 2) pal = f == 2 ? DRAGON3_PAL : DRAGON4_PAL;
       sprite_t *s = &mc_spr[out++];
       s->x = (int16_t)(four_x[f] + ((lx * FOUR_SCALE) >> 8));
       s->y = (int16_t)(four_y[f] + ((ly * FOUR_SCALE) >> 8));
       s->tile = (uint16_t)(slot * 4);
-      s->pal = (uint8_t)(t1 >> 8); s->w = 2; s->h = 2;
+      s->pal = (uint8_t)pal; s->w = 2; s->h = 2;
       s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | ((t1 & 1) ? SA_HFLIP : 0) | ((t1 & 2) ? SA_VFLIP : 0));
       s->zoomx = (uint16_t)((((zx + 1) << 4) * FOUR_SCALE) >> 8);
       s->zoomy = (uint16_t)(((zy + 1) * FOUR_SCALE) >> 8);
     }
   }
   decor_frame();                                   // the decor, on layer 1
+  dragons_frame();
   mc_sprites_used(out);
   mc_copy(SPRITES, mc_spr, (uint32_t)out * sizeof(sprite_t));
   hud_frame();

@@ -126,9 +126,13 @@ octet qui diffère dépend de cet appui.
       `OWNER_FROM`), `-DNEO_READ_TRACE` (dernière adresse lue avant chaque position de sprite).
 4. L'écran à 4 aires dans `main.c` : **fait**, en **2 × 2 accolées** (384 × 288 : joueur 1 en haut à
    gauche, 2 en haut à droite, 3 en bas à gauche, 4 en bas à droite ; colonnes à 72 et 192, rangées
-   à 0 et 144), à l'échelle **3/4** (bulles de 12 pixels) : on montre les lignes 20 à 211 de l'aire
-   Neo Geo (plafond, rangées, ligne limite, lanceur, NEXT), sans son en-tête (0–15) ni le bas de sa
-   barre ; 152 × 192 pixels donnent 114 × 144. Noms, scores, WINNER ou OUT dans deux panneaux, dans
+   à 0 et 144), à l'échelle **11/16** (bulles de 11 pixels) : on montre les lignes 16 à 223 de l'aire
+   Neo Geo, tout sauf son en-tête (à 3/4, les lignes 20 à 211 coupaient le bas du lanceur et le
+   dragon) ; 152 × 208 pixels donnent 104 × 143. **Dragons** : le joueur 1 a Bub (palette 16), les
+   joueurs 2, 3 et 4 Bob (palette 21, qui ne sert qu'au dragon, mesuré) ; les tuiles en palette 21
+   des aires 3 et 4 prennent les palettes 212 et 213, copies de la 21 faites à chaque image où
+   seules les couleurs bleues prennent la teinte du joueur : rouge, jaune. Les panneaux ont les
+   couleurs des dragons (vert, bleu, rouge, jaune). Noms, scores, WINNER ou OUT dans deux panneaux, dans
    les marges de 72 pixels : joueurs 1 et 3 à gauche, 2 et 4 à droite, chacun en face de son aire
    (écrits d'abord en haut des aires, ils cachaient les premières bulles). Enlever une rangée de bulles ne libérerait de la place qu'en
    remontant aussi le lanceur (modification profonde du jeu). D'abord quatre aires côte à côte en
