@@ -128,8 +128,9 @@ octet qui diffère dépend de cet appui.
    gauche, 2 en haut à droite, 3 en bas à gauche, 4 en bas à droite ; colonnes à 72 et 192, rangées
    à 0 et 144), à l'échelle **3/4** (bulles de 12 pixels) : on montre les lignes 20 à 211 de l'aire
    Neo Geo (plafond, rangées, ligne limite, lanceur, NEXT), sans son en-tête (0–15) ni le bas de sa
-   barre ; 152 × 192 pixels donnent 114 × 144. Le score de chaque joueur est écrit en haut de son
-   aire, WINNER ou OUT au milieu. Enlever une rangée de bulles ne libérerait de la place qu'en
+   barre ; 152 × 192 pixels donnent 114 × 144. Noms, scores, WINNER ou OUT dans deux panneaux, dans
+   les marges de 72 pixels : joueurs 1 et 3 à gauche, 2 et 4 à droite, chacun en face de son aire
+   (écrits d'abord en haut des aires, ils cachaient les premières bulles). Enlever une rangée de bulles ne libérerait de la place qu'en
    remontant aussi le lanceur (modification profonde du jeu). D'abord quatre aires côte à côte en
    384 × 224 : chaque ligne traversait alors quatre aires, et les lignes chargées dépassaient la
    limite de 64 sprites ; en 2 × 2, une ligne n'en traverse que deux, à la même taille de bulles.

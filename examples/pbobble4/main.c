@@ -124,7 +124,7 @@ static void layer_column(int layer, int n) {
 // When tasks 7 and 8 run (patches/four.s), the screen is 384 x 288, the four fields in 2 x 2 side
 // by side, every field shown at 3/4 of its size (a 16-pixel tile is 12 pixels: no seam between the
 // tiles of a character): 152 x 192 pixels of the Neo Geo field (its header and bottom bar left
-// out) make 114 x 144; the score of each player is written at the top of its field.
+// out) make 114 x 144; names and scores in two panels, left and right.
 // Where the sprites of a field are (patches/band.s): players 1 and 2 on the Neo Geo screen, left
 // and right; players 3 and 4 in the band 256 lines below, on the right, player 4 256 pixels
 // further. Each field is the 152 useful pixels of its half of the Neo Geo screen.
@@ -288,8 +288,9 @@ static void decor_layer_open(void) {             // layer 1: the decor cells beh
       for (int cx = 0; cx < DECOR_W; cx++)
         TILEMAP(1)[(four_y[f] / 8 + cy) * 64 + four_x[f] / 8 + cx] = MC_TILE(cy * DECOR_W + cx, DECOR_PAL, 0);
 }
-// the score of each player at the top of its field, WINNER or OUT in its middle (cells of 8 pixels)
-static const uint8_t hud_col[4] = {10, 25, 10, 25}, hud_row[4] = {0, 0, 18, 18};
+// two panels, left and right of the fields (margins of 72 pixels, cells of 8): players 1 and 3 on
+// the left, 2 and 4 on the right, each facing its field: name, score, WINNER or OUT
+static const uint8_t hud_col[4] = {0, 39, 0, 39}, hud_row[4] = {2, 2, 20, 20};
 static void hud_open(void) {
   decor_layer_open();
   mc_layer(0, fix_file, MC_TILE8 | MC_4BPP, 64, 64, 3);   // the whole 384 x 288 screen
@@ -299,7 +300,7 @@ static void hud_open(void) {
     uint32_t c = hud_rgb[k];
     uint16_t v = (uint16_t)(((c >> 19) << 10) | (((c >> 11) & 31) << 5) | ((c >> 3) & 31));
     for (int i = 1; i < 16; i++) PALETTE[(HUD_PAL + k) * 16 + i] = i == 1 ? v : 0;
-    char name[] = "P1"; name[1] = (char)('1' + k);
+    char name[] = "PLAYER 1"; name[7] = (char)('1' + k);
     hud_text(hud_col[k], hud_row[k], name, HUD_PAL + k);
   }
 }
@@ -308,15 +309,14 @@ static void hud_open(void) {
 static void hud_frame(void) {
   uint32_t w = ram16(0x10F668) << 16 | ram16(0x10F66A), winner = w ? ram16(w + 2) : 99;
   for (int k = 0; k < 4; k++) {
-    const char *state = (uint32_t)k == winner ? "WINNER!" : neo_ram[(0xF660 + k) ^ 1] ? "  OUT  " : 0;
-    if (state) hud_text(hud_col[k] + 3, hud_row[k] + 8, state, HUD_PAL + k);
-    else for (int i = 0; i < 7; i++) TILEMAP(0)[(hud_row[k] + 8) * 64 + hud_col[k] + 3 + i] = MC_TILE(FIX_EMPTY, 0, 0);
+    const char *state = (uint32_t)k == winner ? "WINNER! " : neo_ram[(0xF660 + k) ^ 1] ? "OUT     " : "        ";
+    hud_text(hud_col[k], hud_row[k] + 5, state, HUD_PAL + k);
   }
   for (int k = 0; k < 4; k++) {
     uint32_t v = ram16(score_at[k]) << 16 | ram16(score_at[k] + 2);
     char t[9]; t[8] = 0;
     for (int i = 7; i >= 0; i--) { t[i] = (char)(v || i == 7 ? '0' + v % 10 : ' '); v /= 10; }
-    hud_text(hud_col[k] + 3, hud_row[k], t + 1, HUD_PAL + k);
+    hud_text(hud_col[k], hud_row[k] + 2, t, HUD_PAL + k);
   }
 }
 static void hud_close(void) {                      // the game's fix layer again, and layer 1
