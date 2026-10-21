@@ -8,6 +8,7 @@
 //           frame:p1=HEX      P1 buttons (bits 0 up, 1 down, 2 left, 3 right, 4 A, 5 B, 6 C, 7 D)
 //           frame:st=HEX      start/select (bit 0 P1 start, bit 2 P2 start)
 //           frame:dump=NAME   writes the video RAM to NAME.vram
+//           frame:ramdump=NAME writes the work RAM to NAME.ram
 // Exit code 2 and a line "UNKNOWN xxxxxx" when the program reaches an untranslated address.
 // Time: one frame every TICKS_PER_FRAME calls of M68K_TICK (backward branches and dispatches).
 #include <setjmp.h>
@@ -118,6 +119,10 @@ static void actions(uint32_t frame) {
         char n[128]; int l = end - a - 5; snprintf(n, sizeof n, "%.*s.vram", l, a + 5);
         FILE *f = fopen(n, "wb"); fwrite(neo_vram, 2, 0x8800, f); fclose(f);
       }
+      else if (!strncmp(a, "ramdump=", 8)) {     // work RAM of this frame: NAME.ram (as p1.bin: words little-endian)
+        char n[128]; int l = end - a - 8; snprintf(n, sizeof n, "%.*s.ram", l, a + 8);
+        FILE *f = fopen(n, "wb"); fwrite(neo_ram, 1, 0x10000, f); fclose(f);
+      }
       else if (!strncmp(a, "p1=", 3)) neo.p1 = strtoul(a + 3, 0, 16);
       else if (!strncmp(a, "p2=", 3)) neo.p2 = strtoul(a + 3, 0, 16);
       else if (!strncmp(a, "st=", 3)) neo.status_b = strtoul(a + 3, 0, 16);
@@ -136,6 +141,14 @@ void bench_tick(uint32_t pc) {
     uint32_t h = 2166136261u;
     for (int i = 0; i < 0x10000; i++) h = (h ^ neo_ram[i]) * 16777619u;
     printf("frame %u ram %08X\n", neo.frame, h);
+  }
+  if (getenv("BENCH_FOOTPRINT")) {      // which bytes of RAM and words of VRAM ever change
+    static uint8_t ram_prev[0x10000], ram_used[0x10000]; static uint16_t v_prev[0x8800]; static uint8_t v_used[0x8800];
+    for (int i = 0; i < 0x10000; i++) { if (neo_ram[i] != ram_prev[i]) ram_used[i] = 1; ram_prev[i] = neo_ram[i]; }
+    for (int i = 0; i < 0x8800; i++) { if (neo_vram[i] != v_prev[i]) v_used[i] = 1; v_prev[i] = neo_vram[i]; }
+    if (neo.frame + 1 >= frames_max) {
+      FILE *f = fopen("footprint.bin", "wb"); fwrite(ram_used, 1, 0x10000, f); fwrite(v_used, 1, 0x8800, f); fclose(f);
+    }
   }
   neo_vblank(&cpu);
   if (neo.frame >= frames_max) longjmp(done, 1);
