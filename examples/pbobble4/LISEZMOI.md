@@ -5,7 +5,9 @@ Ce dossier est le point de départ de la **version 4 joueurs**, tirée du portag
 Geo, mêmes musiques et bruitages originaux). La MONOCORE-1 a 4 manettes (`mc_pad` 1 à 4) ; le jeu
 d'origine n'en gère que 2, et c'est ici qu'il sera modifié. `examples/pbobble2` reste le portage
 fidèle à 2 joueurs. La ROM produite s'appelle `build/pbobble4.mnc` ; la construction est la même
-qu'en dessous, depuis ce dossier.
+qu'en dessous, depuis ce dossier, avec en plus l'assembleur 68000 des binutils GNU
+(`sudo apt install binutils-m68k-linux-gnu`) : `prepare.py` applique au programme les correctifs de
+`patches/*.s` (voir `DESIGN_4P.md`).
 
 ---
 

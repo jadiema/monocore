@@ -38,6 +38,8 @@ découvert et vérifié comme le portage à 2 joueurs.
 - **L'indicateur « deux joueurs »** est posé au choix du mode (`$2740E`–`$2748A`) et testé à 19
   endroits du code : départ, fin de manche, affichage, envoi des attaques. Ce sont les points à
   étudier pour la logique à 4.
+- En plus de sa structure, chaque joueur a un tampon de 2 Ko (pointé en `126(a4)` : `$10D6FE`,
+  `$10DEFE`), initialisé en `$74D2A` ; il faudra deux structures et deux tampons de plus (4,3 Ko).
 - La RAM ne sert qu'à 17 % (11 Ko sur 64 changent pendant une partie) : il y a de la place pour deux
   structures de plus.
 
@@ -48,7 +50,16 @@ octet qui diffère dépend de cet appui.
 ## Étapes
 
 1. Cartographie (faite pour l'essentiel, `tools/map4p.py`).
-2. Outillage des correctifs 68000 (assembleur, liste de correctifs dans `prepare.py`).
+2. Outillage des correctifs 68000 : fait. `patches/*.s` (assembleur GNU) : une section par adresse
+   (`.p_074F1E`, `.p_0F0000`…), une ligne `| expect ADRESSE LONGUEUR crc32 0x…` par site modifié
+   (les octets d'origine sont vérifiés avant d'écrire). `tools/patch68k.py` assemble, lie chaque
+   section à son adresse (les étiquettes et adresses entre correctifs fonctionnent), écrit dans le
+   programme et vérifie que la zone libre (`0x0E8000`–`0x0FFFFF`, remplie de `0xE5`) l'est encore ;
+   `prepare.py` l'appelle. Premier correctif (`patches/field.s`) : la structure du joueur est
+   calculée d'après le numéro de la tâche (table indexée par `a4`, sans registre de données ni
+   pile), au lieu de « tâche 5 : joueur 1, sinon joueur 2 ». Vérifié au bit près : la RAM est
+   identique, image par image, à celle du portage à 2 joueurs sur 2 401 images, à un joueur contre
+   l'ordinateur comme à deux joueurs.
 3. 4 aires en mémoire : tâches 7 et 8, structures 3 et 4, manettes 3 et 4 ; affichage provisoire.
 4. L'écran à 4 aires dans `main.c`.
 5. Les règles à 4 : choix du mode, attaques partagées, fin de partie, menus.

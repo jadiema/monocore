@@ -2,7 +2,8 @@
 """Builds the game-data files of the port from your own copy of the game.
 
 usage: python3 tools/prepare.py pbobbl2n.zip [--sheets]
-  - 248-p1.p1 (68000 program, MAME word-swapped layout): kept as is in p1.bin, which is already
+  - 248-p1.p1 (68000 program, MAME word-swapped layout), with the patches of patches/*.s applied
+    (tools/patch68k.py: the 4-player version): kept in p1.bin in the MAME layout, which is already
     the memory layout used by the runtime (16-bit words little-endian, byte access at addr ^ 1);
     p1_be.bin is the big-endian image for the disassembler and the translator
   - 248-c1..c4 (sprite tiles 16x16, 4 bpp, 4 bitplanes over two ROMs): converted to the MONOCORE
@@ -84,6 +85,9 @@ def main():
     p1 = r['p1']
     be = bytes(p1[i ^ 1] for i in range(len(p1)))
     assert be[0x100:0x107] == b'NEO-GEO', 'not a Neo Geo program ROM'
+    sys.path.insert(0, here); import patch68k                     # the 4-player version: patches/*.s
+    be = patch68k.apply(be, verbose=True)
+    p1 = bytes(be[i ^ 1] for i in range(len(be)))
     out = lambda name, data: open(os.path.join(root, name), 'wb').write(data)
     out('p1.bin', p1); out('p1_be.bin', be)
     out('m1.bin', r['m1']); out('v.bin', r['v1'] + r['v2'])    # sound driver and samples (tools/sound)
