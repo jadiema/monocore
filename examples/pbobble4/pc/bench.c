@@ -166,6 +166,8 @@ void bench_tick(uint32_t pc) {
   if (++ticks < TICKS_PER_FRAME) return;
   ticks = 0;
   actions(neo.frame + 1);
+  { extern uint32_t neo_list_last; static uint32_t most;   // the longest sprite list
+    if (neo_list_last > most) { most = neo_list_last; if (getenv("BENCH_LIST")) printf("frame %u: sprite list up to sprite %u\n", neo.frame, most); } }
   if (getenv("BENCH_VHASH")) {          // one hash of the video RAM and LSPC registers per frame
     uint32_t h = 2166136261u;
     for (int i = 0; i < 0x8800; i++) h = (h ^ neo_vram[i]) * 16777619u;

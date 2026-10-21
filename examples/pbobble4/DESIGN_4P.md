@@ -136,7 +136,13 @@ octet qui diffère dépend de cet appui.
      commence la liste de l'image) de l'aire gauche sont composés à 5/8 dans 12 × 18 cellules de
      8 × 8 en 8 bpp en fin de CHR RAM, que le plan 1 montre derrière chacune des quatre aires.
      (D'abord quatre sprites : derniers de la table, ils étaient les premiers ignorés sur les
-     lignes de plus de 64 sprites, et le décor disparaissait quand les aires se remplissaient.) Ses pixels désignent une fenêtre de palettes (240–254) où sont recopiées à chaque
+     lignes de plus de 64 sprites, et le décor disparaissait quand les aires se remplissaient.)
+     Le décor n'est recomposé que lorsqu'un autre décor arrive (empreinte : palettes, hauteurs et
+     réductions de ses sprites, sans leurs positions ni leurs tuiles : la ville défile et s'anime,
+     et la recomposer à chaque pas coûtait 2,8 millions de cycles toutes les 12 images), et un
+     décor couvrant moins d'un quart de ses lignes témoins ne remplace pas celui affiché : à la fin
+     d'une manche des joueurs 1 et 2, le jeu efface ou déplace son décor alors que les aires 3 et 4
+     vivent encore, et le fond devenait noir. Ses pixels désignent une fenêtre de palettes (240–254) où sont recopiées à chaque
      image les palettes du décor (9 au plus mesurées) : couleurs exactes et fondus du jeu. Une
      empreinte des sprites fixes détecte un changement de décor ; la composition prend environ
      2,8 millions de cycles, une fois par décor ;

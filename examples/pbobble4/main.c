@@ -216,6 +216,7 @@ static void decor_line(int sl, uint16_t *line) {
 static void decor_draw(void) {
   static uint16_t line[152];
   static uint8_t cells[DECOR_W * 64];
+  uint32_t opaque = 0;
   for (int i = 0; i < 256; i++) decor_slot[i] = 0;
   decor_slots = 0;
   for (int ty = 0; ty < DECOR_H * 8; ty++) {
@@ -227,21 +228,36 @@ static void decor_draw(void) {
         uint32_t pal = v >> 4, slot = decor_slot[pal];
         if (!slot && decor_slots < DECOR_SLOTS) { decor_pal_of[decor_slots] = (uint8_t)pal; slot = decor_slot[pal] = ++decor_slots; }
         if (slot) b = (uint8_t)(((slot - 1) << 4) | (v & 15));
+        opaque++;
       }
       cells[(tx >> 3) * 64 + (ty & 7) * 8 + (tx & 7)] = b;
     }
     if ((ty & 7) == 7) mc_copy((volatile void *)(DECOR_BASE + (ty >> 3) * DECOR_W * 64), cells, sizeof cells);
   }
+  mc_debug("DECOR frame %u: %u palettes, %u%% opaque\n", neo.frame, decor_slots, opaque * 100 / (DECOR_W * 8 * DECOR_H * 8));
 }
 
+// An empty decor (the game clears or moves it away, at the end of a round of players 1 and 2) does
+// not replace the one shown. The signature tells a decor from another one (the palettes, heights
+// and shrink of its sprites), not where it is nor its tiles: the town scrolls and is animated, and
+// drawing it again at every step took 2.8 million cycles every 12 frames; the small decor is a
+// still picture of it.
+static int decor_empty(void) {                    // one line in 16 of the decor, as it would be drawn:
+  static uint16_t line[152];                       // less than a quarter covered is no decor
+  uint32_t full = 0, all = 0;
+  for (int ty = 0; ty < DECOR_H * 8; ty += 16) {
+    decor_line(ty * 8 / 5 + 16, line);
+    for (int x = 0; x < 152; x++) { all++; full += line[x] != 0xFFFF; }
+  }
+  return full * 4 < all;
+}
 static void decor_frame(void) {
   uint32_t h = 2166136261u;                        // the decor changes: draw it again
   for (int n = 1; n < LIST_FIRST; n++) {
-    h = (h ^ neo_vram[0x8000 + n]) * 16777619u; h = (h ^ neo_vram[0x8200 + n]) * 16777619u;
-    h = (h ^ neo_vram[0x8400 + n]) * 16777619u; h = (h ^ neo_vram[n * 64]) * 16777619u;
-    h = (h ^ neo_vram[n * 64 + 1]) * 16777619u; h = (h ^ neo_vram[n * 64 + 12]) * 16777619u;
+    h = (h ^ neo_vram[0x8000 + n]) * 16777619u; h = (h ^ (neo_vram[0x8200 + n] & 0x7F)) * 16777619u;
+    h = (h ^ (neo_vram[n * 64 + 1] >> 8)) * 16777619u;
   }
-  if (h != decor_sign) { decor_sign = h; decor_draw(); }
+  if (h != decor_sign) { decor_sign = h; if (!decor_empty()) decor_draw(); }
   const uint16_t *p = neo_pal[neo.pal_bank];        // its palettes, with the fades of the game
   for (int k = 0; k < decor_slots; k++)
     for (int c = 0; c < 16; c++) PALETTE[(DECOR_PAL + k) * 16 + c] = rgb555(p[decor_pal_of[k] * 16 + c]);

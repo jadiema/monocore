@@ -287,6 +287,7 @@ static void nv_block(uint32_t a0, uint32_t *a1, uint32_t d0, uint32_t *d3, uint3
   }
   *d3 = flip ? (saved + 0x40) & 0xFFFF : x3;
 }
+uint32_t neo_list_last;                             // last sprite written by the list (debug, bench)
 static void native_sprites(m68k_t *c) {
   uint32_t a5 = c->a[5], d3 = 0x1D80, d4 = 0x8076, a0, a1, d0;
   wmem16(mem32(a5 - 29066), 0xFFFF);                // end of the frame list
@@ -306,6 +307,7 @@ static void native_sprites(m68k_t *c) {
     a1 = mem32(a0); d0 = gw16(a1); a1 += 2;
     nv_block(a0, &a1, d0, &d3, &d4);
   }
+  neo_list_last = d4 - 1 - 0x8000;
   wmem32(a5 - 29066, 0x1001CE); wmem32(a5 - 29062, 0x100DFE);
   d0 = ((mem16(a5 - 11000) ? 0x8160 : 0x817D) - d4) & 0xFFFF;   // the vertical positions of the
   d4 = (d4 + 0x200) & 0xFFFF;                       // sprites left over: 0 (dbf: d0 + 1 words)
