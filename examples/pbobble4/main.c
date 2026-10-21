@@ -16,7 +16,7 @@ extern const uint32_t p1_size, spr_map_size;
 extern const uint8_t sounds_file[], sounds_tab_file[], music_file[], music_tab_file[];
 
 #define VRAM_BYTES  0x11000u                       // 0x8800 words
-#define DECOR_W     12                             // decor of the four fields: 96 x 144 pixels, 8 bpp,
+#define DECOR_W     15                             // decor of the four fields: 120 x 144 pixels, 8 bpp,
 #define DECOR_H     18                             // at the end of CHR RAM (see video_four)
 #define DECOR_BYTES ((DECOR_W * DECOR_H + 1) * 64)  // + one empty cell for the rest of layer 1
 #define CACHE_SLOTS ((MC_CHRRAM_SIZE - VRAM_BYTES - DECOR_BYTES) / 128)
@@ -121,17 +121,20 @@ static void layer_column(int layer, int n) {
 }
 
 // --- four players (DESIGN_4P.md, step 4): the four fields side by side ---
-// When tasks 7 and 8 run (patches/four.s), the screen is 384 x 288, the four fields in 2 x 2,
-// every field shown at 5/8 of its size (a 16-pixel tile is 10 pixels: no seam between the tiles of
-// a character); names and scores in the margins.
+// When tasks 7 and 8 run (patches/four.s), the screen is 384 x 288, the four fields in 2 x 2 side
+// by side, every field shown at 3/4 of its size (a 16-pixel tile is 12 pixels: no seam between the
+// tiles of a character): 152 x 192 pixels of the Neo Geo field (its header and bottom bar left
+// out) make 114 x 144; the score of each player is written at the top of its field.
 // Where the sprites of a field are (patches/band.s): players 1 and 2 on the Neo Geo screen, left
 // and right; players 3 and 4 in the band 256 lines below, on the right, player 4 256 pixels
 // further. Each field is the 152 useful pixels of its half of the Neo Geo screen.
-#define FOUR_W      384                            // 2 x 2 fields: each line of the screen crosses two
-#define FOUR_H      288                            // fields only (64 sprites per line at most)
-static const int16_t four_x[4] = {64, 224, 64, 224};   // player 1 top left, 2 top right,
+#define FOUR_W      384                            // 2 x 2 fields side by side: each line of the screen
+#define FOUR_H      288                            // crosses two fields only (64 sprites per line at most)
+#define FOUR_TOP    20                             // the Neo Geo lines shown: 20-211 (the bubbles from the
+#define FOUR_LINES  192                            // ceiling, the launcher, NEXT; not the header nor the bar)
+static const int16_t four_x[4] = {72, 192, 72, 192};   // player 1 top left, 2 top right,
 static const int16_t four_y[4] = {0, 0, 144, 144};     // 3 bottom left, 4 bottom right
-#define FOUR_SCALE  160                            // 5/8 in 8.8
+#define FOUR_SCALE  192                            // 3/4 in 8.8: a 16-pixel tile is 12 pixels
 #define LIST_FIRST  118                            // the list of the frame starts at this sprite: below, the fixed decor
 #define DECOR_BASE  (CHRRAM_BASE + MC_CHRRAM_SIZE - DECOR_BYTES)
 
@@ -152,12 +155,13 @@ static int four_field(int x, int y, int *lx, int *ly) {
     if (xx >= 0x60 && xx < 0x160) { k = 2; *lx = xx - 164; }
     else { int xp = (xx - 256) & 0x1FF; if (xp >= 0x1E0) xp -= 0x200; k = 3; *lx = xp - 164; }
   }
-  if (*lx <= -16 || *lx >= 152 || *ly <= -16 || *ly >= 224) return -1;
+  *ly -= FOUR_TOP;
+  if (*lx <= -16 || *lx >= 152 || *ly <= -16 || *ly >= FOUR_LINES) return -1;
   return k;
 }
 
 // The decor of a field (the fixed sprites, below the list of the frame): the layers of the
-// MONOCORE do not shrink, so the decor of the left field is drawn once, at 5/8, into 12 x 18
+// MONOCORE do not shrink, so the decor of the left field is drawn once, at 3/4, into 15 x 18
 // cells of 8 x 8 pixels in 8 bpp in CHR RAM, and layer 1 shows them behind each of the four
 // fields (no sprite: sprites of the decor, the last ones of the table, were the first ones left
 // out on the lines with more than 64 sprites, and the decor disappeared there). Its pixels are
@@ -222,10 +226,10 @@ static void decor_draw(void) {
   for (int i = 0; i < 256; i++) decor_slot[i] = 0;
   decor_slots = 0;
   for (int ty = 0; ty < DECOR_H * 8; ty++) {
-    int sy = ty * 8 / 5;
+    int sy = FOUR_TOP + ty * 4 / 3;
     if (sy < 224) decor_line(sy + 16, line); else for (int x = 0; x < 152; x++) line[x] = 0xFFFF;
     for (int tx = 0; tx < DECOR_W * 8; tx++) {
-      int sx = tx * 8 / 5; uint32_t v = sx < 152 ? line[sx] : 0xFFFF; uint8_t b = 0;
+      int sx = tx * 4 / 3; uint32_t v = sx < 152 ? line[sx] : 0xFFFF; uint8_t b = 0;
       if (v != 0xFFFF) {
         uint32_t pal = v >> 4, slot = decor_slot[pal];
         if (!slot && decor_slots < DECOR_SLOTS) { decor_pal_of[decor_slots] = (uint8_t)pal; slot = decor_slot[pal] = ++decor_slots; }
@@ -248,7 +252,7 @@ static int decor_empty(void) {                    // one line in 16 of the decor
   static uint16_t line[152];                       // less than a quarter covered is no decor
   uint32_t full = 0, all = 0;
   for (int ty = 0; ty < DECOR_H * 8; ty += 16) {
-    decor_line(ty * 8 / 5 + 16, line);
+    decor_line(FOUR_TOP + ty * 4 / 3 + 16, line);
     for (int x = 0; x < 152; x++) { all++; full += line[x] != 0xFFFF; }
   }
   return full * 4 < all;
@@ -284,8 +288,8 @@ static void decor_layer_open(void) {             // layer 1: the decor cells beh
       for (int cx = 0; cx < DECOR_W; cx++)
         TILEMAP(1)[(four_y[f] / 8 + cy) * 64 + four_x[f] / 8 + cx] = MC_TILE(cy * DECOR_W + cx, DECOR_PAL, 0);
 }
-// where the name and score of each player go, in the margins (columns and rows of 8 pixels)
-static const uint8_t hud_col[4] = {0, 40, 0, 40}, hud_row[4] = {2, 2, 20, 20};
+// the score of each player at the top of its field, WINNER or OUT in its middle (cells of 8 pixels)
+static const uint8_t hud_col[4] = {10, 25, 10, 25}, hud_row[4] = {0, 0, 18, 18};
 static void hud_open(void) {
   decor_layer_open();
   mc_layer(0, fix_file, MC_TILE8 | MC_4BPP, 64, 64, 3);   // the whole 384 x 288 screen
@@ -295,7 +299,7 @@ static void hud_open(void) {
     uint32_t c = hud_rgb[k];
     uint16_t v = (uint16_t)(((c >> 19) << 10) | (((c >> 11) & 31) << 5) | ((c >> 3) & 31));
     for (int i = 1; i < 16; i++) PALETTE[(HUD_PAL + k) * 16 + i] = i == 1 ? v : 0;
-    char name[] = "PLAYER 1"; name[7] = (char)('1' + k);
+    char name[] = "P1"; name[1] = (char)('1' + k);
     hud_text(hud_col[k], hud_row[k], name, HUD_PAL + k);
   }
 }
@@ -304,14 +308,15 @@ static void hud_open(void) {
 static void hud_frame(void) {
   uint32_t w = ram16(0x10F668) << 16 | ram16(0x10F66A), winner = w ? ram16(w + 2) : 99;
   for (int k = 0; k < 4; k++) {
-    const char *state = (uint32_t)k == winner ? "WINNER! " : neo_ram[(0xF660 + k) ^ 1] ? "OUT     " : "        ";
-    hud_text(hud_col[k], hud_row[k] + 4, state, HUD_PAL + k);
+    const char *state = (uint32_t)k == winner ? "WINNER!" : neo_ram[(0xF660 + k) ^ 1] ? "  OUT  " : 0;
+    if (state) hud_text(hud_col[k] + 3, hud_row[k] + 8, state, HUD_PAL + k);
+    else for (int i = 0; i < 7; i++) TILEMAP(0)[(hud_row[k] + 8) * 64 + hud_col[k] + 3 + i] = MC_TILE(FIX_EMPTY, 0, 0);
   }
   for (int k = 0; k < 4; k++) {
     uint32_t v = ram16(score_at[k]) << 16 | ram16(score_at[k] + 2);
     char t[9]; t[8] = 0;
     for (int i = 7; i >= 0; i--) { t[i] = (char)(v || i == 7 ? '0' + v % 10 : ' '); v /= 10; }
-    hud_text(hud_col[k], hud_row[k] + 2, t, HUD_PAL + k);
+    hud_text(hud_col[k] + 3, hud_row[k], t + 1, HUD_PAL + k);
   }
 }
 static void hud_close(void) {                      // the game's fix layer again, and layer 1

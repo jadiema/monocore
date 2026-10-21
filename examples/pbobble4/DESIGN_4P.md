@@ -124,9 +124,13 @@ octet qui diffère dépend de cet appui.
       Outils de mesure ajoutés au banc (compilés à la demande) : `-DNEO_VRAM_OWNER` (tâche qui
       écrit chaque sprite), `-DNEO_RAM_OWNER` (tâches qui écrivent chaque mot de RAM, depuis
       `OWNER_FROM`), `-DNEO_READ_TRACE` (dernière adresse lue avant chaque position de sprite).
-4. L'écran à 4 aires dans `main.c` : **fait**, en **2 × 2** (384 × 288 : joueur 1 en haut à gauche,
-   2 en haut à droite, 3 en bas à gauche, 4 en bas à droite ; colonnes à 64 et 224, rangées à 0 et
-   144 ; noms et scores dans les marges de 64 pixels). D'abord quatre aires côte à côte en
+4. L'écran à 4 aires dans `main.c` : **fait**, en **2 × 2 accolées** (384 × 288 : joueur 1 en haut à
+   gauche, 2 en haut à droite, 3 en bas à gauche, 4 en bas à droite ; colonnes à 72 et 192, rangées
+   à 0 et 144), à l'échelle **3/4** (bulles de 12 pixels) : on montre les lignes 20 à 211 de l'aire
+   Neo Geo (plafond, rangées, ligne limite, lanceur, NEXT), sans son en-tête (0–15) ni le bas de sa
+   barre ; 152 × 192 pixels donnent 114 × 144. Le score de chaque joueur est écrit en haut de son
+   aire, WINNER ou OUT au milieu. Enlever une rangée de bulles ne libérerait de la place qu'en
+   remontant aussi le lanceur (modification profonde du jeu). D'abord quatre aires côte à côte en
    384 × 224 : chaque ligne traversait alors quatre aires, et les lignes chargées dépassaient la
    limite de 64 sprites ; en 2 × 2, une ligne n'en traverse que deux, à la même taille de bulles.
    Détails : Quand les tâches 7 et 8 sont les aires des joueurs 3
