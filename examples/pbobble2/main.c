@@ -13,7 +13,7 @@
 
 extern const uint8_t p1_file[], spr_file[], spr_cells_file[], spr_map_file[], fix_file[];
 extern const uint32_t p1_size, spr_map_size;
-extern const uint8_t sounds_file[], sounds_tab_file[];
+extern const uint8_t sounds_file[], sounds_tab_file[], music_file[], music_tab_file[];
 
 #define VRAM_BYTES  0x11000u                       // 0x8800 words
 #define CACHE_SLOTS ((MC_CHRRAM_SIZE - VRAM_BYTES) / 128)
@@ -184,8 +184,29 @@ void neo_sound_trace(uint32_t command) { mc_debug("SND %u %02X\n", neo.frame, co
 // hardware (LOOP).
 typedef struct { uint32_t key, off, len, loop, format, rate, vol, cuts; } snd_t;   // cuts: sounds it stops
 #define FADE_FRAMES 90
+#define SFX_GAIN 154            /* /256: room for the music and for sounds playing together */
 static struct { const snd_t *s; uint8_t prefix, music, looping; uint32_t age; } voice[PCM_VOICES];
 static uint32_t snd_age, fade;
+
+// Musics: original pieces made for the port (tools/sound/make_music.py) in place of the game's,
+// on voice 0, looping in hardware. A music event replaces the music; every "14 xx" stops it (the
+// game sends one at each change of screen), and so do the stops of everything and the fade-out.
+typedef struct { uint32_t key, off_l, off_r, len; } mus_t;
+#define MUSIC_VOICE 0
+#define MUSIC_VOL 150
+static const mus_t *music_now;
+
+static const mus_t *music_find(uint32_t key) {
+  uint32_t n = *(const uint32_t *)music_tab_file;
+  const mus_t *t = (const mus_t *)(music_tab_file + 4);
+  for (uint32_t k = 0; k < n; k++) if (t[k].key == key) return &t[k];
+  return 0;
+}
+static void music_play(const mus_t *m) {
+  music_now = m;
+  mc_pcm_play(MUSIC_VOICE, music_file + m->off_l, m->len, PCM_S16, 22050, 0, MUSIC_VOL, MUSIC_VOL);
+}
+static void music_stop(void) { if (music_now) mc_pcm_stop(MUSIC_VOICE); music_now = 0; }
 
 static const snd_t *snd_find(uint32_t key) {
   uint32_t n = *(const uint32_t *)sounds_tab_file;
@@ -197,12 +218,13 @@ static const snd_t *snd_find(uint32_t key) {
 static void voice_part(int v, int loop_part) {
   (void)loop_part;
   const snd_t *s = voice[v].s;
-  uint32_t vol = fade ? s->vol * fade / FADE_FRAMES : s->vol;
+  uint32_t vol = s->vol * SFX_GAIN / 256;
+  if (fade) vol = vol * fade / FADE_FRAMES;
   mc_pcm_play(v, sounds_file + s->off, s->len, (int)s->format, s->rate, s->loop, (int)vol, (int)vol);
 }
 
 static void voice_stop(int v) { mc_pcm_stop(v); voice[v].s = 0; voice[v].looping = 0; }
-static void snd_stop_all(void) { for (int v = 0; v < PCM_VOICES; v++) voice_stop(v); fade = 0; }
+static void snd_stop_all(void) { for (int v = 1; v < PCM_VOICES; v++) voice_stop(v); music_stop(); fade = 0; }
 
 void neo_platform_sound(uint32_t prefix, uint32_t code) {
   if (!prefix) {
@@ -210,10 +232,13 @@ void neo_platform_sound(uint32_t prefix, uint32_t code) {
     if (code == 0x05) { fade = FADE_FRAMES; return; }
   }
   if (prefix == 0x14) {
-    for (int v = 0; v < PCM_VOICES; v++) if (voice[v].s && voice[v].prefix == code) voice_stop(v);
+    for (int v = 1; v < PCM_VOICES; v++) if (voice[v].s && voice[v].prefix == code) voice_stop(v);
+    music_stop();
     return;
   }
   if (prefix && (prefix < 0x18 || prefix > 0x1E)) return;     // 0A, 0E, 15: settings of the driver
+  const mus_t *m = music_find(prefix << 8 | code);
+  if (m) { if (m != music_now) music_play(m); return; }
   const snd_t *s = snd_find(prefix << 8 | code);
   if (!s) {
     if (prefix || code >= 0x20 || code == 0x02) mc_debug("SOUND %02X %02X missing: add it to tools/sound/sounds.txt\n", prefix, code);
@@ -224,14 +249,14 @@ void neo_platform_sound(uint32_t prefix, uint32_t code) {
   for (int v = 0; v < PCM_VOICES; v++)                        // the driver gives this sound their channels
     if (voice[v].s && (s->cuts >> (voice[v].s - t0) & 1)) voice_stop(v);
   int music = !prefix && code >= 0x21 && code != 0xFE && code != 0xFF && code < 0x60;
-  if (music) for (int v = 0; v < PCM_VOICES; v++) if (voice[v].s && voice[v].music) voice_stop(v);
+  if (music) for (int v = 1; v < PCM_VOICES; v++) if (voice[v].s && voice[v].music) voice_stop(v);
   int pick = -1;
-  for (int v = 0; v < PCM_VOICES && pick < 0; v++) if (voice[v].s == s) pick = v;          // same sound: again
-  for (int v = 0; v < PCM_VOICES && pick < 0; v++) if (!voice[v].s || !(PCM[v].ctrl & 1)) if (!voice[v].looping) pick = v;
+  for (int v = 1; v < PCM_VOICES && pick < 0; v++) if (voice[v].s == s) pick = v;          // same sound: again
+  for (int v = 1; v < PCM_VOICES && pick < 0; v++) if (!voice[v].s || !(PCM[v].ctrl & 1)) if (!voice[v].looping) pick = v;
   if (pick < 0)                                                                             // else the oldest one-shot
-    for (int v = 0; v < PCM_VOICES; v++)
+    for (int v = 1; v < PCM_VOICES; v++)
       if (!voice[v].looping && (pick < 0 || voice[v].age < voice[pick].age)) pick = v;
-  if (pick < 0) pick = 0;
+  if (pick < 0) pick = 1;
   voice[pick].s = s; voice[pick].prefix = (uint8_t)prefix; voice[pick].music = (uint8_t)music;
   voice[pick].looping = s->loop != PCM_NOLOOP; voice[pick].age = ++snd_age;
   voice_part(pick, 0);
@@ -240,8 +265,9 @@ void neo_platform_sound(uint32_t prefix, uint32_t code) {
 static void sound_frame(void) {                 // vblank: fade-out
   if (fade) {
     if (--fade == 0) { snd_stop_all(); return; }
-    for (int v = 0; v < PCM_VOICES; v++)
-      if (voice[v].s) PCM[v].vol_l = PCM[v].vol_r = (uint8_t)(voice[v].s->vol * fade / FADE_FRAMES);
+    for (int v = 1; v < PCM_VOICES; v++)
+      if (voice[v].s) PCM[v].vol_l = PCM[v].vol_r = (uint8_t)(voice[v].s->vol * SFX_GAIN / 256 * fade / FADE_FRAMES);
+    if (music_now) PCM[MUSIC_VOICE].vol_l = PCM[MUSIC_VOICE].vol_r = (uint8_t)(MUSIC_VOL * fade / FADE_FRAMES);
   }
 }
 

@@ -35,7 +35,7 @@ OKI_STEP = [int(16.0 * (11.0 / 10.0) ** i) for i in range(49)]
 OKI_ADJ = [-1, -1, -1, -1, 2, 4, 6, 8]
 
 
-SILENT = set()
+SILENT, MUSIC = set(), set()
 
 
 def events():
@@ -44,7 +44,9 @@ def events():
         line = raw.split('#')[0].split()
         if not line: continue
         ev = [int(v, 16) for v in line]; out.append(ev)
-        if '#' in raw and 'silent' in raw.split('#', 1)[1]: SILENT.add(tuple(ev))
+        comment = raw.split('#', 1)[1] if '#' in raw else ''
+        if 'music:' in comment: MUSIC.add(tuple(ev)); out.pop(); continue      # made by make_music.py
+        if 'silent' in comment: SILENT.add(tuple(ev))
     return out
 
 

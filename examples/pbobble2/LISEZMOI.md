@@ -8,7 +8,7 @@ traduit, ROM construite) restent hors du dépôt (`.gitignore`) : ne jamais pous
 
 **État** : le jeu se joue dans le simulateur (démo, Player vs Computer, Puzzle Game, deux joueurs),
 une session de test de plus de 15 minutes sans arrêt, et jusqu'au niveau 2 contre l'ordinateur.
-Musiques et bruitages sont là. Pas encore essayé sur la MiSTer.
+Musiques originales (style arcade) et bruitages d'origine. Essayé sur la MiSTer.
 
 ## Construire la ROM
 
@@ -19,8 +19,9 @@ pip install numpy pillow capstone
 python3 tools/prepare.py pbobbl2n.zip      # données tirées de ta copie
 python3 tools/m68kmap.py                    # carte du code 68000
 python3 tools/translate.py                  # programme traduit : build/tr/pb2_code.c (environ une minute)
-sh tools/sound/build.sh && python3 tools/sound/cuts.py && python3 tools/sound/make_sounds.py   # le son
-python3 ../../sdk/build.py .                # build/pbobble2.mnc (31,2 Mo)
+sh tools/sound/build.sh && python3 tools/sound/cuts.py && python3 tools/sound/make_sounds.py   # bruitages
+python3 tools/sound/make_music.py           # musiques
+python3 ../../sdk/build.py .                # build/pbobble2.mnc (27,8 Mo)
 ```
 
 Il faut aussi clang, ld.lld et llvm-objcopy (comme pour tout le SDK). La ROM se charge dans
@@ -107,41 +108,39 @@ tour précédent, ce qui laisse au moins un tour par image, comme une Neo Geo ch
 
 ## Le son
 
-Le pilote son du jeu tourne sur le Z80 et pilote un YM2610, que la MONOCORE n'a pas : chaque son
-est **rendu hors ligne** par le vrai pilote, puis joué sur les voix PCM. Rien n'est émulé sur la
-console.
+**Musiques originales.** Le pilote son du jeu (Z80) garde un état qui dépend de tout l'historique
+des commandes : le même ordre ne joue pas la même chose selon ce qui l'a précédé (après `14 1A`, la
+musique `2E` est muette ; dans la vraie partie, elle joue autrement que rendue seule). Des clips
+pré-rendus ne peuvent donc pas reproduire ses musiques en jeu. Comme le portage servira de base à
+une version 4 joueurs, les musiques sont remplacées par des **compositions originales** de style
+arcade (marimba, cuivres, basse, percussions), synthétisées par `tools/sound/make_music.py` comme la
+musique d'AUBE : menus (`19 1A`), carte (`19 1C`), partie contre l'ordinateur (`2E`), Puzzle Game
+(`19 10`), game over (`21`). Mono, 16 bits, 22 050 Hz, 8,9 Mo ; chaque morceau est rendu deux fois
+et la seconde passe est gardée, pour que sa fin rejoigne son début (réverbération comprise) et
+qu'il boucle dans le matériel sans couture.
+
+**Bruitages et voix d'origine.** Rendus hors ligne par le vrai pilote et un YM2610 (chacun est
+identique au pilote), PCM 16 bits, 5,6 Mo :
 
 ```sh
 sh tools/sound/build.sh                 # build/snd/render (ymfm BSD-3 et un cœur Z80 MIT, récupérés, jamais commités)
 python3 tools/sound/cuts.py              # quel son coupe quel son (quelques minutes)
-python3 tools/sound/make_sounds.py       # sounds.bin et sounds_tab.bin (18,8 Mo), puis sdk/build.py
+python3 tools/sound/make_sounds.py       # sounds.bin, sounds_tab.bin
+python3 tools/sound/make_music.py        # music.bin, music_tab.bin
 ```
 
 - **Protocole** (désassemblage du pilote) : le gestionnaire de NMI range chaque octet dans une file
   de 64 entrées ; la boucle principale les lit un par un. `0A`, `0E`, `14`, `15` et `18`–`1E` lisent
-  un octet de paramètre : `1A 42` joue le son `42` dans la case de `1A` (le tir), `14 19` arrête la
-  case de `19`. Une table du pilote (`$2FF4`) classe les commandes seules : `20`–`47` sont des
-  musiques qui se remplacent, `60`–`63`, `7F`, `FE`, `FF` des bruitages ; `01`, `03`, `04`, `0D`, `20`
-  arrêtent tout, `05` fait un fondu. `tools/sound/events.py` découpe un flux de commandes de la même
-  façon, et `neort.c` aussi, en C.
+  un octet de paramètre : `1A 42` joue le son `42` dans la case de `1A` (le tir). Une table du pilote
+  (`$2FF4`) classe les commandes seules. `tools/sound/events.py`, et `neort.c` en C, découpent les
+  commandes de la même façon.
 - **Sons du jeu** : `tools/sound/sounds.txt` (des numéros seulement), relevés sur les séances
-  scriptées avec une ROM qui trace les commandes (`-DNEO_SOUND_TRACE`). 27 événements. Trois d'entre
-  eux (`1A 14`, `1A 19`, `1D 19`) sont muets dans le jeu, mais rendus seuls, hors de leur contexte,
-  donnent des minutes d'ADPCM-B saturé : ils sont marqués `silent`.
-- **Boucles** : `tools/sound/period.py` les cherche dans les écritures du pilote au YM2610
-  (`render … -writes`), qui se répètent pas pour pas, alors que le son ne se répète pas au bit près.
-  `2E` (la partie) reboucle toutes les 281 s, `21` toutes les 60 s ; les longs morceaux qui finissent
-  d'eux-mêmes sont gardés 30 s (le jeu les coupe en 20 s au plus).
-- **Format** : PCM 16 bits mono ; les sons courts (12 s au plus) à 22 050 Hz, les musiques et longs
-  morceaux à 16 000 Hz pour que tout tienne dans 32 Mo. Chaque son est normalisé à sa crête, et son
-  niveau dans le jeu est rendu par le volume de lecture. Les musiques bouclent dans le matériel
-  (`LOOP`). Essayés d'abord et abandonnés : l'ADPCM OKI (rapport signal sur bruit de 14 dB sur le tir,
-  21 dB sur la musique : le son grésille) et le PCM 8 bits (36 à 39 dB : un souffle audible) ; le
-  PCM 16 bits donne 80 à 87 dB.
-- **Console** (`main.c`) : chaque son prend une voix (la sienne s'il joue déjà, sinon une libre, sinon
-  le bruitage le plus ancien) ; il coupe les sons dont il prend les canaux YM2610 dans le pilote
-  (table mesurée par `cuts.py` : les sons de la case `19` se coupent entre eux, ceux de la case `1A` se
-  superposent) ; un son absent de la table est signalé `SOUND xx yy missing` dans la console de
-  débogage. Comparé au pilote sur la même partie, l'enveloppe du son a une corrélation de 0,91.
-- **Taille** : la ROM passe à 31,2 Mo : elle tient sur la carte SD (32 Mo, de justesse), plus sur la
-  cartouche (16 Mo).
+  scriptées avec une ROM qui trace les commandes (`-DNEO_SOUND_TRACE`). Marqués `music:` : remplacés
+  par `make_music.py` ; marqués `silent` : muets dans le jeu (rendus seuls, hors contexte, le pilote
+  joue des minutes d'ADPCM-B saturé).
+- **Console** (`main.c`) : la voix 0 joue la musique (un événement de musique la remplace, tout
+  `14 xx` l'arrête : le jeu en envoie un à chaque changement d'écran) ; les voix 1 à 7 jouent les
+  bruitages (la leur s'ils rejouent, sinon une libre, sinon le plus ancien) ; un son coupe ceux dont
+  il prend les canaux YM2610 dans le pilote (table de `cuts.py`) ; un gain global laisse de la marge
+  (crêtes de 0,4 à 0,55 sur les séances) ; un son absent est signalé `SOUND xx yy missing`.
+- **Taille** : la ROM fait 27,8 Mo (carte SD).
