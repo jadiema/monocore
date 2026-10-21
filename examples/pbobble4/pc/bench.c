@@ -5,6 +5,9 @@
 //   DIR     folder with p1.bin, spr.bin, spr_map.bin, fix.bin (examples/pbobble4)
 //   SCRIPT  actions "frame:action", separated by spaces:
 //           frame:shot=NAME   writes NAME.ppm (320 x 224)
+//           frame:fourshot=NAME  4-player version: NAME_screen.ppm (as shot), NAME_decor.ppm (the
+//                             fixed sprites only, below the list of the frame), NAME_p3.ppm and
+//                             NAME_p4.ppm (the band of players 3 and 4, patches/band.s)
 //           frame:p1=HEX      P1 buttons (bits 0 up, 1 down, 2 left, 3 right, 4 A, 5 B, 6 C, 7 D)
 //           frame:st=HEX      start/select (bit 0 P1 start, bit 2 P2 start)
 //           frame:dump=NAME   writes the video RAM to NAME.vram
@@ -64,21 +67,25 @@ static void rgb(uint16_t c, uint8_t *o) {
   o[0] = (r << 3) | (r >> 2); o[1] = (g << 3) | (g >> 2); o[2] = (b << 3) | (b >> 2);
 }
 
+// view: lines from oy, pixels from ox, sprites nmin to nmax (the list of the frame starts at
+// sprite 118: below it, the fixed decor), with or without the fix layer
+static int view_oy, view_ox, view_nmin = 1, view_nmax = 381, view_fix = 1;
 static void render(const char *name) {
   static uint16_t line[384];
   static uint8_t img[224][320][3];
   const uint16_t *pal = neo_pal[neo.pal_bank];    // the bank selected (shown and accessed)
   for (int y = 0; y < 224; y++) {
-    int sl = y + 16;                              // LSPC scanline (the screen starts at line 16)
+    int sl = (y + 16 + view_oy) & 0x1FF;           // LSPC scanline (the screen starts at line 16)
     for (int x = 0; x < 384; x++) line[x] = 0xFFFF;
     int px = 0, py = 0, prows = 0, pzy = 0, pw = 0;
     for (int n = 1; n < 381; n++) {
+      int shown = n >= view_nmin && n < view_nmax;
       uint16_t s2 = neo_vram[0x8000 + n], s3 = neo_vram[0x8200 + n], s4 = neo_vram[0x8400 + n];
       int zx = (s2 >> 8) & 15, zy, rows, sx, sy;
       if (s3 & 0x40) { sx = (px + pw) & 0x1FF; sy = py; rows = prows; zy = pzy; }
       else { sx = s4 >> 7; sy = 0x200 - (s3 >> 7); rows = s3 & 0x3F; zy = s2 & 0xFF; }
       px = sx; py = sy; prows = rows; pzy = zy; pw = zx + 1;
-      if (!rows) continue;
+      if (!rows || !shown) continue;
       int sline = (sl - sy) & 0x1FF, zline = sline & 0xFF, invert = sline & 0x100;
       if (invert) zline ^= 0xFF;
       if (rows > 0x20) {
@@ -95,7 +102,8 @@ static void render(const char *name) {
       if (t1 & 2) ty ^= 15;
       if (num >= spr_map_count) continue;
       const uint8_t *row = spr + spr_map[num] * 128 + ty * 8;
-      int x = sx >= 0x1E0 ? sx - 0x200 : sx;
+      int vx = (sx - view_ox) & 0x1FF;
+      int x = vx >= 0x1E0 ? vx - 0x200 : vx;
       for (int k = 0; k < 16; k++) {
         int kk = (t1 & 1) ? 15 - k : k;
         if (!zoom_x[zx][kk]) continue;
@@ -107,7 +115,7 @@ static void render(const char *name) {
     for (int x = 0; x < 320; x++) {              // fix layer on top
       uint16_t w = neo_vram[0x7000 + (x >> 3) * 32 + (sl >> 3)];
       const uint8_t *t = fix + (w & 0xFFF) * 32 + (sl & 7) * 4;
-      int p = (t[(x & 7) >> 1] >> ((x & 1) * 4)) & 15;
+      int p = view_fix ? (t[(x & 7) >> 1] >> ((x & 1) * 4)) & 15 : 0;
       uint16_t c = p ? pal[(w >> 12) * 16 + p] : line[x] != 0xFFFF ? pal[line[x]] : pal[0xFFF];
       rgb(c, img[y][x]);
     }
@@ -125,6 +133,14 @@ static void actions(uint32_t frame) {
     const char *a = e + 1, *end = strchr(a, ' '); if (!end) end = a + strlen(a);
     if (f == frame) {
       if (!strncmp(a, "shot=", 5)) { char n[128]; int l = end - a - 5; snprintf(n, sizeof n, "%.*s", l, a + 5); render(n); }
+      else if (!strncmp(a, "fourshot=", 9)) {   // NAME_screen, NAME_decor, NAME_p3, NAME_p4 (4-player version)
+        char n[128]; int l = end - a - 9;
+        snprintf(n, sizeof n, "%.*s_screen", l, a + 9); render(n);
+        view_nmax = 118; view_fix = 0; snprintf(n, sizeof n, "%.*s_decor", l, a + 9); render(n);
+        view_nmin = 118; view_nmax = 381; view_oy = 256; snprintf(n, sizeof n, "%.*s_p3", l, a + 9); render(n);
+        view_ox = 256; snprintf(n, sizeof n, "%.*s_p4", l, a + 9); render(n);
+        view_oy = view_ox = 0; view_nmin = 1; view_fix = 1;
+      }
       else if (!strncmp(a, "dump=", 5)) {        // raw VRAM of this frame: NAME.vram
         char n[128]; int l = end - a - 5; snprintf(n, sizeof n, "%.*s.vram", l, a + 5);
         FILE *f = fopen(n, "wb"); fwrite(neo_vram, 2, 0x8800, f); fclose(f);
