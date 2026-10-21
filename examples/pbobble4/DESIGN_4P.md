@@ -164,7 +164,21 @@ octet qui diffère dépend de cet appui.
    VRAM et registres LSPC identiques à l'original à chaque image (2 600 images à quatre et contre
    l'ordinateur, `BENCH_VHASH=1`). Résultat : 562 à 575 images sur 600 à quatre (environ 57
    images/s), charge 84–87 %.
-5. Les règles à 4 : choix du mode, attaques partagées, fin de manche et de partie, menus ; et ce
+5. Les règles à 4 — **fin de manche : faite** (`patches/rules.s`). Le joueur dont les bulles
+   atteignent la ligne (état 12, `$62048`–`$620AC`) mène la fin de manche : il gèle son adversaire
+   (`108 = 6`, état 0), joue son LOST (13, 14), puis donne l'état 10 à l'adversaire (WON : 10, 11)
+   et se met à 0 ; le gagnant, à la fin de son WON, prend le numéro de l'adversaire pour le
+   résultat et termine la manche (`$22160`). L'adversaire venait de deux tables à 2 entrées
+   (`$61E68`, `$62252`) que les joueurs 3 et 4 lisaient au-delà (écritures au hasard : trouvées en
+   cherchant dans le code traduit, et non plus par décodage linéaire, toutes les tables lues avec
+   le numéro de joueur). Maintenant : un joueur qui perd est éliminé (`OUT`, remis à zéro à chaque
+   manche) ; le gel et le WON vont au dernier joueur restant, seulement quand il n'en reste qu'un ;
+   à deux joueurs, c'est le jeu d'origine (RAM identique contre l'ordinateur). Vérifié sur le banc
+   (`-DNEO_WATCH`, `WATCH=adresses` : chaque écriture d'un mot surveillé, avec la tâche) et dans le
+   simulateur : les joueurs perdent l'un après l'autre, les autres continuent, le dernier gagne.
+   Reste : les bandeaux WON/LOST du bilan de manche, dessinés pour deux côtés seulement, et ses
+   compteurs de manches gagnées.
+   Les règles à 4 restantes : choix du mode, attaques partagées, fin de manche et de partie, menus ; et ce
    que l'écran à quatre montre encore : les joueurs 3 et 4 ont l'apparence du joueur 2 (côté
    droit), les en-têtes de score du jeu (sprites) restent en haut des aires 1 et 2, les scores des
    joueurs 3 et 4 sont à vérifier (d'autres chemins de score peuvent viser les adresses des

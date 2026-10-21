@@ -24,6 +24,12 @@ static inline uint32_t RD8(uint32_t a) {
   return neo_rd8(a);
 }
 static inline uint32_t RD32(uint32_t a) { return (RD16(a) << 16) | RD16(a + 2); }
+#ifdef NEO_WATCH                           // debug (pc/bench.c): writes to watched words of RAM
+void neo_watch(uint32_t a, uint32_t v);
+#define WATCH(a, v) neo_watch(a, v)
+#else
+#define WATCH(a, v)
+#endif
 #ifdef NEO_RAM_OWNER                       // debug (pc/bench.c): which task writes each byte of RAM
 void neo_ram_owner(uint32_t a);
 #define RAM_OWNER(a) neo_ram_owner(a)
@@ -31,7 +37,7 @@ void neo_ram_owner(uint32_t a);
 #define RAM_OWNER(a)
 #endif
 static inline void WR16(uint32_t a, uint32_t v) {
-  RAM_OWNER(a);
+  RAM_OWNER(a); WATCH(a, v);
   a &= 0xFFFFFF;
   if ((a & 0xF00000) == 0x100000) { *(uint16_t *)(neo_ram + (a & 0xFFFF)) = v; return; }
   neo_wr16(a, v);

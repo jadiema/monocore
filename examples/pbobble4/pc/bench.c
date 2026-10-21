@@ -161,7 +161,20 @@ static void actions(uint32_t frame) {
 
 static uint32_t hot[0x88000];          // samples per 68000 word address (ROM and RAM), for the report
 static uint32_t hot_from;                 // HOT_FROM=frame: samples from that frame only
+static uint32_t last_pc;                  // the last 68000 address a tick came from
+#ifdef NEO_WATCH
+// WATCH=addr,addr,...: every write to these words, with the value, the frame, the running task and
+// the last 68000 address of a tick (a backward branch or a dispatch: near the writer)
+static uint32_t watch[16], nwatch;
+void neo_watch(uint32_t a, uint32_t v) {
+  a &= 0xFFFFFF;
+  for (uint32_t k = 0; k < nwatch; k++)
+    if (a == watch[k]) printf("WATCH %06X = %04X frame %u task %u near %06X\n", a, v & 0xFFFF, neo.frame,
+                              neo_ram[0x34C4] | neo_ram[0x34C5] << 8, last_pc);
+}
+#endif
 void bench_tick(uint32_t pc) {
+  if (pc < 0x110000) last_pc = pc;
   if (pc < 0x110000 && neo.frame >= hot_from) hot[pc >> 1]++;
   if (++ticks < TICKS_PER_FRAME) return;
   ticks = 0;
@@ -274,6 +287,9 @@ int main(int argc, char **argv) {
   neo_reset(&cpu);
   if (getenv("OWNER_FROM")) owner_from = atoi(getenv("OWNER_FROM"));
   if (getenv("HOT_FROM")) hot_from = atoi(getenv("HOT_FROM"));
+#ifdef NEO_WATCH
+  for (const char *w = getenv("WATCH"); w && *w && nwatch < 16; ) { watch[nwatch++] = strtoul(w, (char **)&w, 16); if (*w == ',') w++; }
+#endif
   if (!setjmp(done)) m68k_run(&cpu);
 #ifdef NEO_VRAM_OWNER
   owner_report();

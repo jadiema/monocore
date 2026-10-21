@@ -1,0 +1,124 @@
+| The rounds with four players (step 5 of DESIGN_4P.md): the last player left wins.
+|
+| In the game, the player whose bubbles reach the line (state 12, $62048-$620AC) leads the end of
+| the round: it freezes its opponent (108(opponent) = 6, state 0), plays its LOST (states 13,
+| 14), then gives the opponent the state 10 (WON: 10, 11) and itself 0; the winner, at the end of
+| its WON, takes the number of the opponent for the result and ends the round ($22160). The
+| opponent comes from two 2-entry tables indexed by the player number ($61E68, $62252), which
+| players 3 and 4 read past. Here: a player who loses is out; the freezing and the WON go to the
+| last player left, only when one is left; while more are left, the others go on. With two
+| players this is the game as it was.
+
+	.equ	P1S, 0x10D5D2
+	.equ	P2S, 0x10D668
+	.equ	P3S, 0x10F400
+	.equ	P4S, 0x10F500
+	.equ	FIELD7, 0x10F65C		| players 3 and 4 have a field (patches/band.s)
+	.equ	FIELD8, 0x10F65D
+	.equ	OUT, 0x10F660			| 4 bytes: the player is out of this round
+	.equ	LASTOUT, 0x10F664		| structure of the last player out
+
+| expect 061E2E 34 crc32 0xd679758b	(the player has just lost: freeze the opponent)
+	.section .p_061E2E,"ax"
+	jsr	lost_now
+	bra.s	.+0x22-6			| to the end of the site (. is the bra, 6 bytes in)
+	.fill	13,2,0x4e71
+| expect 061E76 28 crc32 0x763ed612	(during LOST: keep the opponent frozen)
+	.section .p_061E76,"ax"
+	jsr	keep_frozen
+	bra.s	.+0x1C-6
+	.fill	10,2,0x4e71
+| expect 061ECA 28 crc32 0xfa1e69dd
+	.section .p_061ECA,"ax"
+	jsr	keep_frozen
+	bra.s	.+0x1C-6
+	.fill	10,2,0x4e71
+| expect 061F0C 28 crc32 0x9c974384	(end of LOST: the opponent gets the WON)
+	.section .p_061F0C,"ax"
+	jsr	give_won
+	bra.s	.+0x1C-6
+	.fill	10,2,0x4e71
+| expect 0621D6 6 crc32 0x09f0a25a	(end of WON: the opponent, for the result)
+	.section .p_0621D6,"ax"
+	jsr	the_loser
+| expect 062204 6 crc32 0xc127f3da
+	.section .p_062204,"ax"
+	jsr	the_loser
+| expect 062224 6 crc32 0x8c959282
+	.section .p_062224,"ax"
+	jsr	the_loser
+
+	.section .p_0F0600,"ax"
+| d1 = number of players still in the round, a1 = the structure of the last one of them
+| (players 1 and 2 always have a field; 3 and 4 when their task is a field)
+in_round:
+	moveq	#0, %d1
+	suba.l	%a1, %a1
+	tst.b	OUT
+	bne.s	1f
+	addq.w	#1, %d1
+	lea	P1S, %a1
+1:	tst.b	OUT+1
+	bne.s	2f
+	addq.w	#1, %d1
+	lea	P2S, %a1
+2:	tst.b	FIELD7
+	beq.s	3f
+	tst.b	OUT+2
+	bne.s	3f
+	addq.w	#1, %d1
+	lea	P3S, %a1
+3:	tst.b	FIELD8
+	beq.s	4f
+	tst.b	OUT+3
+	bne.s	4f
+	addq.w	#1, %d1
+	lea	P4S, %a1
+4:	rts
+
+| the player of a4 has just lost: out; if one player is left, freeze it (as the game does)
+lost_now:
+	movem.l	%d0-%d1/%a1, -(%sp)
+	move.w	2(%a4), %d0
+	lea	OUT, %a1
+	st	0(%a1,%d0.w)
+	move.l	%a4, LASTOUT
+	bsr.w	in_round
+	cmpi.w	#1, %d1
+	bne.s	1f
+	move.w	#6, 108(%a1)
+	move.w	#0, 4(%a1)
+1:	movem.l	(%sp)+, %d0-%d1/%a1
+	rts
+
+keep_frozen:					| during LOST, while one player is left
+	movem.l	%d1/%a1, -(%sp)
+	bsr.w	in_round
+	cmpi.w	#1, %d1
+	bne.s	1f
+	move.w	#6, 108(%a1)
+1:	movem.l	(%sp)+, %d1/%a1
+	rts
+
+give_won:					| end of LOST: the last player left gets the WON
+	movem.l	%d1/%a1, -(%sp)
+	bsr.w	in_round
+	cmpi.w	#1, %d1
+	bne.s	1f
+	move.w	#10, 4(%a1)
+1:	movem.l	(%sp)+, %d1/%a1
+	rts
+
+| a0 = the opponent of the winner, for the result: the last player out with four players, the
+| other player of the table of the game otherwise (replaces asl.w #2,d0 / movea.l $62252(pc,d0.w),a0)
+the_loser:
+	tst.w	FIELD7				| FIELD7 and FIELD8 together
+	beq.s	1f
+	movea.l	LASTOUT, %a0
+	cmpa.w	#0, %a0
+	bne.s	2f
+1:	asl.w	#2, %d0
+	movea.l	opponents(%pc,%d0.w), %a0
+2:	rts
+opponents:
+	.long	P2S, P1S, P4S, P3S
