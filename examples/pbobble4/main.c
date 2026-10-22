@@ -198,11 +198,11 @@ static int four_field(int x, int y, int *lx, int *ly) {
   if (yy < 240 || yy >= 0x1F0) {                   // the Neo Geo screen: players 1 and 2
     int xs = xx >= 0x1E0 ? xx - 0x200 : xx;
     k = xs + 8 < 160 ? 0 : 1;
-    *lx = xs - (k ? 164 : 4); *ly = yy >= 0x1F0 ? yy - 0x200 : yy;
+    *lx = xs - (k ? 148 : 4); *ly = yy >= 0x1F0 ? yy - 0x200 : yy;   // the frames: 24-151, 168-295
   } else {                                         // the band: players 3 and 4
     *ly = yy - 256;
-    if (xx >= 0x60 && xx < 0x160) { k = 2; *lx = xx - 164; }
-    else { int xp = (xx - 256) & 0x1FF; if (xp >= 0x1E0) xp -= 0x200; k = 3; *lx = xp - 164; }
+    if (xx >= 0x60 && xx < 0x160) { k = 2; *lx = xx - 148; }
+    else { int xp = (xx - 256) & 0x1FF; if (xp >= 0x1E0) xp -= 0x200; k = 3; *lx = xp - 148; }
   }
   *ly -= FOUR_TOP;
   if (*lx <= -16 || *lx >= 152 || *ly <= -16 || *ly >= FOUR_LINES) return -1;
