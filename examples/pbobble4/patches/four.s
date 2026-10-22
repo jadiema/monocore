@@ -181,9 +181,39 @@ t_count:
 	lea	count_t(%pc), %a0
 	movea.l	0(%a0,%d0.w), %a0
 	rts
+| $459DC: the height reached by the bubbles of the opponent (+$14 of its structure), for the mood
+| of the field (108(a4)): with four players, the highest one among the opponents still in the
+| round (a field, not out), in a word of ours. With two players, the only opponent's.
 t_opp14:
-	lea	opp14_t(%pc), %a0
-	movea.l	0(%a0,%d0.w), %a0
+	move.l	%d1, 0x10F6A4			| registers kept in RAM (not on the stack of the task)
+	move.l	%d2, 0x10F6A8
+	move.l	%a1, 0x10F6AC
+	lsr.w	#2, %d0				| d0 = 4 x the number of the player
+	clr.w	0x10F6A0			| the highest one
+	moveq	#3, %d1
+1:	cmp.w	%d0, %d1			| not the player itself
+	beq.s	3f
+	cmpi.w	#2, %d1				| players 3 and 4: a field
+	bcs.s	2f
+	lea	0x10F65C-2, %a1
+	tst.b	0(%a1,%d1.w)
+	beq.s	3f
+2:	lea	0x10F660, %a1			| not out
+	tst.b	0(%a1,%d1.w)
+	bne.s	3f
+	move.w	%d1, %d2
+	lsl.w	#2, %d2
+	lea	opp_all(%pc), %a1
+	movea.l	0(%a1,%d2.w), %a1
+	move.w	(%a1), %d2
+	cmp.w	0x10F6A0, %d2
+	ble.s	3f
+	move.w	%d2, 0x10F6A0
+3:	dbf	%d1, 1b
+	lea	0x10F6A0, %a0
+	movea.l	0x10F6AC, %a1
+	move.l	0x10F6A8, %d2
+	move.l	0x10F6A4, %d1
 	rts
 t_pad1:
 	lea	pad1_t(%pc), %a0
@@ -199,4 +229,4 @@ pad_t:	.long	0x100FF4, 0x100FF8, PAD3, PAD4			| $74E90 with 4 entries
 pad1_t:	.long	0x100FF5, 0x100FF9, PAD3+1, PAD4+1		| $62B52
 score_t: .long	0x1057DC, 0x1057E0, SCORE3, SCORE4		| $434C8
 count_t: .long	0x10900A, 0x10900C, COUNT3, COUNT4		| $44E72
-opp14_t: .long	0x10D668+0x14, 0x10D5D2+0x14, P4S+0x14, P3S+0x14	| $45A0E: the opponent's +$14
+opp_all: .long	0x10D5D2+0x14, 0x10D668+0x14, P3S+0x14, P4S+0x14	| +$14 of each player

@@ -224,6 +224,9 @@ octet qui diffère dépend de cet appui.
    divisée également, le reste un par un aux joueurs suivant l'attaquant. Sur le banc : une
    attaque de 6 donne +2 à chacun des trois autres ; à deux, l'adversaire reçoit tout et la RAM
    est identique au jeu d'origine (contre l'ordinateur et entre deux personnes).
+   **Humeur de l'aire** (`$459A0`, `108(a4)`) : elle regardait la hauteur des bulles de
+   l'adversaire (`+$14`, table `$45A0E`, le joueur 3 face au 4) ; à quatre, c'est la plus haute
+   parmi les adversaires encore en jeu (à deux, celle de l'unique adversaire : RAM identique).
    Les règles à 4 restantes : choix du mode, attaques partagées, fin de manche et de partie, menus ; et ce
    que l'écran à quatre montre encore : les joueurs 3 et 4 ont l'apparence du joueur 2 (côté
    droit), les en-têtes de score du jeu (sprites) restent en haut des aires 1 et 2, les scores des

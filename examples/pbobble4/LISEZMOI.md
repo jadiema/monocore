@@ -1,13 +1,49 @@
 # Puzzle Bobble 2 / Bust-A-Move Again en 4 joueurs, sur MONOCORE-1
 
-Ce dossier est le point de départ de la **version 4 joueurs**, tirée du portage
-`examples/pbobble2` (copié tel quel le 21 octobre 2026 : même programme traduit, même runtime Neo
-Geo, mêmes musiques et bruitages originaux). La MONOCORE-1 a 4 manettes (`mc_pad` 1 à 4) ; le jeu
-d'origine n'en gère que 2, et c'est ici qu'il sera modifié. `examples/pbobble2` reste le portage
-fidèle à 2 joueurs. La ROM produite s'appelle `build/pbobble4.mnc` ; la construction est la même
-qu'en dessous, depuis ce dossier, avec en plus l'assembleur 68000 des binutils GNU
-(`sudo apt install binutils-m68k-linux-gnu`) : `prepare.py` applique au programme les correctifs de
-`patches/*.s` (voir `DESIGN_4P.md`).
+La version **4 joueurs** du portage `examples/pbobble2` (qui reste le portage fidèle à 2 joueurs).
+Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun sur sa manette.
+
+## Jouer
+
+1. **Les joueurs 1 et 2 appuient ensemble sur Start à l'écran titre** : c'est le mode deux joueurs
+   du jeu, où les manches s'enchaînent. (Si le joueur 1 commence seul et que le joueur 2 arrive en
+   challenger, le duel ne dure qu'une manche, comme dans le jeu : la partie à quatre aussi.)
+2. **Les joueurs 3 et 4 appuient sur leur Start quand ils veulent** (écran titre, menus, en pleine
+   manche) : leur aire apparaît au début de la manche suivante. On joue à 2, 3 ou 4. Tant qu'un
+   joueur n'a pas rejoint, son panneau clignote PRESS START ; inscrit pendant une manche, il
+   affiche READY. Les inscriptions valent jusqu'au retour à la démonstration.
+3. Chacun vise avec sa croix et tire avec le bouton 1.
+
+**L'écran à quatre** (384 × 288) : les aires en 2 × 2, au centre (joueur 1 en haut à gauche, 2 en
+haut à droite, 3 en bas à gauche, 4 en bas à droite), à 11/16 de leur taille ; à gauche et à
+droite, un panneau par joueur : son nom, son score, puis OUT quand il a perdu et WINNER! pour le
+vainqueur de la manche. Les dragons ont la couleur de leur joueur : vert, bleu, rouge, jaune.
+
+**Les règles à quatre** :
+- **attaques partagées** : les bulles qu'un joueur fait tomber attaquent tous les adversaires encore
+  en jeu, la force divisée entre eux ;
+- **le dernier joueur restant gagne la manche** : un joueur dont les bulles atteignent la ligne est
+  éliminé (OUT), les autres continuent ;
+- les manches s'enchaînent, les scores s'additionnent ; le match « joueur 1 contre joueur 2 » du
+  jeu ne compte pas les manches à quatre.
+
+À deux joueurs, tout est comme dans le jeu d'origine (vérifié : la RAM du jeu est la même, image
+par image).
+
+**Dans le simulateur** (`dist/monocore.html`), au clavier : joueur 1 flèches, Z X C, Start 1 ;
+joueur 2 J I K L, N M virgule, Start 2 ; joueur 3 E R F G, Q W V, Start 3 ; joueur 4 pavé
+numérique 4 8 5 6, pavé 0, Start 4 (ou pavé +) ; ou jusqu'à 4 manettes. Les lettres sont celles
+marquées sur le clavier (QWERTY ou AZERTY).
+
+## Construire
+
+Comme pour le portage d'origine (plus bas), depuis ce dossier, avec en plus l'assembleur 68000 des
+binutils GNU (`sudo apt install binutils-m68k-linux-gnu`) : `prepare.py` applique au programme les
+correctifs de `patches/*.s`. La ROM produite s'appelle `build/pbobble4.mnc`.
+
+Des routines du jeu réécrites en C (plus rapides) sont dans `private/`, **hors du dépôt** (c'est le
+code du jeu, réécrit) : sans ce dossier, la construction utilise le code traduit et tout marche
+de même, un peu moins vite. Voir `DESIGN_4P.md` pour tout le détail de la version 4 joueurs.
 
 ---
 
