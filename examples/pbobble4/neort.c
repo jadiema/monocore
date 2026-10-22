@@ -270,17 +270,34 @@ static inline uint32_t gw16(uint32_t a) {           // a word anywhere (sprite d
 static void nv_block(uint32_t a0, uint32_t *a1, uint32_t d0, uint32_t *d3, uint32_t *d4) {
   uint32_t cols = d0 & 0xFF, rows = (d0 >> 8) & 0xFF, flip = gw16(a0 + 4) & 1;
   uint32_t first = flip ? (*d3 + (cols << 6)) & 0xFFFF : *d3, saved = first;
-  uint32_t x3 = first;
+  uint32_t x3 = first, scb2 = gw16(a0 + 10), d7 = gw16(a0 + 4);
   for (uint32_t col = 0; col <= cols; col++) {
-    nv_addr = *d4; nv_mod = 0x200;
-    nv_put(gw16(a0 + 10));
-    nv_put(col ? 0x40 : (gw16(a0 + 6) + rows) & 0xFFFF);
-    if (!col) nv_put(gw16(a0 + 8));
-    uint32_t d7 = gw16(a0 + 4);
-    nv_addr = x3; nv_mod = 1;
-    for (uint32_t r = 0; r <= rows; r++) {
-      nv_put(gw16(*a1)); uint32_t d2 = gw16(*a1 + 2); *a1 += 4;
-      nv_put(d7 ^ d2);
+    uint32_t d4v = *d4;
+    if ((d4v & 0xFE00) == 0x8000) {                // SCB2-4 of a sprite: their words directly
+      uint32_t s = d4v & 0x1FF;
+      neo_vram[0x8000 + s] = (uint16_t)scb2;
+      neo_vram[0x8200 + s] = (uint16_t)(col ? 0x40 : (gw16(a0 + 6) + rows) & 0xFFFF);
+      if (!col) neo_vram[0x8400 + s] = (uint16_t)gw16(a0 + 8);
+      nv_addr = (d4v & 0x8000) | ((d4v + (col ? 0x400 : 0x600)) & 0x7FFF); nv_mod = 0x200;
+    } else {
+      nv_addr = d4v; nv_mod = 0x200;
+      nv_put(scb2);
+      nv_put(col ? 0x40 : (gw16(a0 + 6) + rows) & 0xFFFF);
+      if (!col) nv_put(gw16(a0 + 8));
+    }
+    uint32_t n = (rows + 1) * 2;
+    if (x3 + n <= 0x7000 && *a1 < neo_rom_size) {  // the tiles (SCB1, below the fix layer) from the ROM
+      const uint16_t *src = (const uint16_t *)(neo_rom + (*a1 & ~1u));
+      uint16_t *dst = neo_vram + x3;
+      for (uint32_t r = 0; r <= rows; r++, src += 2) { dst[2 * r] = src[0]; dst[2 * r + 1] = (uint16_t)(d7 ^ src[1]); }
+      *a1 += 4 * (rows + 1);
+      nv_addr = x3 + n; nv_mod = 1;
+    } else {
+      nv_addr = x3; nv_mod = 1;
+      for (uint32_t r = 0; r <= rows; r++) {
+        nv_put(gw16(*a1)); uint32_t d2 = gw16(*a1 + 2); *a1 += 4;
+        nv_put(d7 ^ d2);
+      }
     }
     x3 = flip ? (x3 - 0x40) & 0xFFFF : (x3 + 0x40) & 0xFFFF;
     *d4 = (*d4 + 1) & 0xFFFF;
@@ -294,12 +311,22 @@ static void native_sprites(m68k_t *c) {
   for (a0 = 0x1001CE; !(mem32(a0) & 0x80000000u); a0 += 12) {
     a1 = mem32(a0); d0 = gw16(a1); a1 += 2;
     if (d0) { nv_block(a0, &a1, d0, &d3, &d4); continue; }
-    nv_addr = d3; nv_mod = 1;                      // one tile: SCB1, then SCB2-4
-    nv_put(gw16(a1));
-    nv_put(gw16(a0 + 4) ^ gw16(a1 + 2));
+    if (d3 + 2 <= 0x7000 && (d4 & 0xFE00) == 0x8000) {   // one tile: SCB1, then SCB2-4, directly
+      uint32_t s = d4 & 0x1FF;
+      neo_vram[d3] = (uint16_t)gw16(a1);
+      neo_vram[d3 + 1] = (uint16_t)(gw16(a0 + 4) ^ gw16(a1 + 2));
+      neo_vram[0x8000 + s] = (uint16_t)gw16(a0 + 10);
+      neo_vram[0x8200 + s] = (uint16_t)gw16(a0 + 6);
+      neo_vram[0x8400 + s] = (uint16_t)gw16(a0 + 8);
+      nv_addr = (d4 & 0x8000) | ((d4 + 0x600) & 0x7FFF); nv_mod = 0x200;
+    } else {
+      nv_addr = d3; nv_mod = 1;
+      nv_put(gw16(a1));
+      nv_put(gw16(a0 + 4) ^ gw16(a1 + 2));
+      nv_addr = d4; nv_mod = 0x200;
+      nv_put(gw16(a0 + 10)); nv_put(gw16(a0 + 6)); nv_put(gw16(a0 + 8));
+    }
     d3 = (d3 + 0x40) & 0xFFFF;
-    nv_addr = d4; nv_mod = 0x200;
-    nv_put(gw16(a0 + 10)); nv_put(gw16(a0 + 6)); nv_put(gw16(a0 + 8));
     d4 = (d4 + 1) & 0xFFFF;
   }
   wmem16(mem32(a5 - 29062), 0xFFFF);                // the second list: blocks only
@@ -352,5 +379,5 @@ uint32_t neo_bios(m68k_t *c, uint32_t pc) {
     for (uint32_t s = 0; s < 0x200; s++) { neo_vram[0x8000 + s] = 0x0FFF; neo_vram[0x8200 + s] = 0; neo_vram[0x8400 + s] = 0; }
     return rts(c);
   }
-  return 0;
+  return neo_native(c, pc);                         // routines of the game rewritten in C (native.c)
 }

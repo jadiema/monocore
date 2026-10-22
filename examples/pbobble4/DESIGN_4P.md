@@ -201,3 +201,18 @@ octet qui diffère dépend de cet appui.
    droit), les en-têtes de score du jeu (sprites) restent en haut des aires 1 et 2, les scores des
    joueurs 3 et 4 sont à vérifier (d'autres chemins de score peuvent viser les adresses des
    joueurs 1 et 2), la limite de 64 sprites par ligne est à surveiller (`SPR_PEAK`).
+
+## Routines réécrites en C
+
+Le jeu est traduit mécaniquement (`build/tr/pb2_code.c`). Les routines les plus coûteuses ou les
+plus utiles aux règles à quatre sont peu à peu réécrites à la main en C : c'est le code du jeu,
+réécrit, et il reste **hors du dépôt**, dans `examples/pbobble4/private/` (exclu par `.gitignore`) :
+`private/native.c` (les routines) et `private/native.s` (les correctifs 68000 qui sautent vers une
+adresse que le runtime confie à `neo_native`). `native.c` l'inclut s'il est là
+(`__has_include`) ; `tools/patch68k.py` applique aussi `private/*.s`. Sans ce dossier, la
+construction utilise le code traduit, et tout fonctionne de même. Chaque routine réécrite est
+vérifiée sur le banc : RAM et VRAM identiques au code traduit, image par image
+(`BENCH_HASH=1 BENCH_VHASH=1`), à quatre et contre l'ordinateur.
+
+Fait : le dessin des objets d'une aire dans la liste de sprites (`$4468A`, appelé pour chaque
+bulle à chaque image) : 3 000 images identiques ; charge à quatre 86 % → 81 %.

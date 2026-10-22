@@ -56,6 +56,7 @@ void neo_sound_trace(uint32_t command);   // test bench: every sound command
 // hardware accesses, out of the fast paths of m68k_port.h
 uint32_t neo_rd8(uint32_t a);
 uint32_t neo_rd16(uint32_t a);
+uint32_t neo_native(m68k_t *c, uint32_t pc);  // native.c: routines of the game in C (0: none here)
 void neo_wr8(uint32_t a, uint32_t v);
 void neo_wr16(uint32_t a, uint32_t v);
 #endif

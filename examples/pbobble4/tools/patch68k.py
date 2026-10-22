@@ -17,8 +17,8 @@ FREE = (0x0E8000, 0x100000)
 AS, LD, OBJCOPY = 'm68k-linux-gnu-as', 'm68k-linux-gnu-ld', 'm68k-linux-gnu-objcopy'
 
 
-def sources():
-    return sorted(glob.glob(os.path.join(root, 'patches', '*.s')))
+def sources():                  # patches/*.s, and private/*.s when there (native.c)
+    return sorted(glob.glob(os.path.join(root, 'patches', '*.s'))) + sorted(glob.glob(os.path.join(root, 'private', '*.s')))
 
 
 def apply(image, verbose=False):
