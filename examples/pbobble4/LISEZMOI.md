@@ -6,7 +6,8 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
 ## Jouer
 
 1. **Pour lancer une partie à quatre, le plus simple : la manette 3 ou 4 appuie sur Start à l'écran
-   titre (ou pendant la démonstration)** : la partie démarre comme si les joueurs 1 et 2 avaient
+   titre (ou pendant la démonstration ; un encart en bas à droite le rappelle : 4 PLAYERS, PRESS
+   START ON PAD 3/4)** : la partie démarre comme si les joueurs 1 et 2 avaient
    appuyé ensemble sur Start (le mode deux joueurs du jeu, où les manches s'enchaînent), et cette
    manette est inscrite. Les joueurs 1 et 2 peuvent aussi appuyer ensemble sur Start. Sur la
    MiSTer, le numéro d'une manette dépend de l'ordre où l'on a appuyé sur ses boutons.

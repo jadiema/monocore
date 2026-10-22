@@ -48,13 +48,25 @@ void neo_platform_bank(void) {
   for (int i = 0; i < 0x1000; i++) PALETTE[i] = rgb555(p[i]);
 }
 // During a game of two, the players 3 and 4 who joined (with their start) get a reminder on the
-// last line of the fix layer (row 29): P3 READY on the left, P4 READY on the right, in the colour
-// of the game's own texts; their field comes at the next round. The cells go back to the game's
-// fix layer when the reminder ends.
-static uint8_t hint_on[2];
+// last line of the fix layer (row 29): P3 READY on the left, P4 READY on the right; their field
+// comes at the next round. At the title and in the demo, a box at the bottom right invites to the
+// 4-player game (start on pad 3 or 4). Both in palette 214 (never used by the game), and their
+// cells go back to the game's fix layer when they end.
+static uint8_t hint_on[2], box_on;
 #define HINT_ROW 29
+#define TEXT_PAL 214                               // never used by the game: yellow letters on black
+#define BOX_X    26                                // the box of the title: 13 x 5 cells, bottom right
+#define BOX_Y    24
 static int hint_cell(uint32_t x, uint32_t y) {
+  if (box_on && x >= BOX_X && x < BOX_X + 13 && y >= BOX_Y && y < BOX_Y + 5) return 1;
   return y == HINT_ROW && ((hint_on[0] && x >= 1 && x < 9) || (hint_on[1] && x >= 31 && x < 39));
+}
+static void fix_back(uint32_t x0, uint32_t y0, uint32_t w, uint32_t h) {   // cells back to the game
+  for (uint32_t y = y0; y < y0 + h; y++)
+    for (uint32_t x = x0; x < x0 + w; x++) {
+      uint32_t e = neo_vram[0x7000 + x * 32 + y];
+      TILEMAP(0)[y * 64 + x] = MC_TILE(e & 0xFFF, e >> 12, 0);
+    }
 }
 void neo_platform_fix(uint32_t x, uint32_t y, uint32_t e) {
   if (four_mode) return;                           // layer 0 shows the scores of the four players
@@ -662,19 +674,26 @@ static void inputs(void) {
 
 static void hint_frame(void) {
   int game = neo_ram[0xFDAF ^ 1] == 2 && !four_mode;   // BIOS USER_MODE 2: a game
+  if (!four_mode) { PALETTE[TEXT_PAL * 16 + 1] = (31 << 10) | (28 << 5) | 6; PALETTE[TEXT_PAL * 16 + 2] = 0; }
+  // the title and the demo (not a game): a box, bottom right, for the 4-player game
+  int box = !four_mode && neo_ram[0xFDAF ^ 1] == 1;     // USER_MODE 1: the title, the demo
+  if (box) {
+    static const char *const lines[5] = {"             ", "  4 PLAYERS  ", " PRESS START ", " ON PAD 3/4  ", "             "};
+    for (uint32_t r = 0; r < 5; r++)
+      for (uint32_t i = 0; i < 13; i++) {
+        char ch = lines[r][i];
+        if (r == 2 && (vframe >> 5) & 1) ch = ' ';  // PRESS START blinks
+        TILEMAP(0)[(BOX_Y + r) * 64 + BOX_X + i] = MC_TILE((uint8_t)ch, TEXT_PAL, 0);
+      }
+  } else if (box_on) fix_back(BOX_X, BOX_Y, 13, 5);
+  box_on = (uint8_t)box;
   for (int k = 0; k < 2; k++) {
     int on = game && neo_ram[(0xF614 + k) ^ 1];      // JOIN3, JOIN4 (patches/four.s)
     uint32_t x0 = k ? 31 : 1;
     if (on) {
-      uint32_t pal = neo_vram[0x7000 + 1 * 32 + 2] >> 12;   // the colour of the game's text at the top
       char t[] = "P3 READY"; t[1] = (char)('3' + k);
-      for (uint32_t i = 0; i < 8; i++) TILEMAP(0)[HINT_ROW * 64 + x0 + i] = MC_TILE((uint8_t)t[i], pal, 0);
-    } else if (hint_on[k] && !four_mode) {           // give the cells back to the game
-      for (uint32_t x = x0; x < x0 + 8; x++) {
-        uint32_t e = neo_vram[0x7000 + x * 32 + HINT_ROW];
-        TILEMAP(0)[HINT_ROW * 64 + x] = MC_TILE(e & 0xFFF, e >> 12, 0);
-      }
-    }
+      for (uint32_t i = 0; i < 8; i++) TILEMAP(0)[HINT_ROW * 64 + x0 + i] = MC_TILE((uint8_t)t[i], TEXT_PAL, 0);
+    } else if (hint_on[k] && !four_mode) fix_back(x0, HINT_ROW, 8, 1);   // give the cells back
     hint_on[k] = (uint8_t)on;
   }
 }
