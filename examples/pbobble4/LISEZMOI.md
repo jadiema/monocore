@@ -14,7 +14,18 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
    affiche READY. Les inscriptions valent jusqu'au retour à la démonstration.
 3. Chacun vise avec sa croix et tire avec le bouton 1.
 
-**L'écran à quatre** (384 × 288) : les aires en 2 × 2, au centre (joueur 1 en haut à gauche, 2 en
+**Deux dispositions**, au DIP switch 1 (menu OSD de la MiSTer, ou les DIP du simulateur), même en
+pleine partie :
+- **éteint, 2 × 2** (pour un écran 4:3) : décrit ci-dessous ;
+- **allumé, 4 × 1** (pour un écran 16:9) : les quatre aires côte à côte, 22 % plus grandes, l'image
+  étirée en 16:9 par la MiSTer (rapport d'aspect plein écran dans l'OSD, ou `MiSTer.ini`) ; le jeu
+  compense l'étirement (10/16 en largeur, 14/16 en hauteur), les bulles restent rondes. Noms et
+  scores au-dessus des aires, OUT / WINNER et manches gagnées en dessous. Chaque ligne traverse
+  alors les quatre aires : les bulles y sont dessinées sur 12 lignes (au lieu de 14) pour que
+  leurs rangées ne se chevauchent pas, et le matériel reste sous ses 64 sprites par ligne, sauf
+  quelques images de l'explosion de fin de manche.
+
+**L'écran à quatre en 2 × 2** (384 × 288) : les aires en 2 × 2, au centre (joueur 1 en haut à gauche, 2 en
 haut à droite, 3 en bas à gauche, 4 en bas à droite), à 11/16 de leur taille ; à gauche et à
 droite, un panneau par joueur : son nom, son score, puis OUT quand il a perdu et WINNER! pour le
 vainqueur de la manche. Les dragons ont la couleur de leur joueur : vert, bleu, rouge, jaune.

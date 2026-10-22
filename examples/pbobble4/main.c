@@ -16,8 +16,8 @@ extern const uint32_t p1_size, spr_map_size;
 extern const uint8_t sounds_file[], sounds_tab_file[], music_file[], music_tab_file[];
 
 #define VRAM_BYTES  0x11000u                       // 0x8800 words
-#define DECOR_W     14                             // decor of the four fields: 112 x 144 pixels, 8 bpp,
-#define DECOR_H     18                             // at the end of CHR RAM (see video_four)
+#define DECOR_W     14                             // decor of the four fields, at most (cells of 8 x 8,
+#define DECOR_H     23                             // 8 bpp, at the end of CHR RAM; see the layouts)
 #define DECOR_BYTES ((DECOR_W * DECOR_H + 1) * 64)  // + one empty cell for the rest of layer 1
 #define CACHE_SLOTS ((MC_CHRRAM_SIZE - VRAM_BYTES - DECOR_BYTES) / 128)
 #define CACHE_BASE  (CHRRAM_BASE + VRAM_BYTES)
@@ -133,9 +133,28 @@ static void layer_column(int layer, int n) {
 #define FOUR_H      288                            // crosses two fields only (64 sprites per line at most)
 #define FOUR_TOP    16                             // the Neo Geo lines shown: 16-223 (all the field but its
 #define FOUR_LINES  208                            // header: the ceiling down to the launcher and the dragon)
-static const int16_t four_x[4] = {80, 192, 80, 192};   // player 1 top left, 2 top right,
-static const int16_t four_y[4] = {0, 0, 144, 144};     // 3 bottom left, 4 bottom right
-#define FOUR_SCALE  176                            // 11/16 in 8.8: a 16-pixel tile is 11 pixels
+// Two layouts of the four fields, DIP switch 1 (read every frame):
+// - off, 2 x 2: player 1 top left, 2 top right, 3 bottom left, 4 bottom right, 11/16 both ways (a
+//   16-pixel tile is 11 x 11): the largest two fields stacked in 288 lines; panels left and right.
+// - on, 4 x 1, for a 16:9 screen (the 384 x 288 picture stretched to 16:9, as the MiSTer does in
+//   full screen): the fields side by side, 10/16 wide and 14/16 high (a tile is 10 x 14), which the
+//   stretch makes round again (as on the Neo Geo): 22 % larger on the screen than 2 x 2; names and
+//   scores above, OUT / WINNER and the rounds won below. Each line then crosses the four fields.
+typedef struct {
+  int16_t x[4], y[4];                              // top left of each field on the screen
+  uint16_t sx, sy;                                 // scale, 8.8
+  uint8_t dw, dh, dn, dd;                          // decor: cells; x: source = screen * 16 / dn ...
+  uint8_t en, ed;                                  // ... y: source = screen * en / ed
+  uint8_t col[4], row[4], at_state, at_wins;       // panels: name at row, score row + 2
+} layout_t;
+static const layout_t layouts[2] = {
+  {{80, 192, 80, 192}, {0, 0, 144, 144}, 176, 176, 14, 18, 11, 0, 16, 11,
+   {0, 38, 0, 38}, {2, 2, 20, 20}, 5, 7},
+  {{0, 96, 192, 288}, {40, 40, 40, 40}, 160, 224, 12, 23, 10, 0, 16, 14,
+   {0, 12, 24, 36}, {1, 1, 1, 1}, 29, 31},
+};
+static const layout_t *L = &layouts[0];
+static int four_layout;                            // 0: 2 x 2, 1: 4 x 1
 #define LIST_FIRST  118                            // the list of the frame starts at this sprite: below, the fixed decor
 #define DECOR_BASE  (CHRRAM_BASE + MC_CHRRAM_SIZE - DECOR_BYTES)
 
@@ -232,11 +251,11 @@ static void decor_draw(void) {
   uint32_t opaque = 0;
   for (int i = 0; i < 256; i++) decor_slot[i] = 0;
   decor_slots = 0;
-  for (int ty = 0; ty < DECOR_H * 8; ty++) {
-    int sy = FOUR_TOP + ty * 16 / 11;
+  for (int ty = 0; ty < L->dh * 8; ty++) {
+    int sy = FOUR_TOP + ty * L->en / L->ed;
     if (sy < 224) decor_line(sy + 16, line); else for (int x = 0; x < 152; x++) line[x] = 0xFFFF;
-    for (int tx = 0; tx < DECOR_W * 8; tx++) {
-      int sx = tx * 16 / 11; uint32_t v = sx < 152 ? line[sx] : 0xFFFF; uint8_t b = 0;
+    for (int tx = 0; tx < L->dw * 8; tx++) {
+      int sx = tx * 16 / L->dn; uint32_t v = sx < 152 ? line[sx] : 0xFFFF; uint8_t b = 0;
       if (v != 0xFFFF) {
         uint32_t pal = v >> 4, slot = decor_slot[pal];
         if (!slot && decor_slots < DECOR_SLOTS) { decor_pal_of[decor_slots] = (uint8_t)pal; slot = decor_slot[pal] = ++decor_slots; }
@@ -245,9 +264,9 @@ static void decor_draw(void) {
       }
       cells[(tx >> 3) * 64 + (ty & 7) * 8 + (tx & 7)] = b;
     }
-    if ((ty & 7) == 7) mc_copy((volatile void *)(DECOR_BASE + (ty >> 3) * DECOR_W * 64), cells, sizeof cells);
+    if ((ty & 7) == 7) mc_copy((volatile void *)(DECOR_BASE + (ty >> 3) * L->dw * 64), cells, L->dw * 64);
   }
-  mc_debug("DECOR frame %u: %u palettes, %u%% opaque\n", neo.frame, decor_slots, opaque * 100 / (DECOR_W * 8 * DECOR_H * 8));
+  mc_debug("DECOR frame %u: %u palettes, %u%% opaque\n", neo.frame, decor_slots, opaque * 100 / (L->dw * 8 * L->dh * 8));
 }
 
 // An empty decor (the game clears or moves it away, at the end of a round of players 1 and 2) does
@@ -258,8 +277,8 @@ static void decor_draw(void) {
 static int decor_empty(void) {                    // one line in 16 of the decor, as it would be drawn:
   static uint16_t line[152];                       // less than a quarter covered is no decor
   uint32_t full = 0, all = 0;
-  for (int ty = 0; ty < DECOR_H * 8; ty += 16) {
-    decor_line(FOUR_TOP + ty * 16 / 11 + 16, line);
+  for (int ty = 0; ty < L->dh * 8; ty += 16) {
+    decor_line(FOUR_TOP + ty * L->en / L->ed + 16, line);
     for (int x = 0; x < 152; x++) { all++; full += line[x] != 0xFFFF; }
   }
   return full * 4 < all;
@@ -291,13 +310,12 @@ static void decor_layer_open(void) {             // layer 1: the decor cells beh
   mc_fill((volatile void *)(DECOR_BASE + DECOR_W * DECOR_H * 64), 0, 64);   // the empty cell
   for (int i = 0; i < 64 * 64; i++) TILEMAP(1)[i] = MC_TILE(DECOR_W * DECOR_H, DECOR_PAL, 0);
   for (int f = 0; f < 4; f++)
-    for (int cy = 0; cy < DECOR_H; cy++)
-      for (int cx = 0; cx < DECOR_W; cx++)
-        TILEMAP(1)[(four_y[f] / 8 + cy) * 64 + four_x[f] / 8 + cx] = MC_TILE(cy * DECOR_W + cx, DECOR_PAL, 0);
+    for (int cy = 0; cy < L->dh; cy++)
+      for (int cx = 0; cx < L->dw; cx++)
+        TILEMAP(1)[(L->y[f] / 8 + cy) * 64 + L->x[f] / 8 + cx] = MC_TILE(cy * L->dw + cx, DECOR_PAL, 0);
 }
 // two panels, left and right of the fields (margins of 72 pixels, cells of 8): players 1 and 3 on
 // the left, 2 and 4 on the right, each facing its field: name, score, WINNER or OUT
-static const uint8_t hud_col[4] = {0, 38, 0, 38}, hud_row[4] = {2, 2, 20, 20};
 static void hud_open(void) {
   decor_layer_open();
   mc_layer(0, fix_file, MC_TILE8 | MC_4BPP, 64, 64, 3);   // the whole 384 x 288 screen
@@ -308,7 +326,7 @@ static void hud_open(void) {
     uint16_t v = (uint16_t)(((c >> 19) << 10) | (((c >> 11) & 31) << 5) | ((c >> 3) & 31));
     for (int i = 1; i < 16; i++) PALETTE[(HUD_PAL + k) * 16 + i] = i == 1 ? v : 0;
     char name[] = "PLAYER 1"; name[7] = (char)('1' + k);
-    hud_text(hud_col[k], hud_row[k], name, HUD_PAL + k);
+    hud_text(L->col[k], L->row[k], name, HUD_PAL + k);
   }
 }
 // WINNER and OUT under the scores (patches/rules.s: OUT bytes at $10F660, the structure of the
@@ -320,18 +338,18 @@ static void hud_frame(void) {
     int joined = k >= 2 && neo_ram[(0xF614 + k - 2) ^ 1];   // it has joined: a field at the next round
     const char *state = (uint32_t)k == winner ? "WINNER! " : neo_ram[(0xF660 + k) ^ 1] ? "OUT     " :
                         !nofield ? "        " : joined ? "READY   " : (vframe >> 5) & 1 ? "PRESS   " : "  START ";
-    hud_text(hud_col[k], hud_row[k] + 5, state, HUD_PAL + k);
+    hud_text(L->col[k], L->row[k] + L->at_state, state, HUD_PAL + k);
     uint32_t won = neo_ram[(0xF6B0 + k) ^ 1];        // rounds won (patches/rules.s, WINS)
     char t[9] = "WINS    ";
     if (won >= 10) t[6] = (char)('0' + won / 10);
     t[7] = (char)('0' + won % 10);
-    hud_text(hud_col[k], hud_row[k] + 7, nofield && !won ? "        " : t, HUD_PAL + k);
+    hud_text(L->col[k], L->row[k] + L->at_wins, nofield && !won ? "        " : t, HUD_PAL + k);
   }
   for (int k = 0; k < 4; k++) {
     uint32_t v = ram16(score_at[k]) << 16 | ram16(score_at[k] + 2);
     char t[9]; t[8] = 0;
     for (int i = 7; i >= 0; i--) { t[i] = (char)(v || i == 7 ? '0' + v % 10 : ' '); v /= 10; }
-    hud_text(hud_col[k], hud_row[k] + 2, t, HUD_PAL + k);
+    hud_text(L->col[k], L->row[k] + 2, t, HUD_PAL + k);
   }
 }
 static void hud_close(void) {                      // the game's fix layer again, and layer 1
@@ -408,13 +426,17 @@ static void video_four(void) {
       uint32_t pal = t1 >> 8;
       if (pal == DRAGON_PAL && f >= 2) pal = f == 2 ? DRAGON3_PAL : DRAGON4_PAL;
       sprite_t *s = &mc_spr[out++];
-      s->x = (int16_t)(four_x[f] + ((lx * FOUR_SCALE) >> 8));
-      s->y = (int16_t)(four_y[f] + ((ly * FOUR_SCALE) >> 8));
+      s->x = (int16_t)(L->x[f] + ((lx * L->sx) >> 8));
+      s->y = (int16_t)(L->y[f] + ((ly * L->sy) >> 8));
       s->tile = (uint16_t)(slot * 4);
       s->pal = (uint8_t)pal; s->w = 2; s->h = 2;
       s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | ((t1 & 1) ? SA_HFLIP : 0) | ((t1 & 2) ? SA_VFLIP : 0));
-      s->zoomx = (uint16_t)((((zx + 1) << 4) * FOUR_SCALE) >> 8);
-      s->zoomy = (uint16_t)(((zy + 1) * FOUR_SCALE) >> 8);
+      s->zoomx = (uint16_t)((((zx + 1) << 4) * L->sx) >> 8);
+      s->zoomy = (uint16_t)(((zy + 1) * L->sy) >> 8);
+      // 4 x 1: each line crosses the four fields, and the rows of bubbles overlap by 2 of their 16
+      // lines: a line could cross two rows in each field, 64 sprites. The bubbles (one tile,
+      // palettes 28-36) are 12 lines high there, centred: rows touch, a line crosses one.
+      if (four_layout && pal >= 28 && pal <= 36 && zy == 255) { s->zoomy = 192; s->y += 1; }
     }
   }
   decor_frame();                                   // the decor, on layer 1
@@ -428,8 +450,13 @@ static void video_four(void) {
 static uint32_t frames_short, tall_left;          // frames where tall columns had to stay sprites
 static void video_frame(void) {
   vframe++;
-  int four = four_running();
+  int four = four_running(), lay = DIPSW & 1;
+  if (four && four_mode && lay != four_layout) {     // DIP switch 1 changed during a game
+    four_layout = lay; L = &layouts[lay];
+    hud_open(); decor_sign = 1;
+  }
   if (four != four_mode) {
+    four_layout = lay; L = &layouts[lay];
     four_mode = four; mc_video_mode(four ? FOUR_W : 320, four ? FOUR_H : 224);
     if (four) hud_open();
     else { neo_platform_bank(); hud_close(); }      // the palettes 208-255 and the fix layer of the game again

@@ -4,6 +4,8 @@
 //   actions: shot  |  p1=<hex>  (sets P1 inputs from this frame)  |  p2= p3= p4=  |  sys=<hex>
 //            a1=<hex> .. a4=  (ANALOG_Pn)  |  d1=<hex> .. d4=  (PADDLE_Pn)
 //            kd=<hex> / ku=<hex>  (key down / up, PS/2 set 2 code; 0x1xx = extended)
+//            dip=<hex>  (the 16 DIP switches)
+// Prints, every 600 frames, the busiest line of sprites in that window and whether one overflowed.
 const fs = require('fs');
 const path = require('path');
 const Monocore = require(path.join(__dirname, '../sim/core.js'));
@@ -23,7 +25,7 @@ for (const tok of script.split(/\s+/).filter(Boolean)) {
   last = Math.max(last, +f);
 }
 const audio = [];
-let maxLoad = 0, sumLoad = 0, frames = 0;
+let maxLoad = 0, sumLoad = 0, frames = 0, sprWin = 0, ovfWin = false;
 const t0 = Date.now();
 for (let f = 0; f <= last; f++) {
   for (const a of events[f] || []) {
@@ -34,9 +36,12 @@ for (let f = 0; f <= last; f++) {
     else if (a.startsWith('p4=')) m.inputs[4] = parseInt(a.slice(3), 16);
     else if (/^a[1-4]=/.test(a)) m.analog[+a[1] - 1] = parseInt(a.slice(3), 16) | 0;
     else if (/^d[1-4]=/.test(a)) m.paddle[+a[1] - 1] = parseInt(a.slice(3), 16) | 0;
+    else if (a.startsWith('dip=')) m.dip = parseInt(a.slice(4), 16);
     else if (/^k[du]=/.test(a)) { const v = parseInt(a.slice(3), 16); m.keyEvent(v & 0xff, !!(v & 0x100), a[1] === 'd'); }
   }
   const n = m.runFrame();
+  sprWin = Math.max(sprWin, m.sprPeak); ovfWin = ovfWin || m.sprOverflow;
+  if (f % 600 === 599) { console.log(`frames ${f - 599}-${f}: busiest sprite line ${sprWin} / 64${ovfWin ? ', OVERFLOW' : ''}`); sprWin = 0; ovfWin = false; }
   for (let i = 0; i < 2 * n; i++) audio.push(m.audioI[i]);
   maxLoad = Math.max(maxLoad, m.stats.load); sumLoad += m.stats.load; frames++;
   for (const a of events[f] || []) {
