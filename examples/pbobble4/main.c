@@ -168,12 +168,13 @@ typedef struct {
   uint8_t dw, dh, dn, dd;                          // decor: cells; x: source = screen * 16 / dn ...
   uint8_t en, ed;                                  // ... y: source = screen * en / ed
   uint8_t col[4], row[4], at_state, at_wins;       // panels: name at row, score row + 2
+  uint8_t ox;                                      // the field starts ox source pixels in (centred)
 } layout_t;
 static const layout_t layouts[2] = {
   {{80, 192, 80, 192}, {0, 0, 144, 144}, 176, 176, 14, 18, 11, 0, 16, 11,
-   {0, 38, 0, 38}, {2, 2, 20, 20}, 5, 7},
+   {0, 38, 0, 38}, {2, 2, 20, 20}, 5, 7, 0},
   {{0, 96, 192, 288}, {40, 40, 40, 40}, 160, 224, 12, 23, 10, 0, 16, 14,
-   {0, 12, 24, 36}, {1, 1, 1, 1}, 29, 31},
+   {2, 14, 26, 38}, {1, 1, 1, 1}, 29, 31, 8},     // the frame and the texts centred in the 96 pixels
 };
 static const layout_t *L = &layouts[0];
 static int four_layout;                            // 0: 2 x 2, 1: 4 x 1
@@ -232,7 +233,7 @@ static uint32_t decor_sign = 1;
 static void decor_line(int sl, uint16_t *line) {
   const uint16_t *smap = (const uint16_t *)spr_map_file;
   uint32_t count = spr_map_size / 2;
-  for (int x = 0; x < 152; x++) line[x] = 0xFFFF;
+  for (int x = 0; x < 168; x++) line[x] = 0xFFFF;
   int px = 0, py = 0, prows = 0, pzy = 0, pw = 0;
   for (int n = 1; n < LIST_FIRST; n++) {
     uint32_t s2 = neo_vram[0x8000 + n], s3 = neo_vram[0x8200 + n], s4 = neo_vram[0x8400 + n];
@@ -261,23 +262,24 @@ static void decor_line(int sl, uint16_t *line) {
       int kk = (t1 & 1) ? 15 - k : k;
       if (!zoom_x[zx][kk]) continue;
       int p = (row[kk >> 1] >> ((kk & 1) * 4)) & 15, lx = x - 4;
-      if (p && lx >= 0 && lx < 152) line[lx] = (uint16_t)(((t1 >> 8) << 4) | p);
+      if (p && lx >= 0 && lx < 168) line[lx] = (uint16_t)(((t1 >> 8) << 4) | p);
       x++;
     }
   }
 }
 
 static void decor_draw(void) {
-  static uint16_t line[152];
+  static uint16_t line[168];                       // the field and the column on its right
   static uint8_t cells[DECOR_W * 64];
   uint32_t opaque = 0;
   for (int i = 0; i < 256; i++) decor_slot[i] = 0;
   decor_slots = 0;
   for (int ty = 0; ty < L->dh * 8; ty++) {
     int sy = FOUR_TOP + ty * L->en / L->ed;
-    if (sy < 224) decor_line(sy + 16, line); else for (int x = 0; x < 152; x++) line[x] = 0xFFFF;
+    if (sy < 224) decor_line(sy + 16, line); else for (int x = 0; x < 168; x++) line[x] = 0xFFFF;
     for (int tx = 0; tx < L->dw * 8; tx++) {
-      int sx = tx * 16 / L->dn; uint32_t v = sx < 152 ? line[sx] : 0xFFFF; uint8_t b = 0;
+      int sx = L->ox + tx * 16 / L->dn;               // (2 x 2: the field only, as before)
+      uint32_t v = sx < (L->ox ? 168 : 152) ? line[sx] : 0xFFFF; uint8_t b = 0;
       if (v != 0xFFFF) {
         uint32_t pal = v >> 4, slot = decor_slot[pal];
         if (!slot && decor_slots < DECOR_SLOTS) { decor_pal_of[decor_slots] = (uint8_t)pal; slot = decor_slot[pal] = ++decor_slots; }
@@ -297,7 +299,7 @@ static void decor_draw(void) {
 // drawing it again at every step took 2.8 million cycles every 12 frames; the small decor is a
 // still picture of it.
 static int decor_empty(void) {                    // one line in 16 of the decor, as it would be drawn:
-  static uint16_t line[152];                       // less than a quarter covered is no decor
+  static uint16_t line[168];                       // less than a quarter covered is no decor
   uint32_t full = 0, all = 0;
   for (int ty = 0; ty < L->dh * 8; ty += 16) {
     decor_line(FOUR_TOP + ty * L->en / L->ed + 16, line);
@@ -448,7 +450,7 @@ static void video_four(void) {
       uint32_t pal = t1 >> 8;
       if (pal == DRAGON_PAL && f >= 2) pal = f == 2 ? DRAGON3_PAL : DRAGON4_PAL;
       sprite_t *s = &mc_spr[out++];
-      s->x = (int16_t)(L->x[f] + ((lx * L->sx) >> 8));
+      s->x = (int16_t)(L->x[f] + (((lx - L->ox) * L->sx) >> 8));
       s->y = (int16_t)(L->y[f] + ((ly * L->sy) >> 8));
       s->tile = (uint16_t)(slot * 4);
       s->pal = (uint8_t)pal; s->w = 2; s->h = 2;
