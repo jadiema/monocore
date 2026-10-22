@@ -4,6 +4,8 @@ name    = pbobble4
 title   = BUST-A-MOVE AGAIN 4P
 origin  = pbobbl2n (Neo Geo)
 library = mc
+# DIP switch 1 on by default: the 4 x 1 layout (16:9 screens); off in the OSD: 2 x 2 (4:3 screens)
+dip     = 0x0001
 sources = main.c neort.c native.c build/tr/pb2_code.c
 data    = p1.bin spr.bin spr_cells.bin spr_map.bin fix.bin sounds.bin sounds_tab.bin music.bin music_tab.bin
 cflags  = -I. -I../../tools/recomp68k -DNEO_SRAM_SIZE=0x1000 -Wno-unused-label -Wno-unused-variable -Wno-unused-but-set-variable

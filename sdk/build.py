@@ -122,5 +122,6 @@ for s in sources:
     cc(s, 'build/%s.o' % ident(s), PCFLAGS)
 run([LD, '-T', os.path.join(SDK, 'link.ld')] + objs + ['-o', 'build/%s.elf' % name])
 run([OBJCOPY, '-O', 'binary', 'build/%s.elf' % name, 'build/%s.bin' % name])
-run([sys.executable, os.path.join(SDK, 'mkrom.py'), 'build/%s.bin' % name, 'build/%s.mnc' % name, title, conf.get('origin', 'MONOCORE-1')])
+run([sys.executable, os.path.join(SDK, 'mkrom.py'), 'build/%s.bin' % name, 'build/%s.mnc' % name, title, conf.get('origin', 'MONOCORE-1'),
+     conf.get('rotation', '0'), conf.get('dip', '0')])   # rotation 0-3 (x 90 degrees), DIP switches by default
 print('ROM ready: ' + os.path.join(os.getcwd(), 'build', name + '.mnc'))

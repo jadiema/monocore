@@ -137,6 +137,7 @@ puis d'inclure `mc.h`. On obtient alors :
 - une **petite libc** : `malloc`/`free`, `<string.h>`, `<stdlib.h>`, `<stdio.h>` (`printf` écrit sur la sortie de débogage), `<ctype.h>`, `<assert.h>` ;
 - des **maths en virgule fixe** 16.16 : `mc_sin`, `mc_cos`, `mc_atan2`, `mc_isqrt` ;
 - la clé `data = fichier.bin` dans `project.txt`, pour embarquer des fichiers bruts (niveaux, données d'un jeu porté).
+- les clés `rotation = 0` à `3` (quarts de tour de l'image, pour les jeux verticaux) et `dip = 0x…` (les DIP switches par défaut, que l'OSD de la MiSTer et le simulateur proposent) dans `project.txt`, écrites dans l'en-tête de la ROM.
 
 Squelette :
 
