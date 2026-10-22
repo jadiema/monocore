@@ -5,13 +5,19 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
 
 ## Jouer
 
-1. **Les joueurs 1 et 2 appuient ensemble sur Start à l'écran titre** : c'est le mode deux joueurs
-   du jeu, où les manches s'enchaînent. (Si le joueur 1 commence seul et que le joueur 2 arrive en
-   challenger, le duel ne dure qu'une manche, comme dans le jeu : la partie à quatre aussi.)
+1. **Pour lancer une partie à quatre, le plus simple : la manette 3 ou 4 appuie sur Start à l'écran
+   titre (ou pendant la démonstration)** : la partie démarre comme si les joueurs 1 et 2 avaient
+   appuyé ensemble sur Start (le mode deux joueurs du jeu, où les manches s'enchaînent), et cette
+   manette est inscrite. Les joueurs 1 et 2 peuvent aussi appuyer ensemble sur Start. Sur la
+   MiSTer, le numéro d'une manette dépend de l'ordre où l'on a appuyé sur ses boutons.
+   (Si le joueur 1 commence seul et que le joueur 2 arrive en challenger, le duel ne dure qu'une
+   manche, comme dans le jeu : la partie à quatre aussi.)
 2. **Les joueurs 3 et 4 appuient sur leur Start quand ils veulent** (écran titre, menus, en pleine
-   manche) : leur aire apparaît au début de la manche suivante. On joue à 2, 3 ou 4. Tant qu'un
-   joueur n'a pas rejoint, son panneau clignote PRESS START ; inscrit pendant une manche, il
-   affiche READY. Les inscriptions valent jusqu'au retour à la démonstration.
+   manche) : leur aire apparaît au début de la manche suivante. On joue à 2, 3 ou 4. Pendant une
+   partie à deux, un joueur inscrit est rappelé en bas de l'écran (P3 READY, P4 READY) ; à
+   l'écran à quatre, un joueur pas encore inscrit clignote PRESS START, inscrit pendant une manche
+   il affiche READY. Les inscriptions valent jusqu'au retour à la démonstration. Les menus se
+   valident avec le bouton 1.
 3. Chacun vise avec sa croix et tire avec le bouton 1.
 
 **Deux dispositions**, au DIP switch 1 (menu OSD de la MiSTer, ou les DIP du simulateur), même en
