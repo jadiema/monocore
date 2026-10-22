@@ -41,7 +41,7 @@ void print_num(int col, int row, int value, int digits, int ink);
 #define B6     IN_B(6)
 #define START  IN_START
 #define COIN   IN_COIN
-int held(int player, uint32_t button);      // the button is down (player 1 or 2)
+int held(int player, uint32_t button);      // the button is down (player 1 to 4)
 int pressed(int player, uint32_t button);   // the button has just gone down (once per press)
 
 // ---------------------------------------------------------------- sprites

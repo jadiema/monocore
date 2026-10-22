@@ -209,10 +209,10 @@ A(table(['Dossier', 'Contenu'], [
   [c('mister/'), "le core pour le MiSTer"]]))
 A(h2('Le simulateur'))
 A(p("Ouvrez <code>dist/monocore.html</code> dans votre navigateur (Firefox, Chrome, Edge ou Safari). Cliquez sur <b>Mettre sous tension</b> : la ROM de test démarre. Pour essayer vos programmes, cliquez sur <b>Charger une ROM…</b> ou glissez un fichier <code>.mnc</code> sur l'écran. Le simulateur se joue au clavier ou avec une manette USB :"))
-A(table(['Commande', 'Joueur 1', 'Joueur 2'], [
-  ['Directions', 'flèches', 'I J K L'], ['Boutons 1 à 3', 'Z X C', 'N M ,'], ['Boutons 4 à 6', 'A S D', 'H U O'],
-  ['START', '1 ou Entrée', '2'], ['COIN (pièce)', '5', '6']]))
-A(p("Les joueurs 3 et 4 ont aussi leurs touches : E R F G pour les directions, Q W V pour les boutons 1 à 3 et 3 pour START (joueur 3) ; le pavé numérique 8 4 5 6, 0 . Entrée et 4 ou + (joueur 4). Les lettres sont celles marquées sur votre clavier, qu'il soit QWERTY ou AZERTY. Jusqu'à quatre manettes USB ou Bluetooth sont reconnues, sticks analogiques compris. La case <b>clavier de la console</b> (touche F9) envoie le clavier au jeu au lieu des joueurs, et le bouton <b>16:9</b> étire l'image comme une MiSTer en plein écran sur un écran large."))
+A(table(['Commande', 'Joueur 1', 'Joueur 2', 'Joueur 3', 'Joueur 4'], [
+  ['Directions', 'flèches', 'J I K L', 'E R F G', 'pavé 4 8 5 6'], ['Boutons 1 à 3', 'Z X C', 'N M ,', 'Q W V', 'pavé 0 . Entrée'], ['Boutons 4 à 6', 'A S D', 'H U O', '—', '—'],
+  ['START', '1 ou Entrée', '2', '3', '4 ou pavé +'], ['COIN (pièce)', '5', '6', '—', '—']]))
+A(p("Les directions se lisent gauche, haut, bas, droite. Les lettres sont celles marquées sur votre clavier, qu'il soit QWERTY ou AZERTY. Jusqu'à quatre manettes USB ou Bluetooth sont reconnues, une par joueur, sticks analogiques compris. La case <b>clavier de la console</b> (touche F9) envoie le clavier au jeu au lieu des joueurs, et le bouton <b>16:9</b> étire l'image comme une MiSTer en plein écran sur un écran large."))
 A(p("Sur le côté, le <b>moniteur</b> montre la charge du processeur, le nombre de sprites par ligne, les voix sonores actives, et une <b>console de debug</b> qui affiche ce que votre programme écrit dans <code>DEBUG_OUT</code>, bien pratique pour chercher une erreur."))
 A(h2('La console MiSTer'))
 A(p("Pour jouer sur la vraie console, copiez le core <code>MONOCORE.rbf</code> dans le dossier <code>_Console</code> de la carte SD du MiSTer, et vos ROM dans <code>games/MONOCORE</code>. Dans le menu du core (touche F12), choisissez <b>Charger une ROM</b>. Une ROM nommée <code>boot.rom</code> dans ce dossier se lance toute seule : c'est là que l'on place l'écran d'accueil de la console, AUBE (<code>examples/aube</code>)."))
@@ -275,10 +275,11 @@ A(p("Deux fonctions suffisent pour tout savoir des manettes :"))
 A(table(['Fonction', 'Rend vrai quand…', 'Pour…'], [
   [c('held(1, LEFT)'), "le bouton est enfoncé en ce moment (<i>held</i> : tenu)", "les déplacements, le tir automatique"],
   [c('pressed(1, B1)'), "le bouton vient d'être enfoncé, une seule fois par appui (<i>pressed</i> : appuyé)", "sauter, valider un menu, compter"]]))
-A(p("Le premier nombre est le joueur : 1 ou 2. Les manettes sont lues une fois par image, par <code>wait_frame()</code>. Voici un programme d'essai qui affiche l'état de chaque commande :"))
+A(p("Le premier nombre est le joueur, de 1 à 4. Les manettes sont lues une fois par image, par <code>wait_frame()</code>. Voici un programme d'essai qui affiche l'état de chaque commande des quatre manettes :"))
 A(listing(source('03_joypad'), '03_joypad/main.c'))
-A(screen('screen_03.png', "Ici, HAUT, DROITE et le bouton 2 sont enfoncés."))
-A(p("Ce programme utilise deux <b>tableaux</b> : <code>labels[12]</code> contient douze textes, <code>buttons[12]</code> douze boutons. <code>labels[0]</code> est le premier, <code>labels[11]</code> le dernier. La boucle <code>for</code> les parcourt tous avec la même variable <code>i</code>."))
+A(screen('screen_03.png', "Le joueur 1 tient HAUT, DROITE et le bouton 2, le joueur 3 GAUCHE et le bouton 1, le joueur 4 BAS et START."))
+A(p("Ce programme utilise deux <b>tableaux</b> : <code>labels[12]</code> contient douze textes, <code>buttons[12]</code> douze boutons. <code>labels[0]</code> est le premier, <code>labels[11]</code> le dernier. La boucle <code>for</code> les parcourt tous avec la même variable <code>i</code> ; une seconde boucle, à l'intérieur, passe en revue les joueurs. Le tableau <code>presses[5]</code> garde un compteur par joueur : on lui a donné une case de plus pour écrire <code>presses[1]</code> à <code>presses[4]</code>, la case 0 reste inutilisée."))
+A(box('know', 'Joueurs 3 et 4', p("Les manettes 3 et 4 existent depuis la version 2 de la console. Sur un core MiSTer plus ancien, <code>held(3, …)</code> et <code>held(4, …)</code> répondent toujours faux : le jeu reste jouable à un ou deux.")))
 
 # ---------------------------------------------------------------- 6
 A(chapter(6, 'Les sprites', "Des objets qui bougent : votre héros, les ennemis, les bonus.", 6))
@@ -369,7 +370,7 @@ A(ol(["Changez les couleurs, la vitesse, le nombre de points par étoile.",
       "Ajoutez un objet rare (le cœur, dessin 5) qui rend une vie.",
       "Faites défiler le décor plus vite quand le score augmente.",
       "Ajoutez une deuxième voix à la musique (une basse sur le canal 3).",
-      "Mode deux joueurs : un second vaisseau commandé par la manette 2 (<code>held(2, LEFT)</code>).",
+      "Mode à plusieurs : jusqu'à quatre vaisseaux, un par manette (<code>held(2, LEFT)</code> pour le joueur 2…).",
       "Ajoutez le tir : le bouton 1 lance un projectile qui détruit les bombes."]))
 
 # ---------------------------------------------------------------- 10
@@ -436,7 +437,7 @@ A(table(['En-tête', 'Ce qu\'il apporte'], [
   [c('<assert.h>'), "<code>assert</code> : arrête le programme avec un message si une condition est fausse"]]))
 A(box('warn', 'Pas de nombres à virgule', p("Le processeur de la console ne calcule qu'en nombres entiers. Le compilateur accepte <code>float</code>, mais l'imite très lentement. <code>mc</code> fournit la <b>virgule fixe</b> : un <code>fix16</code> est un entier qui compte en 65 536<sup>e</sup>, <code>FIX(1.5)</code> vaut 1,5, et <code>mc_sin</code>, <code>mc_cos</code>, <code>mc_atan2</code> travaillent avec des angles de 1024 pas par tour. Dans l'exemple, les positions des balles comptent en 256<sup>e</sup> de pixel, ce qui permet des vitesses fines.")))
 A(h2('Quatre manettes, l\'analogique et le clavier'))
-A(p("Avec <code>mc</code>, <code>mc_pad(j)</code> lit les quatre joueurs (<code>easy</code> s'en tient aux joueurs 1 et 2). La console lit aussi les sticks analogiques (<code>mc_stick_x</code>, <code>mc_stick_y</code> : stick 0 à gauche, 1 à droite, de −127 à +127, y positif vers le bas), les paddles (<code>mc_paddle</code>, de 0 à 255) et les spinners (<code>mc_spinner_delta</code> : le déplacement depuis l'image précédente), ainsi qu'un clavier USB. Ces entrées sont arrivées avec la <b>version 2</b> du matériel : un jeu qui en a besoin vérifie <code>mc_hw_version()</code>, qui vaut 1 sur un core plus ancien, où ces fonctions renvoient 0."))
+A(p("Avec <code>mc</code>, <code>mc_pad(j)</code> lit les quatre joueurs, comme <code>held</code> et <code>pressed</code> d'<code>easy</code>. La console lit aussi les sticks analogiques (<code>mc_stick_x</code>, <code>mc_stick_y</code> : stick 0 à gauche, 1 à droite, de −127 à +127, y positif vers le bas), les paddles (<code>mc_paddle</code>, de 0 à 255) et les spinners (<code>mc_spinner_delta</code> : le déplacement depuis l'image précédente), ainsi qu'un clavier USB. Ces entrées sont arrivées avec la <b>version 2</b> du matériel : un jeu qui en a besoin vérifie <code>mc_hw_version()</code>, qui vaut 1 sur un core plus ancien, où ces fonctions renvoient 0."))
 A(listing("""if (mc_hw_version() >= 2) {
   for (int j = 1; j <= 4; j++) {
     ship[j - 1].x += mc_stick_x(j, 0) / 32;        // left stick, -127 to +127
@@ -509,8 +510,8 @@ A(table(['Fonction', 'Traduction', 'Description'], [
   [c('print(col, row, text)'), 'imprimer', "écrit en blanc, colonne <i>col</i>, ligne <i>row</i>"],
   [c('print_ink(col, row, text, ink)'), 'imprimer en couleur', "écrit avec l'encre choisie"],
   [c('print_num(col, row, n, digits, ink)'), 'imprimer un nombre', "écrit un nombre sur <i>digits</i> chiffres, complété par des zéros"],
-  [c('held(player, button)'), 'tenu', "vrai si le bouton est enfoncé"],
-  [c('pressed(player, button)'), 'appuyé', "vrai si le bouton vient d'être enfoncé"],
+  [c('held(player, button)'), 'tenu', "vrai si le bouton du joueur (1 à 4) est enfoncé"],
+  [c('pressed(player, button)'), 'appuyé', "vrai si le bouton du joueur (1 à 4) vient d'être enfoncé"],
   [c('load_sprites(chr, pal, palette)'), 'charger les sprites', "choisit la planche de sprites"],
   [c('sprite(n, x, y, picture)'), 'sprite', "affiche le sprite n (0 à 63) avec le dessin <i>picture</i>"],
   [c('hide_sprite(n)'), 'cacher', "cache le sprite n"],

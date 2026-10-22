@@ -5,7 +5,7 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, added by build.py
 
 volatile uint32_t frame_count;
 static volatile uint32_t vbl;
-static uint32_t joy_now[2], joy_prev[2];
+static uint32_t joy_now[4], joy_prev[4];
 static uint32_t seed = 0x2545F491u;
 
 // sprites
@@ -122,9 +122,11 @@ void wait_frame(void) {
   uint32_t v = vbl;
   while (vbl == v) wfi();
   frame_count++;
-  for (int j = 0; j < 2; j++) joy_prev[j] = joy_now[j];
+  for (int j = 0; j < 4; j++) joy_prev[j] = joy_now[j];
   joy_now[0] = IN_P1; joy_now[1] = IN_P2;
-  if ((joy_now[0] | joy_now[1]) & ~(joy_prev[0] | joy_prev[1])) seed ^= frame_count * 2654435761u;
+  if (HW_VERSION >= 2) { joy_now[2] = IN_P3; joy_now[3] = IN_P4; }   // players 3 and 4: hardware version 2
+  if ((joy_now[0] | joy_now[1] | joy_now[2] | joy_now[3]) & ~(joy_prev[0] | joy_prev[1] | joy_prev[2] | joy_prev[3]))
+    seed ^= frame_count * 2654435761u;
   for (int c = 0; c < 8; c++) {
     track_t *t = &track[c];
     if (!t->on) continue;
@@ -187,9 +189,9 @@ void print_num(int col, int row, int value, int digits, int n) {
 }
 
 // ---------------------------------------------------------------- joypads
-int held(int player, uint32_t button) { return (joy_now[(player - 1) & 1] & button) != 0; }
+int held(int player, uint32_t button) { return (joy_now[(player - 1) & 3] & button) != 0; }
 int pressed(int player, uint32_t button) {
-  int j = (player - 1) & 1;
+  int j = (player - 1) & 3;
   return (joy_now[j] & button) && !(joy_prev[j] & button);
 }
 
