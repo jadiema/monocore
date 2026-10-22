@@ -17,6 +17,8 @@
 	.equ	RAWST, 0x10F612			| their start buttons (bit 0: player 3, bit 1: player 4)
 	.equ	JOIN3, 0x10F614			| players 3 and 4 have joined (start pressed): their fields
 	.equ	JOIN4, 0x10F615			| are made at the next round
+	.equ	FOURROUND, 0x10F616		| this round has a field for player 3 or 4 (until the next round:
+						| the fields end before the result of the round)
 	.equ	SCORE3, 0x10F620		| per-player long (as $1057DC / $1057E0)
 	.equ	SCORE4, 0x10F624
 	.equ	COUNT3, 0x10F628		| per-player word (as $10900A / $10900C)
@@ -125,6 +127,10 @@ init34:
 	clr.l	0x10F660			| a new round: nobody is out (patches/rules.s)
 	clr.l	0x10F664
 	clr.l	0x10F668			| no winner yet
+	cmpi.w	#6, -19260(%a5)			| the fields of a new round: not a round of four yet
+	bne.s	6f
+	clr.b	FOURROUND
+6:
 	lea	P3S, %a4
 	move.w	#0, (%a4)			| played by a person (1: by the computer)
 	move.w	#2, 2(%a4)			| player number
@@ -146,12 +152,14 @@ init34:
 	bne.s	1f				| a person against the computer: the joins wait
 	tst.b	JOIN3
 	beq.s	4f
+	move.b	#1, FOURROUND
 	move.l	#7, -(%sp)			| task 7: player 3
 	pea	0x74F16
 	trap	#1
 	addq.l	#8, %sp
 4:	tst.b	JOIN4
 	beq.s	1f
+	move.b	#1, FOURROUND
 	move.l	#8, -(%sp)			| task 8: player 4
 	pea	0x74F16
 	trap	#1

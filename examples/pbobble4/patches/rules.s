@@ -18,6 +18,7 @@
 	.equ	OUT, 0x10F660			| 4 bytes: the player is out of this round
 	.equ	LASTOUT, 0x10F664		| structure of the last player out
 	.equ	WINNER, 0x10F668		| structure of the winner of the round (patches/band.s)
+	.equ	FOURROUND, 0x10F616		| the round has a field for player 3 or 4 (patches/four.s)
 
 | expect 061E2E 34 crc32 0xd679758b	(the player has just lost: freeze the opponent)
 	.section .p_061E2E,"ax"
@@ -122,7 +123,7 @@ give_won:					| end of LOST: the last player left gets the WON
 | winner (player 2 when player 1 wins, player 1 otherwise); its banners are not drawn
 | (banners4 below), the screen of main.c says WINNER and OUT for each player.
 the_loser:
-	tst.w	FIELD7				| FIELD7 and FIELD8 together
+	tst.b	FOURROUND			| (the fields of players 3 and 4 may have ended already)
 	beq.s	1f
 	lea	P1S, %a0
 	movea.l	WINNER, %a1
@@ -138,9 +139,9 @@ the_loser:
 opponents:
 	.long	P2S, P1S, P4S, P3S
 
-banners4:					| the banners of the result, with two players only
-	tst.w	FIELD7
-	bne.s	1f
+banners4:					| the banners of the result, with two players only (the fields
+	tst.b	FOURROUND			| have ended when the result draws them: FIELD7 and FIELD8
+	bne.s	1f				| are already cleared)
 	jsr	0x32682				| WON
 	jsr	0x327AE				| LOST
 1:	rts

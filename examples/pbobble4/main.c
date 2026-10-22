@@ -141,7 +141,13 @@ static const int16_t four_y[4] = {0, 0, 144, 144};     // 3 bottom left, 4 botto
 static inline uint32_t ram16(uint32_t a) { a &= 0xFFFF; return neo_ram[a] | neo_ram[a + 1] << 8; }
 // tasks 7 and 8 are the fields of players 3 and 4 (bytes FIELD7 and FIELD8, patches/band.s: the
 // game uses these task numbers for other things on other screens)
-static int four_running(void) { return neo_ram[0xF65C ^ 1] | neo_ram[0xF65D ^ 1]; }
+// The screen stays the 4-player one 3 s after the fields end, for the result of the round (WINNER,
+// OUT): FOURROUND ($10F616) says the round had a field for player 3 or 4.
+static uint32_t four_ended;
+static int four_running(void) {
+  if (neo_ram[0xF65C ^ 1] | neo_ram[0xF65D ^ 1]) { four_ended = neo.frame; return 1; }
+  return neo_ram[0xF616 ^ 1] && four_mode && neo.frame - four_ended < 180;
+}
 
 // field (0-3) and position in it of a tile at Neo Geo (x, y) in the 512 x 512 space; -1: none
 static int four_field(int x, int y, int *lx, int *ly) {
@@ -309,9 +315,10 @@ static void hud_open(void) {
 static void hud_frame(void) {
   uint32_t w = ram16(0x10F668) << 16 | ram16(0x10F66A), winner = w ? ram16(w + 2) : 99;
   for (int k = 0; k < 4; k++) {
-    int absent = k >= 2 && !neo_ram[(0xF65C + k - 2) ^ 1];   // no field for player 3 or 4: it may join
-    const char *state = absent ? ((vframe >> 5) & 1 ? "PRESS   " : "  START ") :
-                        (uint32_t)k == winner ? "WINNER! " : neo_ram[(0xF660 + k) ^ 1] ? "OUT     " : "        ";
+    int nofield = k >= 2 && !neo_ram[(0xF65C + k - 2) ^ 1];  // no field for player 3 or 4 (yet, or any more)
+    int joined = k >= 2 && neo_ram[(0xF614 + k - 2) ^ 1];   // it has joined: a field at the next round
+    const char *state = (uint32_t)k == winner ? "WINNER! " : neo_ram[(0xF660 + k) ^ 1] ? "OUT     " :
+                        !nofield ? "        " : joined ? "READY   " : (vframe >> 5) & 1 ? "PRESS   " : "  START ";
     hud_text(hud_col[k], hud_row[k] + 5, state, HUD_PAL + k);
   }
   for (int k = 0; k < 4; k++) {
