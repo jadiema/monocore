@@ -196,6 +196,12 @@ octet qui diffère dépend de cet appui.
    à chaque image. À quatre, il reçoit un résultat à deux joueurs valide (l'autre côté du
    vainqueur) et ne dessine pas ses bandeaux ; l'écran de `main.c` écrit WINNER et OUT sous le
    score de chaque joueur. Reste le texte « PASSAGE TIME » du bilan, sur les aires 1 et 2.
+   **Le match** : le jeu compte les manches gagnées du joueur 1 contre le joueur 2 (`$22188` :
+   compteurs à 2 entrées `-10244(a5)`, `-10252(a5)`) et annonce PLAYER n WON à la fin du match ;
+   avec le résultat à deux joueurs donné au bilan, c'était un faux vainqueur (PLAYER 2 quand le
+   joueur 3 gagne). Dans une manche à quatre (`FOURROUND`), les manches gagnées ne comptent pas :
+   les manches s'enchaînent, les panneaux disent qui gagne chacune. À deux joueurs, la RAM est
+   identique au portage d'origine (partie à deux personnes, quatre images sur 5 600).
    **Rejoindre avec Start** : fait. Les Start des manettes 3 et 4 arrivent au jeu (`$10F612`,
    `neort.c`) ; la routine des manettes note qui a rejoint (`JOIN3`, `JOIN4`) ; au démarrage de
    l'aire du joueur 2 d'une partie de deux personnes, seuls les joueurs inscrits ont une aire (on

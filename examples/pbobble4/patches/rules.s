@@ -45,6 +45,11 @@
 	jmp	banners4
 	nop
 	nop
+| expect 0221C2 40 crc32 0xbbf53349	(the rounds won by the winner d0: -10244(a5), -10252(a5);
+	.section .p_0221C2,"ax"		|  up to the movem that gives d0 back, at $221E6)
+	jsr	rounds_won
+	bra.s	.+0x28-6
+	.fill	16,2,0x4e71
 | expect 0621D6 6 crc32 0x09f0a25a	(end of WON: the opponent, for the result)
 	.section .p_0621D6,"ax"
 	jsr	the_loser
@@ -138,6 +143,27 @@ the_loser:
 2:	rts
 opponents:
 	.long	P2S, P1S, P4S, P3S
+
+| The rounds won count only with two players: the match of the game is player 1 against player 2
+| (2-entry counters, a PLAYER n WON at the end); with four players the rounds follow one another
+| and the panels of main.c say who wins each one. Otherwise what $221C2-$221E9 did: +1 to the
+| rounds won (at most 999) and to the total of the winner d0 (d0 kept), a0 left on the total.
+rounds_won:
+	tst.b	FOURROUND
+	bne.s	2f
+	move.l	%d0, -(%sp)
+	lea	-10244(%a5), %a0
+	asl.w	#1, %d0
+	addq.w	#1, 0(%a0,%d0.w)
+	cmpi.w	#999, 0(%a0,%d0.w)
+	ble.s	1f
+	move.w	#999, 0(%a0,%d0.w)
+1:	lea	-10252(%a5), %a0
+	addq.w	#1, 0(%a0,%d0.w)
+	move.l	(%sp)+, %d0
+	rts
+2:	lea	-10252(%a5), %a0
+	rts
 
 banners4:					| the banners of the result, with two players only (the fields
 	tst.b	FOURROUND			| have ended when the result draws them: FIELD7 and FIELD8
