@@ -216,6 +216,14 @@ octet qui diffère dépend de cet appui.
    à la démonstration (les deux premières aires jouées par l'ordinateur), pas une manche contre
    l'ordinateur (le joueur 2 peut arriver ensuite en challenger). Un joueur absent a le décor seul
    et PRESS START dans son panneau.
+   **Attaques partagées** : fait. L'attaque (`$620B4` : bulles éclatées + tombées − 3, fois 3)
+   s'ajoutait à l'adversaire de deux tables à 2 entrées (`$620FC` : sa structure, `+56` ses
+   attaques à venir ; `$62104` : son compteur affiché, que les joueurs 3 et 4 lisaient au-delà :
+   des écritures à des adresses absurdes). Elle est maintenant partagée en C (`neort.c`,
+   `native_attack`, appelé depuis `$620CA`) entre tous les adversaires encore en jeu : la force
+   divisée également, le reste un par un aux joueurs suivant l'attaquant. Sur le banc : une
+   attaque de 6 donne +2 à chacun des trois autres ; à deux, l'adversaire reçoit tout et la RAM
+   est identique au jeu d'origine (contre l'ordinateur et entre deux personnes).
    Les règles à 4 restantes : choix du mode, attaques partagées, fin de manche et de partie, menus ; et ce
    que l'écran à quatre montre encore : les joueurs 3 et 4 ont l'apparence du joueur 2 (côté
    droit), les en-têtes de score du jeu (sprites) restent en haut des aires 1 et 2, les scores des

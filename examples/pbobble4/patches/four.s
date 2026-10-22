@@ -69,10 +69,6 @@
 	.section .p_0459DC,"ax"
 	jsr	t_opp14
 	nop
-| expect 0620D4 8 crc32 0xb09b7716	(index in d1: the structure of the opponent, attack sent)
-	.section .p_0620D4,"ax"
-	jsr	t_opp
-	nop
 | expect 062B2E 8 crc32 0x0fd9c387
 	.section .p_062B2E,"ax"
 	jsr	t_pad1
@@ -189,10 +185,6 @@ t_opp14:
 	lea	opp14_t(%pc), %a0
 	movea.l	0(%a0,%d0.w), %a0
 	rts
-t_opp:
-	lea	opp_t(%pc), %a0
-	movea.l	0(%a0,%d1.w), %a0
-	rts
 t_pad1:
 	lea	pad1_t(%pc), %a0
 	movea.l	0(%a0,%d0.w), %a0
@@ -208,4 +200,3 @@ pad1_t:	.long	0x100FF5, 0x100FF9, PAD3+1, PAD4+1		| $62B52
 score_t: .long	0x1057DC, 0x1057E0, SCORE3, SCORE4		| $434C8
 count_t: .long	0x10900A, 0x10900C, COUNT3, COUNT4		| $44E72
 opp14_t: .long	0x10D668+0x14, 0x10D5D2+0x14, P4S+0x14, P3S+0x14	| $45A0E: the opponent's +$14
-opp_t:	.long	0x10D668, 0x10D5D2, P4S, P3S			| $620FC: the opponent (attacks)

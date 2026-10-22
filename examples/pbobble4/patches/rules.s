@@ -50,6 +50,9 @@
 	jsr	rounds_won
 	bra.s	.+0x28-6
 	.fill	16,2,0x4e71
+| expect 0620CA 6 crc32 0xf90ba3b8	(the attack d0 sent to the opponent: $620CA-$620FA)
+	.section .p_0620CA,"ax"
+	jmp	0xC00E10			| shared among all the opponents (neort.c, native_attack)
 | expect 0621D6 6 crc32 0x09f0a25a	(end of WON: the opponent, for the result)
 	.section .p_0621D6,"ax"
 	jsr	the_loser

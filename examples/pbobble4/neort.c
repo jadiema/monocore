@@ -1,5 +1,8 @@
 // Neo Geo runtime: see neort.h. Addresses and BIOS variables follow the NeoGeoDev wiki.
 #include "neort.h"
+#ifdef NEO_ATTACK_LOG
+#include <stdio.h>
+#endif
 
 const uint8_t *neo_rom;
 uint32_t neo_rom_size;
@@ -363,11 +366,49 @@ static void native_band(m68k_t *c) {
   c->n = c->z = c->v = c->c = 0;                            // the flags the 68000 routine left
 }
 
+// --- the attack of a player (patches/rules.s, from $620CA; a4 the attacker, d0 its strength), shared
+// among all its opponents still in the round (a field, not out): each gets strength / n, the rest
+// goes one by one to the players after the attacker. As the original for each one: +share to its
+// attacks to come (+56 of its structure), half of them into its counter ($10900A / $10900C for
+// players 1 and 2, as the tables $620FC and $62104 give them). With two players the only opponent
+// gets it all, in the same order: the RAM is as with the game.
+#define NATIVE_ATTACK 0xC00E10
+static inline uint32_t mem8(uint32_t a) { return neo_ram[(a & 0xFFFF) ^ 1]; }
+static void native_attack(m68k_t *c) {
+  static const uint32_t st[4] = {0x10D5D2, 0x10D668, 0x10F400, 0x10F500};
+  static const uint32_t counter[4] = {0x10900A, 0x10900C, 0x10F628, 0x10F62A};
+  uint32_t me = mem16(c->a[4] + 2) & 3, total = c->d[0] & 0xFFFF, a0 = c->a[0], d0 = c->d[0];
+  int in[4], n = 0;
+  for (int k = 0; k < 4; k++) {
+    in[k] = k != (int)me && (k < 2 || mem8(0x10F65C + k - 2)) && !mem8(0x10F660 + k);
+    n += in[k];
+  }
+  c->d[1] = (c->d[1] & 0xFFFF0000u) | me;
+  if (n) {
+    uint32_t share = total / n, rest = total % n;
+    for (int i = 1; i < 4; i++) {
+      int k = (me + i) & 3;
+      if (!in[k]) continue;
+      uint32_t v = share + (rest ? (rest--, 1) : 0);
+      wmem16(st[k] + 56, mem16(st[k] + 56) + v);
+      d0 = (d0 & 0xFFFF0000u) | ((uint32_t)((int16_t)mem16(st[k] + 56) >> 1) & 0xFFFF);
+      a0 = counter[k]; wmem16(a0, d0);
+#ifdef NEO_ATTACK_LOG
+      printf("ATTACK frame %u by P%u (%u): P%d +%u\n", neo.frame, me + 1, total, k + 1, v);
+#endif
+    }
+  }
+  c->d[0] = d0; c->a[0] = a0;
+}
+
 uint32_t neo_bios(m68k_t *c, uint32_t pc) {
   if (pc >= 0xC00F10 && pc < 0xC01000) return neo_native(c, pc);   // the rewritten routines, first
   switch (pc) {
   case NATIVE_BAND:
     native_band(c);
+    return rts(c);
+  case NATIVE_ATTACK:
+    native_attack(c);
     return rts(c);
   case NATIVE_SPRITES:
     native_sprites(c);
