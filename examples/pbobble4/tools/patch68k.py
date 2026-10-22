@@ -25,7 +25,20 @@ def apply(image, verbose=False):
     img = bytearray(image)
     srcs = sources()
     if not srcs: return bytes(img)
-    text = ''.join(open(s).read() + '\n' for s in srcs)
+    # a section of private/*.s replaces the section of patches/*.s at the same address (a routine
+    # rewritten in C takes the place of a 68000 patch): its lines go, up to the next comment or section
+    texts = [(s, open(s).read()) for s in srcs]
+    mine = {a.upper() for s, t in texts if os.sep + 'private' + os.sep in s
+            for a in re.findall(r'\.section\s+\.p_([0-9A-Fa-f]{6})', t)}
+    def drop(t):
+        out, skip = [], False
+        for line in t.split('\n'):
+            m = re.match(r'\s*\.section\s+\.p_([0-9A-Fa-f]{6})', line)
+            if m: skip = m.group(1).upper() in mine
+            elif skip and (line.lstrip().startswith('|') or line.lstrip().startswith('.section')): skip = False
+            if not skip: out.append(line)
+        return '\n'.join(out)
+    text = ''.join((drop(t) if os.sep + 'private' + os.sep not in s else t) + '\n' for s, t in texts)
     for a, n, crc in re.findall(r'\|\s*expect\s+([0-9A-Fa-f]+)\s+(\d+)\s+crc32\s+0x([0-9A-Fa-f]+)', text):
         a, n = int(a, 16), int(n)
         if zlib.crc32(bytes(img[a:a + n])) != int(crc, 16):

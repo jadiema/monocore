@@ -32,7 +32,8 @@ static inline uint16_t rgb555(uint32_t c) {
            b = ((c << 1) & 0x1E) | ((c >> 12) & 1);
   return (uint16_t)((r << 10) | (g << 5) | b);
 }
-static int four_mode;
+static int four_mode, four_last = 381;          // four_last: past the last sprite of the frame list
+extern uint32_t neo_list_last;                  // neort.c: the last sprite the list was sent to
 #define HUD_PAL     208                            // palettes 208-254 are never used by the game:
 #define DECOR_PAL   240                            // 208-211 the four players, 240-254 the decor window
 #define DECOR_SLOTS 15                             // (palette 255 holds the backdrop colour, 0xFFF)
@@ -376,7 +377,7 @@ static void video_four(void) {
   const uint16_t *smap = (const uint16_t *)spr_map_file;
   uint32_t count = spr_map_size / 2, anim = (neo.frame / ((neo.lspc_mode >> 8) + 1)) & 7;
   int out = 0;
-  for (int n = 380; n >= LIST_FIRST && out < MC_SPRITES; n--) {
+  for (int n = four_last - 1; n >= LIST_FIRST && out < MC_SPRITES; n--) {
     if (!sp_rows[n]) continue;
     int rows = sp_rows[n] > 32 ? 32 : sp_rows[n], zy = sp_zy[n], zx = sp_zx[n];
     for (int k = 0; k < rows && out < MC_SPRITES; k++) {
@@ -434,7 +435,12 @@ static void video_frame(void) {
   //    sprite of the same height and top, without shrink, exactly 16 pixels on the right of the
   //    previous one (backgrounds are drawn both ways)
   int px = 0, ptop = 0, prows = 0, pzy = 0, pw = 0, pzx = 0, head = 1;
-  for (int n = 1; n < 381; n++) {
+  // with four players only the frame list counts (the decor is drawn from the video RAM itself):
+  // from sprite 118 to the last one the native sending of the list wrote (neort.c)
+  int first = 1, last = 381;
+  if (four_mode) { first = LIST_FIRST; last = (int)neo_list_last + 1; if (last > 381) last = 381; if (last < first) last = first; }
+  four_last = last;
+  for (int n = first; n < last; n++) {
     uint32_t s2 = neo_vram[0x8000 + n], s3 = neo_vram[0x8200 + n], s4 = neo_vram[0x8400 + n];
     int zx = (s2 >> 8) & 15, x, top, rows, zy;
     if (s3 & 0x40) { x = (px + pw) & 0x1FF; top = ptop; rows = prows; zy = pzy; }

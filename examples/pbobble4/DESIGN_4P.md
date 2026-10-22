@@ -267,6 +267,12 @@ Puis : la boucle qui fait tourner les objets d'une liste (`$44392`) et la routin
 autre objet, ou une bulle dont l'animation continue son script, est rendu au code traduit avec
 les adresses de retour que l'original empile. Charge à quatre 66 % → 53 %, à deux 43 % → 39 %.
 
+Puis : l'ordonnanceur du noyau (`$2A54`, les 32 tâches examinées une à une, avec le travail de
+`sched_hook` pour chacune) en C ; `patch68k.py` laisse une section de `private/*.s` remplacer la
+section de `patches/*.s` à la même adresse (sans le dossier privé, `sched_hook` reste). En mode à
+quatre, la conversion vidéo ne parcourt plus que les sprites de la liste (118 au dernier écrit
+par l'envoi natif). Charge à quatre 53 % → 51 %, à deux 39 % → 36 %.
+
 **Le traducteur** (public, `tools/recomp68k`) : chaque fonction C du code traduit (une plage de
 4 Ko) avait un `switch` d'aiguillage sur une centaine d'adresses éparses (une recherche
 dichotomique), par lequel passent tous les retours, les sauts indirects et les appels qui changent
