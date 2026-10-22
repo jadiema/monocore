@@ -6,7 +6,8 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
 ## Jouer
 
 1. **À l'écran titre (ou pendant la démonstration), n'importe quelle manette appuie sur Start** : un
-   menu s'ouvre, que toutes les manettes peuvent régler avec leur croix : le **nombre de joueurs** (1 à 4) et la
+   menu s'ouvre (son mode d'emploi y est écrit), que toutes les manettes peuvent régler : haut /
+   bas choisit la ligne, gauche / droite change le chiffre ou la difficulté : le **nombre de joueurs** (1 à 4) et la
    **difficulté** (EASY, NORMAL, HARD : le réglage DIFFICULTY du jeu, LEVEL 2, 4 ou 7 sur 8) ;
    Start ou le bouton 1 lance la partie, le bouton 2 referme le menu. Avec 1 joueur, c'est la
    partie contre l'ordinateur du jeu (la manette 1 joue) ; avec 2, 3 ou 4, la partie « joueur
@@ -22,7 +23,8 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
 
 **Deux dispositions**, au DIP switch 1 (menu OSD de la MiSTer, ou les DIP du simulateur), même en
 pleine partie :
-- **allumé (par défaut), 4 × 1** (pour un écran 16:9 ; bouton « 16:9 » du simulateur) : les quatre aires côte à côte, 22 % plus grandes, l'image
+- **allumé (par défaut), 4 × 1** (pour un écran 16:9 ; bouton « 16:9 » du simulateur) ; à trois
+  joueurs, trois colonnes centrées (une quatrième apparaît dès qu'un joueur 4 rejoint) : les quatre aires côte à côte, 22 % plus grandes, l'image
   étirée en 16:9 par la MiSTer (rapport d'aspect plein écran dans l'OSD, ou `MiSTer.ini`) ; le jeu
   compense l'étirement (10/16 en largeur, 14/16 en hauteur), les bulles restent rondes. Noms et
   scores au-dessus des aires, OUT / WINNER et manches gagnées en dessous. Chaque ligne traverse

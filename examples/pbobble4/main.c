@@ -180,6 +180,27 @@ static const layout_t layouts[2] = {
 };
 static const layout_t *L = &layouts[0];
 static int four_layout;                            // 0: 2 x 2, 1: 4 x 1
+// Where each player is: in 4 x 1, only the players present (1, 2, and 3 or 4 if they joined) get a
+// column, side by side and centred (three players: three columns); in 2 x 2, the four places.
+static int16_t fx[4], fy[4];
+static uint8_t fcol[4], frow[4], fon[4], fcount;
+static int place_fields(void) {                   // 1 when the places changed
+  uint8_t on[4] = {1, 1, (uint8_t)(neo_ram[0xF614 ^ 1] || neo_ram[0xF65C ^ 1]), (uint8_t)(neo_ram[0xF615 ^ 1] || neo_ram[0xF65D ^ 1])};
+  int n = 0, changed = 0;
+  for (int k = 0; k < 4; k++) n += on[k];
+  if (!four_layout) for (int k = 0; k < 4; k++) on[k] = 1, n = 4;
+  int x0 = four_layout ? (384 - n * 96) / 2 : 0, i = 0;
+  for (int k = 0; k < 4; k++) {
+    int16_t x = four_layout ? (int16_t)(x0 + 96 * i) : L->x[k];
+    uint8_t col = four_layout ? (uint8_t)(x / 8 + 2) : L->col[k];
+    if (on[k] != fon[k] || x != fx[k]) changed = 1;
+    fon[k] = on[k]; fx[k] = x; fy[k] = L->y[k]; fcol[k] = col; frow[k] = L->row[k];
+    i += on[k];
+  }
+  if (n != fcount) changed = 1;
+  fcount = (uint8_t)n;
+  return changed;
+}
 #define LIST_FIRST  118                            // the list of the frame starts at this sprite: below, the fixed decor
 #define DECOR_BASE  (CHRRAM_BASE + MC_CHRRAM_SIZE - DECOR_BYTES)
 
@@ -338,7 +359,7 @@ static void decor_layer_open(void) {             // layer 1: the decor cells beh
   for (int f = 0; f < 4; f++)
     for (int cy = 0; cy < L->dh; cy++)
       for (int cx = 0; cx < L->dw; cx++)
-        TILEMAP(1)[(L->y[f] / 8 + cy) * 64 + L->x[f] / 8 + cx] = MC_TILE(cy * L->dw + cx, DECOR_PAL, 0);
+        if (fon[f]) TILEMAP(1)[(fy[f] / 8 + cy) * 64 + fx[f] / 8 + cx] = MC_TILE(cy * L->dw + cx, DECOR_PAL, 0);
 }
 // two panels, left and right of the fields (margins of 72 pixels, cells of 8): players 1 and 3 on
 // the left, 2 and 4 on the right, each facing its field: name, score, WINNER or OUT
@@ -352,7 +373,7 @@ static void hud_open(void) {
     uint16_t v = (uint16_t)(((c >> 19) << 10) | (((c >> 11) & 31) << 5) | ((c >> 3) & 31));
     for (int i = 1; i < 16; i++) PALETTE[(HUD_PAL + k) * 16 + i] = i == 1 ? v : 0;
     char name[] = "PLAYER 1"; name[7] = (char)('1' + k);
-    hud_text(L->col[k], L->row[k], name, HUD_PAL + k);
+    if (fon[k]) hud_text(fcol[k], frow[k], name, HUD_PAL + k);
   }
 }
 // WINNER and OUT under the scores (patches/rules.s: OUT bytes at $10F660, the structure of the
@@ -360,22 +381,24 @@ static void hud_open(void) {
 static void hud_frame(void) {
   uint32_t w = ram16(0x10F668) << 16 | ram16(0x10F66A), winner = w ? ram16(w + 2) : 99;
   for (int k = 0; k < 4; k++) {
+    if (!fon[k]) continue;                         // not present (4 x 1): no column
     int nofield = k >= 2 && !neo_ram[(0xF65C + k - 2) ^ 1];  // no field for player 3 or 4 (yet, or any more)
     int joined = k >= 2 && neo_ram[(0xF614 + k - 2) ^ 1];   // it has joined: a field at the next round
     const char *state = (uint32_t)k == winner ? "WINNER! " : neo_ram[(0xF660 + k) ^ 1] ? "OUT     " :
                         !nofield ? "        " : joined ? "READY   " : (vframe >> 5) & 1 ? "PRESS   " : "  START ";
-    hud_text(L->col[k], L->row[k] + L->at_state, state, HUD_PAL + k);
+    hud_text(fcol[k], frow[k] + L->at_state, state, HUD_PAL + k);
     uint32_t won = neo_ram[(0xF6B0 + k) ^ 1];        // rounds won (patches/rules.s, WINS)
     char t[9] = "WINS    ";
     if (won >= 10) t[6] = (char)('0' + won / 10);
     t[7] = (char)('0' + won % 10);
-    hud_text(L->col[k], L->row[k] + L->at_wins, nofield && !won ? "        " : t, HUD_PAL + k);
+    hud_text(fcol[k], frow[k] + L->at_wins, nofield && !won ? "        " : t, HUD_PAL + k);
   }
   for (int k = 0; k < 4; k++) {
+    if (!fon[k]) continue;                         // not present (4 x 1): no column
     uint32_t v = ram16(score_at[k]) << 16 | ram16(score_at[k] + 2);
     char t[9]; t[8] = 0;
     for (int i = 7; i >= 0; i--) { t[i] = (char)(v || i == 7 ? '0' + v % 10 : ' '); v /= 10; }
-    hud_text(L->col[k], L->row[k] + 2, t, HUD_PAL + k);
+    hud_text(fcol[k], frow[k] + 2, t, HUD_PAL + k);
   }
 }
 static void hud_close(void) {                      // the game's fix layer again, and layer 1
@@ -452,8 +475,9 @@ static void video_four(void) {
       uint32_t pal = t1 >> 8;
       if (pal == DRAGON_PAL && f >= 2) pal = f == 2 ? DRAGON3_PAL : DRAGON4_PAL;
       sprite_t *s = &mc_spr[out++];
-      s->x = (int16_t)(L->x[f] + (((lx - L->ox) * L->sx) >> 8));
-      s->y = (int16_t)(L->y[f] + ((ly * L->sy) >> 8));
+      if (!fon[f]) continue;
+      s->x = (int16_t)(fx[f] + (((lx - L->ox) * L->sx) >> 8));
+      s->y = (int16_t)(fy[f] + ((ly * L->sy) >> 8));
       s->tile = (uint16_t)(slot * 4);
       s->pal = (uint8_t)pal; s->w = 2; s->h = 2;
       s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | ((t1 & 1) ? SA_HFLIP : 0) | ((t1 & 2) ? SA_VFLIP : 0));
@@ -479,12 +503,12 @@ static void video_frame(void) {
   int four = four_running(), lay = DIPSW & 1;
   if (four && four_mode && lay != four_layout) {     // DIP switch 1 changed during a game
     four_layout = lay; L = &layouts[lay];
-    hud_open(); decor_sign = 1;
-  }
+    place_fields(); hud_open(); decor_sign = 1;
+  } else if (four && four_mode && place_fields()) hud_open();   // a player came or went
   if (four != four_mode) {
     four_layout = lay; L = &layouts[lay];
     four_mode = four; mc_video_mode(four ? FOUR_W : 320, four ? FOUR_H : 224);
-    if (four) hud_open();
+    if (four) { place_fields(); hud_open(); }
     else { neo_platform_bank(); hud_close(); }      // the palettes 208-255 and the fix layer of the game again
     decor_sign = 1;
     mc_debug("FOUR %d frame %u tasks %04X%04X\n", four, neo.frame, ram16(0x1034C6), ram16(0x1034C8));
@@ -684,9 +708,9 @@ static uint32_t pad_prev[4], start_force, start_mask, auto_frames;
 static const uint8_t level_dip[3] = {1, 3, 6};
 static const char *const level_name[3] = {"  EASY  ", " NORMAL ", "  HARD  "};
 #define MENU_X 7
-#define MENU_Y 10
+#define MENU_Y 8
 #define MENU_W 26
-#define MENU_H 9
+#define MENU_H 13
 static int menu_drawn_cell(uint32_t x, uint32_t y) {
   return menu_drawn && x >= MENU_X && x < MENU_X + MENU_W && y >= MENU_Y && y < MENU_Y + MENU_H;
 }
@@ -734,13 +758,16 @@ static void hint_frame(void) {
   if (menu_open) {
     char l[MENU_H][MENU_W + 1];
     for (int r = 0; r < MENU_H; r++) { for (int i = 0; i < MENU_W; i++) l[r][i] = ' '; l[r][MENU_W] = 0; }
-    const char *t = "BUST-A-MOVE AGAIN 4P"; for (int i = 0; t[i]; i++) l[1][3 + i] = t[i];
-    t = "PLAYERS"; for (int i = 0; t[i]; i++) l[3][3 + i] = t[i];
-    l[3][14] = '<'; l[3][18] = (char)('0' + menu_players); l[3][22] = '>';
-    t = "LEVEL"; for (int i = 0; t[i]; i++) l[5][3 + i] = t[i];
-    l[5][13] = '<'; for (int i = 0; i < 8; i++) l[5][14 + i] = level_name[menu_level][i]; l[5][22] = '>';
-    if ((vframe >> 4) & 1) l[menu_sel ? 5 : 3][1] = '>';
-    t = "START: PLAY  B2: BACK"; for (int i = 0; t[i]; i++) l[7][2 + i] = t[i];
+    #define PUT(r, c, str) do { const char *q_ = (str); for (int i_ = 0; q_[i_]; i_++) l[r][(c) + i_] = q_[i_]; } while (0)
+    PUT(1, 3, "BUST-A-MOVE AGAIN 4P");
+    PUT(3, 3, "PLAYERS"); PUT(3, 13, "<    >"); l[3][16] = (char)('0' + menu_players);
+    PUT(5, 3, "LEVEL"); PUT(5, 13, "<"); PUT(5, 14, level_name[menu_level]); PUT(5, 22, ">");
+    if ((vframe >> 4) & 1) l[menu_sel ? 5 : 3][1] = '>';   // the line chosen
+    PUT(7, 3, "UP/DOWN    : LINE");
+    PUT(8, 3, "LEFT/RIGHT : CHANGE");
+    PUT(9, 3, "START      : PLAY");
+    PUT(10, 3, "BUTTON 2   : BACK");
+    #undef PUT
     for (int r = 0; r < MENU_H; r++)
       for (int i = 0; i < MENU_W; i++) TILEMAP(0)[(MENU_Y + r) * 64 + MENU_X + i] = MC_TILE((uint8_t)l[r][i], TEXT_PAL, 0);
     menu_drawn = 1;
