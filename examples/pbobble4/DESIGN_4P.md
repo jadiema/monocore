@@ -251,6 +251,11 @@ du BIOS émulé. Charge à quatre 68 % → 66 %, à deux 46 % → 43 %. (Une fau
 référence de comparaison était un banc compilé avant la dernière correction des inscriptions ; la
 référence doit toujours être reconstruite depuis l'état publié.)
 
+Puis : la boucle qui fait tourner les objets d'une liste (`$44392`) et la routine de chaque bulle
+(`$44B04`/`$44B28` : générateur pseudo-aléatoire du clignotement, animation, position) en C ; un
+autre objet, ou une bulle dont l'animation continue son script, est rendu au code traduit avec
+les adresses de retour que l'original empile. Charge à quatre 66 % → 53 %, à deux 43 % → 39 %.
+
 **Le traducteur** (public, `tools/recomp68k`) : chaque fonction C du code traduit (une plage de
 4 Ko) avait un `switch` d'aiguillage sur une centaine d'adresses éparses (une recherche
 dichotomique), par lequel passent tous les retours, les sauts indirects et les appels qui changent
