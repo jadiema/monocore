@@ -387,9 +387,13 @@ static void video_four(void) {
       // rounds under it (player 1 against player 2: they mean nothing with four players, and the
       // character fell half in each field): the central band under line 176, the counters
       // (palettes 116, 122) under line 208
+      // and the result of the game, drawn for players 1 and 2 (WON, LOST, PLAYER n WON, PASSAGE
+      // TIME: palettes 117-119, 121-123, never used by the fields, measured): the panels say it
       { int nx = sp_x[n] & 0x1FF, ny = (sp_top[n] + ((k * 16 * (zy + 1)) >> 8)) & 0x1FF;
+        uint32_t pl = t1 >> 8;
         if (ny >= 176 && ny < 240 && ((nx >= 144 && nx < 176) ||
-            (ny >= 208 && nx >= 120 && nx < 200 && ((t1 >> 8) == 116 || (t1 >> 8) == 122)))) continue; }
+            (ny >= 208 && nx >= 120 && nx < 200 && (pl == 116 || pl == 122)))) continue;
+        if ((ny < 240 || ny >= 0x1F0) && pl >= 117 && pl <= 123 && pl != 120) continue; }
       uint32_t num = t0 | ((t1 & 0xF0) << 12);
       if (t1 & 8) num = (num & ~7u) | anim; else if (t1 & 4) num = (num & ~3u) | (anim & 3);
       if (num >= count || smap[num] == 0) continue;

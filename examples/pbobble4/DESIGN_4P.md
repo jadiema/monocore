@@ -196,6 +196,13 @@ octet qui diffère dépend de cet appui.
    à chaque image. À quatre, il reçoit un résultat à deux joueurs valide (l'autre côté du
    vainqueur) et ne dessine pas ses bandeaux ; l'écran de `main.c` écrit WINNER et OUT sous le
    score de chaque joueur. Reste le texte « PASSAGE TIME » du bilan, sur les aires 1 et 2.
+   **Bandeaux du résultat** : WON, LOST, PLAYER n WON (le vainqueur du duel en mode challenger,
+   où le joueur 2 arrive en cours de partie : le duel ne dure qu'une manche, son vainqueur au sens
+   du jeu est le joueur 1 ou 2) et PASSAGE TIME, dessinés pour les joueurs 1 et 2, ne sont pas
+   affichés par l'écran à quatre : palettes 117–119 et 121–123, jamais utilisées par les aires
+   (mesuré sur des manches à quatre) ; les panneaux disent WINNER et OUT. Pour une vraie partie à
+   quatre (des manches qui s'enchaînent), les joueurs 1 et 2 appuient sur Start ensemble à l'écran
+   titre.
    **Le match** : le jeu compte les manches gagnées du joueur 1 contre le joueur 2 (`$22188` :
    compteurs à 2 entrées `-10244(a5)`, `-10252(a5)`) et annonce PLAYER n WON à la fin du match ;
    avec le résultat à deux joueurs donné au bilan, c'était un faux vainqueur (PLAYER 2 quand le
