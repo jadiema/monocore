@@ -214,5 +214,11 @@ construction utilise le code traduit, et tout fonctionne de même. Chaque routin
 vérifiée sur le banc : RAM et VRAM identiques au code traduit, image par image
 (`BENCH_HASH=1 BENCH_VHASH=1`), à quatre et contre l'ordinateur.
 
-Fait : le dessin des objets d'une aire dans la liste de sprites (`$4468A`, appelé pour chaque
-bulle à chaque image) : 3 000 images identiques ; charge à quatre 86 % → 81 %.
+Fait (charge pendant une manche à quatre : 86 % → 78 %) :
+- le dessin des objets d'une aire dans la liste de sprites (`$4468A`, pour chaque bulle à chaque
+  image) : 86 % → 81 % ;
+- le chemin rapide du moteur d'animation (`$6FDFC` : état partagé des bulles en versus, décompte du
+  minuteur ; quand il expire, le code traduit reprend le script en `$6FE46` ou `$6FE34`, ajoutés à
+  `entries.txt`, car un script peut appeler n'importe quelle routine du jeu) et la fin de
+  l'animation d'une bulle (`$6EFD2`, sa palette) : 81 % → 78 %.
+Chacune : RAM et VRAM identiques au code traduit sur 3 000 images, à quatre et contre l'ordinateur.

@@ -140,3 +140,5 @@
 027ad2  reached at frame 1461
 028a64  reached at frame 869 (simulateur web, mode HARD)
 02a238  reached by Julien (MiSTer)
+06fe46  continuation of the animation, from private/native.c
+06fe34  continuation of the animation, from private/native.c
