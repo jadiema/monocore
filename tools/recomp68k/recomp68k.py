@@ -254,6 +254,10 @@ class Translator:
         if t in self.labels and self.chunk(t) == self.cur:
             if poll and t <= src: return 'M68K_TICK(c, 0x%x); if (c->ipl > (srh & 7)) { pc = 0x%x; goto irq; } goto L_%06x;' % (t, t, t)
             return 'goto L_%06x;' % t
+        if (t & 0xFFFFFF) not in self.ins:
+            # not translated code (the BIOS, routines written in C): straight to the external call,
+            # without leaving this function through the main loop
+            return 'pc = 0x%x; goto ext;' % (t & 0xFFFFFF)
         return 'pc = 0x%x; goto dispatch;' % (t & 0xFFFFFF)
 
     # --- operands ---
