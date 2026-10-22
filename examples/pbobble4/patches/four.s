@@ -14,6 +14,9 @@
 	.equ	PAD4, 0x10F604
 	.equ	RAW3, 0x10F610			| pads 3 and 4 as the platform gives them (1 = pressed)
 	.equ	RAW4, 0x10F611
+	.equ	RAWST, 0x10F612			| their start buttons (bit 0: player 3, bit 1: player 4)
+	.equ	JOIN3, 0x10F614			| players 3 and 4 have joined (start pressed): their fields
+	.equ	JOIN4, 0x10F615			| are made at the next round
 	.equ	SCORE3, 0x10F620		| per-player long (as $1057DC / $1057E0)
 	.equ	SCORE4, 0x10F624
 	.equ	COUNT3, 0x10F628		| per-player word (as $10900A / $10900C)
@@ -82,6 +85,13 @@
 | presses as $24BE does. Only d0-d2 may change, as in $24BE: a0 is kept.
 pads34:
 	move.l	%a0, -(%sp)
+	btst	#0, RAWST			| a start of player 3 or 4: it joins
+	beq.s	1f
+	move.b	#1, JOIN3
+1:	btst	#1, RAWST
+	beq.s	2f
+	move.b	#1, JOIN4
+2:
 	move.b	PAD3, PAD3+2
 	move.b	RAW3, %d0
 	andi.b	#0x7F, %d0
@@ -128,17 +138,27 @@ init34:
 	cmpi.w	#6, -19260(%a5)			| the field of player 2 is starting
 	bne.s	1f
 	tst.w	21966(%a5)			| players 1 and 2 both played by people (the flags the
-	bne.s	1f				| game sets before creating the fields: 0 = a person,
-	tst.w	21968(%a5)			| 1 = the computer): for now, two people means 4 players
-	bne.s	1f
+	beq.s	5f				| game sets before creating the fields: 0 = a person,
+	tst.w	21968(%a5)			| 1 = the computer): players 3 and 4 who joined get a field;
+	bne.s	3f				| both by the computer (the demo): the joins end
+	bra.s	1f
+5:	tst.w	21968(%a5)
+	bne.s	1f				| a person against the computer: the joins wait
+	tst.b	JOIN3
+	beq.s	4f
 	move.l	#7, -(%sp)			| task 7: player 3
 	pea	0x74F16
 	trap	#1
 	addq.l	#8, %sp
+4:	tst.b	JOIN4
+	beq.s	1f
 	move.l	#8, -(%sp)			| task 8: player 4
 	pea	0x74F16
 	trap	#1
 	addq.l	#8, %sp
+	bra.s	1f
+3:	clr.b	JOIN3				| the demo (back to the title): players 3 and 4 join again
+	clr.b	JOIN4				| for the next game
 1:	lea	0x10D668, %a4			| a4 on the structure of player 2, as the original leaves it
 	rts
 

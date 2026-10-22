@@ -196,6 +196,13 @@ octet qui diffère dépend de cet appui.
    à chaque image. À quatre, il reçoit un résultat à deux joueurs valide (l'autre côté du
    vainqueur) et ne dessine pas ses bandeaux ; l'écran de `main.c` écrit WINNER et OUT sous le
    score de chaque joueur. Reste le texte « PASSAGE TIME » du bilan, sur les aires 1 et 2.
+   **Rejoindre avec Start** : fait. Les Start des manettes 3 et 4 arrivent au jeu (`$10F612`,
+   `neort.c`) ; la routine des manettes note qui a rejoint (`JOIN3`, `JOIN4`) ; au démarrage de
+   l'aire du joueur 2 d'une partie de deux personnes, seuls les joueurs inscrits ont une aire (on
+   joue à deux, trois ou quatre) ; une inscription vaut pour la manche suivante et jusqu'au retour
+   à la démonstration (les deux premières aires jouées par l'ordinateur), pas une manche contre
+   l'ordinateur (le joueur 2 peut arriver ensuite en challenger). Un joueur absent a le décor seul
+   et PRESS START dans son panneau.
    Les règles à 4 restantes : choix du mode, attaques partagées, fin de manche et de partie, menus ; et ce
    que l'écran à quatre montre encore : les joueurs 3 et 4 ont l'apparence du joueur 2 (côté
    droit), les en-têtes de score du jeu (sprites) restent en haut des aires 1 et 2, les scores des

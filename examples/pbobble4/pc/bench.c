@@ -153,6 +153,7 @@ static void actions(uint32_t frame) {
       else if (!strncmp(a, "p2=", 3)) neo.p2 = strtoul(a + 3, 0, 16);
       else if (!strncmp(a, "p3=", 3)) neo.p3 = strtoul(a + 3, 0, 16);
       else if (!strncmp(a, "p4=", 3)) neo.p4 = strtoul(a + 3, 0, 16);
+      else if (!strncmp(a, "st34=", 5)) neo.st34 = strtoul(a + 5, 0, 16);
       else if (!strncmp(a, "st=", 3)) neo.status_b = strtoul(a + 3, 0, 16);
     }
     p = end;

@@ -309,7 +309,9 @@ static void hud_open(void) {
 static void hud_frame(void) {
   uint32_t w = ram16(0x10F668) << 16 | ram16(0x10F66A), winner = w ? ram16(w + 2) : 99;
   for (int k = 0; k < 4; k++) {
-    const char *state = (uint32_t)k == winner ? "WINNER! " : neo_ram[(0xF660 + k) ^ 1] ? "OUT     " : "        ";
+    int absent = k >= 2 && !neo_ram[(0xF65C + k - 2) ^ 1];   // no field for player 3 or 4: it may join
+    const char *state = absent ? ((vframe >> 5) & 1 ? "PRESS   " : "  START ") :
+                        (uint32_t)k == winner ? "WINNER! " : neo_ram[(0xF660 + k) ^ 1] ? "OUT     " : "        ";
     hud_text(hud_col[k], hud_row[k] + 5, state, HUD_PAL + k);
   }
   for (int k = 0; k < 4; k++) {
@@ -589,6 +591,7 @@ static void inputs(void) {
   neo.p2 = (uint8_t)(b & 0xFF);
   neo.p3 = (uint8_t)(IN_P3 & 0xFF);                 // players 3 and 4 (patches/four.s)
   neo.p4 = (uint8_t)(IN_P4 & 0xFF);
+  neo.st34 = (uint8_t)(((IN_P3 >> 10) & 1) | (((IN_P4 >> 10) & 1) << 1));   // their starts: they join
   neo.status_b = (uint8_t)(((a & IN_START) ? 1 : 0) | ((b & IN_START) ? 4 : 0));
 }
 

@@ -24,7 +24,8 @@ typedef struct {
   uint8_t vbl_pending, timer_pending;
   uint8_t sound_cmd, sound_reply, sound_prefix, sound_left, sound_first;   // a command waiting for its
                                       // parameters: sound_left more bytes, sound_first the first one
-  uint8_t p1, p2, p3, p4, status_b;   // inputs set by the platform layer, 1 = pressed:
+  uint8_t p1, p2, p3, p4, st34, status_b;   // inputs set by the platform layer, 1 = pressed
+                                      // (st34: start of player 3 in bit 0, of player 4 in bit 1):
                                       // (p3 and p4: pads of players 3 and 4, for the 4-player patches)
                                       // p1/p2 bits 0 up, 1 down, 2 left, 3 right, 4 A, 5 B, 6 C, 7 D;
                                       // status_b bits 0 P1 start, 1 P1 select, 2 P2 start, 3 P2 select

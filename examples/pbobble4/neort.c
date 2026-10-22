@@ -241,7 +241,7 @@ void neo_idle(void) {
 
 void neo_vblank(m68k_t *c) {
   neo.frame++;
-  wram8(RAW34, neo.p3); wram8(RAW34 + 1, neo.p4);
+  wram8(RAW34, neo.p3); wram8(RAW34 + 1, neo.p4); wram8(RAW34 + 2, neo.st34);
   neo.vbl_pending = 1;
   update_ipl(c);
 }
