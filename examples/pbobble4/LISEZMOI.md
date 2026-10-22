@@ -25,7 +25,8 @@ vainqueur de la manche. Les dragons ont la couleur de leur joueur : vert, bleu, 
 - **le dernier joueur restant gagne la manche** : un joueur dont les bulles atteignent la ligne est
   éliminé (OUT), les autres continuent ;
 - les manches s'enchaînent, les scores s'additionnent ; le match « joueur 1 contre joueur 2 » du
-  jeu ne compte pas les manches à quatre.
+  jeu ne compte pas les manches à quatre : chaque panneau affiche le nombre de manches gagnées
+  par son joueur (WINS), remis à zéro au retour à la démonstration.
 
 À deux joueurs, tout est comme dans le jeu d'origine (vérifié : la RAM du jeu est la même, image
 par image).

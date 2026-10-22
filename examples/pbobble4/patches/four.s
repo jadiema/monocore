@@ -162,7 +162,8 @@ init34:
 	addq.l	#8, %sp
 	bra.s	1f
 3:	clr.b	JOIN3				| the demo (back to the title): players 3 and 4 join again
-	clr.b	JOIN4				| for the next game
+	clr.b	JOIN4				| for the next game, the rounds won start again
+	clr.l	0x10F6B0
 1:	lea	0x10D668, %a4			| a4 on the structure of player 2, as the original leaves it
 	rts
 

@@ -18,6 +18,7 @@
 	.equ	OUT, 0x10F660			| 4 bytes: the player is out of this round
 	.equ	LASTOUT, 0x10F664		| structure of the last player out
 	.equ	WINNER, 0x10F668		| structure of the winner of the round (patches/band.s)
+	.equ	WINS, 0x10F6B0			| rounds won by each player (4 bytes, main.c shows them)
 	.equ	FOURROUND, 0x10F616		| the round has a field for player 3 or 4 (patches/four.s)
 
 | expect 061E2E 34 crc32 0xd679758b	(the player has just lost: freeze the opponent)
@@ -121,7 +122,17 @@ give_won:					| end of LOST: the last player left gets the WON
 	cmpi.w	#1, %d1
 	bne.s	1f
 	move.w	#10, 4(%a1)
+	tst.l	WINNER				| one more round won, once per round (two players may lose
+	bne.s	2f				| at the same frame)
 	move.l	%a1, WINNER
+	move.w	2(%a1), %d1
+	andi.w	#3, %d1
+	lea	WINS, %a1
+	cmpi.b	#99, 0(%a1,%d1.w)
+	bcc.s	1f
+	addq.b	#1, 0(%a1,%d1.w)
+	bra.s	1f
+2:	move.l	%a1, WINNER
 1:	movem.l	(%sp)+, %d1/%a1
 	rts
 

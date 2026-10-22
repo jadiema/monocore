@@ -321,6 +321,11 @@ static void hud_frame(void) {
     const char *state = (uint32_t)k == winner ? "WINNER! " : neo_ram[(0xF660 + k) ^ 1] ? "OUT     " :
                         !nofield ? "        " : joined ? "READY   " : (vframe >> 5) & 1 ? "PRESS   " : "  START ";
     hud_text(hud_col[k], hud_row[k] + 5, state, HUD_PAL + k);
+    uint32_t won = neo_ram[(0xF6B0 + k) ^ 1];        // rounds won (patches/rules.s, WINS)
+    char t[9] = "WINS    ";
+    if (won >= 10) t[6] = (char)('0' + won / 10);
+    t[7] = (char)('0' + won % 10);
+    hud_text(hud_col[k], hud_row[k] + 7, nofield && !won ? "        " : t, HUD_PAL + k);
   }
   for (int k = 0; k < 4; k++) {
     uint32_t v = ram16(score_at[k]) << 16 | ram16(score_at[k] + 2);
