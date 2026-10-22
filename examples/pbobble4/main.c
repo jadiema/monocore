@@ -57,7 +57,9 @@ static uint8_t hint_on[2], box_on;
 #define TEXT_PAL 214                               // never used by the game: yellow letters on black
 #define BOX_X    26                                // the box of the title: 13 x 5 cells, bottom right
 #define BOX_Y    24
+static int menu_drawn_cell(uint32_t x, uint32_t y);
 static int hint_cell(uint32_t x, uint32_t y) {
+  if (menu_drawn_cell(x, y)) return 1;
   if (box_on && x >= BOX_X && x < BOX_X + 13 && y >= BOX_Y && y < BOX_Y + 5) return 1;
   return y == HINT_ROW && ((hint_on[0] && x >= 1 && x < 9) || (hint_on[1] && x >= 31 && x < 39));
 }
@@ -658,6 +660,7 @@ static void sound_frame(void) {                 // vblank: fade-out
 }
 
 // --- inputs, interrupt ---
+static void menu_inputs(void);                     // the menu of the title (below)
 static void inputs(void) {
   uint32_t a = IN_P1, b = IN_P2;
   neo.p1 = (uint8_t)(a & 0xFF);                     // directions, then buttons 1-4 as A-D
@@ -666,21 +669,85 @@ static void inputs(void) {
   neo.p4 = (uint8_t)(IN_P4 & 0xFF);
   neo.st34 = (uint8_t)(((IN_P3 >> 10) & 1) | (((IN_P4 >> 10) & 1) << 1));   // their starts: they join
   neo.status_b = (uint8_t)(((a & IN_START) ? 1 : 0) | ((b & IN_START) ? 4 : 0));
-  // the start of pad 3 or 4 at the title or in the demo (BIOS USER_MODE not 2) starts a game of two
-  // at once, as players 1 and 2 pressing start together; the pad that pressed it joins as well
-  static uint8_t st34_prev, force;
-  if ((neo.st34 & ~st34_prev) && neo_ram[0xFDAF ^ 1] != 2) force = 8;
-  st34_prev = neo.st34;
-  if (force) { force--; neo.status_b |= 5; }
+  menu_inputs();
+}
+
+// --- the menu of the title: a start on any pad at the title or in the demo (BIOS USER_MODE 1)
+// opens it; that pad chooses the number of players (1-4) and the level (EASY, NORMAL, HARD: the
+// game's DIFFICULTY setting at $10FD8A, LEVEL 2, 4 or 7 of 8), START or button 1 plays, button 2
+// goes back. 1 player: the game's own start of player 1 (against the computer). 2-4 players: the
+// start of players 1 and 2 together (the game of two, where the rounds follow one another),
+// players 3 and 4 joined as chosen, and the menus of the game (GAME SELECT...) validated with
+// button 1 until the first round starts. The game sees no input while the menu is open.
+static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn;
+static uint32_t pad_prev[4], start_force, start_mask, auto_frames;
+static const uint8_t level_dip[3] = {1, 3, 6};
+static const char *const level_name[3] = {"  EASY  ", " NORMAL ", "  HARD  "};
+#define MENU_X 7
+#define MENU_Y 10
+#define MENU_W 26
+#define MENU_H 9
+static int menu_drawn_cell(uint32_t x, uint32_t y) {
+  return menu_drawn && x >= MENU_X && x < MENU_X + MENU_W && y >= MENU_Y && y < MENU_Y + MENU_H;
+}
+static void menu_inputs(void) {
+  uint32_t in[4] = {IN_P1, IN_P2, IN_P3, IN_P4};
+  int title = neo_ram[0xFDAF ^ 1] == 1 && !four_mode;
+  if (!title) menu_open = 0;
+  if (title && !menu_open && !start_force && !auto_frames)
+    for (int k = 0; k < 4; k++)
+      if (in[k] & ~pad_prev[k] & IN_START) { menu_open = 2; menu_pad = k; menu_sel = 0; break; }
+  if (menu_open == 2) {                            // the start that opened it is not a choice
+    menu_open = 1;
+    neo.p1 = neo.p2 = neo.p3 = neo.p4 = 0; neo.status_b = 0; neo.st34 = 0;
+  } else if (menu_open) {
+    uint32_t e = in[menu_pad] & ~pad_prev[menu_pad];
+    if (e & IN_UP) menu_sel = 0;
+    if (e & IN_DOWN) menu_sel = 1;
+    int d = (e & IN_RIGHT) ? 1 : (e & IN_LEFT) ? -1 : 0;
+    if (d && menu_sel == 0) menu_players = (menu_players + d + 3) % 4 + 1;
+    if (d && menu_sel == 1) menu_level = (menu_level + d + 3) % 3;
+    if (e & IN_B(2)) menu_open = 0;
+    else if (e & (IN_START | IN_B(1))) {
+      menu_open = 0;
+      neo_ram[0xFD8A ^ 1] = level_dip[menu_level];     // DIFFICULTY
+      neo_ram[0xF614 ^ 1] = menu_players >= 3;           // JOIN3, JOIN4 (patches/four.s)
+      neo_ram[0xF615 ^ 1] = menu_players == 4;
+      start_mask = menu_players == 1 ? 1 : 5; start_force = 8;
+      auto_frames = menu_players == 1 ? 0 : 1200;
+    }
+    neo.p1 = neo.p2 = neo.p3 = neo.p4 = 0; neo.status_b = 0; neo.st34 = 0;   // the game sees nothing
+  }
+  for (int k = 0; k < 4; k++) pad_prev[k] = in[k];
+  if (start_force) { start_force--; neo.status_b |= (uint8_t)start_mask; }
+  if (auto_frames) {                               // the menus of the game, until the first round
+    auto_frames--;
+    if (ram16(0x1034C8) & 0x20) auto_frames = 0;   // task 5 runs: the field of player 1
+    else if (!start_force && auto_frames % 30 < 4) { neo.p1 |= 0x10; neo.p2 |= 0x10; }
+  }
 }
 
 static void hint_frame(void) {
   int game = neo_ram[0xFDAF ^ 1] == 2 && !four_mode;   // BIOS USER_MODE 2: a game
   if (!four_mode) { PALETTE[TEXT_PAL * 16 + 1] = (31 << 10) | (28 << 5) | 6; PALETTE[TEXT_PAL * 16 + 2] = 0; }
-  // the title and the demo (not a game): a box, bottom right, for the 4-player game
-  int box = !four_mode && neo_ram[0xFDAF ^ 1] == 1;     // USER_MODE 1: the title, the demo
+  if (menu_open) {
+    char l[MENU_H][MENU_W + 1];
+    for (int r = 0; r < MENU_H; r++) { for (int i = 0; i < MENU_W; i++) l[r][i] = ' '; l[r][MENU_W] = 0; }
+    const char *t = "BUST-A-MOVE AGAIN 4P"; for (int i = 0; t[i]; i++) l[1][3 + i] = t[i];
+    t = "PLAYERS"; for (int i = 0; t[i]; i++) l[3][3 + i] = t[i];
+    l[3][14] = '<'; l[3][18] = (char)('0' + menu_players); l[3][22] = '>';
+    t = "LEVEL"; for (int i = 0; t[i]; i++) l[5][3 + i] = t[i];
+    l[5][13] = '<'; for (int i = 0; i < 8; i++) l[5][14 + i] = level_name[menu_level][i]; l[5][22] = '>';
+    if ((vframe >> 4) & 1) l[menu_sel ? 5 : 3][1] = '>';
+    t = "START: PLAY  B2: BACK"; for (int i = 0; t[i]; i++) l[7][2 + i] = t[i];
+    for (int r = 0; r < MENU_H; r++)
+      for (int i = 0; i < MENU_W; i++) TILEMAP(0)[(MENU_Y + r) * 64 + MENU_X + i] = MC_TILE((uint8_t)l[r][i], TEXT_PAL, 0);
+    menu_drawn = 1;
+  } else if (menu_drawn) { menu_drawn = 0; fix_back(MENU_X, MENU_Y, MENU_W, MENU_H); }
+  // the title and the demo (not a game): a box, bottom right, for the menu
+  int box = !four_mode && !menu_open && neo_ram[0xFDAF ^ 1] == 1;     // USER_MODE 1: the title, the demo
   if (box) {
-    static const char *const lines[5] = {"             ", "  4 PLAYERS  ", " PRESS START ", " ON PAD 3/4  ", "             "};
+    static const char *const lines[5] = {"             ", " 1-4 PLAYERS ", " PRESS START ", "  ANY PAD    ", "             "};
     for (uint32_t r = 0; r < 5; r++)
       for (uint32_t i = 0; i < 13; i++) {
         char ch = lines[r][i];

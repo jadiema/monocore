@@ -16,16 +16,17 @@ field_struct:
 	cmpi.w	#7, -19260(%a5)			| tasks 7 and 8 are fields of players 3 and 4 from now on
 	bne.s	1f				| (the game uses these task numbers for other things on
 	move.b	#1, 0x10F65C			|  other screens: patches/band.s, main.c)
-1:	cmpi.w	#8, -19260(%a5)
-	bne.s	2f
+1:	cmpi.w	#9, -19260(%a5)			| player 4: task 9 (the game runs a task 8 of its own
+	bne.s	2f				|  for the game type, PRACTICE / NORMAL / VARIETY)
 	move.b	#1, 0x10F65D
 2:	movea.w	-19260(%a5),%a4			| number of the running task
 	adda.w	%a4,%a4
 	adda.w	%a4,%a4				| x 4
-	movea.l	field_table-20(%pc,%a4.w),%a4	| entry for tasks 5-8 (the table starts at task 5)
+	movea.l	field_table-20(%pc,%a4.w),%a4	| entry for tasks 5-9 (the table starts at task 5)
 	rts
 field_table:
 	.long	0x10D5D2			| player 1 (task 5)
 	.long	0x10D668			| player 2 (task 6)
 	.long	0x10F400			| player 3 (task 7, patches/four.s)
-	.long	0x10F500			| player 4 (task 8)
+	.long	0x10F500			| (task 8: not a field)
+	.long	0x10F500			| player 4 (task 9)

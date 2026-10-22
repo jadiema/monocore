@@ -227,6 +227,18 @@ void neo_reset(m68k_t *c) {
   c->x = c->n = c->z = c->v = c->c = 0; c->ipl = 0; c->osp = 0;
   wram8(BIOS_MVS_FLAG, 0);             // AES
   wram8(BIOS_COUNTRY_CODE, 2);         // Europe: "Bust-A-Move Again"
+  // The settings of the game (soft DIP, $10FD84: its table for the country, pointed to by the
+  // header at $116 + 4 x country): the factory values, as a new MVS or AES backup RAM gives them
+  // (a byte per option from $10FD8A: high nibble the default, low nibble the number of choices)
+  if (neo_rom_size >= 0x200) {
+    uint32_t t = rom32(0x116 + 4 * 2);
+    if (t + 32 <= neo_rom_size)
+      for (int n = 0; n < 10; n++) {
+        uint32_t b = neo_rom[(t + 22 + n) ^ 1];
+        if (!b) break;
+        wram8(0x10FD8A + n, b >> 4);
+      }
+  }
   for (uint32_t s = 0; s < 0x200; s++) { neo_vram[0x8000 + s] = 0x0FFF; neo_vram[0x8200 + s] = 0; }
   c->pc = call_user(c, 0);
 }

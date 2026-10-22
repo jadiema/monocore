@@ -5,20 +5,19 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
 
 ## Jouer
 
-1. **Pour lancer une partie à quatre, le plus simple : la manette 3 ou 4 appuie sur Start à l'écran
-   titre (ou pendant la démonstration ; un encart en bas à droite le rappelle : 4 PLAYERS, PRESS
-   START ON PAD 3/4)** : la partie démarre comme si les joueurs 1 et 2 avaient
-   appuyé ensemble sur Start (le mode deux joueurs du jeu, où les manches s'enchaînent), et cette
-   manette est inscrite. Les joueurs 1 et 2 peuvent aussi appuyer ensemble sur Start. Sur la
-   MiSTer, le numéro d'une manette dépend de l'ordre où l'on a appuyé sur ses boutons.
-   (Si le joueur 1 commence seul et que le joueur 2 arrive en challenger, le duel ne dure qu'une
-   manche, comme dans le jeu : la partie à quatre aussi.)
-2. **Les joueurs 3 et 4 appuient sur leur Start quand ils veulent** (écran titre, menus, en pleine
-   manche) : leur aire apparaît au début de la manche suivante. On joue à 2, 3 ou 4. Pendant une
-   partie à deux, un joueur inscrit est rappelé en bas de l'écran (P3 READY, P4 READY) ; à
-   l'écran à quatre, un joueur pas encore inscrit clignote PRESS START, inscrit pendant une manche
-   il affiche READY. Les inscriptions valent jusqu'au retour à la démonstration. Les menus se
-   valident avec le bouton 1.
+1. **À l'écran titre (ou pendant la démonstration), n'importe quelle manette appuie sur Start** : un
+   menu s'ouvre, que cette manette règle avec sa croix : le **nombre de joueurs** (1 à 4) et la
+   **difficulté** (EASY, NORMAL, HARD : le réglage DIFFICULTY du jeu, LEVEL 2, 4 ou 7 sur 8) ;
+   Start ou le bouton 1 lance la partie, le bouton 2 referme le menu. Avec 1 joueur, c'est la
+   partie contre l'ordinateur du jeu (la manette 1 joue) ; avec 2, 3 ou 4, la partie « joueur
+   contre joueur » où les manches s'enchaînent, les joueurs 3 et 4 inscrits selon le nombre
+   choisi, et les menus du jeu (GAME SELECT, GAME TYPE SELECT) validés tout seuls jusqu'à la
+   première manche. Sur la MiSTer, le numéro d'une manette dépend de l'ordre où l'on a appuyé
+   sur ses boutons.
+2. **Un joueur 3 ou 4 peut encore arriver en cours de partie avec son Start** : son aire apparaît
+   au début de la manche suivante (P3 READY / P4 READY en bas de l'écran pendant une partie à
+   deux, READY dans son panneau à l'écran à quatre). Les inscriptions valent jusqu'au retour à
+   la démonstration.
 3. Chacun vise avec sa croix et tire avec le bouton 1.
 
 **Deux dispositions**, au DIP switch 1 (menu OSD de la MiSTer, ou les DIP du simulateur), même en

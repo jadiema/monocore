@@ -216,6 +216,15 @@ octet qui diffère dépend de cet appui.
    à la démonstration (les deux premières aires jouées par l'ordinateur), pas une manche contre
    l'ordinateur (le joueur 2 peut arriver ensuite en challenger). Un joueur absent a le décor seul
    et PRESS START dans son panneau.
+   **Joueur 4 : tâche 9.** Le jeu crée lui-même une tâche 8 pour le type de partie (GAME TYPE
+   SELECT : `$424E6`, `$42504`, `$42522`), qui peut encore tourner au début de la première manche :
+   la tâche du joueur 4 ne pouvait pas être créée. Le jeu utilise les tâches 0-6, 8, 10, 14 et 15 ;
+   le joueur 3 garde la 7, le joueur 4 prend la 9 (`four.s`, `field.s`, `band.s`, l'ordonnanceur
+   en C du dossier privé).
+   **Menu de l'écran titre** (`main.c`) : nombre de joueurs et difficulté, puis les menus du jeu
+   validés tout seuls. **Réglages du jeu** (DIP logiciels, `$10FD84`) : le BIOS émulé les met aux
+   valeurs d'usine de la table du jeu (ils étaient à zéro : LEVEL 1, sans continuation, démo
+   muette, versus en une manche) ; aussi dans `pbobble2`.
    **Attaques partagées** : fait. L'attaque (`$620B4` : bulles éclatées + tombées − 3, fois 3)
    s'ajoutait à l'adversaire de deux tables à 2 entrées (`$620FC` : sa structure, `+56` ses
    attaques à venir ; `$62104` : son compteur affiché, que les joueurs 3 et 4 lisaient au-delà :

@@ -47,7 +47,7 @@ sched_hook:
 	btst	#7, %d1
 	bne.s	5f
 	clr.b	FIELD7
-5:	btst	#8, %d1
+5:	btst	#9, %d1
 	bne.s	6f
 	clr.b	FIELD8
 6:	move.w	-19260(%a5), %d1		| the task that gave the hand
@@ -60,7 +60,7 @@ sched_hook:
 	move.l	%a0, E7
 	move.l	LAST2, S7B
 	move.l	-29062(%a5), E7B
-1:	cmpi.w	#8, %d1
+1:	cmpi.w	#9, %d1
 	bne.s	2f
 	tst.b	FIELD8
 	beq.s	2f

@@ -156,7 +156,7 @@ init34:
 4:	tst.b	JOIN4
 	beq.s	1f
 	move.b	#1, FOURROUND
-	move.l	#8, -(%sp)			| task 8: player 4
+	move.l	#9, -(%sp)			| task 9: player 4 (8 is the game's, for the game type)
 	pea	0x74F16
 	trap	#1
 	addq.l	#8, %sp
