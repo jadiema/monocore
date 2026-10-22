@@ -230,6 +230,14 @@ Fait (charge pendant une manche à quatre : 86 % → 78 %) :
   l'animation d'une bulle (`$6EFD2`, sa palette) : 81 % → 78 %.
 Chacune : RAM et VRAM identiques au code traduit sur 3 000 images, à quatre et contre l'ordinateur.
 
+Puis : la table des 320 objets (`$2361C`, parcourue entière à chaque image, presque vide) saute
+ses entrées vides en C et rend la main au code traduit pour chaque objet (`$23622`) ou en fin de
+table (`$23636`), avec les drapeaux du `tst.l` d'origine ; la bande des joueurs 3 et 4 (notre
+code) est en C dans `neort.c` (`native_band`) ; les routines natives passent avant l'aiguillage
+du BIOS émulé. Charge à quatre 68 % → 66 %, à deux 46 % → 43 %. (Une fausse alerte en route : la
+référence de comparaison était un banc compilé avant la dernière correction des inscriptions ; la
+référence doit toujours être reconstruite depuis l'état publié.)
+
 **Le traducteur** (public, `tools/recomp68k`) : chaque fonction C du code traduit (une plage de
 4 Ko) avait un `switch` d'aiguillage sur une centaine d'adresses éparses (une recherche
 dichotomique), par lequel passent tous les retours, les sauts indirects et les appels qui changent

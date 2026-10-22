@@ -344,8 +344,31 @@ static void native_sprites(m68k_t *c) {
   c->d[3] = (c->d[3] & 0xFFFF0000u) | d3;           // (registers are restored by $E14 anyway)
 }
 
+// --- the band of players 3 and 4 (patches/band.s), in C: before the sprite list is sent, the entries
+// the scheduler noted for tasks 7 and 8 move 256 lines down (player 3), and 256 lines down and 256
+// pixels right (player 4): bit 15 of the words +6 and +8 of an entry (12 bytes), in both lists
+#define NATIVE_BAND 0xC00E00
+static void band_range(uint32_t s, uint32_t e, int right) {
+  for (; s < e; s += 12) { wmem16(s + 6, mem16(s + 6) ^ 0x8000); if (right) wmem16(s + 8, mem16(s + 8) ^ 0x8000); }
+}
+static void native_band(m68k_t *c) {
+  band_range(mem32(0x10F644), mem32(0x10F648), 0);     // S7, E7
+  band_range(mem32(0x10F64C), mem32(0x10F650), 1);     // S8, E8
+  band_range(mem32(0x10F674), mem32(0x10F678), 0);     // S7B, E7B (second list)
+  band_range(mem32(0x10F67C), mem32(0x10F680), 1);     // S8B, E8B
+  for (uint32_t a = 0x10F644; a < 0x10F654; a += 4) wmem32(a, 0);
+  for (uint32_t a = 0x10F674; a < 0x10F684; a += 4) wmem32(a, 0);
+  wmem32(0x10F640, 0x1001CE); wmem32(0x10F670, 0x100DFE);   // LAST, LAST2: the lists start again
+  c->a[0] = 0x1001CE;                                       // lea $1001CE,a0, as the patched site did
+  c->n = c->z = c->v = c->c = 0;                            // the flags the 68000 routine left
+}
+
 uint32_t neo_bios(m68k_t *c, uint32_t pc) {
+  if (pc >= 0xC00F10 && pc < 0xC01000) return neo_native(c, pc);   // the rewritten routines, first
   switch (pc) {
+  case NATIVE_BAND:
+    native_band(c);
+    return rts(c);
   case NATIVE_SPRITES:
     native_sprites(c);
     return rts(c);

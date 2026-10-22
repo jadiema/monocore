@@ -142,3 +142,5 @@
 02a238  reached by Julien (MiSTer)
 06fe46  continuation of the animation, from private/native.c
 06fe34  continuation of the animation, from private/native.c
+023622  continuation of the table of objects, from private/native.c
+023636  end of the table of objects, from private/native.c

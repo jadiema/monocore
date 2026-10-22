@@ -37,7 +37,7 @@
 
 | expect 000D3A 6 crc32 0x490337c0	(lea $1001CE,a0, start of the sending of the list)
 	.section .p_000D3A,"ax"
-	jsr	band34
+	jsr	0xC00E00			| the band, in C (neort.c, native_band)
 
 	.section .p_0F0400,"ax"
 sched_hook:
@@ -75,49 +75,3 @@ sched_hook:
 	lea	-19260(%a5), %a4		| what the two replaced instructions did
 	move.w	(%a4), %d0
 	jmp	0x2A5A
-
-| in the vertical-blank routine, which has saved every register
-band34:
-	movea.l	S7, %a0
-	movea.l	E7, %a1
-	bra.s	2f
-1:	eori.w	#0x8000, 6(%a0)			| player 3: 256 lines down
-	lea	12(%a0), %a0
-2:	cmpa.l	%a1, %a0
-	bcs.s	1b
-	movea.l	S8, %a0
-	movea.l	E8, %a1
-	bra.s	4f
-3:	eori.w	#0x8000, 6(%a0)			| player 4: 256 lines down, 256 pixels right
-	eori.w	#0x8000, 8(%a0)
-	lea	12(%a0), %a0
-4:	cmpa.l	%a1, %a0
-	bcs.s	3b
-	movea.l	S7B, %a0			| the second list: player 3
-	movea.l	E7B, %a1
-	bra.s	6f
-5:	eori.w	#0x8000, 6(%a0)
-	lea	12(%a0), %a0
-6:	cmpa.l	%a1, %a0
-	bcs.s	5b
-	movea.l	S8B, %a0			| player 4
-	movea.l	E8B, %a1
-	bra.s	8f
-7:	eori.w	#0x8000, 6(%a0)
-	eori.w	#0x8000, 8(%a0)
-	lea	12(%a0), %a0
-8:	cmpa.l	%a1, %a0
-	bcs.s	7b
-	clr.l	S7				| the lists start again after this frame
-	clr.l	E7
-	clr.l	S8
-	clr.l	E8
-	clr.l	S7B
-	clr.l	E7B
-	clr.l	S8B
-	clr.l	E8B
-	move.l	#LIST, LAST
-	move.l	#LIST2, LAST2
-	lea	LIST, %a0			| what the replaced instruction did
-	rts
-
