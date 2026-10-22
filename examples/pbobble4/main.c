@@ -673,7 +673,7 @@ static void inputs(void) {
 }
 
 // --- the menu of the title: a start on any pad at the title or in the demo (BIOS USER_MODE 1)
-// opens it; that pad chooses the number of players (1-4) and the level (EASY, NORMAL, HARD: the
+// opens it; any pad chooses the number of players (1-4) and the level (EASY, NORMAL, HARD: the
 // game's DIFFICULTY setting at $10FD8A, LEVEL 2, 4 or 7 of 8), START or button 1 plays, button 2
 // goes back. 1 player: the game's own start of player 1 (against the computer). 2-4 players: the
 // start of players 1 and 2 together (the game of two, where the rounds follow one another),
@@ -701,7 +701,8 @@ static void menu_inputs(void) {
     menu_open = 1;
     neo.p1 = neo.p2 = neo.p3 = neo.p4 = 0; neo.status_b = 0; neo.st34 = 0;
   } else if (menu_open) {
-    uint32_t e = in[menu_pad] & ~pad_prev[menu_pad];
+    uint32_t e = 0;                                // any pad drives the menu
+    for (int k = 0; k < 4; k++) e |= in[k] & ~pad_prev[k];
     if (e & IN_UP) menu_sel = 0;
     if (e & IN_DOWN) menu_sel = 1;
     int d = (e & IN_RIGHT) ? 1 : (e & IN_LEFT) ? -1 : 0;

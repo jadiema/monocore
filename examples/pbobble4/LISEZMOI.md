@@ -6,7 +6,7 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
 ## Jouer
 
 1. **À l'écran titre (ou pendant la démonstration), n'importe quelle manette appuie sur Start** : un
-   menu s'ouvre, que cette manette règle avec sa croix : le **nombre de joueurs** (1 à 4) et la
+   menu s'ouvre, que toutes les manettes peuvent régler avec leur croix : le **nombre de joueurs** (1 à 4) et la
    **difficulté** (EASY, NORMAL, HARD : le réglage DIFFICULTY du jeu, LEVEL 2, 4 ou 7 sur 8) ;
    Start ou le bouton 1 lance la partie, le bouton 2 referme le menu. Avec 1 joueur, c'est la
    partie contre l'ordinateur du jeu (la manette 1 joue) ; avec 2, 3 ou 4, la partie « joueur
