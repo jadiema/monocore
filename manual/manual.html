@@ -142,20 +142,20 @@ table.notes th, table.notes td { text-align: center; }
 </section><section class="toc-page"><h2>Sommaire</h2><ol class="toc">
 <li><a href="#ch1"><span class="tn">1</span><span class="tt">La MONOCORE-1 en un coup d'oeil</span><span class="tp"></span><span class="pg">3</span></a></li>
 <li><a href="#ch2"><span class="tn">2</span><span class="tt">Installer l'atelier</span><span class="tp"></span><span class="pg">5</span></a></li>
-<li><a href="#ch3"><span class="tn">3</span><span class="tt">Premier programme : BONJOUR</span><span class="tp"></span><span class="pg">7</span></a></li>
-<li><a href="#ch4"><span class="tn">4</span><span class="tt">Petit cours de C</span><span class="tp"></span><span class="pg">9</span></a></li>
-<li><a href="#ch5"><span class="tn">5</span><span class="tt">La manette</span><span class="tp"></span><span class="pg">12</span></a></li>
-<li><a href="#ch6"><span class="tn">6</span><span class="tt">Les sprites</span><span class="tp"></span><span class="pg">14</span></a></li>
-<li><a href="#ch7"><span class="tn">7</span><span class="tt">Le son</span><span class="tp"></span><span class="pg">17</span></a></li>
-<li><a href="#ch8"><span class="tn">8</span><span class="tt">Le décor</span><span class="tp"></span><span class="pg">20</span></a></li>
-<li><a href="#ch9"><span class="tn">9</span><span class="tt">Projet : ATTRAPE-ÉTOILES</span><span class="tp"></span><span class="pg">22</span></a></li>
-<li><a href="#ch10"><span class="tn">10</span><span class="tt">Sous le capot</span><span class="tp"></span><span class="pg">26</span></a></li>
-<li><a href="#ch11"><span class="tn">11</span><span class="tt">Passer au SDK mc</span><span class="tp"></span><span class="pg">28</span></a></li>
-<li><a href="#ch12"><span class="tn">12</span><span class="tt">Projet : NEBULA</span><span class="tp"></span><span class="pg">33</span></a></li>
-<li><a href="#chA"><span class="tn">A</span><span class="tt">La bibliothèque easy</span><span class="tp"></span><span class="pg">44</span></a></li>
-<li><a href="#chB"><span class="tn">B</span><span class="tt">Carte mémoire et registres</span><span class="tp"></span><span class="pg">46</span></a></li>
-<li><a href="#chC"><span class="tn">C</span><span class="tt">Limites et dépannage</span><span class="tp"></span><span class="pg">48</span></a></li>
-<li><a href="#chD"><span class="tn">D</span><span class="tt">Le SDK mc</span><span class="tp"></span><span class="pg">49</span></a></li>
+<li><a href="#ch3"><span class="tn">3</span><span class="tt">Premier programme : BONJOUR</span><span class="tp"></span><span class="pg">8</span></a></li>
+<li><a href="#ch4"><span class="tn">4</span><span class="tt">Petit cours de C</span><span class="tp"></span><span class="pg">10</span></a></li>
+<li><a href="#ch5"><span class="tn">5</span><span class="tt">La manette</span><span class="tp"></span><span class="pg">13</span></a></li>
+<li><a href="#ch6"><span class="tn">6</span><span class="tt">Les sprites</span><span class="tp"></span><span class="pg">15</span></a></li>
+<li><a href="#ch7"><span class="tn">7</span><span class="tt">Le son</span><span class="tp"></span><span class="pg">18</span></a></li>
+<li><a href="#ch8"><span class="tn">8</span><span class="tt">Le décor</span><span class="tp"></span><span class="pg">21</span></a></li>
+<li><a href="#ch9"><span class="tn">9</span><span class="tt">Projet : ATTRAPE-ÉTOILES</span><span class="tp"></span><span class="pg">23</span></a></li>
+<li><a href="#ch10"><span class="tn">10</span><span class="tt">Sous le capot</span><span class="tp"></span><span class="pg">27</span></a></li>
+<li><a href="#ch11"><span class="tn">11</span><span class="tt">Passer au SDK mc</span><span class="tp"></span><span class="pg">29</span></a></li>
+<li><a href="#ch12"><span class="tn">12</span><span class="tt">Projet : NEBULA</span><span class="tp"></span><span class="pg">34</span></a></li>
+<li><a href="#chA"><span class="tn">A</span><span class="tt">La bibliothèque easy</span><span class="tp"></span><span class="pg">45</span></a></li>
+<li><a href="#chB"><span class="tn">B</span><span class="tt">Carte mémoire et registres</span><span class="tp"></span><span class="pg">47</span></a></li>
+<li><a href="#chC"><span class="tn">C</span><span class="tt">Limites et dépannage</span><span class="tp"></span><span class="pg">49</span></a></li>
+<li><a href="#chD"><span class="tn">D</span><span class="tt">Le SDK mc</span><span class="tp"></span><span class="pg">50</span></a></li>
 </ol></section>
 <section class="foreword"><h2>Avant-propos</h2><p>Bienvenue ! Vous avez entre les mains le manuel de la <b>MONOCORE-1</b>, une console de jeu qui n'a jamais existé dans le commerce : elle vit dans le circuit programmable (FPGA) de votre MiSTer. Elle a été conçue pour accueillir des adaptations de jeux d'arcade des années 1978 à 1995, mais aussi, et surtout, <b>vos propres jeux</b>.</p><p>Comme les ordinateurs familiaux de notre enfance, elle s'allume et attend qu'on lui dise quoi faire. Ce manuel vous apprend à le lui dire. <b>Aucune connaissance préalable n'est nécessaire</b> : nous partirons d'un écran vide pour arriver, au chapitre 9, à un jeu complet avec un titre, un score, des vies, de la musique et des explosions.</p><p>Chaque exemple de ce manuel est un vrai programme, fourni dans le dossier <code>manual/examples</code>. Les images d'écran ont été prises en le faisant tourner : ce que vous voyez est ce que vous obtiendrez.</p><div class="box know"><div class="box-t">Une langue pour le code</div><p>Comme dans presque tous les langages de programmation, les noms utilisés dans le code (fonctions, variables, fichiers, réglages) sont en <b>anglais</b> : <code>print</code> pour écrire, <code>wait_frame</code> pour attendre l'image suivante… Chaque nom est expliqué la première fois qu'il apparaît, et l'annexe A les traduit tous. Les textes affichés à l'écran, eux, sont en français.</p></div><div class="box tip"><div class="box-t">Comment lire ce manuel</div><ul><li>Les chapitres 1 à 3 installent l'atelier et font tourner un premier programme. Lisez-les dans l'ordre.</li><li>Les chapitres 4 à 8 présentent une notion chacun : le langage C, la manette, les sprites, le son, le décor.</li><li>Le chapitre 9 assemble tout dans un jeu. Le chapitre 10 ouvre le capot pour les curieux.</li><li>Les chapitres 11 et 12 présentent le SDK bas niveau mc, pour les jeux plus ambitieux, avec un shoot'em up complet.</li><li>Les annexes servent de référence : gardez-les sous la main pendant que vous programmez.</li></ul></div><p>Bon courage, et amusez-vous bien !</p></section>
 <section class="chap-open c1"><div class="chap-num">1</div><div class="chap-band"></div><h1 id="ch1">La MONOCORE-1 en un coup d'oeil</h1><p class="lead">Ce qu'il y a dans la boîte, et comment l'image et le son sont fabriqués.</p></section>
@@ -215,6 +215,11 @@ export PATH="$(brew --prefix llvm)/bin:$PATH"</pre></div>
 <p>La dernière ligne ajoute les outils LLVM au chemin de recherche des commandes ; ajoutez-la à votre fichier <code>~/.zshrc</code> pour ne pas avoir à la retaper.</p>
 <h3>Sous Windows</h3>
 <p>Le plus simple est d'installer <b>WSL</b> (le Linux intégré à Windows : dans une invite de commandes, tapez <code>wsl --install</code>, redémarrez) puis de suivre les instructions Linux ci-dessus. On peut aussi installer LLVM (llvm.org) et Python (python.org) directement, puis <code>pip install pillow</code>.</p>
+<p>Dans WSL, les disques de Windows se trouvent sous <code>/mnt</code> : <code>D:</code> devient <code>/mnt/d</code>, et les chemins s'écrivent avec des <code>/</code>. Ne recopiez pas un chemin Windows tel quel : bash prend les <code>\</code> pour des caractères spéciaux et les supprime. Pour un programme rangé dans <code>D:\Mes_Documents\Jeux\01_myhello</code> :</p>
+<div class="terminal"><pre>cd /mnt/d/Mes_Documents/Jeux/01_myhello</pre></div>
+<p>Si ce dossier n'est pas dans le dossier de la console, appelez <code>build.py</code> par son chemin complet, par exemple si la console est dans <code>~/monocore</code> :</p>
+<div class="terminal"><pre>python3 ~/monocore/sdk/build.py</pre></div>
+<p>La ROM est créée dans le sous-dossier <code>build</code> du programme, visible directement depuis Windows. La commande <code>wslpath 'D:\Mes_Documents'</code> convertit un chemin Windows en chemin WSL (gardez les apostrophes), et la touche <b>Tab</b> complète les noms de dossiers pendant la frappe.</p>
 <h3>Vérifier que tout est prêt</h3>
 <div class="terminal"><div class="lst-cap sh"><span>TERMINAL</span> deux lignes doivent s'afficher</div><pre>clang -print-targets | grep riscv32
 python3 -c "import PIL; print('Pillow OK')"</pre></div>
