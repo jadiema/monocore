@@ -189,6 +189,7 @@ kbd {
             <button class="btn" id="resetBtn">Reset</button>
             <button class="btn" id="muteBtn" aria-pressed="false">Couper le son</button>
             <button class="btn" id="aspectBtn" aria-pressed="false">Pixels carrés</button>
+            <button class="btn" id="wideBtn" aria-pressed="false" title="L'image étirée en 16:9, comme une MiSTer en plein écran sur un écran 16:9">16:9</button>
             <button class="btn" id="fsBtn">Plein écran</button>
             <span class="spacer"></span>
             <select class="btn" id="romSelect" aria-label="ROM intégrée">
@@ -2188,7 +2189,7 @@ int main(void) {
   // ---------------------------------------------------------------- video
   const canvas = $('screen'), ctx = canvas.getContext('2d');
   const off = document.createElement('canvas'), octx = off.getContext('2d');
-  let img = null, squarePixels = false;
+  let img = null, squarePixels = false, wide = false;
   function draw() {
     const W = m.scrW, H = m.scrH;
     if (off.width !== W || off.height !== H || !img) { off.width = W; off.height = H; img = octx.createImageData(W, H); }
@@ -2206,13 +2207,14 @@ int main(void) {
   }
   function layoutScreen() {
     const box = $('screenBox');
-    // arcade monitors are 4:3 (3:4 when rotated); "square pixels" shows the native grid as is
+    // arcade monitors are 4:3 (3:4 when rotated); "square pixels" shows the native grid as is;
+    // "16:9" stretches the picture as a MiSTer does in full screen on a 16:9 screen
     const rotated = canvas.height > canvas.width;
-    const ar = squarePixels ? canvas.width / canvas.height : (rotated ? 3 / 4 : 4 / 3);
+    const ar = squarePixels ? canvas.width / canvas.height : wide ? (rotated ? 9 / 16 : 16 / 9) : (rotated ? 3 / 4 : 4 / 3);
     canvas.style.aspectRatio = String(ar);
     canvas.style.width = rotated ? 'auto' : '100%';
     canvas.style.height = rotated ? '100%' : 'auto';
-    box.style.aspectRatio = '4 / 3';
+    box.style.aspectRatio = wide && !rotated ? '16 / 9' : '4 / 3';
   }
 
   // ---------------------------------------------------------------- audio
@@ -2433,7 +2435,8 @@ int main(void) {
   });
   $('resetBtn').addEventListener('click', () => { if (m) { saveNv(); const dip = m.dip; m.reset(); m.dip = dip; setPill('runPill', 'ok', running ? 'En marche' : 'Prêt'); log('— reset\n'); } });
   $('muteBtn').addEventListener('click', (e) => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.textContent = muted ? 'Activer le son' : 'Couper le son'; });
-  $('aspectBtn').addEventListener('click', (e) => { squarePixels = !squarePixels; e.currentTarget.setAttribute('aria-pressed', squarePixels); layoutScreen(); });
+  $('aspectBtn').addEventListener('click', (e) => { squarePixels = !squarePixels; wide = false; $('wideBtn').setAttribute('aria-pressed', false); e.currentTarget.setAttribute('aria-pressed', squarePixels); layoutScreen(); });
+  $('wideBtn').addEventListener('click', (e) => { wide = !wide; squarePixels = false; $('aspectBtn').setAttribute('aria-pressed', false); e.currentTarget.setAttribute('aria-pressed', wide); layoutScreen(); });
   $('fsBtn').addEventListener('click', () => { const b = $('bezel'); if (b.requestFullscreen) b.requestFullscreen().catch(() => log('Plein écran refusé par le navigateur.\n', 'err')); });
   $('romSelect').addEventListener('change', (e) => loadRom(b64(ROMS[e.target.value]), e.target.value));
   function loadFile(f) {
