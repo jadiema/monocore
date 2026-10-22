@@ -147,7 +147,7 @@ COVER = '''<section class="cover">
  <div class="cover-sub">MANUEL DU PROGRAMMEUR</div>
  <div class="cover-shot"><img src="images/screen_07_title.png"></div>
  <div class="cover-bottom">Écrivez vos propres jeux · Tutoriels pas à pas · Référence complète</div>
- <div class="cover-ed">ÉDITION 2 · OCTOBRE 2026</div>
+ <div class="cover-ed">ÉDITION 3 · OCTOBRE 2026</div>
 </section>'''
 
 A('@@TOC@@')
@@ -167,7 +167,7 @@ p("Bon courage, et amusez-vous bien !") + '</section>')
 
 # ---------------------------------------------------------------- 1
 A(chapter(1, "La MONOCORE-1 en un coup d'oeil", "Ce qu'il y a dans la boîte, et comment l'image et le son sont fabriqués.", 1))
-A(p("La MONOCORE-1 est une console complète : un processeur, une mémoire, un circuit vidéo, un circuit sonore et deux manettes. Un programme de jeu, une <b>ROM</b>, est un fichier <code>.mnc</code> que l'on charge depuis le menu du MiSTer ou que l'on glisse dans le simulateur."))
+A(p("La MONOCORE-1 est une console complète : un processeur, une mémoire, un circuit vidéo, un circuit sonore, et jusqu'à quatre manettes et un clavier. Un programme de jeu, une <b>ROM</b>, est un fichier <code>.mnc</code> que l'on charge depuis le menu du MiSTer ou que l'on glisse dans le simulateur."))
 A(table(['Élément', 'Caractéristiques'], [
   ['Processeur', "RISC-V 32 bits à 50 MHz, environ 47 millions d'instructions par seconde"],
   ['Mémoire', "128 Ko de mémoire de travail, 32 Ko de mémoire sauvegardée, ROM jusqu'à 32 Mo"],
@@ -175,7 +175,8 @@ A(table(['Élément', 'Caractéristiques'], [
   ['Plans', '4 plans de tuiles qui défilent, chacun dans sa direction'],
   ['Sprites', "512 objets mobiles, agrandis ou réduits à volonté, retournés, jusqu'à 64 par ligne"],
   ['Son', "8 voix d'échantillons (dont le format ADPCM des bornes d'arcade), 8 générateurs de notes et de bruit, stéréo 48 kHz"],
-  ['Commandes', '2 manettes : 4 directions, 6 boutons, START et COIN (pièce)'],
+  ['Commandes', "4 manettes : 4 directions, 6 boutons, START et COIN (pièce), sticks analogiques, paddles et spinners ; un clavier USB"],
+  ['Cartouche', "sur la MiSTer, une ou deux mémoires Flash de 8 Mo branchées sur le port USER"],
 ], 'specs'))
 A(h2("Comment se forme l'image"))
 A(p("L'écran est construit 60 fois par seconde, ligne par ligne, en superposant plusieurs couches. Avec la bibliothèque <b>easy</b> (« facile ») que nous utiliserons dans ce manuel, il y en a quatre :"))
@@ -211,9 +212,11 @@ A(p("Ouvrez <code>dist/monocore.html</code> dans votre navigateur (Firefox, Chro
 A(table(['Commande', 'Joueur 1', 'Joueur 2'], [
   ['Directions', 'flèches', 'I J K L'], ['Boutons 1 à 3', 'Z X C', 'N M ,'], ['Boutons 4 à 6', 'A S D', 'H U O'],
   ['START', '1 ou Entrée', '2'], ['COIN (pièce)', '5', '6']]))
+A(p("Les joueurs 3 et 4 ont aussi leurs touches : E R F G pour les directions, Q W V pour les boutons 1 à 3 et 3 pour START (joueur 3) ; le pavé numérique 8 4 5 6, 0 . Entrée et 4 ou + (joueur 4). Les lettres sont celles marquées sur votre clavier, qu'il soit QWERTY ou AZERTY. Jusqu'à quatre manettes USB ou Bluetooth sont reconnues, sticks analogiques compris. La case <b>clavier de la console</b> (touche F9) envoie le clavier au jeu au lieu des joueurs, et le bouton <b>16:9</b> étire l'image comme une MiSTer en plein écran sur un écran large."))
 A(p("Sur le côté, le <b>moniteur</b> montre la charge du processeur, le nombre de sprites par ligne, les voix sonores actives, et une <b>console de debug</b> qui affiche ce que votre programme écrit dans <code>DEBUG_OUT</code>, bien pratique pour chercher une erreur."))
 A(h2('La console MiSTer'))
-A(p("Pour jouer sur la vraie console, copiez le core <code>MONOCORE.rbf</code> dans le dossier <code>_Console</code> de la carte SD du MiSTer, et vos ROM dans <code>games/MONOCORE</code>. Dans le menu du core (touche F12), choisissez <b>Charger une ROM</b>. Une ROM nommée <code>boot.rom</code> dans ce dossier se lance toute seule."))
+A(p("Pour jouer sur la vraie console, copiez le core <code>MONOCORE.rbf</code> dans le dossier <code>_Console</code> de la carte SD du MiSTer, et vos ROM dans <code>games/MONOCORE</code>. Dans le menu du core (touche F12), choisissez <b>Charger une ROM</b>. Une ROM nommée <code>boot.rom</code> dans ce dossier se lance toute seule : c'est là que l'on place l'écran d'accueil de la console, AUBE (<code>examples/aube</code>)."))
+A(p("Une ROM peut aussi venir d'une <b>cartouche</b> : une ou deux mémoires Flash SPI W25Q64 (16 Mo au total) branchées sur le port USER du MiSTer, qui contiennent le fichier <code>.mnc</code> tel quel. L'outil <code>tools/cart/cart_split.py</code> prépare les images à graver, et <code>mister/LISEZMOI.md</code> donne le câblage et les réglages du menu. Pour le jeu, rien ne change : la ROM est copiée dans la SDRAM comme si elle venait de la carte SD."))
 A(box('warn', 'Attention', p("Le MiSTer doit être équipé d'une <b>barrette SDRAM</b> : la ROM du jeu est chargée dedans.")))
 
 # ---------------------------------------------------------------- 3
@@ -375,7 +378,7 @@ A(p("Toutes les fonctions de <code>easy</code> écrivent dans des <b>registres</
 A(h2("Changer la taille de l'écran"))
 A(listing("""SCREEN_W = 256;   // from 224 to 384 pixels wide
 SCREEN_H = 224;   // from 192 to 288 lines""", numbers=False))
-A(p("La nouvelle taille prend effet à l'image suivante. Pour un jeu vertical (comme Pac-Man ou Galaga), on choisit 224 x 288 et on demande que l'image soit tournée d'un quart de tour avec <code>DISP_CTRL |= DISP_ROT(1)</code> : le simulateur le fait déjà, le core MiSTer le fera dans sa prochaine version."))
+A(p("La nouvelle taille prend effet à l'image suivante. Pour un jeu vertical (comme Pac-Man ou Galaga), on choisit 224 x 288 et on demande que l'image soit tournée d'un quart de tour avec <code>DISP_CTRL |= DISP_ROT(1)</code>. La ligne <code>rotation = 1</code> de <code>project.txt</code> inscrit cette orientation dans la ROM, pour que l'écran soit tourné avant même que le jeu démarre. Le simulateur le fait déjà, le core MiSTer le fera dans une prochaine version."))
 A(h2('Les quatre plans'))
 A(p("Les plans 2 et 3, inutilisés par <code>easy</code>, se règlent comme le décor : <code>LAYER_CTRL(n)</code> (taille des tuiles, 4 ou 8 bits par pixel, taille de la carte, priorité), <code>LAYER_CHR(n)</code> (adresse des dessins), <code>LAYER_SCROLLX(n)</code> et <code>LAYER_SCROLLY(n)</code>, et la carte <code>TILEMAP(n)</code>. Il faut ensuite les allumer : <code>DISP_CTRL |= DISP_LAYER(2)</code>."))
 A(h2('Le défilement ligne par ligne'))
@@ -416,7 +419,7 @@ A(screen('screen_11.png', "Un arc-en-ciel fait de 30 effets raster, un titre qui
 A(listing(source('11_mc'), '11_mc/main.c'))
 A(h2('Les effets raster'))
 A(p("La console fabrique l'image ligne par ligne. <code>mc_raster_add(ligne, fonction)</code> demande d'appeler une fonction juste avant qu'une ligne soit dessinée : ce qu'elle change (une couleur, un défilement) s'applique à partir de cette ligne, au pixel près. Ici, 30 effets, un toutes les 8 lignes, changent la couleur de fond : c'est l'arc-en-ciel. Dans la fonction, <code>mc_raster_line</code> dit quelle ligne est en cours. On peut en poser 64 par image ; ils restent en place d'une image à l'autre."))
-A(box('know', 'Le saviez-vous ?', p("L'Amiga avait un coprocesseur, le <i>Copper</i>, qui ne faisait que cela : changer des registres à des lignes précises. Les fameuses « barres copper » des démos en viennent. L'écran d'accueil de la console (<code>examples/boot</code>) en est un hommage.")))
+A(box('know', 'Le saviez-vous ?', p("L'Amiga avait un coprocesseur, le <i>Copper</i>, qui ne faisait que cela : changer des registres à des lignes précises. Les fameuses « barres copper » des démos en viennent. Le premier écran d'accueil de la console (<code>examples/boot</code>) en est un hommage.")))
 A(h2('Le défilement ligne par ligne'))
 A(p("<code>mc_layer_linescroll(plan, true)</code> autorise un décalage différent pour chaque ligne d'un plan ; <code>mc_linescroll(plan)[y].dx</code> est le décalage horizontal de la ligne <code>y</code>. En le faisant varier en sinus, le titre ondule comme un drapeau. Le même procédé donne les routes des jeux de course, les vagues ou les sols en perspective."))
 A(h2('Dessiner dans la CHR RAM'))
@@ -432,6 +435,21 @@ A(table(['En-tête', 'Ce qu\'il apporte'], [
   [c('<ctype.h>'), "<code>isdigit</code>, <code>toupper</code>…"],
   [c('<assert.h>'), "<code>assert</code> : arrête le programme avec un message si une condition est fausse"]]))
 A(box('warn', 'Pas de nombres à virgule', p("Le processeur de la console ne calcule qu'en nombres entiers. Le compilateur accepte <code>float</code>, mais l'imite très lentement. <code>mc</code> fournit la <b>virgule fixe</b> : un <code>fix16</code> est un entier qui compte en 65 536<sup>e</sup>, <code>FIX(1.5)</code> vaut 1,5, et <code>mc_sin</code>, <code>mc_cos</code>, <code>mc_atan2</code> travaillent avec des angles de 1024 pas par tour. Dans l'exemple, les positions des balles comptent en 256<sup>e</sup> de pixel, ce qui permet des vitesses fines.")))
+A(h2('Quatre manettes, l\'analogique et le clavier'))
+A(p("Avec <code>mc</code>, <code>mc_pad(j)</code> lit les quatre joueurs (<code>easy</code> s'en tient aux joueurs 1 et 2). La console lit aussi les sticks analogiques (<code>mc_stick_x</code>, <code>mc_stick_y</code> : stick 0 à gauche, 1 à droite, de −127 à +127, y positif vers le bas), les paddles (<code>mc_paddle</code>, de 0 à 255) et les spinners (<code>mc_spinner_delta</code> : le déplacement depuis l'image précédente), ainsi qu'un clavier USB. Ces entrées sont arrivées avec la <b>version 2</b> du matériel : un jeu qui en a besoin vérifie <code>mc_hw_version()</code>, qui vaut 1 sur un core plus ancien, où ces fonctions renvoient 0."))
+A(listing("""if (mc_hw_version() >= 2) {
+  for (int j = 1; j <= 4; j++) {
+    ship[j - 1].x += mc_stick_x(j, 0) / 32;        // left stick, -127 to +127
+    if (mc_pad_pressed(j) & IN_B(1)) fire(j - 1);
+  }
+  if (mc_key_pressed(KEY_ESC)) paused = !paused;    // state of a key
+  int e;
+  while ((e = mc_key_event()) >= 0)                 // events, in order
+    if (e & 0x200) type_key(e & 0x1FF);             // 0x200: key down
+}""", numbers=False))
+A(p("Une touche se désigne par son code PS/2, <code>KEY_xxx</code> dans <code>monocore.h</code>. Ce code repère une <b>position</b> sur le clavier et porte le nom de la touche d'un clavier QWERTY : sur un clavier AZERTY, la touche A est <code>KEY_Q</code>. <code>mc_key</code> et <code>mc_key_pressed</code> donnent l'état relevé par <code>mc_frame()</code>, pratique pour un jeu ; <code>mc_key_event()</code> rend les appuis et relâchements un par un, dans l'ordre, ce qui convient à la saisie de texte. L'exemple <code>examples/test_inputs</code> affiche tout ce que la console reçoit."))
+A(h2('D\'autres exemples'))
+A(p("Le dossier <code>examples</code> du projet contient d'autres programmes écrits avec <code>mc</code> : <code>horizon</code>, une course en fausse 3D à la OutRun faite d'une seule texture de route décalée ligne par ligne ; <code>aube</code>, l'écran d'accueil, dont le lever de soleil n'est qu'une animation de palette, accompagné d'une musique orchestrale jouée par deux voix PCM ; <code>boot</code>, le premier écran d'accueil, avec ses barres copper."))
 A(p("Toutes les fonctions sont rassemblées dans l'annexe D ; le fichier <code>sdk/SDK_MC.md</code> donne en plus les règles du matériel à connaître pour adapter un jeu existant."))
 
 # ---------------------------------------------------------------- 12
@@ -516,7 +534,10 @@ A(table(['Réglage', 'Contenu', 'Noms créés pour le programme'], [
   [c('sources'), "fichiers C du programme", ''],
   [c('sprites'), "planches de sprites (PNG de 16 pixels de large)", c('x_chr') + ' ' + c('x_pal')],
   [c('maps'), "décors (PNG, tuiles de 16 x 16)", c('x_chr') + ' ' + c('x_pal') + ' ' + c('x_map') + ' ' + c('x_width') + ' ' + c('x_height')],
-  [c('sounds'), "sons (WAV)", c('x_data') + ' ' + c('x_count') + ' ' + c('x_rate')]], 'ref'))
+  [c('sounds'), "sons (WAV)", c('x_data') + ' ' + c('x_count') + ' ' + c('x_rate')],
+  [c('origin'), "origine inscrite dans la ROM (facultatif)", ''],
+  [c('rotation'), "orientation de l'écran au démarrage : 0 à 3 quarts de tour (facultatif)", ''],
+  [c('dip'), "DIP switches par défaut, par exemple <code>0x01</code> (facultatif)", '']], 'ref'))
 A(p("<code>x</code> est le nom du fichier sans son extension : <code>sheet.png</code> donne <code>sheet_chr</code> et <code>sheet_pal</code>."))
 
 A(chapter('B', 'Carte mémoire et registres', "Pour programmer la console directement (monocore.h).", 2))
@@ -555,6 +576,12 @@ A(table(['Registre', 'Rôle'], [
 A(h3('Entrées, interruptions, timers, DMA'))
 A(table(['Registre', 'Rôle'], [
   [c('IN_P1 / IN_P2 / IN_SYS / DIPSW'), 'manettes, boutons système, DIP switches'],
+  [c('HW_VERSION'), 'version du matériel : 2 et plus, les entrées ci-dessous existent'],
+  [c('IN_P3 / IN_P4'), 'joueurs 3 et 4, même format que <code>IN_P1</code>'],
+  [c('ANALOG_P(n)'), 'manette n (0 à 3) : sticks gauche et droit, X et Y de −127 à +127'],
+  [c('PADDLE_P(n)'), 'paddle de 0 à 255 (bits 0-7), position du spinner (bits 16-31)'],
+  [c('KEY_STATE(k)'), 'clavier : 8 mots de 32 bits, un bit par touche enfoncée'],
+  [c('KEY_EVENT'), 'plus ancien événement clavier (bit 31 valide, bit 9 appui) ; écrire pour le retirer'],
   [c('IRQ_STATUS / IRQ_ENABLE'), 'interruptions en attente (écrire 1 pour acquitter) et autorisées'],
   [c('T0_RELOAD / T0_CTRL'), 'timer 0 : période en cycles, marche'],
   [c('CYCLE_LO / CYCLE_HI'), 'compteur de cycles du processeur (50 MHz)'],
@@ -614,8 +641,13 @@ A(table(['Fonction', 'Description'], [
   [c('mc_pcm_play(v, données, n, format, hz, boucle, vol_g, vol_d)'), "joue un échantillon sur la voix <i>v</i>"],
   [c('mc_pcm_stop / mc_pcm_pos / mc_master_volume'), "arrête une voix, sa position, volume général"],
   [c('mc_tune(c, notes, images, volume) / mc_tune_stop'), "mélodie en boucle, même écriture que <code>play</code> d'easy"],
-  [c('mc_pad(j) / mc_pad_pressed(j) / mc_pad_released(j)'), "boutons tenus, enfoncés ou relâchés à cette image (joueur 1 ou 2)"],
+  [c('mc_pad(j) / mc_pad_pressed(j) / mc_pad_released(j)'), "boutons tenus, enfoncés ou relâchés à cette image (joueur 1 à 4)"],
   [c('mc_sys() / mc_dip()'), "boutons système, DIP switches"],
+  [c('mc_hw_version()'), "version du matériel : 2 et plus pour les joueurs 3 et 4, l'analogique et le clavier"],
+  [c('mc_stick_x(j, s) / mc_stick_y(j, s)'), "stick <i>s</i> (0 gauche, 1 droit) du joueur <i>j</i>, de −127 à +127"],
+  [c('mc_paddle(j) / mc_spinner(j) / mc_spinner_delta(j)'), "paddle (0 à 255), position du spinner, son déplacement depuis l'image précédente"],
+  [c('mc_key(k) / mc_key_pressed(k) / mc_key_released(k)'), "touche <code>KEY_xxx</code> tenue, enfoncée ou relâchée à cette image"],
+  [c('mc_key_event()'), "événement clavier suivant (0x200 appui, 0x100 touche étendue, + code), −1 s'il n'y en a plus"],
   [c('malloc / calloc / realloc / free'), "mémoire du tas ; <code>mc_heap_free()</code> donne ce qui reste"],
   [c('MC_NVRAM'), "32 Ko de mémoire sauvegardée"],
   [c('mc_copy / mc_fill'), "copie ou remplissage par DMA"],
@@ -626,9 +658,11 @@ A(table(['Fonction', 'Description'], [
 A(h3('Le fichier project.txt'))
 A(table(['Réglage', 'Contenu', 'Noms créés pour le programme'], [
   [c('library = mc'), "choisit le SDK mc (par défaut : easy)", ''],
-  [c('data'), "fichiers bruts, copiés tels quels dans la ROM", c('x_file') + ' ' + c('x_size')]], 'ref'))
+  [c('data'), "fichiers bruts, copiés tels quels dans la ROM", c('x_file') + ' ' + c('x_size')],
+  [c('maps8'), "décors en 256 couleurs (8 bits par pixel, tuiles de 16 x 16)", c('x_chr') + ' ' + c('x_pal') + ' ' + c('x_map') + '…'],
+  [c('cflags'), "options de compilation en plus pour les fichiers du programme (chemins d'inclusion, avertissements)", '']], 'ref'))
 
-A('<section class="colophon">' + p("MONOCORE-1 · Manuel du programmeur · édition 2, octobre 2026.") +
+A('<section class="colophon">' + p("MONOCORE-1 · Manuel du programmeur · édition 3, octobre 2026.") +
   p("Titres en Press Start 2P (Cody Boisclair), texte en Archivo (Omnibus-Type), listings en IBM Plex Mono : polices sous licence SIL Open Font License.") +
   p("Les exemples se trouvent dans <code>manual/examples</code>. Ce manuel se régénère avec <code>python3 manual/tools/manual.py</code>.") + '</section>')
 
