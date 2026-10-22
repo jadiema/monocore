@@ -217,14 +217,17 @@ export PATH="$(brew --prefix llvm)/bin:$PATH"</pre></div>
 <p>Le plus simple est d'installer <b>WSL</b> (le Linux intégré à Windows : dans une invite de commandes, tapez <code>wsl --install</code>, redémarrez) puis de suivre les instructions Linux ci-dessus. On peut aussi installer LLVM (llvm.org) et Python (python.org) directement, puis <code>pip install pillow</code>.</p>
 <p>Dans WSL, les disques de Windows se trouvent sous <code>/mnt</code> : <code>D:</code> devient <code>/mnt/d</code>, et les chemins s'écrivent avec des <code>/</code>. Ne recopiez pas un chemin Windows tel quel : bash prend les <code>\</code> pour des caractères spéciaux et les supprime. Pour un programme rangé dans <code>D:\Mes_Documents\Jeux\01_myhello</code> :</p>
 <div class="terminal"><pre>cd /mnt/d/Mes_Documents/Jeux/01_myhello</pre></div>
-<p>Si ce dossier n'est pas dans le dossier de la console, appelez <code>build.py</code> par son chemin complet, par exemple si la console est dans <code>~/monocore</code> :</p>
+<p>Si ce programme n'est pas rangé dans le dossier de la console (voir ci-dessous), appelez <code>build.py</code> par son chemin complet. Avec le dossier de la console dans <code>~/monocore</code>, comme ci-dessous, la commande ne crée rien d'autre que la ROM :</p>
 <div class="terminal"><pre>python3 ~/monocore/sdk/build.py</pre></div>
 <p>La ROM est créée dans le sous-dossier <code>build</code> du programme, visible directement depuis Windows. La commande <code>wslpath 'D:\Mes_Documents'</code> convertit un chemin Windows en chemin WSL (gardez les apostrophes), et la touche <b>Tab</b> complète les noms de dossiers pendant la frappe.</p>
 <h3>Vérifier que tout est prêt</h3>
 <div class="terminal"><div class="lst-cap sh"><span>TERMINAL</span> deux lignes doivent s'afficher</div><pre>clang -print-targets | grep riscv32
 python3 -c "import PIL; print('Pillow OK')"</pre></div>
 <h2>Le dossier de la console</h2>
-<p>Le projet MONOCORE-1 est un dossier qui contient, entre autres :</p>
+<p>Le projet MONOCORE-1 est un dossier, que l'on récupère une fois pour toutes avec <b>git</b> (<code>sudo apt install git</code> s'il manque). La commande suivante crée le dossier <code>monocore</code> dans votre dossier personnel, que bash note <code>~</code> :</p>
+<div class="terminal"><pre>cd ~
+git clone https://github.com/jadiema/monocore.git</pre></div>
+<p>Plus tard, <code>git pull</code> lancé dans ce dossier le met à jour. Dans la suite du manuel, le <b>dossier de la console</b> est ce dossier <code>~/monocore</code>. Il contient, entre autres :</p>
 <table class=""><thead><tr><th>Dossier</th><th>Contenu</th></tr></thead><tbody><tr><td><code>sdk/</code></td><td>le kit de développement : <code>easy.h</code>, <code>monocore.h</code>, l'outil <code>build.py</code>, la police de caractères</td></tr><tr><td><code>manual/examples/</code></td><td>tous les programmes de ce manuel, prêts à construire</td></tr><tr><td><code>dist/monocore.html</code></td><td>le simulateur : une page web qui fait tourner les ROM sur votre ordinateur</td></tr><tr><td><code>mister/</code></td><td>le core pour le MiSTer</td></tr></tbody></table>
 <h2>Le simulateur</h2>
 <p>Ouvrez <code>dist/monocore.html</code> dans votre navigateur (Firefox, Chrome, Edge ou Safari). Cliquez sur <b>Mettre sous tension</b> : la ROM de test démarre. Pour essayer vos programmes, cliquez sur <b>Charger une ROM…</b> ou glissez un fichier <code>.mnc</code> sur l'écran. Le simulateur se joue au clavier ou avec une manette USB :</p>
@@ -251,11 +254,12 @@ sources = main.c</pre></div>
 <span class="ln">  8</span>  <span class="c-kw">for</span> (;;) wait_frame();
 <span class="ln">  9</span>}</pre></div>
 <h2>Construire la ROM</h2>
-<p>Ouvrez un terminal dans le dossier du programme, et lancez <code>build.py</code> en indiquant où il se trouve :</p>
-<div class="terminal"><pre>cd manual/examples/01_hello
+<p>Ouvrez un terminal, placez-vous dans le dossier du programme, et lancez <code>build.py</code> en indiquant où il se trouve :</p>
+<div class="terminal"><pre>cd ~/monocore/manual/examples/01_hello
 python3 ../../../sdk/build.py
 
-ROM ready: .../01_hello/build/hello.mnc</pre></div>
+ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></div>
+<p><code>../../../</code> remonte de trois dossiers, de <code>01_hello</code> à <code>monocore</code> : <code>../../../sdk/build.py</code> est donc <code>~/monocore/sdk/build.py</code>, et l'on peut écrire l'un ou l'autre. Le chemin complet a l'avantage de marcher depuis n'importe quel dossier, y compris pour vos propres programmes rangés ailleurs. <code>build.py</code> crée le sous-dossier <code>build</code> dans le dossier du programme et y range la ROM.</p>
 <p>Le fichier <code>build/hello.mnc</code> est votre ROM. Chargez-la dans le simulateur :</p>
 <figure class="tv"><div class="bezel"><img src="images/screen_01.png"></div><figcaption>BONJOUR en 320 x 240 : le texte blanc sur le fond bleu.</figcaption></figure>
 <h2>Ligne par ligne</h2>
