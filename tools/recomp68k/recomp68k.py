@@ -199,9 +199,23 @@ class Translator:
         w.append('static uint32_t ch_%03x(m68k_t *c, uint32_t pc) {' % ch)
         w.append('  uint32_t d0, d1, d2, d3, d4, d5, d6, d7, a0, a1, a2, a3, a4, a5, a6, a7, fx, fn, fz, fv, fc, srh, vec;')
         w.append('  LOAD;')
-        w.append('dispatch:\n  M68K_TICK(c, pc);\n  pc &= 0xFFFFFFu;\n  switch (pc) {')
-        for a in labels: w.append('  case 0x%x: goto L_%06x;' % (a, a))
-        w.append('  default: if ((pc >> %d) != 0x%x) goto leave; goto ext;\n  }' % (self.cb, ch))
+        # dispatch: a table with one entry per even address of the range (labels as values, a GNU C
+        # extension of gcc and clang): one load and one jump, where a switch on a hundred sparse
+        # addresses compiles to a binary search
+        n = 1 << (self.cb - 1); lab = set(labels); base = ch << self.cb
+        w.append('  static void *const jt[%d] = {' % n)
+        row = []
+        for k in range(n):
+            a = base + 2 * k
+            row.append('&&L_%06x' % a if a in lab else '&&nolabel')
+            if len(row) == 8: w.append('    ' + ', '.join(row) + ','); row = []
+        if row: w.append('    ' + ', '.join(row) + ',')
+        w.append('  };')
+        w.append('dispatch:\n  M68K_TICK(c, pc);\n  pc &= 0xFFFFFFu;')
+        w.append('  if ((pc >> %d) != 0x%x) goto leave;' % (self.cb, ch))
+        w.append('  if (pc & 1) goto ext;')
+        w.append('  goto *jt[(pc & 0x%x) >> 1];' % ((1 << self.cb) - 1))
+        w.append('nolabel:\n  goto ext;')
         w.append('ext:\n  STORE; pc = m68k_external(c, pc); LOAD;\n  if (pc == M68K_EXIT) goto leave;\n  goto dispatch;')
         w.append('irq:\n  if (c->ipl > (srh & 7)) {\n    uint32_t lvl = c->ipl, sr = SRVAL;')
         w.append('    if (!(srh & 0x20)) { uint32_t t = a7; a7 = c->osp; c->osp = t; }')

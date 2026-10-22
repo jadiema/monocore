@@ -54,11 +54,17 @@ def entries():
     return [l.split()[0] for l in open(ENTRIES) if l.strip() and not l.startswith('#')]
 
 
+# log2 of the address range of one C function of the translated program: a call or a return between
+# two functions goes through the main loop of the program (all the registers stored and loaded), a
+# call inside one is a goto
+CHUNK = 12
+
 def translate():
     """The translated program, build/tr/pb2_code.c."""
     subprocess.check_call([sys.executable, os.path.join(top, 'tools', 'recomp68k', 'recomp68k.py'),
                            os.path.join(root, 'p1_be.bin'), '0', os.path.join(TR, 'pb2_code.c'),
-                           '--map', os.path.join(root, 'build', 'check', 'codemap.json'), '--vectors']
+                           '--map', os.path.join(root, 'build', 'check', 'codemap.json'), '--vectors',
+                           '--chunk', os.environ.get('PB_CHUNK', str(CHUNK))]
                           + sum((['--alias', x] for x in ALIASES), []) + sum((['--idle', x] for x in IDLE), []) + [x.split(':')[1] for x in ALIASES] + entries()
                           + ([] if '--no-harvest' in sys.argv else harvest()),
                           stdout=subprocess.DEVNULL)

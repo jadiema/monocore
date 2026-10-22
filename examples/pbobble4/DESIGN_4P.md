@@ -222,3 +222,12 @@ Fait (charge pendant une manche à quatre : 86 % → 78 %) :
   `entries.txt`, car un script peut appeler n'importe quelle routine du jeu) et la fin de
   l'animation d'une bulle (`$6EFD2`, sa palette) : 81 % → 78 %.
 Chacune : RAM et VRAM identiques au code traduit sur 3 000 images, à quatre et contre l'ordinateur.
+
+**Le traducteur** (public, `tools/recomp68k`) : chaque fonction C du code traduit (une plage de
+4 Ko) avait un `switch` d'aiguillage sur une centaine d'adresses éparses (une recherche
+dichotomique), par lequel passent tous les retours, les sauts indirects et les appels qui changent
+de fonction (1 740 appels à adresse fixe sur 2 300 : des blocs plus grands n'en supprimeraient
+qu'une partie, et compileraient bien plus lentement). Il est remplacé par une table de sauts (une
+entrée par adresse paire, étiquettes en valeurs `&&L_...`) : un accès et un saut. Charge à quatre
+78 % → 68 %, à deux 55 % → 46 % ; RAM et VRAM identiques sur 3 000 images (pbobble4 à quatre et
+contre l'ordinateur, pbobble2), banc différentiel contre Musashi sans échec.
