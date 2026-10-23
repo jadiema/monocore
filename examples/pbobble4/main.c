@@ -788,7 +788,7 @@ static void menu_inputs(void) {
     if (d && menu_sel == 0) menu_mode ^= 1;
     if (d && menu_sel == 1) menu_players = (menu_players + d + 3) % 4 + 1;
     if (d && menu_sel == 2) menu_level = (menu_level + d + 3) % 3;
-    if (d && menu_sel == 3) menu_guide ^= 1;
+    if (d && menu_sel == 3) menu_guide = (menu_guide + d + 3) % 3;   // OFF, SHORT, FULL
     if (e & IN_B(2)) menu_open = 0;
     else if (e & (IN_START | IN_B(1))) {
       menu_open = 0;
@@ -826,7 +826,8 @@ static void hint_frame(void) {
     PUT(3, 3, "MODE"); PUT(3, 13, "<"); PUT(3, 14, menu_mode ? " ARENA  " : " VERSUS "); PUT(3, 22, ">");
     PUT(5, 3, "PLAYERS"); PUT(5, 13, "<    >"); l[5][16] = (char)('0' + menu_players);
     PUT(7, 3, "LEVEL"); PUT(7, 13, "<"); PUT(7, 14, level_name[menu_level]); PUT(7, 22, ">");
-    PUT(9, 3, "GUIDE"); PUT(9, 13, "<"); PUT(9, 14, menu_guide ? "   ON   " : "   OFF  "); PUT(9, 22, ">");
+    { static const char *const g[3] = {"  OFF   ", " SHORT  ", "  FULL  "};
+      PUT(9, 3, "GUIDE"); PUT(9, 13, "<"); PUT(9, 14, g[menu_guide]); PUT(9, 22, ">"); }
     if ((vframe >> 4) & 1) l[3 + 2 * menu_sel][1] = '>';   // the line chosen
     PUT(11, 3, "UP/DOWN    : LINE");
     PUT(12, 3, "LEFT/RIGHT : CHANGE");

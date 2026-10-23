@@ -493,6 +493,34 @@ static void ar_sprite_pal(int *out, int32_t x, int32_t y, int k, uint16_t zoom, 
   s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO)); s->zoomx = zoom; s->zoomy = zoom;
 }
 
+// The full guide, as the game's in its PRACTICE mode: the path of a shot, bouncing on the walls,
+// to where it would touch a bubble or the ceiling (the same tests as a shot, in steps of 4 pixels),
+// a dot every 16 pixels, the dots moving along it.
+static void ar_sprite(int *out, int32_t x, int32_t y, int k, uint16_t zoom);
+static void ar_guide_full(int *out, int k) {
+  int32_t x = FX(AR_X + 40 + 80 * k), y = FX(AR_LY - 10);
+  int32_t vx = ar_sinv(ar_ang[k]) * 4, vy = -ar_cosv(ar_ang[k]) * 4;   // 4 pixels a step
+  int phase = 3 - (int)((vframe >> 1) % 4);        // the dots move away from the launcher
+  for (int n = 0; n < 160; n++) {
+    x += vx; y += vy;
+    if (x < FX(AR_X + 8)) { x = 2 * FX(AR_X + 8) - x; vx = -vx; }
+    if (x > FX(AR_X + 320 - 8)) { x = 2 * FX(AR_X + 320 - 8) - x; vx = -vx; }
+    if (y <= FX(AR_Y + 8)) break;
+    int hit = 0, r0 = (int)(((y >> 8) - AR_Y - 8) / AR_STEP);
+    for (int r = r0 - 1; r <= r0 + 1 && !hit; r++) {
+      if (r < 0 || r >= AR_ROWS) continue;
+      int c0 = (int)(((x >> 8) - AR_X - 8) / 16);
+      for (int c = c0 - 1; c <= c0 + 1 && !hit; c++) {
+        if (!ar_ok(r, c) || ar_grid[r][c] < 0) continue;
+        int64_t dx = ar_cx(r, c) - x, dy = ar_cy(r) - y;
+        if (dx * dx + dy * dy < (int64_t)FX(14) * FX(14)) hit = 1;
+      }
+    }
+    if (hit) break;
+    if ((n + phase) % 4 == 0 && n > 3) ar_sprite(out, x, y, k, 72);
+  }
+}
+
 static void arena_frame(int *outp) {
   uint32_t in[4] = {IN_P1, IN_P2, IN_P3, IN_P4};
   if (!ar_cleared) {                               // the panels of the 4-player screen go; the decor
@@ -633,8 +661,10 @@ static void arena_frame(int *outp) {
   for (int k = 0; k < arena_players; k++) {        // the launchers: the next bubble and the aim
     int32_t x = FX(AR_X + 40 + 80 * k), y = FX(AR_LY - 10);
     if (!ar_fly[k].on) ar_sprite(&out, x, y, k, 256);
-    for (int d = 1; d <= 5 && arena_guide; d++)   // the aiming guide: an option of the menu (GUIDE)
-      ar_sprite(&out, x + ar_sinv(ar_ang[k]) * 7 * d, y - ar_cosv(ar_ang[k]) * 7 * d, k, 80);
+    if (arena_guide == 1)                          // the aiming guide (GUIDE in the menu): SHORT
+      for (int d = 1; d <= 5; d++)
+        ar_sprite(&out, x + ar_sinv(ar_ang[k]) * 7 * d, y - ar_cosv(ar_ang[k]) * 7 * d, k, 80);
+    if (arena_guide == 2) ar_guide_full(&out, k);  // FULL: the whole path, as in the game
   }
   for (int r = 0; r < AR_ROWS && !ar_end; r++)    // (the results: the landscape alone behind them)
     for (int c = 0; c < ar_cols(r); c++)
