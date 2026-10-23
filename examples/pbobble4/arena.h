@@ -368,47 +368,73 @@ static void ar_draw_dragon(int *out, int k) {
   int dx = k ? 24 : -56;
   ar_block(out, ar_drag_def[ar_drag[k].mood][ar_drag[k].frame], lx + ((dx * 192) >> 8), ly, k == 0, pal);
 }
-static void ar_draw_stamp(int *out, int k) {
-  const uint16_t *smap = (const uint16_t *)spr_map_file;
-  int f = k ? 1 : 0;
-  int32_t lx = AR_X + 40 + 80 * k, ly = AR_LY - 10;
-  for (int i = 0; i < ar_stamps[f] && *out < MC_SPRITES; i++) {
-    ar_tile_t *t = &ar_stamp[f][i];
-    int slot = cache_get(smap[t->num]);
-    if (slot < 0) continue;
-    uint32_t pal = t->pal;
-    if (pal == DRAGON_PAL && k >= 2) pal = k == 2 ? DRAGON3_PAL : DRAGON4_PAL;
-    int dy = 0;
-    sprite_t *s = &mc_spr[(*out)++];
-    s->x = (int16_t)(lx + ((t->dx * 192) >> 8) - 6); s->y = (int16_t)(ly + ((t->dy * 192) >> 8) - 6 + dy);
-    s->tile = (uint16_t)(slot * 4); s->pal = (uint8_t)pal; s->w = 2; s->h = 2;
-    s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | ((t->flip & 1) ? SA_HFLIP : 0) | ((t->flip & 2) ? SA_VFLIP : 0));
-    s->zoomx = 192; s->zoomy = 192;
-  }
-}
 
-// The landscape ends on the edges of the board: the sky scrolls a little wider than the landscape,
-// and the layers cannot cut a 16-pixel tile. Black bands of sprites on both sides (a plain tile at
-// the start of the decor area, unused in the arena; palette 216 entry 1 black), in front of the
-// game's decor, behind the arena.
-#define AR_MASK_PAL 216
-static uint16_t ar_mask_tile;
-static void ar_mask_init(void) {
-  static uint8_t t[128];
-  for (int i = 0; i < 128; i++) t[i] = 0x11;      // 4 bpp, every pixel colour 1
-  mc_copy((volatile void *)DECOR_BASE, t, sizeof t);
-  ar_mask_tile = (uint16_t)((DECOR_BASE - CACHE_BASE) / 32);
+// The still parts of the four launchers (the machines, the NEXT signs: the stamps) are drawn once
+// into an image on layer 1 (cells of 8 x 8, 8 bpp, in the decor area, unused in the arena): drawn as
+// sprites they made more than 64 sprites on the lines of the launchers. With them the black bands
+// on both sides of the board (one black cell): the landscape ends on its edges (the sky scrolls a
+// little wider, and a layer cannot cut its 16-pixel tiles). Its palettes follow the game's, in the
+// slots 240-254. Layer 1 is the arena's: the game's decor uses layers 2 and 3 only.
+#define AR_IMG_Y    224                            // the image: 320 x 64 pixels under the board
+#define AR_IMG_W    40
+#define AR_IMG_H    8
+#define AR_CELL_BLACK (AR_IMG_W * AR_IMG_H)        // then a black cell, then an empty one
+#define AR_CELL_EMPTY (AR_CELL_BLACK + 1)
+static uint8_t ar_img[8][AR_IMG_W * 8];            // one row of cells at a time
+static int ar_img_row;
+static uint8_t ar_slot_of[256], ar_slot_pal[15], ar_slots;
+static void ar_img_tile(uint32_t num, uint8_t pal, int flip, int x0, int y0) {   // a tile at 3/4 size
+  const uint16_t *smap = (const uint16_t *)spr_map_file;
+  if (!smap[num]) return;
+  for (int y = 0; y < 12; y++)
+    for (int x = 0; x < 12; x++) {
+      int sx = x * 16 / 12, sy = y * 16 / 12;
+      if (flip & 1) sx = 15 - sx;
+      if (flip & 2) sy = 15 - sy;
+      const uint8_t *row = spr_file + smap[num] * 128 + sy * 8;
+      int pix = (row[sx >> 1] >> ((sx & 1) * 4)) & 15, ix = x0 + x - AR_X, iy = y0 + y - AR_IMG_Y - ar_img_row * 8;
+      if (!pix || ix < 0 || ix >= AR_IMG_W * 8 || iy < 0 || iy >= 8) continue;
+      if (!ar_slot_of[pal]) { if (ar_slots >= 15) continue; ar_slot_pal[ar_slots] = pal; ar_slot_of[pal] = ++ar_slots; }
+      ar_img[iy][ix] = (uint8_t)(((ar_slot_of[pal] - 1) << 4) | pix);
+    }
 }
-static void ar_masks(int *out) {
-  PALETTE[AR_MASK_PAL * 16 + 1] = 0;
-  for (int side = 0; side < 2; side++)
-    for (int y = 0; y < 288 && *out < MC_SPRITES; y += 16)
-      for (int x = 0; x < AR_X && *out < MC_SPRITES; x += 16) {
-        sprite_t *s = &mc_spr[(*out)++];
-        s->x = (int16_t)(side ? AR_X + 320 + x : x); s->y = (int16_t)y;
-        s->tile = ar_mask_tile; s->pal = AR_MASK_PAL; s->w = 2; s->h = 2;
-        s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO)); s->zoomx = 256; s->zoomy = 256;
+static void ar_compose(void) {
+  static uint8_t cell[64];
+  for (int i = 0; i < 256; i++) ar_slot_of[i] = 0;
+  ar_slots = 0;
+  for (int cy = 0; cy < AR_IMG_H; cy++) {           // row of cells by row of cells
+    ar_img_row = cy;
+    for (int y = 0; y < 8; y++) for (int x = 0; x < AR_IMG_W * 8; x++) ar_img[y][x] = 0;
+    for (int k = 0; k < arena_players; k++) {
+      int f = k ? 1 : 0; int32_t lx = AR_X + 40 + 80 * k, ly = AR_LY - 10;
+      for (int i = 0; i < ar_stamps[f]; i++) {
+        ar_tile_t *t = &ar_stamp[f][i];
+        ar_img_tile(t->num, t->pal, t->flip, lx + ((t->dx * 192) >> 8) - 6, ly + ((t->dy * 192) >> 8) - 6);
       }
+    }
+    for (int cx = 0; cx < AR_IMG_W; cx++) {
+      for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) cell[y * 8 + x] = ar_img[y][cx * 8 + x];
+      mc_copy((volatile void *)(DECOR_BASE + (cy * AR_IMG_W + cx) * 64), cell, 64);
+    }
+  }
+  for (int i = 0; i < 64; i++) cell[i] = 0xFE;    // black: palette slot 15, entry 14 (set to black)
+  mc_copy((volatile void *)(DECOR_BASE + AR_CELL_BLACK * 64), cell, 64);
+  for (int i = 0; i < 64; i++) cell[i] = 0;
+  mc_copy((volatile void *)(DECOR_BASE + AR_CELL_EMPTY * 64), cell, 64);
+  mc_layer(1, MC_CHR(DECOR_BASE - CHRRAM_BASE), MC_TILE8 | MC_8BPP, 64, 64, 0);
+  for (int y = 0; y < 64; y++)
+    for (int x = 0; x < 64; x++) {
+      int sx = x * 8, sy = y * 8; uint32_t c = AR_CELL_EMPTY;
+      if (sx < AR_X || (sx >= AR_X + 320 && sx < 384)) c = AR_CELL_BLACK;
+      else if (sx < AR_X + 320 && sy >= AR_IMG_Y && sy < AR_IMG_Y + AR_IMG_H * 8) c = (uint32_t)((sy - AR_IMG_Y) / 8 * AR_IMG_W + (sx - AR_X) / 8);
+      TILEMAP(1)[y * 64 + x] = MC_TILE(c, DECOR_PAL, 0);
+    }
+}
+static void ar_img_palettes(void) {                // the image's palettes, with the game's fades
+  const uint16_t *p = neo_pal[neo.pal_bank];
+  for (int k = 0; k < ar_slots; k++)
+    for (int c = 1; c < 16; c++) PALETTE[(DECOR_PAL + k) * 16 + c] = rgb555(p[ar_slot_pal[k] * 16 + c]);
+  PALETTE[(DECOR_PAL + 15) * 16 + 14] = 0;          // the black cell
 }
 
 static void arena_start(void) {
@@ -416,7 +442,7 @@ static void arena_start(void) {
   ar_take_stamp(0); ar_take_stamp(1);
   ar_read_dragon();
   for (int k = 0; k < 4; k++) ar_dragon_play(k, AR_REST, 1);
-  ar_mask_init();
+
   uint32_t mask = ((uint32_t)ram16(0x1034C6) << 16) | ram16(0x1034C8);   // the fields stop (scheduler mask)
   mask &= ~((1u << 5) | (1u << 6) | (1u << 7) | (1u << 9));
   *(uint16_t *)(neo_ram + 0x34C6) = (uint16_t)(mask >> 16); *(uint16_t *)(neo_ram + 0x34C8) = (uint16_t)mask;
@@ -447,6 +473,13 @@ static void ar_text_score(void) {
 
 static void ar_sprite_pal(int *out, int32_t x, int32_t y, int k, uint16_t zoom, uint8_t pal);
 static void ar_sprite(int *out, int32_t x, int32_t y, int k, uint16_t zoom) { ar_sprite_pal(out, x, y, k, zoom, ar_pal[k]); }
+// a bubble of the board: 14 lines high (its rows are 14 lines apart: a line crosses one row, not
+// two, or 2 x 20 bubbles plus the bursts passed the 64 sprites of a line)
+static void ar_sprite_h(int *out, int32_t x, int32_t y, int k) {
+  int before = *out;
+  ar_sprite(out, x, y, k, 256);
+  if (*out > before) { mc_spr[before].zoomy = 224; mc_spr[before].y += 1; }
+}
 static void ar_sprite_pal(int *out, int32_t x, int32_t y, int k, uint16_t zoom, uint8_t pal) {   // one bubble, centred
   if (*out >= MC_SPRITES) return;
   const uint16_t *smap = (const uint16_t *)spr_map_file;
@@ -464,12 +497,14 @@ static void arena_frame(int *outp) {
   uint32_t in[4] = {IN_P1, IN_P2, IN_P3, IN_P4};
   if (!ar_cleared) {                               // the panels of the 4-player screen go; the decor
     for (int i = 0; i < 64 * 64; i++) TILEMAP(0)[i] = MC_TILE(FIX_EMPTY, 0, 0);
-    for (int l = 1; l <= 3; l++) mc_layer(l, spr_file, MC_TILE16 | MC_4BPP, 32, 32, 0);   // the game's decor
+    for (int l = 2; l <= 3; l++) mc_layer(l, spr_file, MC_TILE16 | MC_4BPP, 32, 32, 0);   // the game's decor
+    ar_compose();                                  // layer 1: the still launchers, the black sides
     ar_sound(AR_SND_READY);
     ar_cleared = 1;
   }
   { const uint16_t *p = neo_pal[neo.pal_bank];     // the colours of the dragons, the yellow
     dragons_frame();
+    ar_img_palettes();
     for (int k = 0; k < 4; k++)                    // the grey of each colour: its lightness, no hue
       for (int i = 0; i < 16; i++) {
         uint16_t c = PALETTE[ar_pal[k] * 16 + i];
@@ -603,11 +638,10 @@ static void arena_frame(int *outp) {
   }
   for (int r = 0; r < AR_ROWS && !ar_end; r++)    // (the results: the landscape alone behind them)
     for (int c = 0; c < ar_cols(r); c++)
-      if (ar_grid[r][c] >= 0) ar_sprite(&out, ar_cx(r, c), ar_cy(r), ar_grid[r][c], 256);
+      if (ar_grid[r][c] >= 0) ar_sprite_h(&out, ar_cx(r, c), ar_cy(r), ar_grid[r][c]);
   for (int k = 0; k < arena_players; k++) { ar_dragon_step(k); ar_draw_dragon(&out, k); }
   for (int k = 0; k < arena_players; k++) ar_draw_launcher(&out, k);  // in front of the machine
-  for (int k = 0; k < arena_players; k++) ar_draw_stamp(&out, k);   // behind the bubbles
-  ar_masks(&out);                                  // then the edges, then the game's decor
+                                                   // (the still launchers: layer 1)
   *outp = out;
   if (!ar_end) ar_points_frame();
   ar_text_score();

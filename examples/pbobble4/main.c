@@ -596,7 +596,7 @@ static void video_frame(void) {
     if (sp_rows[n] < 8 || sp_zx[n] != 15 || sp_zy[n] != 0xFF) continue;
     int x = sp_x[n] & 0x1FF, top = sp_top[n] & 0x1FF, mx = (x >> 4) & 31;
     if (layer > 3 || (x & 15) != lx || (top & 15) != ly || (used >> mx) & 1) {
-      if (layer == 1) { frames_short++; tall_left++; break; }   // no layer left: the rest stays as sprites
+      if (layer == (arena_on ? 2 : 1)) { frames_short++; tall_left++; break; }   // no layer left (arena: 1 is its own)
       layer--; lx = x & 15; ly = top & 15; used = 0;
       layer_open(layer, x, top);
       if (arena_on) mc_layer_scroll(layer, -(x & 15) - ox, -(top & 15) - oy);
@@ -604,8 +604,8 @@ static void video_frame(void) {
     used |= 1u << mx; sp_layer[n] = (uint8_t)layer;
     layer_column(layer, n);
   }
-  uint32_t disp = DISP_ON | DISP_SPRITES | DISP_LAYER(0);   // (arena: layer 0 holds its scores)
-  for (int l = 3; l >= layer && l >= 1; l--) disp |= DISP_LAYER(l);
+  uint32_t disp = DISP_ON | DISP_SPRITES | DISP_LAYER(0) | (arena_on ? DISP_LAYER(1) : 0);   // (arena: 0 its scores, 1 its launchers)
+  for (int l = 3; l >= layer && l >= (arena_on ? 2 : 1); l--) disp |= DISP_LAYER(l);
   // 3. the other columns, one sprite per visible tile; the Neo Geo draws higher numbers in front,
   //    MONOCORE lower numbers: go backwards
   const uint16_t *smap = (const uint16_t *)spr_map_file;
