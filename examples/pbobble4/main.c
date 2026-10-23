@@ -966,7 +966,7 @@ static void launch_frame(void) {
         TILEMAP(0)[y * 64 + x] = MC_TILE(' ', grad_pal(0, LCELL(y)), 0);
     { int np = arena_pending ? arena_players : menu_players;  // the players, in their colours
       for (int k = 0; k < 4; k++) {
-        char p[3] = {'P', (char)('1' + k), 0};
+        char p[3] = {(arena_pending && k >= np - arena_cpu) ? 'C' : 'P', (char)('1' + k), 0};   // C: the computer
         static const uint16_t pc[4] = {(6 << 10) | (31 << 5) | 6, (8 << 10) | (18 << 5) | 31, (31 << 10) | (8 << 5) | 8, (31 << 10) | (28 << 5) | 4};
         for (int i = 0; i < 2; i++) TILEMAP(0)[(r0 + 3) * 64 + (w - 14) / 2 + k * 4 + i] = MC_TILE((uint8_t)p[i], grad_pal(k < np ? pc[k] : rgb(5, 7, 13), LCELL(r0 + 3)), 0);
       } }
@@ -977,6 +977,10 @@ static void launch_frame(void) {
     if (counting) { for (int i = 0; i < 9; i++) t3[i] = ' '; t3[4] = (char)('3' - (arena_wait > 179 ? 2 : arena_wait / 60)); }
     if (arena_pending) { const char *a = "ARENA   -  4 PLAYERS"; for (int i = 0; a[i]; i++) t2[i] = a[i]; t2[20] = 0; }
     t2[11] = (char)('0' + (arena_pending ? arena_players : menu_players));
+    if (arena_pending && arena_cpu) {                // humans and computer: "ARENA - 1P + 3 CPU"
+      const char *a = "ARENA - 1P + 3 CPU  "; for (int i = 0; a[i]; i++) t2[i] = a[i]; t2[20] = 0;
+      t2[8] = (char)('0' + arena_players - arena_cpu); t2[13] = (char)('0' + arena_cpu);
+    }
     for (int i = 0; t1[i]; i++) TILEMAP(0)[r0 * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t1[i], grad_pal(rgb(31, 28, 4), LCELL(r0)), 0);
     for (int i = 0; t2[i]; i++) TILEMAP(0)[(r0 + 2) * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t2[i], grad_pal(rgb(6, 28, 31), LCELL(r0 + 2)), 0);
     if (el >= 60 || ((vframe >> 4) & 1)) for (int i = 0; t3[i]; i++) TILEMAP(0)[(r0 + 5) * 64 + (w - 9) / 2 + i] = MC_TILE((uint8_t)t3[i], grad_pal(rgb(31, 31, 31), LCELL(r0 + 5)), 0);
