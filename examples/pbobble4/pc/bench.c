@@ -154,6 +154,10 @@ static void actions(uint32_t frame) {
       else if (!strncmp(a, "p3=", 3)) neo.p3 = strtoul(a + 3, 0, 16);
       else if (!strncmp(a, "p4=", 3)) neo.p4 = strtoul(a + 3, 0, 16);
       else if (!strncmp(a, "st34=", 5)) neo.st34 = strtoul(a + 5, 0, 16);
+      else if (!strncmp(a, "poke=", 5)) {           // poke=ADDR:VALUE (hex): one word of the work RAM
+        unsigned long ad = strtoul(a + 5, 0, 16), v = strtoul(strchr(a, ':') + 1, 0, 16);
+        neo_ram[(ad & 0xFFFE) - 0] = (uint8_t)(v & 0xFF); neo_ram[(ad & 0xFFFE) + 1] = (uint8_t)(v >> 8);
+      }
       else if (!strncmp(a, "st=", 3)) neo.status_b = strtoul(a + 3, 0, 16);
     }
     p = end;

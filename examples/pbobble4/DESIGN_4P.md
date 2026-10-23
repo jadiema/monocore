@@ -321,3 +321,10 @@ Le lanceur : l'aiguille (palette 76, blocs de 4 x 4 tuiles, une définition par 
 l'aire, `108(a4)`) : repos `$42E4A`, tir `$42EA6`, joie `$4307E` (un saut), inquiétude `$42F76` ;
 Bub en palette 16, retourné, Bob en 21. Les positions viennent de la liste de sprites (son y est
 32 lignes au-dessus de celui de l'écran).
+
+Les stages : le décor d'une manche vient d'une table de descriptions (`$3E6A2`, 987 entrées pour
+tous les modes ; une description : des enregistrements de 12 octets, une taille, un bloc de couche
+(16 couleurs puis ses tuiles), une palette, jusqu'à `$FFFF`). En versus la sous-table `$3F526` est
+indexée par `5328(a5) & 7` (`$1094D0`) : 0 la plage, 1 les engrenages, 2 le coucher de soleil, 3 la
+ville la nuit, 4 le temple dans la jungle, 5 la Grande Muraille, 6 les statues de pierre, 7 la
+forêt tropicale. Le lancement de l'arène force cette variable (STAGE du menu, ou au hasard).
