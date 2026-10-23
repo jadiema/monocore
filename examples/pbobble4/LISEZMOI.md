@@ -7,7 +7,9 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
 
 1. **À l'écran titre (ou pendant la démonstration), n'importe quelle manette appuie sur Start** : un
    menu s'ouvre (son mode d'emploi y est écrit), que toutes les manettes peuvent régler : haut /
-   bas choisit la ligne, gauche / droite change le chiffre ou la difficulté : le **nombre de joueurs** (1 à 4) et la
+   bas choisit la ligne, gauche / droite change le chiffre ou la difficulté ; en VERSUS à 3 ou 4
+   joueurs, la ligne SCREEN choisit l'écran (LINE : les aires côte à côte, 2 X 2), au départ
+   celui du DIP switch 1 ; en ARENA (2 à 4 joueurs), la ligne GUIDE règle l'aide à la visée : le **nombre de joueurs** (1 à 4) et la
    **difficulté** (EASY, NORMAL, HARD : le réglage DIFFICULTY du jeu, LEVEL 2, 4 ou 7 sur 8) ;
    Start ou le bouton 1 lance la partie, le bouton 2 referme le menu. Avec 1 joueur, c'est la
    partie contre l'ordinateur du jeu (la manette 1 joue) ; avec 2, 3 ou 4, la partie « joueur

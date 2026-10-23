@@ -34,6 +34,7 @@ static inline uint16_t rgb555(uint32_t c) {
 }
 static int arena_pending, arena_players = 4, arena_restart, arena_guide;   // the ARENA mode (arena.h)
 static uint32_t arena_wait;
+static int layout_pref = -1;                       // the layout chosen in the menu (-1: DIP switch 1)
 static int launching, launch_shown, launch_1p;   // the launch: behind a screen of ours (launch_frame)
 // the first round of the game launched: its task 5 (the field of player 1), once it has gone away
 // after the launch (a demo of the game, PLAY INSTRUCTIONS, has a field of its own: task 5 too)
@@ -542,7 +543,7 @@ static void video_four(void) {
 static uint32_t frames_short, tall_left;          // frames where tall columns had to stay sprites
 static void video_frame(void) {
   vframe++;
-  int four = four_running(), lay = DIPSW & 1;
+  int four = four_running(), lay = layout_pref >= 0 ? layout_pref : (int)(DIPSW & 1);   // (the menu's SCREEN, else DIP 1)
   if (four && four_mode && lay != four_layout) {     // DIP switch 1 changed during a game
     four_layout = lay; L = &layouts[lay];
     place_fields(); hud_open(); decor_force();
@@ -764,7 +765,9 @@ static void inputs(void) {
 // start of players 1 and 2 together (the game of two, where the rounds follow one another),
 // players 3 and 4 joined as chosen, and the menus of the game (GAME SELECT...) validated with
 // button 1 until the first round starts. The game sees no input while the menu is open.
-static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn, menu_mode, menu_guide;
+static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn, menu_mode, menu_guide, menu_screen = -1;
+// the lines of the menu: MODE, PLAYERS, LEVEL, then GUIDE (arena) or SCREEN (versus, 3-4 players)
+static int menu_lines(void) { return menu_mode || menu_players >= 3 ? 4 : 3; }
 static uint32_t pad_prev[4], start_force, start_mask, auto_frames;
 static const uint8_t level_dip[3] = {1, 3, 6};
 static const char *const level_name[3] = {"  EASY  ", " NORMAL ", "  HARD  "};
@@ -782,7 +785,11 @@ static void menu_inputs(void) {
   if (!title) menu_open = 0;
   if (title && !menu_open && !start_force && !auto_frames)
     for (int k = 0; k < 4; k++)
-      if (in[k] & ~pad_prev[k] & IN_START) { menu_open = 2; menu_pad = k; menu_sel = 0; break; }
+      if (in[k] & ~pad_prev[k] & IN_START) {
+        menu_open = 2; menu_pad = k; menu_sel = 0;
+        if (menu_screen < 0) menu_screen = (DIPSW & 1) ? 0 : 1;   // the layout of DIP switch 1 to start with (on: LINE)
+        break;
+      }
   if (menu_open == 2) {                            // the start that opened it is not a choice
     menu_open = 1;
     neo.p1 = neo.p2 = neo.p3 = neo.p4 = 0; neo.status_b = 0; neo.st34 = 0;
@@ -790,12 +797,19 @@ static void menu_inputs(void) {
     uint32_t e = 0;                                // any pad drives the menu
     for (int k = 0; k < 4; k++) e |= in[k] & ~pad_prev[k];
     if ((e & IN_UP) && menu_sel > 0) menu_sel--;
-    if ((e & IN_DOWN) && menu_sel < 3) menu_sel++;
+    if ((e & IN_DOWN) && menu_sel < menu_lines() - 1) menu_sel++;
     int d = (e & IN_RIGHT) ? 1 : (e & IN_LEFT) ? -1 : 0;
-    if (d && menu_sel == 0) menu_mode ^= 1;
-    if (d && menu_sel == 1) menu_players = (menu_players + d + 3) % 4 + 1;
+    if (d && menu_sel == 0) { menu_mode ^= 1; if (menu_mode && menu_players < 2) menu_players = 2; }
+    if (d && menu_sel == 1) {                        // ARENA: 2-4 players; VERSUS: 1-4
+      int lo = menu_mode ? 2 : 1;
+      menu_players += d;
+      if (menu_players > 4) menu_players = lo;
+      if (menu_players < lo) menu_players = 4;
+    }
     if (d && menu_sel == 2) menu_level = (menu_level + d + 3) % 3;
-    if (d && menu_sel == 3) menu_guide = (menu_guide + d + 3) % 3;   // OFF, SHORT, FULL
+    if (d && menu_sel == 3 && menu_mode) menu_guide = (menu_guide + d + 3) % 3;   // OFF, SHORT, FULL
+    if (d && menu_sel == 3 && !menu_mode) menu_screen ^= 1;                       // LINE, 2 X 2
+    if (menu_sel >= menu_lines()) menu_sel = menu_lines() - 1;
     if (e & IN_B(2)) menu_open = 0;
     else if (e & (IN_START | IN_B(1))) {
       menu_open = 0;
@@ -806,6 +820,7 @@ static void menu_inputs(void) {
         neo_ram[0xF614 ^ 1] = neo_ram[0xF615 ^ 1] = 0;
         start_mask = 5; start_force = 8; auto_frames = 1200;
       } else {
+        if (menu_players >= 3) layout_pref = menu_screen ? 0 : 1;   // SCREEN: LINE (4 x 1) or 2 X 2
         neo_ram[0xF614 ^ 1] = menu_players >= 3;         // JOIN3, JOIN4 (patches/four.s)
         neo_ram[0xF615 ^ 1] = menu_players == 4;
         start_mask = menu_players == 1 ? 1 : 5; start_force = 8;
@@ -876,8 +891,10 @@ static void hint_frame(void) {
     PUT(3, 3, "MODE"); PUT(3, 13, "<"); PUT(3, 14, menu_mode ? " ARENA  " : " VERSUS "); PUT(3, 22, ">");
     PUT(5, 3, "PLAYERS"); PUT(5, 13, "<    >"); l[5][16] = (char)('0' + menu_players);
     PUT(7, 3, "LEVEL"); PUT(7, 13, "<"); PUT(7, 14, level_name[menu_level]); PUT(7, 22, ">");
-    { static const char *const g[3] = {"  OFF   ", " SHORT  ", "  FULL  "};
+    if (menu_mode) { static const char *const g[3] = {"  OFF   ", " SHORT  ", "  FULL  "};
       PUT(9, 3, "GUIDE"); PUT(9, 13, "<"); PUT(9, 14, g[menu_guide]); PUT(9, 22, ">"); }
+    else if (menu_players >= 3) {
+      PUT(9, 3, "SCREEN"); PUT(9, 13, "<"); PUT(9, 14, menu_screen ? " 2 X 2  " : "  LINE  "); PUT(9, 22, ">"); }
     if ((vframe >> 4) & 1) l[3 + 2 * menu_sel][1] = '>';   // the line chosen
     PUT(11, 3, "UP/DOWN    : LINE");
     PUT(12, 3, "LEFT/RIGHT : CHANGE");
