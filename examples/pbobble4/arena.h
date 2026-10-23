@@ -32,6 +32,9 @@ static uint8_t ar_pal[4];                          // and its palette
 static int ar_ang[4];                              // aim, degrees from the vertical
 static struct { int on; int32_t x, y, vx, vy; } ar_fly[4];
 static struct { int on, col; int32_t x, y, vy; } ar_fall[64];
+static struct { int t, col; int32_t x, y; } ar_pop[64];   // bubbles bursting (as the game: grey, blinking)
+#define AR_POP_T    24
+#define AR_GREY_PAL 217                            // 217-220: the grey of each colour
 static uint32_t ar_score[4], ar_clock, ar_end, ar_rng = 12345;
 static uint32_t ar_prev[4];
 static uint32_t ar_start;                          // frames of READY / GO before the first shot
@@ -102,7 +105,12 @@ static void ar_stick(int p, int r, int c) {
       if (!seen[nr[k]][nc[k]] && ar_grid[nr[k]][nc[k]] == p) { seen[nr[k]][nc[k]] = 1; qr[t] = (uint8_t)nr[k]; qc[t] = (uint8_t)nc[k]; t++; }
   }
   if (t >= 3) {
-    for (int i = 0; i < t; i++) ar_grid[qr[i]][qc[i]] = -1;
+    for (int i = 0; i < t; i++) {
+      for (int j = 0; j < 64; j++) if (!ar_pop[j].t) {
+        ar_pop[j].t = AR_POP_T; ar_pop[j].col = p; ar_pop[j].x = ar_cx(qr[i], qc[i]); ar_pop[j].y = ar_cy(qr[i]); break;
+      }
+      ar_grid[qr[i]][qc[i]] = -1;
+    }
     ar_score[p] += 10 * (uint32_t)t;
     ar_sound(AR_SND_POP);
     ar_drop_loose(p);
@@ -273,7 +281,7 @@ static void arena_start(void) {
   for (int r = 0; r < AR_ROWS; r++) for (int c = 0; c < AR_COLS; c++)
     ar_grid[r][c] = (r < 7 && c < ar_cols(r)) ? (int8_t)(ar_rand() % arena_players) : -1;
   for (int k = 0; k < 4; k++) { ar_ang[k] = 0; ar_fly[k].on = 0; ar_score[k] = 0; ar_prev[k] = 0xFFFFFFFF; }
-  for (int i = 0; i < 64; i++) ar_fall[i].on = 0;
+  for (int i = 0; i < 64; i++) { ar_fall[i].on = 0; ar_pop[i].t = 0; }
   ar_clock = AR_TIME; ar_end = 0; ar_start = AR_READY;
   for (int k = 0; k < 4; k++) ar_jump[k] = 0;
   for (int i = 0; i < 64 * 64; i++) { TILEMAP(0)[i] = MC_TILE(FIX_EMPTY, 0, 0); TILEMAP(1)[i] = MC_TILE(DECOR_W * DECOR_H, DECOR_PAL, 0); }
@@ -282,7 +290,7 @@ static void arena_start(void) {
 }
 
 static void ar_text_score(void) {
-  static const uint8_t col[4] = {1, 9, 31, 39};
+  static const uint8_t col[4] = {4, 12, 29, 37};   // inside the board (columns 4-43)
   for (int k = 0; k < arena_players; k++) {
     char t[8] = "P1 0000"; t[1] = (char)('1' + k);
     uint32_t v = ar_score[k] > 9999 ? 9999 : ar_score[k];
@@ -294,7 +302,9 @@ static void ar_text_score(void) {
   hud_text(22, 1, t, HUD_PAL + 3);
 }
 
-static void ar_sprite(int *out, int32_t x, int32_t y, int k, uint16_t zoom) {   // one bubble, centred on x, y
+static void ar_sprite_pal(int *out, int32_t x, int32_t y, int k, uint16_t zoom, uint8_t pal);
+static void ar_sprite(int *out, int32_t x, int32_t y, int k, uint16_t zoom) { ar_sprite_pal(out, x, y, k, zoom, ar_pal[k]); }
+static void ar_sprite_pal(int *out, int32_t x, int32_t y, int k, uint16_t zoom, uint8_t pal) {   // one bubble, centred
   if (*out >= MC_SPRITES) return;
   const uint16_t *smap = (const uint16_t *)spr_map_file;
   int slot = cache_get(smap[ar_num[k]]);
@@ -302,7 +312,7 @@ static void ar_sprite(int *out, int32_t x, int32_t y, int k, uint16_t zoom) {   
   int size = (16 * zoom) >> 8;
   sprite_t *s = &mc_spr[(*out)++];
   s->x = (int16_t)((x >> 8) - size / 2); s->y = (int16_t)((y >> 8) - size / 2);
-  s->tile = (uint16_t)(slot * 4); s->pal = ar_pal[k]; s->w = 2; s->h = 2;
+  s->tile = (uint16_t)(slot * 4); s->pal = pal; s->w = 2; s->h = 2;
   s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO)); s->zoomx = zoom; s->zoomy = zoom;
 }
 
@@ -316,6 +326,12 @@ static void arena_frame(int *outp) {
   }
   { const uint16_t *p = neo_pal[neo.pal_bank];     // the colours of the dragons, the yellow
     dragons_frame();
+    for (int k = 0; k < 4; k++)                    // the grey of each colour: its lightness, no hue
+      for (int i = 0; i < 16; i++) {
+        uint16_t c = PALETTE[ar_pal[k] * 16 + i];
+        int r = (c >> 10) & 31, g = (c >> 5) & 31, b = c & 31, l = (r * 5 + g * 9 + b * 2) >> 4;
+        PALETTE[(AR_GREY_PAL + k) * 16 + i] = i ? (uint16_t)((l << 10) | (l << 5) | l) : 0;
+      }
     for (int i = 0; i < 16; i++) PALETTE[215 * 16 + i] = i ? ar_hue(rgb555(p[ar_src4 * 16 + i]), 250) : 0; }
   if (ar_end) {                                    // the results, then the console starts again
     if (--ar_end == 1) arena_restart = 1;
@@ -403,6 +419,7 @@ static void arena_frame(int *outp) {
           ar_fly[j].vx -= (int32_t)ix; ar_fly[j].vy -= (int32_t)iy;
         }
     }
+    for (int i = 0; i < 64; i++) if (ar_pop[i].t) ar_pop[i].t--;   // the bursts go on
     for (int i = 0; i < 64; i++)                   // the bubbles falling
       if (ar_fall[i].on) { ar_fall[i].vy += FX(1) / 4; ar_fall[i].y += ar_fall[i].vy; if (ar_fall[i].y > FX(300)) ar_fall[i].on = 0; }
   }
@@ -410,6 +427,12 @@ static void arena_frame(int *outp) {
   int out = *outp;
   for (int k = 0; k < 4; k++) if (ar_fly[k].on) ar_sprite(&out, ar_fly[k].x, ar_fly[k].y, k, 256);
   for (int i = 0; i < 64; i++) if (ar_fall[i].on) ar_sprite(&out, ar_fall[i].x, ar_fall[i].y, ar_fall[i].col, 256);
+  for (int i = 0; i < 64; i++) {                   // a burst: blinks grey, then swells grey and goes
+    int t = ar_pop[i].t, k = ar_pop[i].col;
+    if (!t) continue;
+    if (t > 8) ar_sprite_pal(&out, ar_pop[i].x, ar_pop[i].y, k, 256, ((t >> 2) & 1) ? (uint8_t)(AR_GREY_PAL + k) : ar_pal[k]);
+    else ar_sprite_pal(&out, ar_pop[i].x, ar_pop[i].y, k, (uint16_t)(256 + (8 - t) * 12), (uint8_t)(AR_GREY_PAL + k));
+  }
   for (int k = 0; k < arena_players; k++) {        // the launchers: the next bubble and the aim
     int32_t x = FX(AR_X + 40 + 80 * k), y = FX(AR_LY - 10);
     if (!ar_fly[k].on) ar_sprite(&out, x, y, k, 256);
