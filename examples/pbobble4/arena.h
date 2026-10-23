@@ -14,7 +14,7 @@
 #define AR_Y      34
 #define AR_STEP   14                               // between two rows
 #define AR_LY     262                              // the launchers
-#define AR_TIME   (120 * 60)
+#define AR_TIME   (arena_time * 60)              // the length of a game (TIME in the menu, seconds)
 #define AR_DROP   (20 * 60)                        // the ceiling comes down
 #define FX(v)     ((int32_t)(v) << 8)              // 24.8 fixed point
 #define AR_DX     AR_X                             // the game's 320-pixel screen under the board
@@ -489,6 +489,7 @@ static void ar_text_score(void) {
   const uint8_t *col = cols[arena_players >= 2 ? arena_players - 2 : 0];
   for (int k = 0; k < arena_players; k++) {
     char t[8] = "P1 0000"; t[1] = (char)('1' + k);
+    if (k >= arena_players - arena_cpu) t[0] = 'C';  // a computer's dragon
     uint32_t v = ar_score[k] > 9999 ? 9999 : ar_score[k];
     for (int i = 6; i >= 3; i--) { t[i] = (char)('0' + v % 10); v /= 10; }
     hud_text(col[k], 1, t, HUD_PAL + k);
@@ -548,8 +549,71 @@ static void ar_guide_full(int *out, int k) {
   }
 }
 
+// The computer's dragons (CPU in the menu: the last players). Ready to shoot, a dragon tries 29
+// angles (-70 to +70 degrees), each traced as a shot (the walls, the bubbles, the ceiling), and
+// keeps the one whose bubble would make the largest group of its colour (a burst best, then
+// higher on the board); it turns its launcher to it and shoots. LEVEL: EASY aims within 6
+// degrees and thinks a second, NORMAL 3 and half a second, HARD exactly and at once.
+static int ar_trace(int k, int ang, int32_t *ex, int32_t *ey) {   // where a shot at ang would stop
+  int32_t x = FX(ar_lx(k)), y = FX(AR_LY - 10), vx = ar_sinv(ang) * 4, vy = -ar_cosv(ang) * 4;
+  for (int n = 0; n < 200; n++) {
+    x += vx; y += vy;
+    if (x < FX(AR_X + 8)) { x = 2 * FX(AR_X + 8) - x; vx = -vx; }
+    if (x > FX(AR_X + 320 - 8)) { x = 2 * FX(AR_X + 320 - 8) - x; vx = -vx; }
+    if (y > FX(AR_LY)) return 0;
+    int hit = y <= FX(AR_Y + 8), r0 = (int)(((y >> 8) - AR_Y - 8) / AR_STEP);
+    for (int r = r0 - 1; r <= r0 + 1 && !hit; r++) {
+      if (r < 0 || r >= AR_ROWS) continue;
+      int c0 = (int)(((x >> 8) - AR_X - 8) / 16);
+      for (int c = c0 - 1; c <= c0 + 1 && !hit; c++) {
+        if (!ar_ok(r, c) || ar_grid[r][c] < 0) continue;
+        int64_t dx = ar_cx(r, c) - x, dy = ar_cy(r) - y;
+        if (dx * dx + dy * dy < (int64_t)FX(14) * FX(14)) hit = 1;
+      }
+    }
+    if (hit) { *ex = x; *ey = y; return 1; }
+  }
+  return 0;
+}
+static int ar_group_if(int r, int c, int col) {    // the group a bubble of col would make at (r, c)
+  static uint8_t seen[AR_ROWS][AR_COLS], qr[AR_ROWS * AR_COLS], qc[AR_ROWS * AR_COLS];
+  for (int i = 0; i < AR_ROWS; i++) for (int j = 0; j < AR_COLS; j++) seen[i][j] = 0;
+  int h = 0, t = 0; qr[t] = (uint8_t)r; qc[t] = (uint8_t)c; t++; seen[r][c] = 1;
+  while (h < t) {
+    int nr[6], nc[6], n = ar_nb(qr[h], qc[h], nr, nc); h++;
+    for (int k = 0; k < n; k++)
+      if (!seen[nr[k]][nc[k]] && ar_grid[nr[k]][nc[k]] == col) { seen[nr[k]][nc[k]] = 1; qr[t] = (uint8_t)nr[k]; qc[t] = (uint8_t)nc[k]; t++; }
+  }
+  return t;
+}
+static struct { int target, wait, has; } ar_ai[4];
+static uint32_t ar_ai_input(int k) {               // the buttons of a computer's dragon, this frame
+  static const int err[3] = {6, 3, 0}, think[3] = {60, 30, 8};
+  int lv = arena_level < 0 || arena_level > 2 ? 1 : arena_level;
+  if (ar_fly[k].on || ar_start || !ar_clock) { ar_ai[k].has = 0; return 0; }
+  if (!ar_ai[k].has) {                              // choose an angle
+    int best = 0, bscore = -1;
+    for (int a = -70; a <= 70; a += 5) {
+      int32_t x, y; int r, c;
+      if (!ar_trace(k, a, &x, &y) || !ar_place(x, y, &r, &c)) continue;
+      int g = ar_group_if(r, c, ar_cur[k]);
+      int score = (g >= 3 ? 1000 + g * 50 : g * 40) + (AR_ROWS - r) * 3 + (int)(ar_rand() % 8);
+      if (score > bscore) { bscore = score; best = a; }
+    }
+    if (err[lv]) best += (int)(ar_rand() % (2 * err[lv] + 1)) - err[lv];
+    ar_ai[k].target = best; ar_ai[k].wait = think[lv] + (int)(ar_rand() % 10); ar_ai[k].has = 1;
+  }
+  if (ar_ang[k] < ar_ai[k].target - 1) return IN_RIGHT;
+  if (ar_ang[k] > ar_ai[k].target + 1) return IN_LEFT;
+  if (ar_ai[k].wait > 0) { ar_ai[k].wait--; return 0; }
+  ar_ai[k].has = 0;
+  return IN_B(1);                                   // aimed: shoot
+}
+
 static void arena_frame(int *outp) {
   uint32_t in[4] = {IN_P1, IN_P2, IN_P3, IN_P4};
+  for (int k = arena_players - arena_cpu; k < arena_players; k++)   // the computer's dragons
+    if (k >= 0) in[k] = ar_ai_input(k);             // (a shot is one frame: an edge)
   if (!ar_cleared) {                               // the panels of the 4-player screen go; the decor
     for (int i = 0; i < 64 * 64; i++) TILEMAP(0)[i] = MC_TILE(FIX_EMPTY, 0, 0);
     for (int l = 2; l <= 3; l++) mc_layer(l, spr_file, MC_TILE16 | MC_4BPP, 32, 32, 0);   // the game's decor
@@ -592,12 +656,14 @@ static void arena_frame(int *outp) {
           if (ar_score[order[j]] > ar_score[order[i]]) { int t = order[i]; order[i] = order[j]; order[j] = t; }
       for (int r = 0; r < 64 * 64; r++) TILEMAP(0)[r] = MC_TILE(FIX_EMPTY, 0, 0);
       char t[] = "PLAYER 1 WINS!"; t[7] = (char)('1' + order[0]);
+      if (order[0] >= arena_players - arena_cpu) { const char *c = "   CPU 1 WINS!"; for (int i = 0; c[i]; i++) t[i] = c[i]; t[7] = (char)('1' + order[0]); }
       hud_text(13, 9, t, HUD_PAL + order[0]);
       for (int i = 0; i < arena_players; i++) {
         int k = order[i]; char line[] = "1ST  PLAYER 1  00000";
         static const char *const place[4] = {"1ST", "2ND", "3RD", "4TH"};
         for (int c = 0; c < 3; c++) line[c] = place[i][c];
         line[12] = (char)('1' + k);
+        if (k >= arena_players - arena_cpu) { line[5] = ' '; line[6] = ' '; line[7] = ' '; line[8] = 'C'; line[9] = 'P'; line[10] = 'U'; }   // "   CPU 3"
         uint32_t v = ar_score[k] > 99999 ? 99999 : ar_score[k];
         for (int c = 19; c >= 15; c--) { line[c] = (char)('0' + v % 10); v /= 10; }
         hud_text(10, 13 + 2 * i, line, HUD_PAL + k);
@@ -690,10 +756,11 @@ static void arena_frame(int *outp) {
     int32_t x = FX(ar_lx(k)), y = FX(AR_LY - 10);
     if (!ar_fly[k].on) ar_sprite(&out, x, y, ar_cur[k], 256);
     if (arena_multi) ar_sprite(&out, x + FX(k ? -31 : 27), y + FX(9), ar_next[k], 176);   // the next, in its sign
-    if (arena_guide == 1)                          // the aiming guide (GUIDE in the menu): SHORT
+    int human = k < arena_players - arena_cpu;      // (the computer's dragons: no guide)
+    if (arena_guide == 1 && human)                 // the aiming guide (GUIDE in the menu): SHORT
       for (int d = 1; d <= 5; d++)
         ar_sprite(&out, x + ar_sinv(ar_ang[k]) * 7 * d, y - ar_cosv(ar_ang[k]) * 7 * d, ar_cur[k], 80);
-    if (arena_guide == 2) ar_guide_full(&out, k);  // FULL: the whole path, as in the game
+    if (arena_guide == 2 && human) ar_guide_full(&out, k);   // FULL: the whole path, as in the game
   }
   for (int r = 0; r < AR_ROWS && !ar_end; r++)    // (the results: the landscape alone behind them)
     for (int c = 0; c < ar_cols(r); c++)

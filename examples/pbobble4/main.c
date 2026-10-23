@@ -33,6 +33,7 @@ static inline uint16_t rgb555(uint32_t c) {
   return (uint16_t)((r << 10) | (g << 5) | b);
 }
 static int arena_pending, arena_players = 4, arena_restart, arena_guide, arena_multi;   // the ARENA mode (arena.h)
+static int arena_cpu, arena_level = 1, arena_time = 120;
 static uint32_t arena_wait;
 static int layout_pref = -1;                       // the layout chosen in the menu (-1: DIP switch 1)
 static int launching, launch_shown, launch_1p;   // the launch: behind a screen of ours (launch_frame)
@@ -830,10 +831,22 @@ static void inputs(void) {
 // start of players 1 and 2 together (the game of two, where the rounds follow one another),
 // players 3 and 4 joined as chosen, and the menus of the game (GAME SELECT...) validated with
 // button 1 until the first round starts. The game sees no input while the menu is open.
-static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn, menu_mode, menu_guide = 2, menu_screen = -1, menu_multi;
+static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn, menu_mode, menu_guide = 2, menu_screen = -1, menu_multi, menu_cpu, menu_time = 1;
+static const int time_secs[4] = {60, 120, 180, 300};
 // the lines of the menu: MODE, PLAYERS, LEVEL, then GUIDE (arena) or SCREEN (versus, 3-4 players)
 static int menu_stage;                             // ARENA: 0 RANDOM, 1-8 the game's versus stages 0-7
-static int menu_lines(void) { return menu_mode ? 6 : menu_players >= 3 ? 4 : 3; }
+// the lines of the menu, by mode: their ids in menu_ids, one a row
+enum { L_MODE, L_PLAYERS, L_CPU, L_LEVEL, L_GUIDE, L_STAGE, L_COLORS, L_TIME, L_SCREEN };
+static int menu_ids(int *ids) {
+  int n = 0;
+  ids[n++] = L_MODE; ids[n++] = L_PLAYERS;
+  if (menu_mode) ids[n++] = L_CPU;
+  ids[n++] = L_LEVEL;
+  if (menu_mode) { ids[n++] = L_GUIDE; ids[n++] = L_STAGE; ids[n++] = L_COLORS; ids[n++] = L_TIME; }
+  else if (menu_players >= 3) ids[n++] = L_SCREEN;
+  return n;
+}
+static int menu_lines(void) { int ids[9]; return menu_ids(ids); }
 // The stage of the game's versus rounds: 5328(a5) & 7 ($1094D0) indexes its table of decors at
 // $3F526 (found on the bench); forced during the launch of the arena until the round is loaded.
 static int launch_stage = -1;
@@ -845,7 +858,7 @@ static const char *const level_name[3] = {"  EASY  ", " NORMAL ", "  HARD  "};
 #define MENU_X 7
 #define MENU_Y 8
 #define MENU_W 26
-#define MENU_H 20
+#define MENU_H 18
 static int menu_drawn_cell(uint32_t x, uint32_t y) {
   return menu_drawn && x >= MENU_X - 1 && x <= MENU_X + MENU_W + 1 && y >= MENU_Y - 1 && y <= MENU_Y + MENU_H + 1;
 }
@@ -870,18 +883,22 @@ static void menu_inputs(void) {
     if ((e & IN_UP) && menu_sel > 0) menu_sel--;
     if ((e & IN_DOWN) && menu_sel < menu_lines() - 1) menu_sel++;
     int d = (e & IN_RIGHT) ? 1 : (e & IN_LEFT) ? -1 : 0;
-    if (d && menu_sel == 0) { menu_mode ^= 1; if (menu_mode && menu_players < 2) menu_players = 2; }
-    if (d && menu_sel == 1) {                        // ARENA: 2-4 players; VERSUS: 1-4
+    int ids[9], nl = menu_ids(ids), id = ids[menu_sel < nl ? menu_sel : nl - 1];
+    if (d && id == L_MODE) { menu_mode ^= 1; if (menu_mode && menu_players < 2) menu_players = 2; }
+    if (d && id == L_PLAYERS) {                      // ARENA: 2-4 players; VERSUS: 1-4
       int lo = menu_mode ? 2 : 1;
       menu_players += d;
       if (menu_players > 4) menu_players = lo;
       if (menu_players < lo) menu_players = 4;
     }
-    if (d && menu_sel == 2) menu_level = (menu_level + d + 3) % 3;
-    if (d && menu_sel == 3 && menu_mode) menu_guide = (menu_guide + d + 3) % 3;   // OFF, SHORT, FULL
-    if (d && menu_sel == 3 && !menu_mode) menu_screen ^= 1;                       // LINE, 2 X 2
-    if (d && menu_sel == 4 && menu_mode) menu_stage = (menu_stage + d + 9) % 9;   // RANDOM, the 8 stages
-    if (d && menu_sel == 5 && menu_mode) menu_multi ^= 1;                         // MONO, MULTI
+    if (d && id == L_CPU) menu_cpu = (menu_cpu + d + menu_players) % menu_players;   // 0 to players - 1
+    if (d && id == L_LEVEL) menu_level = (menu_level + d + 3) % 3;
+    if (d && id == L_GUIDE) menu_guide = (menu_guide + d + 3) % 3;   // OFF, SHORT, FULL
+    if (d && id == L_SCREEN) menu_screen ^= 1;                       // LINE, 2 X 2
+    if (d && id == L_STAGE) menu_stage = (menu_stage + d + 9) % 9;   // RANDOM, the 8 stages
+    if (d && id == L_COLORS) menu_multi ^= 1;                        // MONO, MULTI
+    if (d && id == L_TIME) menu_time = (menu_time + d + 4) % 4;      // 1, 2, 3, 5 minutes
+    if (menu_cpu > menu_players - 1) menu_cpu = menu_players - 1;    // one player at least
     if (menu_sel >= menu_lines()) menu_sel = menu_lines() - 1;
     if (e & IN_B(2)) menu_open = 0;
     else if (e & (IN_START | IN_B(1))) {
@@ -890,6 +907,7 @@ static void menu_inputs(void) {
       launch_gap = 0;
       if (menu_mode) {                               // ARENA: a game of two loads the graphics
         arena_pending = 1; arena_wait = 0; arena_players = menu_players; arena_guide = menu_guide; arena_multi = menu_multi;
+        arena_cpu = menu_cpu; arena_level = menu_level; arena_time = time_secs[menu_time];
         launch_stage = menu_stage ? menu_stage - 1 : (int)((vframe * 2654435761u) >> 29);   // RANDOM: 0-7
         neo_ram[0xF614 ^ 1] = neo_ram[0xF615 ^ 1] = 0;
         start_mask = 5; start_force = 8; auto_frames = 1200;
@@ -979,34 +997,45 @@ static void hint_frame(void) {
     for (int r = 0; r < MENU_H; r++) { for (int i = 0; i < MENU_W; i++) l[r][i] = ' '; l[r][MENU_W] = 0; }
     #define PUT(r, c, str) do { const char *q_ = (str); for (int i_ = 0; q_[i_]; i_++) l[r][(c) + i_] = q_[i_]; } while (0)
     PUT(1, 3, "BUST-A-MOVE AGAIN 4P");
-    PUT(3, 3, "MODE"); PUT(3, 13, "<"); PUT(3, 14, menu_mode ? " ARENA  " : " VERSUS "); PUT(3, 22, ">");
-    PUT(5, 3, "PLAYERS"); PUT(5, 13, "< 1 2 3 4 >");   // the players chosen light up in their colours
-    PUT(7, 3, "LEVEL"); PUT(7, 13, "<"); PUT(7, 14, level_name[menu_level]); PUT(7, 22, ">");
-    if (menu_mode) { static const char *const g[3] = {"  OFF   ", " SHORT  ", "  FULL  "};
-      PUT(9, 3, "GUIDE"); PUT(9, 13, "<"); PUT(9, 14, g[menu_guide]); PUT(9, 22, ">"); }
-    else if (menu_players >= 3) {
-      PUT(9, 3, "SCREEN"); PUT(9, 13, "<"); PUT(9, 14, menu_screen ? " 2 X 2  " : "  LINE  "); PUT(9, 22, ">"); }
-    if (menu_mode) { PUT(11, 3, "STAGE"); PUT(11, 13, "<"); PUT(11, 14, stage_name[menu_stage]); PUT(11, 22, ">"); }
-    if (menu_mode) { PUT(13, 3, "COLORS"); PUT(13, 13, "<"); PUT(13, 14, menu_multi ? " MULTI  " : "  MONO  "); PUT(13, 22, ">"); }
-    if ((vframe >> 4) & 1) l[3 + 2 * menu_sel][1] = '>';   // the line chosen
-    for (int i = 1; i < MENU_W - 1; i++) l[14][i] = '-';   // a rule above the help
-    PUT(15, 3, "UP/DOWN    : LINE");
-    PUT(16, 3, "LEFT/RIGHT : CHANGE");
-    PUT(17, 3, "START      : PLAY");
-    PUT(18, 3, "BUTTON 2   : BACK");
+    { int ids[9], nl = menu_ids(ids);              // the lines of the mode, one a row from row 3
+      static const char *const g[3] = {"  OFF   ", " SHORT  ", "  FULL  "}, *const tm[4] = {" 1 MIN  ", " 2 MIN  ", " 3 MIN  ", " 5 MIN  "};
+      for (int i = 0; i < nl; i++) {
+        int r = 3 + i; const char *name = "", *val = 0;
+        char cpu[9] = "   0    ";
+        switch (ids[i]) {
+        case L_MODE: name = "MODE"; val = menu_mode ? " ARENA  " : " VERSUS "; break;
+        case L_PLAYERS: name = "PLAYERS"; PUT(r, 13, "< 1 2 3 4 >"); break;   // lit in their colours
+        case L_CPU: name = "CPU"; cpu[3] = (char)('0' + menu_cpu); val = cpu; break;
+        case L_LEVEL: name = "LEVEL"; val = level_name[menu_level]; break;
+        case L_GUIDE: name = "GUIDE"; val = g[menu_guide]; break;
+        case L_STAGE: name = "STAGE"; val = stage_name[menu_stage]; break;
+        case L_COLORS: name = "COLORS"; val = menu_multi ? " MULTI  " : "  MONO  "; break;
+        case L_TIME: name = "TIME"; val = tm[menu_time]; break;
+        case L_SCREEN: name = "SCREEN"; val = menu_screen ? " 2 X 2  " : "  LINE  "; break;
+        }
+        PUT(r, 3, name);
+        if (val) { PUT(r, 13, "<"); PUT(r, 14, val); PUT(r, 22, ">"); }
+      }
+      if ((vframe >> 4) & 1) l[3 + menu_sel][1] = '>';   // the line chosen
+    }
+    for (int i = 1; i < MENU_W - 1; i++) l[12][i] = '-';   // a rule above the help
+    PUT(13, 3, "UP/DOWN    : LINE");
+    PUT(14, 3, "LEFT/RIGHT : CHANGE");
+    PUT(15, 3, "START      : PLAY");
+    PUT(16, 3, "BUTTON 2   : BACK");
     #undef PUT
     menu_palettes(); grad_reset();
     panel_frame(MENU_X, MENU_Y, MENU_W, MENU_H);
     static const uint16_t player_col[4] = {(6 << 10) | (31 << 5) | 6, (8 << 10) | (18 << 5) | 31, (31 << 10) | (8 << 5) | 8, (31 << 10) | (28 << 5) | 4};
     for (int r = 0; r < MENU_H; r++)
       for (int i = 0; i < MENU_W; i++) {
-        int line = (r >= 3 && r <= 13 && (r & 1)) ? (r - 3) / 2 : -1;
+        int line = (r >= 3 && r < 3 + menu_lines()) ? r - 3 : -1;
         uint16_t letter = rgb(31, 31, 31), cell = panel_cell(r - 3, MENU_H - 3);
         if (r <= 2) { letter = rgb(31, 28, 4); cell = r == 1 ? rgb(24, 4, 3) : r == 0 ? rgb(14, 1, 2) : rgb(18, 2, 2); }   // the title bar
-        else if (r >= 14) letter = rgb(15, 16, 21);                     // the rule, the help
+        else if (r >= 12) letter = rgb(15, 16, 21);                     // the rule, the help
         else if (line == menu_sel) { cell = rgb(4, 11, 27); letter = rgb(31, 31, 12); }   // the line chosen
         if (line >= 0 && i >= 13 && line != menu_sel) letter = rgb(6, 28, 31);   // a value
-        if (r == 5 && i >= 15 && i <= 21 && !((i - 15) & 1)) {          // a player: lit if chosen
+        if (r == 4 && i >= 15 && i <= 21 && !((i - 15) & 1)) {          // a player: lit if chosen (PLAYERS: row 4)
           int k = (i - 15) / 2;
           letter = k < menu_players ? player_col[k] : rgb(5, 7, 13);
         }
