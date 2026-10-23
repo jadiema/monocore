@@ -40,6 +40,15 @@ static struct { int on, col; int32_t x, y, vx, vy; } ar_fly[4];
 #define AR_HURRY      (8 * 60)
 #define AR_HURRY_SHOT (11 * 60)
 static int ar_idle_t[4], ar_hurry_shown[4];
+// The bottom line: a shot sticking there costs its player 50 points and 2 s without shooting; the
+// bubbles the ceiling pushes onto it cost 10 each to the player whose launcher is below
+#define AR_STUN (2 * 60)
+static int ar_stun[4];
+// Special bubbles (SPECIALS in the menu), about a shot in twelve: the rainbow takes the colour
+// most present around where it sticks (MONO: the shooter's), the bomb bursts all around it, two
+// cells far, for its shooter
+#define AR_RAINBOW 8
+#define AR_BOMB    9
 static struct { int on, col; int32_t x, y, vy; } ar_fall[64];
 static struct { int t, col; int32_t x, y; } ar_pop[64];   // bubbles bursting (as the game: grey, blinking)
 #define AR_POP_T    18                            // 6 frames of the game's burst, 3 each
@@ -63,13 +72,20 @@ static void ar_sound(uint32_t code) { neo_platform_sound(0x1A, code); }
 #define AR_SND_GEAR   0x42                         // the launcher turning: a tick of its wheel
 
 // the points won, written where they were won, in the colour of the player, rising for 0.4 s
-static struct { int8_t col, row, k; uint8_t t, len, shown_row; uint16_t val; } ar_pts[8];
+static struct { int8_t col, row, k; uint8_t t, len, shown_row, neg; uint16_t val; } ar_pts[8];
 static void ar_points(int k, int32_t x, int32_t y, uint32_t val) {
   for (int i = 0; i < 8; i++) if (!ar_pts[i].t) {
     ar_pts[i].col = (int8_t)(((x >> 8) / 8) - 1); ar_pts[i].row = (int8_t)((y >> 8) / 8);
     ar_pts[i].k = (int8_t)k; ar_pts[i].t = 24; ar_pts[i].val = (uint16_t)(val > 9999 ? 9999 : val);
-    ar_pts[i].len = 0; return;
+    ar_pts[i].len = 0; ar_pts[i].neg = 0; return;
   }
+}
+// A penalty: points lost (not below 0), shown -N where it happened
+static void ar_penalty(int k, int32_t x, int32_t y, uint32_t val) {
+  if (k < 0) return;
+  ar_score[k] = ar_score[k] > val ? ar_score[k] - val : 0;
+  ar_points(k, x, y, val);
+  for (int i = 7; i >= 0; i--) if (ar_pts[i].t == 24 && ar_pts[i].k == k && ar_pts[i].val == val) { ar_pts[i].neg = 1; break; }
 }
 static void ar_points_frame(void) {
   for (int i = 0; i < 8; i++) {
@@ -79,7 +95,7 @@ static void ar_points_frame(void) {
     ar_pts[i].len = 0;
     if (!ar_pts[i].t) continue;
     ar_pts[i].t--;
-    char t[6]; int n = 0; uint32_t v = ar_pts[i].val, d = 1000; t[n++] = '+';
+    char t[6]; int n = 0; uint32_t v = ar_pts[i].val, d = 1000; t[n++] = ar_pts[i].neg ? '-' : '+';
     while (d > v && d > 1) d /= 10;
     for (; d; d /= 10) t[n++] = (char)('0' + (v / d) % 10);
     t[n] = 0;
@@ -141,6 +157,36 @@ static void ar_drop_loose(int p) {
 // a bubble of player p sticks at cell (r, c): a group of 3 or more of its colour bursts
 static void ar_stick(int p, int col, int r, int c) {   // a bubble of colour col, shot by player p
   static uint8_t qr[AR_ROWS * AR_COLS], qc[AR_ROWS * AR_COLS], seen[AR_ROWS][AR_COLS];
+  if (col == AR_BOMB) {                            // the bomb: all around, two cells far
+    for (int i = 0; i < AR_ROWS; i++) for (int j = 0; j < AR_COLS; j++) seen[i][j] = 0;
+    int h = 0, t = 0, n = 0; qr[t] = (uint8_t)r; qc[t] = (uint8_t)c; t++; seen[r][c] = 1;
+    for (int ring = 0; ring < 2; ring++) {
+      int end = t;
+      for (; h < end; h++) {
+        int nr[6], nc[6], m = ar_nb(qr[h], qc[h], nr, nc);
+        for (int k = 0; k < m; k++) if (!seen[nr[k]][nc[k]]) { seen[nr[k]][nc[k]] = 1; qr[t] = (uint8_t)nr[k]; qc[t] = (uint8_t)nc[k]; t++; }
+      }
+    }
+    for (int i = 0; i < t; i++) {
+      int8_t g = ar_grid[qr[i]][qc[i]];
+      if (g < 0) continue;
+      for (int j = 0; j < 64; j++) if (!ar_pop[j].t) {
+        ar_pop[j].t = AR_POP_T; ar_pop[j].col = g; ar_pop[j].x = ar_cx(qr[i], qc[i]); ar_pop[j].y = ar_cy(qr[i]); break;
+      }
+      ar_grid[qr[i]][qc[i]] = -1; n++;
+    }
+    if (n) { ar_score[p] += 10 * (uint32_t)n; ar_points(p, ar_cx(r, c), ar_cy(r), 10 * (uint32_t)n); }
+    ar_sound(AR_SND_POP);
+    ar_drop_loose(p);
+    return;
+  }
+  if (col == AR_RAINBOW) {                         // the rainbow: the colour most present around
+    int cnt[8] = {0}, nr[6], nc[6], m = ar_nb(r, c, nr, nc), best = -1;
+    for (int k = 0; k < m; k++) if (ar_grid[nr[k]][nc[k]] >= 0) cnt[ar_grid[nr[k]][nc[k]]]++;
+    if (!arena_multi) best = p;                    // MONO: the shooter's own
+    else for (int k = 0; k < ar_ncol; k++) if (cnt[k] && (best < 0 || cnt[k] > cnt[best])) best = k;
+    col = best >= 0 ? best : (int)(ar_rand() % ar_ncol);
+  }
   ar_grid[r][c] = (int8_t)col;
   for (int i = 0; i < AR_ROWS; i++) for (int j = 0; j < AR_COLS; j++) seen[i][j] = 0;
   int h = 0, t = 0; qr[t] = (uint8_t)r; qc[t] = (uint8_t)c; t++; seen[r][c] = 1;
@@ -161,7 +207,11 @@ static void ar_stick(int p, int col, int r, int c) {   // a bubble of colour col
     ar_sound(AR_SND_POP);
     ar_drop_loose(p);
   } else ar_sound(AR_SND_STICK);
-  if (r >= AR_ROWS - 1)                            // at the bottom line: that row goes, no points
+  if (r >= AR_ROWS - 1 && ar_grid[r][c] >= 0) {   // stuck on the bottom line: its row goes, a penalty
+    for (int j = 0; j < AR_COLS; j++) ar_grid[AR_ROWS - 1][j] = -1;
+    ar_penalty(p, ar_cx(r, c), ar_cy(r) - FX(16), 50);
+    ar_stun[p] = AR_STUN; ar_dragon_play(p, AR_WORRY, 0);
+  } else if (r >= AR_ROWS - 1)
     for (int j = 0; j < AR_COLS; j++) ar_grid[AR_ROWS - 1][j] = -1;
 }
 
@@ -186,7 +236,16 @@ static void ar_new_row(void) {                      // the ceiling comes down: a
   for (int r = AR_ROWS - 1; r > 0; r--) for (int c = 0; c < AR_COLS; c++) ar_grid[r][c] = ar_grid[r - 1][c];
   ar_shift ^= 1;
   for (int c = 0; c < AR_COLS; c++) ar_grid[0][c] = c < ar_cols(0) ? (int8_t)(ar_rand() % ar_ncol) : -1;
-  for (int c = 0; c < AR_COLS; c++) if (ar_grid[AR_ROWS - 1][c] >= 0) { ar_grid[AR_ROWS - 1][c] = -1; }
+  int lost[4] = {0};
+  for (int c = 0; c < AR_COLS; c++) if (ar_grid[AR_ROWS - 1][c] >= 0) {
+    int32_t x = ar_cx(AR_ROWS - 1, c); int who = 0;   // the launcher below: the nearest
+    for (int k = 1; k < arena_players; k++) {
+      int32_t d0 = x - FX(ar_lx(who)), d1 = x - FX(ar_lx(k));
+      if ((d1 < 0 ? -d1 : d1) < (d0 < 0 ? -d0 : d0)) who = k;
+    }
+    lost[who]++; ar_grid[AR_ROWS - 1][c] = -1;
+  }
+  for (int k = 0; k < arena_players; k++) if (lost[k]) ar_penalty(k, FX(ar_lx(k)), FX(AR_LY - 56), 10 * (uint32_t)lost[k]);
 }
 
 // the game's bubble graphics: each colour of bubble has its own tile, so the bubbles seen in the
@@ -466,6 +525,19 @@ static int ar_pick(int k) {
   return 0;
 }
 
+static int ar_pick_shot(int k) {                   // the next bubble: now and then a special one
+  if (arena_specials && ar_rand() % 12 == 0) return (ar_rand() & 1) ? AR_RAINBOW : AR_BOMB;
+  return ar_pick(k);
+}
+static void ar_sprite_pal(int *out, int32_t x, int32_t y, int k, uint16_t zoom, uint8_t pal);
+static void ar_sprite(int *out, int32_t x, int32_t y, int k, uint16_t zoom);
+// a bubble to shoot drawn: a colour, the rainbow (its colours in turn), the bomb (grey, beating)
+static void ar_draw_shot(int *out, int32_t x, int32_t y, int col, uint16_t zoom) {
+  if (col == AR_RAINBOW) { int c = (int)((vframe / 6) % (uint32_t)ar_ncol); ar_sprite_pal(out, x, y, c, zoom, ar_pal[c]); }
+  else if (col == AR_BOMB) ar_sprite_pal(out, x, y, 0, (uint16_t)(zoom + (((vframe >> 3) & 1) ? zoom / 10 : 0)), (uint8_t)AR_GREY_PAL);
+  else ar_sprite(out, x, y, col, zoom);
+}
+
 static void arena_start(void) {
   ar_ncol = arena_multi ? 6 : arena_players;
   ar_take_graphics();
@@ -479,7 +551,7 @@ static void arena_start(void) {
   for (int r = 0; r < AR_ROWS; r++) for (int c = 0; c < AR_COLS; c++)
     ar_grid[r][c] = (r < 7 && c < ar_cols(r)) ? (int8_t)(ar_rand() % ar_ncol) : -1;
   for (int k = 0; k < 4; k++) { ar_ang[k] = 0; ar_fly[k].on = 0; ar_score[k] = 0; ar_prev[k] = 0xFFFFFFFF; ar_idle_t[k] = 0; ar_hurry_shown[k] = 0; }
-  for (int k = 0; k < 4; k++) { ar_cur[k] = (uint8_t)ar_pick(k); ar_next[k] = (uint8_t)ar_pick(k); }
+  for (int k = 0; k < 4; k++) { ar_cur[k] = (uint8_t)ar_pick(k); ar_next[k] = (uint8_t)ar_pick(k); ar_stun[k] = 0; }
   for (int i = 0; i < 64; i++) { ar_fall[i].on = 0; ar_pop[i].t = 0; }
   for (int i = 0; i < 8; i++) { ar_pts[i].t = 0; ar_pts[i].len = 0; }
   ar_clock = AR_TIME; ar_end = 0; ar_start = AR_READY;
@@ -558,7 +630,7 @@ static void ar_guide_full(int *out, int k) {
       }
     }
     if (hit) break;
-    if ((n + phase) % 4 == 0 && n > 3) ar_sprite(out, x, y, ar_cur[k], 72);
+    if ((n + phase) % 4 == 0 && n > 3) ar_draw_shot(out, x, y, ar_cur[k], 72);
   }
 }
 
@@ -610,7 +682,7 @@ static uint32_t ar_ai_input(int k) {               // the buttons of a computer'
     for (int a = -70; a <= 70; a += 5) {
       int32_t x, y; int r, c;
       if (!ar_trace(k, a, &x, &y) || !ar_place(x, y, &r, &c)) continue;
-      int g = ar_group_if(r, c, ar_cur[k]);
+      int g = ar_group_if(r, c, ar_cur[k] < AR_RAINBOW ? ar_cur[k] : (arena_multi ? ar_grid[r > 0 ? r - 1 : 0][c] : k));
       int score = (g >= 3 ? 1000 + g * 50 : g * 40) + (AR_ROWS - r) * 3 + (int)(ar_rand() % 8);
       if (score > bscore) { bscore = score; best = a; }
     }
@@ -718,10 +790,11 @@ static void arena_frame(int *outp) {
         int on = ar_idle_t[k] >= AR_HURRY && ((ar_idle_t[k] >> 3) & 1);
         if (on) { hud_text(col, row, "HURRY!", HUD_PAL + k); ar_hurry_shown[k] = 1; }
         else if (ar_hurry_shown[k]) { for (int i = 0; i < 6; i++) TILEMAP(0)[row * 64 + col + i] = MC_TILE(FIX_EMPTY, 0, 0); ar_hurry_shown[k] = 0; } }
+      if (ar_stun[k]) { ar_stun[k]--; e &= ~(IN_B(1) | IN_UP); ar_idle_t[k] = 0; }   // stunned: no shot
       if ((e & (IN_B(1) | IN_UP)) && !ar_fly[k].on && ar_clock && !ar_start) {
         ar_jump[k] = 16; ar_dragon_play(k, AR_SHOOT, 0);
         ar_fly[k].on = 1; ar_fly[k].col = ar_cur[k]; ar_fly[k].x = FX(ar_lx(k)); ar_fly[k].y = FX(AR_LY - 10);
-        ar_cur[k] = ar_next[k]; ar_next[k] = (uint8_t)ar_pick(k);
+        ar_cur[k] = ar_next[k]; ar_next[k] = (uint8_t)ar_pick_shot(k);
         ar_fly[k].vx = ar_sinv(ar_ang[k]) * 6; ar_fly[k].vy = -ar_cosv(ar_ang[k]) * 6;
         ar_sound(AR_SND_SHOT);
         ar_idle_t[k] = 0;
@@ -767,7 +840,7 @@ static void arena_frame(int *outp) {
   }
   // drawing (the game's decor is added behind, by video_frame)
   int out = *outp;
-  for (int k = 0; k < 4; k++) if (ar_fly[k].on) ar_sprite(&out, ar_fly[k].x, ar_fly[k].y, ar_fly[k].col, 256);
+  for (int k = 0; k < 4; k++) if (ar_fly[k].on) ar_draw_shot(&out, ar_fly[k].x, ar_fly[k].y, ar_fly[k].col, 256);
   for (int i = 0; i < 64; i++) if (ar_fall[i].on) ar_sprite(&out, ar_fall[i].x, ar_fall[i].y, ar_fall[i].col, 256);
   for (int i = 0; i < 64; i++) {                   // a burst: the game's frames (3 x 3 tiles, 3 frames each)
     int t = ar_pop[i].t, k = ar_pop[i].col;
@@ -794,12 +867,12 @@ static void arena_frame(int *outp) {
   }
   for (int k = 0; k < arena_players; k++) {        // the launchers: the next bubble and the aim
     int32_t x = FX(ar_lx(k)), y = FX(AR_LY - 10);
-    if (!ar_fly[k].on) ar_sprite(&out, x, y, ar_cur[k], 256);
-    if (arena_multi) ar_sprite(&out, x + FX(k ? -31 : 27), y + FX(9), ar_next[k], 176);   // the next, in its sign
+    if (!ar_fly[k].on) ar_draw_shot(&out, x, y, ar_cur[k], 256);
+    if (arena_multi || ar_next[k] >= AR_RAINBOW) ar_draw_shot(&out, x + FX(k ? -31 : 27), y + FX(9), ar_next[k], 176);   // the next, in its sign
     int human = k < arena_players - arena_cpu;      // (the computer's dragons: no guide)
     if (arena_guide == 1 && human)                 // the aiming guide (GUIDE in the menu): SHORT
       for (int d = 1; d <= 5; d++)
-        ar_sprite(&out, x + ar_sinv(ar_ang[k]) * 7 * d, y - ar_cosv(ar_ang[k]) * 7 * d, ar_cur[k], 80);
+        ar_draw_shot(&out, x + ar_sinv(ar_ang[k]) * 7 * d, y - ar_cosv(ar_ang[k]) * 7 * d, ar_cur[k], 80);
     if (arena_guide == 2 && human) ar_guide_full(&out, k);   // FULL: the whole path, as in the game
   }
   for (int r = 0; r < AR_ROWS && !ar_end; r++)    // (the results: the landscape alone behind them)

@@ -17,7 +17,9 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
    la ligne CPU donne les derniers dragons à l'ordinateur (de 0 à
    joueurs - 1, leur score s'affiche C3, C4… ; LEVEL règle leur force : EASY vise à 6° près et
    réfléchit une seconde, NORMAL 3° et une demi-seconde, HARD juste et tout de suite), la ligne
-   TIME la durée (1, 2, 3 ou 5 minutes) ; un joueur qui ne tire pas pendant 8 secondes voit
+   TIME la durée (1, 2, 3 ou 5 minutes) ; un tir qui s'accroche sur la ligne du bas coûte 50 points et 2 secondes sans tirer,
+   et chaque bulle que le plafond pousse sur cette ligne coûte 10 points au joueur dont le
+   lanceur est en dessous ; un joueur qui ne tire pas pendant 8 secondes voit
    HURRY! clignoter au-dessus de son lanceur, et 3 secondes plus tard son tir part tout seul ; la ligne COLORS choisit la règle (MONO : chacun tire sa couleur et ne fait éclater que
    la sienne ; MULTI : six couleurs du jeu, chacun tire des bulles de toutes les couleurs, la
    suivante annoncée dans son panneau NEXT, tout groupe de 3 éclate pour celui qui l'a formé), la
