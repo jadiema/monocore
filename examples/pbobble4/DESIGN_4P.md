@@ -314,3 +314,10 @@ Tables de scripts par couleur (0-7, palettes 29-36) : en versus, la bulle au rep
 (8 tuiles, 8 images chacune, en boucle ; en versus toutes les bulles d'une couleur partagent leur
 état, `$10D51E`) et l'éclatement `$43464` (images de 3 x 3 tuiles, 3 images chacune) ; en solo,
 `$44C56` (la chute) et `$43430` (l'éclatement). L'arène lit ces scripts dans la ROM au démarrage.
+
+Le lanceur : l'aiguille (palette 76, blocs de 4 x 4 tuiles, une définition par cran d'angle de 0
+à 60 dans la table `$626A2`, penchée à gauche par retournement) et la roue dentée (palette 80,
+9 images de 6 x 4 tuiles à `$3D990`). Les dragons (routine `$42C3C`, un script par humeur de
+l'aire, `108(a4)`) : repos `$42E4A`, tir `$42EA6`, joie `$4307E` (un saut), inquiétude `$42F76` ;
+Bub en palette 16, retourné, Bob en 21. Les positions viennent de la liste de sprites (son y est
+32 lignes au-dessus de celui de l'écran).
