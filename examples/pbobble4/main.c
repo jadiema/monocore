@@ -34,6 +34,7 @@ static inline uint16_t rgb555(uint32_t c) {
 }
 static int arena_pending, arena_players = 4, arena_restart, arena_guide;   // the ARENA mode (arena.h)
 static uint32_t arena_wait;
+static int launching, launch_shown;               // the launch: behind a screen of ours (launch_frame)
 static int four_mode, four_last = 381;          // four_last: past the last sprite of the frame list
 extern uint32_t neo_list_last;                  // neort.c: the last sprite the list was sent to
 #define HUD_PAL     208                            // palettes 208-254 are never used by the game:
@@ -75,6 +76,7 @@ static void fix_back(uint32_t x0, uint32_t y0, uint32_t w, uint32_t h) {   // ce
 void neo_platform_fix(uint32_t x, uint32_t y, uint32_t e) {
   if (four_mode) return;                           // layer 0 shows the scores of the four players
   if (hint_cell(x, y)) return;                     // the reminder of players 3 and 4 is there
+  if (launching) return;                           // the launch screen (given back after)
   TILEMAP(0)[y * 64 + x] = MC_TILE(e & 0xFFF, e >> 12, 0);
 }
 static uint32_t idle_cycles, waits;                 // load, reported every 10 s
@@ -807,11 +809,36 @@ static void menu_inputs(void) {
     neo.p1 = neo.p2 = neo.p3 = neo.p4 = 0; neo.status_b = 0; neo.st34 = 0;   // the game sees nothing
   }
   for (int k = 0; k < 4; k++) pad_prev[k] = in[k];
+  // the launch (after the menu, until the first round, or the arena): the game gets our presses
+  // only, behind a screen of ours (launch_frame), so it goes the same way every time
+  launching = start_force || auto_frames || (arena_pending && !arena_on);
+  if (launching) { neo.p1 = neo.p2 = neo.p3 = neo.p4 = 0; neo.status_b = 0; neo.st34 = 0; }
   if (start_force) { start_force--; neo.status_b |= (uint8_t)start_mask; }
   if (auto_frames) {                               // the menus of the game, until the first round
     auto_frames--;
     if (ram16(0x1034C8) & 0x20) auto_frames = 0;   // task 5 runs: the field of player 1
-    else if (!start_force && auto_frames % 30 < 4) { neo.p1 |= 0x10; neo.p2 |= 0x10; }
+    else if (!start_force && auto_frames % 20 < 4) { neo.p1 |= 0x10; neo.p2 |= 0x10; }
+  }
+}
+
+// The launch screen: the title, the mode chosen, GET READY blinking, on black; when it ends the fix
+// layer goes back to the game's (a 4-player screen opens its own)
+static void launch_frame(void) {
+  if (launching) {
+    int w = four_mode ? 48 : 40, h = four_mode ? 36 : 32, r0 = four_mode ? 15 : 13;
+    for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) TILEMAP(0)[y * 64 + x] = MC_TILE(FIX_EMPTY, 0, 0);
+    char t1[] = "BUST-A-MOVE AGAIN 4P", t2[24] = "VERSUS  -  4 PLAYERS", t3[] = "GET READY";
+    if (arena_pending) { const char *a = "ARENA   -  4 PLAYERS"; for (int i = 0; a[i]; i++) t2[i] = a[i]; t2[20] = 0; }
+    t2[11] = (char)('0' + (arena_pending ? arena_players : menu_players));
+    for (int i = 0; t1[i]; i++) TILEMAP(0)[r0 * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t1[i], TEXT_PAL, 0);
+    for (int i = 0; t2[i]; i++) TILEMAP(0)[(r0 + 2) * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t2[i], TEXT_PAL, 0);
+    if ((vframe >> 4) & 1) for (int i = 0; t3[i]; i++) TILEMAP(0)[(r0 + 5) * 64 + (w - 9) / 2 + i] = MC_TILE((uint8_t)t3[i], TEXT_PAL, 0);
+    PALETTE[TEXT_PAL * 16 + 1] = (31 << 10) | (28 << 5) | 6; PALETTE[TEXT_PAL * 16 + 2] = 0;
+    DISP_CTRL = DISP_ON | DISP_LAYER(0);           // the game's screen hidden
+    launch_shown = 1;
+  } else if (launch_shown) {
+    launch_shown = 0;
+    if (!four_mode) fix_back(0, 0, 40, 32);        // the game's fix layer again
   }
 }
 
@@ -868,6 +895,7 @@ static void vblank(void) {
   sound_frame();
   video_frame();
   hint_frame();
+  launch_frame();
   uint32_t t = (uint32_t)mc_cycles() - t0;       // conversion time, reported every 10 s
   conv_sum += t; if (t > conv_max) conv_max = t;
   if (vframe % 600 == 0) {                         // per frame: 833 333 cycles at 50 MHz and 60 Hz

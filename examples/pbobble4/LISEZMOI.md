@@ -13,7 +13,8 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
    partie contre l'ordinateur du jeu (la manette 1 joue) ; avec 2, 3 ou 4, la partie « joueur
    contre joueur » où les manches s'enchaînent, les joueurs 3 et 4 inscrits selon le nombre
    choisi, et les menus du jeu (GAME SELECT, GAME TYPE SELECT) validés tout seuls jusqu'à la
-   première manche. Sur la MiSTer, le numéro d'une manette dépend de l'ordre où l'on a appuyé
+   première manche, derrière un écran de chargement (le mode choisi, GET READY) ; pendant ce temps
+   les manettes ne vont pas au jeu, le lancement se passe toujours de la même façon. Sur la MiSTer, le numéro d'une manette dépend de l'ordre où l'on a appuyé
    sur ses boutons.
    Le menu propose aussi **MODE : ARENA** (première ligne) : un mode à nous, écrit en C
    (`arena.h`) avec les graphismes du jeu. Les joueurs jouent sur **un seul grand plateau** ;
