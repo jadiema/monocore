@@ -977,7 +977,7 @@ static uint32_t pad_prev[4], start_force, start_mask, auto_frames;
 static const uint8_t level_dip[3] = {1, 3, 6};
 static const char *const level_name[3] = {"  EASY  ", " NORMAL ", "  HARD  "};
 #define MENU_X 7
-#define MENU_Y 8
+#define MENU_Y 7
 #define MENU_W 26
 #define MENU_H 20                                  // at most (the arena's 10 lines); menu_h: as drawn
 static int menu_h = MENU_H;
@@ -1154,15 +1154,13 @@ static void hint_frame(void) {
       }
       if ((vframe >> 4) & 1) l[3 + menu_sel][1] = '>';   // the line chosen
     }
-    int rule = 3 + menu_lines(), h = rule + 6 + (menu_mode ? 1 : 0);   // the panel as high as the lines of the mode
+    int rule = 3 + menu_lines(), h = rule + 4 + (menu_mode ? 1 : 0);   // the panel as high as the lines of the mode
     if (h < menu_h && menu_drawn)                    // smaller: the cells below go back to the game
       fix_back(MENU_X - 1, MENU_Y + h, MENU_W + 3, menu_h - h + 2);
     menu_h = h;
     for (int i = 1; i < MENU_W - 1; i++) l[rule][i] = '-';   // a rule above the help
-    PUT(rule + 1, 3, "UP/DOWN    : LINE");
-    PUT(rule + 2, 3, "LEFT/RIGHT : CHANGE");
-    PUT(rule + 3, 3, "START      : PLAY");
-    PUT(rule + 4, 3, "BUTTON 2   : BACK");
+    PUT(rule + 1, 2, "U/D: LINE   L/R: CHANGE");   // the help, in two lines
+    PUT(rule + 2, 2, "START: PLAY   B2: BACK");
     if (menu_mode) {                                 // the record of the length chosen
       static const char *const tn[4] = {"1 MIN", "2 MIN", "3 MIN", "5 MIN"};
       char rec[24] = "RECORD 2 MIN 00000    "; uint32_t v = save.best[menu_time] > 99999 ? 99999 : save.best[menu_time];
@@ -1170,7 +1168,7 @@ static void hint_frame(void) {
       for (int i = 17; i >= 13; i--) { rec[i] = (char)('0' + v % 10); v /= 10; }
       for (int i = 0; i < 3 && save.name[menu_time][i]; i++) rec[19 + i] = save.name[menu_time][i];   // its initials
       rec[22] = 0;
-      PUT(rule + 5, 3, rec);
+      PUT(rule + 3, 2, rec);
     }
     #undef PUT
     menu_palettes(); grad_reset();
