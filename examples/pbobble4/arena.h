@@ -230,9 +230,34 @@ static void ar_draw_stamp(int *out, int k) {
   }
 }
 
+// The landscape ends on the edges of the board: the sky scrolls a little wider than the landscape,
+// and the layers cannot cut a 16-pixel tile. Black bands of sprites on both sides (a plain tile at
+// the start of the decor area, unused in the arena; palette 216 entry 1 black), in front of the
+// game's decor, behind the arena.
+#define AR_MASK_PAL 216
+static uint16_t ar_mask_tile;
+static void ar_mask_init(void) {
+  static uint8_t t[128];
+  for (int i = 0; i < 128; i++) t[i] = 0x11;      // 4 bpp, every pixel colour 1
+  mc_copy((volatile void *)DECOR_BASE, t, sizeof t);
+  ar_mask_tile = (uint16_t)((DECOR_BASE - CACHE_BASE) / 32);
+}
+static void ar_masks(int *out) {
+  PALETTE[AR_MASK_PAL * 16 + 1] = 0;
+  for (int side = 0; side < 2; side++)
+    for (int y = 0; y < 288 && *out < MC_SPRITES; y += 16)
+      for (int x = 0; x < AR_X && *out < MC_SPRITES; x += 16) {
+        sprite_t *s = &mc_spr[(*out)++];
+        s->x = (int16_t)(side ? AR_X + 320 + x : x); s->y = (int16_t)y;
+        s->tile = ar_mask_tile; s->pal = AR_MASK_PAL; s->w = 2; s->h = 2;
+        s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO)); s->zoomx = 256; s->zoomy = 256;
+      }
+}
+
 static void arena_start(void) {
   ar_take_graphics();
   ar_take_stamp(0); ar_take_stamp(1);
+  ar_mask_init();
   uint32_t mask = ((uint32_t)ram16(0x1034C6) << 16) | ram16(0x1034C8);   // the fields stop (scheduler mask)
   mask &= ~((1u << 5) | (1u << 6) | (1u << 7) | (1u << 9));
   *(uint16_t *)(neo_ram + 0x34C6) = (uint16_t)(mask >> 16); *(uint16_t *)(neo_ram + 0x34C8) = (uint16_t)mask;
@@ -358,6 +383,7 @@ static void arena_frame(int *outp) {
     for (int c = 0; c < ar_cols(r); c++)
       if (ar_grid[r][c] >= 0) ar_sprite(&out, ar_cx(r, c), ar_cy(r), ar_grid[r][c], 256);
   for (int k = 0; k < arena_players; k++) ar_draw_stamp(&out, k);   // behind the bubbles
+  ar_masks(&out);                                  // then the edges, then the game's decor
   *outp = out;
   ar_text_score();
 }
