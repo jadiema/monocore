@@ -71,14 +71,38 @@ static uint8_t hint_on[2], box_on;
 #define MENU_PAL_SEL   223
 #define MENU_PAL_VAL   224
 #define MENU_PAL_HELP  225
+#define MENU_PAL_FRAME 226                         // the frame around the panel
+#define MENU_PAL_SHADE 227                         // its shadow
+#define MENU_PAL_DARK  228                         // the title bar, darker (its top and bottom)
+#define MENU_PAL_OFF   229                         // a player not chosen
+#define MENU_PAL_P1    230                         // 230-233: the players, in their colours
 static void menu_palettes(void) {
-  static const uint16_t c[5][2] = {
+  static const uint16_t c[13][2] = {
     {(31 << 10) | (31 << 5) | 31, (1 << 10) | (3 << 5) | 11},     // panel: white on night blue
-    {(31 << 10) | (28 << 5) | 4, (20 << 10) | (2 << 5) | 2},      // title: yellow on red
+    {(31 << 10) | (28 << 5) | 4, (22 << 10) | (3 << 5) | 3},      // title: yellow on red
     {(31 << 10) | (31 << 5) | 10, (3 << 10) | (10 << 5) | 26},    // chosen: light yellow on blue
     {(6 << 10) | (28 << 5) | 31, (1 << 10) | (3 << 5) | 11},      // values: cyan on night blue
-    {(17 << 10) | (18 << 5) | 22, (1 << 10) | (3 << 5) | 11}};    // help: grey on night blue
-  for (int k = 0; k < 5; k++) { PALETTE[(MENU_PAL_PANEL + k) * 16 + 1] = c[k][0]; PALETTE[(MENU_PAL_PANEL + k) * 16 + 2] = c[k][1]; }
+    {(15 << 10) | (16 << 5) | 21, (1 << 10) | (3 << 5) | 11},     // help: grey on night blue
+    {(10 << 10) | (20 << 5) | 31, (7 << 10) | (16 << 5) | 30},    // frame: light blue
+    {0, 0},                                                       // shadow: black
+    {(31 << 10) | (28 << 5) | 4, (12 << 10) | (1 << 5) | 2},      // title, darker red
+    {(5 << 10) | (7 << 5) | 13, (1 << 10) | (3 << 5) | 11},       // a player not chosen: dim
+    {(6 << 10) | (31 << 5) | 6, (1 << 10) | (3 << 5) | 11},       // player 1 green
+    {(8 << 10) | (18 << 5) | 31, (1 << 10) | (3 << 5) | 11},      // player 2 blue
+    {(31 << 10) | (8 << 5) | 8, (1 << 10) | (3 << 5) | 11},       // player 3 red
+    {(31 << 10) | (28 << 5) | 4, (1 << 10) | (3 << 5) | 11}};     // player 4 yellow
+  for (int k = 0; k < 13; k++) { PALETTE[(MENU_PAL_PANEL + k) * 16 + 1] = c[k][0]; PALETTE[(MENU_PAL_PANEL + k) * 16 + 2] = c[k][1]; }
+}
+// a panel: its frame (one cell around), its shadow (one cell right and down), the cells inside with
+// the palette pal_of(row, column) gives
+static void panel_frame(int x0, int y0, int w, int h) {
+  for (int y = y0 - 1; y <= y0 + h + 1; y++)
+    for (int x = x0 - 1; x <= x0 + w + 1; x++) {
+      int inside = x >= x0 - 1 && x <= x0 + w && y >= y0 - 1 && y <= y0 + h;   // (the panel: x0 to x0 + w - 1)
+      int shadow = !inside && x >= x0 && y >= y0;
+      if (inside) TILEMAP(0)[y * 64 + x] = MC_TILE(' ', MENU_PAL_FRAME, 0);
+      else if (shadow) TILEMAP(0)[y * 64 + x] = MC_TILE(' ', MENU_PAL_SHADE, 0);
+    }
 }
 #define BOX_X    26                                // the box of the title: 13 x 5 cells, bottom right
 #define BOX_Y    24
@@ -793,7 +817,7 @@ static const char *const level_name[3] = {"  EASY  ", " NORMAL ", "  HARD  "};
 #define MENU_W 26
 #define MENU_H 17
 static int menu_drawn_cell(uint32_t x, uint32_t y) {
-  return menu_drawn && x >= MENU_X && x < MENU_X + MENU_W && y >= MENU_Y && y < MENU_Y + MENU_H;
+  return menu_drawn && x >= MENU_X - 1 && x <= MENU_X + MENU_W + 1 && y >= MENU_Y - 1 && y <= MENU_Y + MENU_H + 1;
 }
 static int round_started(void) { if (!(ram16(0x1034C8) & 0x20)) launch_gap = 1; return launch_gap && (ram16(0x1034C8) & 0x20); }
 static void menu_inputs(void) {
@@ -880,10 +904,16 @@ static void launch_frame(void) {
     int w = four_mode ? 48 : 40, h = four_mode ? 36 : 32, r0 = four_mode ? 15 : 13;
     for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) TILEMAP(0)[y * 64 + x] = MC_TILE(' ', TEXT_PAL, 0);   // black (opaque)
     menu_palettes();
+    panel_frame((w - 26) / 2, r0 - 1, 26, 8);
     for (int y = r0 - 1; y <= r0 + 6; y++)          // a panel: the title bar, then night blue
       for (int x = (w - 26) / 2; x < (w - 26) / 2 + 26; x++)
-        TILEMAP(0)[y * 64 + x] = MC_TILE(' ', y <= r0 ? MENU_PAL_TITLE : MENU_PAL_PANEL, 0);
-    char t1[] = "BUST-A-MOVE AGAIN 4P", t2[24] = "VERSUS  -  4 PLAYERS", t3[] = "GET READY";
+        TILEMAP(0)[y * 64 + x] = MC_TILE(' ', y == r0 ? MENU_PAL_TITLE : y < r0 ? MENU_PAL_DARK : MENU_PAL_PANEL, 0);
+    { int np = arena_pending ? arena_players : menu_players;  // the players, in their colours
+      for (int k = 0; k < 4; k++) {
+        char p[3] = {'P', (char)('1' + k), 0};
+        for (int i = 0; i < 2; i++) TILEMAP(0)[(r0 + 3) * 64 + (w - 14) / 2 + k * 4 + i] = MC_TILE((uint8_t)p[i], (uint32_t)(k < np ? MENU_PAL_P1 + k : MENU_PAL_OFF), 0);
+      } }
+    char t1[] = "BUST-A-MOVE AGAIN 4P", t2[24] = "VERSUS  -  4 PLAYERS", t3[] = "GET READY";   // (the players: row + 3)
     static uint32_t shown_since; if (!launch_shown) shown_since = vframe;
     uint32_t el = vframe - shown_since;            // GET READY, then 3, 2, 1 (a second each)
     if (el >= 60 && el < 240) { t3[0] = ' '; t3[1] = ' '; t3[2] = ' '; t3[3] = ' '; t3[4] = (char)('3' - (el - 60) / 60); t3[5] = ' '; t3[6] = ' '; t3[7] = ' '; t3[8] = ' '; }
@@ -910,30 +940,37 @@ static void hint_frame(void) {
     #define PUT(r, c, str) do { const char *q_ = (str); for (int i_ = 0; q_[i_]; i_++) l[r][(c) + i_] = q_[i_]; } while (0)
     PUT(1, 3, "BUST-A-MOVE AGAIN 4P");
     PUT(3, 3, "MODE"); PUT(3, 13, "<"); PUT(3, 14, menu_mode ? " ARENA  " : " VERSUS "); PUT(3, 22, ">");
-    PUT(5, 3, "PLAYERS"); PUT(5, 13, "<    >"); l[5][16] = (char)('0' + menu_players);
+    PUT(5, 3, "PLAYERS"); PUT(5, 13, "< 1 2 3 4 >");   // the players chosen light up in their colours
     PUT(7, 3, "LEVEL"); PUT(7, 13, "<"); PUT(7, 14, level_name[menu_level]); PUT(7, 22, ">");
     if (menu_mode) { static const char *const g[3] = {"  OFF   ", " SHORT  ", "  FULL  "};
       PUT(9, 3, "GUIDE"); PUT(9, 13, "<"); PUT(9, 14, g[menu_guide]); PUT(9, 22, ">"); }
     else if (menu_players >= 3) {
       PUT(9, 3, "SCREEN"); PUT(9, 13, "<"); PUT(9, 14, menu_screen ? " 2 X 2  " : "  LINE  "); PUT(9, 22, ">"); }
     if ((vframe >> 4) & 1) l[3 + 2 * menu_sel][1] = '>';   // the line chosen
+    for (int i = 1; i < MENU_W - 1; i++) l[10][i] = '-';   // a rule above the help
     PUT(11, 3, "UP/DOWN    : LINE");
     PUT(12, 3, "LEFT/RIGHT : CHANGE");
     PUT(13, 3, "START      : PLAY");
     PUT(14, 3, "BUTTON 2   : BACK");
     #undef PUT
     menu_palettes();
+    panel_frame(MENU_X, MENU_Y, MENU_W, MENU_H);
     for (int r = 0; r < MENU_H; r++)
       for (int i = 0; i < MENU_W; i++) {
         int pal = MENU_PAL_PANEL, line = (r >= 3 && r <= 9 && (r & 1)) ? (r - 3) / 2 : -1;
-        if (r <= 2) pal = MENU_PAL_TITLE;                               // the title bar
+        if (r <= 2) pal = r == 1 ? MENU_PAL_TITLE : MENU_PAL_DARK;     // the title bar, shaded
+        else if (r == 10) pal = MENU_PAL_HELP;                          // the rule
         else if (r >= 11) pal = MENU_PAL_HELP;                          // the help
-        else if (line == menu_sel) pal = MENU_PAL_SEL;                  // the line chosen
+        else if (line == menu_sel && !(r == 5 && i >= 15 && i <= 21)) pal = MENU_PAL_SEL;   // the line chosen
         else if (line >= 0 && i >= 13) pal = MENU_PAL_VAL;              // a value
+        if (r == 5 && i >= 15 && i <= 21 && !((i - 15) & 1)) {          // a player: lit if chosen
+          int k = (i - 15) / 2;
+          pal = k < menu_players ? MENU_PAL_P1 + k : MENU_PAL_OFF;
+        }
         TILEMAP(0)[(MENU_Y + r) * 64 + MENU_X + i] = MC_TILE((uint8_t)l[r][i], (uint32_t)pal, 0);
       }
     menu_drawn = 1;
-  } else if (menu_drawn) { menu_drawn = 0; fix_back(MENU_X, MENU_Y, MENU_W, MENU_H); }
+  } else if (menu_drawn) { menu_drawn = 0; fix_back(MENU_X - 1, MENU_Y - 1, MENU_W + 3, MENU_H + 3); }
   // the title and the demo (not a game): a box, bottom right, for the menu
   int box = 0;                                     // (no box at the title: a start on any pad opens the menu)
   if (box) {
