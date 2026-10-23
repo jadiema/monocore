@@ -10,7 +10,10 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
    menu s'ouvre (son mode d'emploi y est écrit), que toutes les manettes peuvent régler : haut /
    bas choisit la ligne, gauche / droite change le chiffre ou la difficulté ; en VERSUS à 3 ou 4
    joueurs, la ligne SCREEN choisit l'écran (LINE : les aires côte à côte, 2 X 2), au départ
-   celui du DIP switch 1 ; en ARENA (2 à 4 joueurs), la ligne STAGE choisit le décor (RANDOM, ou l'un des 8 stages
+   celui du DIP switch 1 ; en ARENA (2 à 4 joueurs), la ligne COLORS choisit la règle (MONO : chacun tire sa couleur et ne fait éclater que
+   la sienne ; MULTI : six couleurs du jeu, chacun tire des bulles de toutes les couleurs, la
+   suivante annoncée dans son panneau NEXT, tout groupe de 3 éclate pour celui qui l'a formé), la
+   ligne STAGE choisit le décor (RANDOM, ou l'un des 8 stages
    du versus : BEACH, GEARS, SUNSET, TOWN, TEMPLE, WALL, STATUES, FOREST) et la ligne GUIDE règle
    l'aide à la visée : le **nombre de joueurs** (1 à 4) et la
    **difficulté** (EASY, NORMAL, HARD : le réglage DIFFICULTY du jeu, LEVEL 2, 4 ou 7 sur 8) ;

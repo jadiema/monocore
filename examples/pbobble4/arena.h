@@ -29,10 +29,12 @@ static int ar_cosv(int d) { d = d < 0 ? -d : d; return ar_sin[90 - (d > 90 ? 90 
 static int ar_cleared;
 static int8_t ar_grid[AR_ROWS][AR_COLS];           // -1 empty, else the colour (the player)
 static uint8_t ar_shift;                           // parity of the rows (the ceiling came down)
-static uint32_t ar_num[4];                         // the bubble tile of each colour (from the game)
-static uint8_t ar_pal[4];                          // and its palette
+static uint32_t ar_num[8];                         // the bubble tile of each colour (from the game)
+static uint8_t ar_pal[8];                          // and its palette
+static int ar_ncol;                                // the colours of the board: MONO the players', MULTI 6
+static uint8_t ar_cur[4], ar_next[4];              // each player's bubble to shoot, and the next one
 static int ar_ang[4];                              // aim, degrees from the vertical
-static struct { int on; int32_t x, y, vx, vy; } ar_fly[4];
+static struct { int on, col; int32_t x, y, vx, vy; } ar_fly[4];
 static struct { int on, col; int32_t x, y, vy; } ar_fall[64];
 static struct { int t, col; int32_t x, y; } ar_pop[64];   // bubbles bursting (as the game: grey, blinking)
 #define AR_POP_T    18                            // 6 frames of the game's burst, 3 each
@@ -132,20 +134,20 @@ static void ar_drop_loose(int p) {
 }
 
 // a bubble of player p sticks at cell (r, c): a group of 3 or more of its colour bursts
-static void ar_stick(int p, int r, int c) {
+static void ar_stick(int p, int col, int r, int c) {   // a bubble of colour col, shot by player p
   static uint8_t qr[AR_ROWS * AR_COLS], qc[AR_ROWS * AR_COLS], seen[AR_ROWS][AR_COLS];
-  ar_grid[r][c] = (int8_t)p;
+  ar_grid[r][c] = (int8_t)col;
   for (int i = 0; i < AR_ROWS; i++) for (int j = 0; j < AR_COLS; j++) seen[i][j] = 0;
   int h = 0, t = 0; qr[t] = (uint8_t)r; qc[t] = (uint8_t)c; t++; seen[r][c] = 1;
   while (h < t) {
     int nr[6], nc[6], n = ar_nb(qr[h], qc[h], nr, nc); h++;
     for (int k = 0; k < n; k++)
-      if (!seen[nr[k]][nc[k]] && ar_grid[nr[k]][nc[k]] == p) { seen[nr[k]][nc[k]] = 1; qr[t] = (uint8_t)nr[k]; qc[t] = (uint8_t)nc[k]; t++; }
+      if (!seen[nr[k]][nc[k]] && ar_grid[nr[k]][nc[k]] == col) { seen[nr[k]][nc[k]] = 1; qr[t] = (uint8_t)nr[k]; qc[t] = (uint8_t)nc[k]; t++; }
   }
   if (t >= 3) {
     for (int i = 0; i < t; i++) {
       for (int j = 0; j < 64; j++) if (!ar_pop[j].t) {
-        ar_pop[j].t = AR_POP_T; ar_pop[j].col = p; ar_pop[j].x = ar_cx(qr[i], qc[i]); ar_pop[j].y = ar_cy(qr[i]); break;
+        ar_pop[j].t = AR_POP_T; ar_pop[j].col = col; ar_pop[j].x = ar_cx(qr[i], qc[i]); ar_pop[j].y = ar_cy(qr[i]); break;
       }
       ar_grid[qr[i]][qc[i]] = -1;
     }
@@ -178,7 +180,7 @@ static void ar_new_row(void) {                      // the ceiling comes down: a
   ar_sound(AR_SND_DANGER);
   for (int r = AR_ROWS - 1; r > 0; r--) for (int c = 0; c < AR_COLS; c++) ar_grid[r][c] = ar_grid[r - 1][c];
   ar_shift ^= 1;
-  for (int c = 0; c < AR_COLS; c++) ar_grid[0][c] = c < ar_cols(0) ? (int8_t)(ar_rand() % arena_players) : -1;
+  for (int c = 0; c < AR_COLS; c++) ar_grid[0][c] = c < ar_cols(0) ? (int8_t)(ar_rand() % ar_ncol) : -1;
   for (int c = 0; c < AR_COLS; c++) if (ar_grid[AR_ROWS - 1][c] >= 0) { ar_grid[AR_ROWS - 1][c] = -1; }
 }
 
@@ -193,9 +195,9 @@ static uint32_t ar_seen_tile[64];
 // bursting ($43464: frames of 3 x 3 tiles, 3 frames each).
 #define AR_IDLE_T   0x44C8A
 #define AR_BURST_T  0x43464
-static uint32_t ar_idle[4][8], ar_idles[4];        // the tiles at rest, per colour
-static uint32_t ar_burst[4][8][9], ar_bursts[4];   // the frames of a burst: 3 x 3 tiles each
-static uint8_t ar_burst_flip[4][8][9];
+static uint32_t ar_idle[8][8], ar_idles[8];        // the tiles at rest, per colour
+static uint32_t ar_burst[8][8][9], ar_bursts[8];   // the frames of a burst: 3 x 3 tiles each
+static uint8_t ar_burst_flip[8][8][9];
 static uint16_t ar_r16(uint32_t a);
 // The launcher of the game, from its ROM: the needle (definitions by angle at $626A2: 4 x 4 tiles,
 // angle 0 upright to 60 leaning; leaning left with a mirror), at (-32, -32) from the launcher's
@@ -270,10 +272,13 @@ static void ar_take_graphics(void) {
     taken |= 1ull << best;
     ar_pal[k] = (uint8_t)best; ar_num[k] = ar_seen_tile[best];
   }
-  for (int k = 0; k < 4; k++) {                     // the game's colour of each: its palette
+  if (arena_multi)                                  // MULTI: six colours of the game, as they are
+    for (int k = 0; k < 6; k++) { ar_pal[k] = (uint8_t)(29 + k); ar_num[k] = ar_seen_tile[29 + k]; }
+  for (int k = 0; k < (arena_multi ? 6 : 4); k++) {  // the game's colour of each: its palette
     if (ar_pal[k] >= 29 && ar_pal[k] <= 36) ar_read_scripts(k, ar_pal[k] - 29);
     if (ar_idles[k]) ar_num[k] = ar_idle[k][0];       // its tile, from its script
   }
+  if (arena_multi) return;                          // (no yellow made: the game's own colours)
   ar_src4 = ar_pal[3]; ar_pal[3] = 215;
 }
 
@@ -445,7 +450,19 @@ static void ar_img_palettes(void) {                // the image's palettes, with
   PALETTE[(DECOR_PAL + 15) * 16 + 14] = 0;          // the black cell
 }
 
+static int ar_pick(int k) {
+  if (!arena_multi) return k;
+  int seen[8] = {0}, n = 0;
+  for (int r = 0; r < AR_ROWS; r++) for (int c = 0; c < AR_COLS; c++) if (ar_grid[r][c] >= 0) seen[ar_grid[r][c]] = 1;
+  for (int c = 0; c < ar_ncol; c++) n += seen[c];
+  if (!n) return (int)(ar_rand() % ar_ncol);
+  int i = (int)(ar_rand() % n);
+  for (int c = 0; c < ar_ncol; c++) if (seen[c] && !i--) return c;
+  return 0;
+}
+
 static void arena_start(void) {
+  ar_ncol = arena_multi ? 6 : arena_players;
   ar_take_graphics();
   ar_take_stamp(0); ar_take_stamp(1);
   ar_read_dragon();
@@ -455,8 +472,9 @@ static void arena_start(void) {
   mask &= ~((1u << 5) | (1u << 6) | (1u << 7) | (1u << 9));
   *(uint16_t *)(neo_ram + 0x34C6) = (uint16_t)(mask >> 16); *(uint16_t *)(neo_ram + 0x34C8) = (uint16_t)mask;
   for (int r = 0; r < AR_ROWS; r++) for (int c = 0; c < AR_COLS; c++)
-    ar_grid[r][c] = (r < 7 && c < ar_cols(r)) ? (int8_t)(ar_rand() % arena_players) : -1;
+    ar_grid[r][c] = (r < 7 && c < ar_cols(r)) ? (int8_t)(ar_rand() % ar_ncol) : -1;
   for (int k = 0; k < 4; k++) { ar_ang[k] = 0; ar_fly[k].on = 0; ar_score[k] = 0; ar_prev[k] = 0xFFFFFFFF; }
+  for (int k = 0; k < 4; k++) { ar_cur[k] = (uint8_t)ar_pick(k); ar_next[k] = (uint8_t)ar_pick(k); }
   for (int i = 0; i < 64; i++) { ar_fall[i].on = 0; ar_pop[i].t = 0; }
   for (int i = 0; i < 8; i++) { ar_pts[i].t = 0; ar_pts[i].len = 0; }
   ar_clock = AR_TIME; ar_end = 0; ar_start = AR_READY;
@@ -526,7 +544,7 @@ static void ar_guide_full(int *out, int k) {
       }
     }
     if (hit) break;
-    if ((n + phase) % 4 == 0 && n > 3) ar_sprite(out, x, y, k, 72);
+    if ((n + phase) % 4 == 0 && n > 3) ar_sprite(out, x, y, ar_cur[k], 72);
   }
 }
 
@@ -542,7 +560,7 @@ static void arena_frame(int *outp) {
   { const uint16_t *p = neo_pal[neo.pal_bank];     // the colours of the dragons, the yellow
     dragons_frame();
     ar_img_palettes();
-    for (int k = 0; k < 4; k++)                    // the grey of each colour: its lightness, no hue
+    for (int k = 0; k < ar_ncol; k++)              // the grey of each colour: its lightness, no hue
       for (int i = 0; i < 16; i++) {
         uint16_t c = PALETTE[ar_pal[k] * 16 + i];
         int r = (c >> 10) & 31, g = (c >> 5) & 31, b = c & 31, l = (r * 5 + g * 9 + b * 2) >> 4;
@@ -597,7 +615,8 @@ static void arena_frame(int *outp) {
       if (ar_jump[k]) ar_jump[k]--;
       if ((e & (IN_B(1) | IN_UP)) && !ar_fly[k].on && ar_clock && !ar_start) {
         ar_jump[k] = 16; ar_dragon_play(k, AR_SHOOT, 0);
-        ar_fly[k].on = 1; ar_fly[k].x = FX(ar_lx(k)); ar_fly[k].y = FX(AR_LY - 10);
+        ar_fly[k].on = 1; ar_fly[k].col = ar_cur[k]; ar_fly[k].x = FX(ar_lx(k)); ar_fly[k].y = FX(AR_LY - 10);
+        ar_cur[k] = ar_next[k]; ar_next[k] = (uint8_t)ar_pick(k);
         ar_fly[k].vx = ar_sinv(ar_ang[k]) * 6; ar_fly[k].vy = -ar_cosv(ar_ang[k]) * 6;
         ar_sound(AR_SND_SHOT);
       }
@@ -620,7 +639,7 @@ static void arena_frame(int *outp) {
           }
         if (hit) {
           int r, c;
-          if (ar_place(ar_fly[k].x, ar_fly[k].y, &r, &c)) ar_stick(k, r, c);
+          if (ar_place(ar_fly[k].x, ar_fly[k].y, &r, &c)) ar_stick(k, ar_fly[k].col, r, c);
           ar_fly[k].on = 0;
         }
       }
@@ -642,7 +661,7 @@ static void arena_frame(int *outp) {
   }
   // drawing (the game's decor is added behind, by video_frame)
   int out = *outp;
-  for (int k = 0; k < 4; k++) if (ar_fly[k].on) ar_sprite(&out, ar_fly[k].x, ar_fly[k].y, k, 256);
+  for (int k = 0; k < 4; k++) if (ar_fly[k].on) ar_sprite(&out, ar_fly[k].x, ar_fly[k].y, ar_fly[k].col, 256);
   for (int i = 0; i < 64; i++) if (ar_fall[i].on) ar_sprite(&out, ar_fall[i].x, ar_fall[i].y, ar_fall[i].col, 256);
   for (int i = 0; i < 64; i++) {                   // a burst: the game's frames (3 x 3 tiles, 3 frames each)
     int t = ar_pop[i].t, k = ar_pop[i].col;
@@ -669,10 +688,11 @@ static void arena_frame(int *outp) {
   }
   for (int k = 0; k < arena_players; k++) {        // the launchers: the next bubble and the aim
     int32_t x = FX(ar_lx(k)), y = FX(AR_LY - 10);
-    if (!ar_fly[k].on) ar_sprite(&out, x, y, k, 256);
+    if (!ar_fly[k].on) ar_sprite(&out, x, y, ar_cur[k], 256);
+    if (arena_multi) ar_sprite(&out, x + FX(k ? -31 : 27), y + FX(9), ar_next[k], 176);   // the next, in its sign
     if (arena_guide == 1)                          // the aiming guide (GUIDE in the menu): SHORT
       for (int d = 1; d <= 5; d++)
-        ar_sprite(&out, x + ar_sinv(ar_ang[k]) * 7 * d, y - ar_cosv(ar_ang[k]) * 7 * d, k, 80);
+        ar_sprite(&out, x + ar_sinv(ar_ang[k]) * 7 * d, y - ar_cosv(ar_ang[k]) * 7 * d, ar_cur[k], 80);
     if (arena_guide == 2) ar_guide_full(&out, k);  // FULL: the whole path, as in the game
   }
   for (int r = 0; r < AR_ROWS && !ar_end; r++)    // (the results: the landscape alone behind them)

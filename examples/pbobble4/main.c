@@ -32,7 +32,7 @@ static inline uint16_t rgb555(uint32_t c) {
            b = ((c << 1) & 0x1E) | ((c >> 12) & 1);
   return (uint16_t)((r << 10) | (g << 5) | b);
 }
-static int arena_pending, arena_players = 4, arena_restart, arena_guide;   // the ARENA mode (arena.h)
+static int arena_pending, arena_players = 4, arena_restart, arena_guide, arena_multi;   // the ARENA mode (arena.h)
 static uint32_t arena_wait;
 static int layout_pref = -1;                       // the layout chosen in the menu (-1: DIP switch 1)
 static int launching, launch_shown, launch_1p;   // the launch: behind a screen of ours (launch_frame)
@@ -830,10 +830,10 @@ static void inputs(void) {
 // start of players 1 and 2 together (the game of two, where the rounds follow one another),
 // players 3 and 4 joined as chosen, and the menus of the game (GAME SELECT...) validated with
 // button 1 until the first round starts. The game sees no input while the menu is open.
-static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn, menu_mode, menu_guide, menu_screen = -1;
+static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn, menu_mode, menu_guide = 2, menu_screen = -1, menu_multi;
 // the lines of the menu: MODE, PLAYERS, LEVEL, then GUIDE (arena) or SCREEN (versus, 3-4 players)
 static int menu_stage;                             // ARENA: 0 RANDOM, 1-8 the game's versus stages 0-7
-static int menu_lines(void) { return menu_mode ? 5 : menu_players >= 3 ? 4 : 3; }
+static int menu_lines(void) { return menu_mode ? 6 : menu_players >= 3 ? 4 : 3; }
 // The stage of the game's versus rounds: 5328(a5) & 7 ($1094D0) indexes its table of decors at
 // $3F526 (found on the bench); forced during the launch of the arena until the round is loaded.
 static int launch_stage = -1;
@@ -845,7 +845,7 @@ static const char *const level_name[3] = {"  EASY  ", " NORMAL ", "  HARD  "};
 #define MENU_X 7
 #define MENU_Y 8
 #define MENU_W 26
-#define MENU_H 18
+#define MENU_H 20
 static int menu_drawn_cell(uint32_t x, uint32_t y) {
   return menu_drawn && x >= MENU_X - 1 && x <= MENU_X + MENU_W + 1 && y >= MENU_Y - 1 && y <= MENU_Y + MENU_H + 1;
 }
@@ -881,6 +881,7 @@ static void menu_inputs(void) {
     if (d && menu_sel == 3 && menu_mode) menu_guide = (menu_guide + d + 3) % 3;   // OFF, SHORT, FULL
     if (d && menu_sel == 3 && !menu_mode) menu_screen ^= 1;                       // LINE, 2 X 2
     if (d && menu_sel == 4 && menu_mode) menu_stage = (menu_stage + d + 9) % 9;   // RANDOM, the 8 stages
+    if (d && menu_sel == 5 && menu_mode) menu_multi ^= 1;                         // MONO, MULTI
     if (menu_sel >= menu_lines()) menu_sel = menu_lines() - 1;
     if (e & IN_B(2)) menu_open = 0;
     else if (e & (IN_START | IN_B(1))) {
@@ -888,7 +889,7 @@ static void menu_inputs(void) {
       neo_ram[0xFD8A ^ 1] = level_dip[menu_level];     // DIFFICULTY
       launch_gap = 0;
       if (menu_mode) {                               // ARENA: a game of two loads the graphics
-        arena_pending = 1; arena_wait = 0; arena_players = menu_players; arena_guide = menu_guide;
+        arena_pending = 1; arena_wait = 0; arena_players = menu_players; arena_guide = menu_guide; arena_multi = menu_multi;
         launch_stage = menu_stage ? menu_stage - 1 : (int)((vframe * 2654435761u) >> 29);   // RANDOM: 0-7
         neo_ram[0xF614 ^ 1] = neo_ram[0xF615 ^ 1] = 0;
         start_mask = 5; start_force = 8; auto_frames = 1200;
@@ -986,22 +987,23 @@ static void hint_frame(void) {
     else if (menu_players >= 3) {
       PUT(9, 3, "SCREEN"); PUT(9, 13, "<"); PUT(9, 14, menu_screen ? " 2 X 2  " : "  LINE  "); PUT(9, 22, ">"); }
     if (menu_mode) { PUT(11, 3, "STAGE"); PUT(11, 13, "<"); PUT(11, 14, stage_name[menu_stage]); PUT(11, 22, ">"); }
+    if (menu_mode) { PUT(13, 3, "COLORS"); PUT(13, 13, "<"); PUT(13, 14, menu_multi ? " MULTI  " : "  MONO  "); PUT(13, 22, ">"); }
     if ((vframe >> 4) & 1) l[3 + 2 * menu_sel][1] = '>';   // the line chosen
-    for (int i = 1; i < MENU_W - 1; i++) l[12][i] = '-';   // a rule above the help
-    PUT(13, 3, "UP/DOWN    : LINE");
-    PUT(14, 3, "LEFT/RIGHT : CHANGE");
-    PUT(15, 3, "START      : PLAY");
-    PUT(16, 3, "BUTTON 2   : BACK");
+    for (int i = 1; i < MENU_W - 1; i++) l[14][i] = '-';   // a rule above the help
+    PUT(15, 3, "UP/DOWN    : LINE");
+    PUT(16, 3, "LEFT/RIGHT : CHANGE");
+    PUT(17, 3, "START      : PLAY");
+    PUT(18, 3, "BUTTON 2   : BACK");
     #undef PUT
     menu_palettes(); grad_reset();
     panel_frame(MENU_X, MENU_Y, MENU_W, MENU_H);
     static const uint16_t player_col[4] = {(6 << 10) | (31 << 5) | 6, (8 << 10) | (18 << 5) | 31, (31 << 10) | (8 << 5) | 8, (31 << 10) | (28 << 5) | 4};
     for (int r = 0; r < MENU_H; r++)
       for (int i = 0; i < MENU_W; i++) {
-        int line = (r >= 3 && r <= 11 && (r & 1)) ? (r - 3) / 2 : -1;
+        int line = (r >= 3 && r <= 13 && (r & 1)) ? (r - 3) / 2 : -1;
         uint16_t letter = rgb(31, 31, 31), cell = panel_cell(r - 3, MENU_H - 3);
         if (r <= 2) { letter = rgb(31, 28, 4); cell = r == 1 ? rgb(24, 4, 3) : r == 0 ? rgb(14, 1, 2) : rgb(18, 2, 2); }   // the title bar
-        else if (r >= 12) letter = rgb(15, 16, 21);                     // the rule, the help
+        else if (r >= 14) letter = rgb(15, 16, 21);                     // the rule, the help
         else if (line == menu_sel) { cell = rgb(4, 11, 27); letter = rgb(31, 31, 12); }   // the line chosen
         if (line >= 0 && i >= 13 && line != menu_sel) letter = rgb(6, 28, 31);   // a value
         if (r == 5 && i >= 15 && i <= 21 && !((i - 15) & 1)) {          // a player: lit if chosen
