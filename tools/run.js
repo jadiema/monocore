@@ -13,6 +13,11 @@ const Monocore = require(path.join(__dirname, '../sim/core.js'));
 const [romPath, outDir, script = ''] = process.argv.slice(2);
 fs.mkdirSync(outDir, { recursive: true });
 const m = new Monocore(new Uint8Array(fs.readFileSync(romPath)));
+// NVRAM=file: the NVRAM read from it at the start and written back at the end (as the core with
+// the SD card), so two runs share the saves
+const nvFile = process.env.NVRAM;
+if (nvFile && fs.existsSync(nvFile)) m.nvram.set(new Uint8Array(fs.readFileSync(nvFile)).subarray(0, m.nvram.length));
+process.on('exit', () => { if (nvFile) fs.writeFileSync(nvFile, Buffer.from(m.nvram)); });
 let dbg = '';
 m.onDebug = (c) => { dbg += c; };
 m.onError = (e) => { console.log('ERREUR:', e); };

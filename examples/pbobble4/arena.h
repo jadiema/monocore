@@ -543,7 +543,7 @@ static int ar_pick(int k) {
 // letters of a player in his colour; the cells in bands (the title, the lines, the bottom) and the
 // frame in three tones, so it fits the 14 palettes the arena leaves free
 static void ar_results(void) {
-  int tm = ar_win_team >= 0, rows = 5 + (tm ? 5 : 0) + 2 * arena_players, x0 = 8, y0 = tm ? 11 : 13, w = 32;
+  int tm = ar_win_team >= 0, rows = 7 + (tm ? 5 : 0) + 2 * arena_players, x0 = 8, y0 = tm ? 10 : 12, w = 32;
   grad_reset_arena();
   PALETTE[MENU_PAL_SHADE * 16 + 1] = 0; PALETTE[MENU_PAL_SHADE * 16 + 2] = 0;
   for (int y = y0 - 1; y <= y0 + rows; y++)        // the frame in three tones, top to bottom
@@ -587,6 +587,12 @@ static void ar_results(void) {
     for (int c = 19; c >= 15; c--) { line[c] = (char)('0' + v % 10); v /= 10; }
     PUTC(r, 6, line, PCOL(k));
   }
+  { static const char *const tn[4] = {"1 MIN", "2 MIN", "3 MIN", "5 MIN"};   // the record
+    char rec[30] = "RECORD 2 MIN : 00000"; uint32_t v = save.best[arena_time_i] > 99999 ? 99999 : save.best[arena_time_i];
+    for (int i = 0; i < 5; i++) rec[7 + i] = tn[arena_time_i][i];
+    for (int i = 19; i >= 15; i--) { rec[i] = (char)('0' + v % 10); v /= 10; }
+    if (arena_record) { const char *n = "  NEW!"; for (int i = 0; n[i]; i++) rec[20 + i] = n[i]; rec[26] = 0; }
+    PUTC(rows - 4, 4, rec, arena_record ? rgb(31, 28, 4) : rgb(20, 22, 28)); }
   PUTC(rows - 2, 2, "START: AGAIN   BUTTON 2: MENU", rgb(31, 31, 31));   // the choice (ar_end)
   #undef PUTC
   #undef PCOL
@@ -839,6 +845,10 @@ static void arena_frame(int *outp) {
       if (arena_teams) win_team = ar_score[2] + ar_score[3] > ar_score[0] + ar_score[1] ? 1 : 0;
       for (int i = 0; i < 4; i++) ar_order[i] = order[i];
       ar_win_team = win_team;
+      arena_record = 0;                              // the humans' best score: a record?
+      for (int k = 0; k < arena_players - arena_cpu; k++)
+        if (ar_score[k] > save.best[arena_time_i]) { save.best[arena_time_i] = ar_score[k]; arena_record = 1; }
+      if (arena_record) save_write();
       ar_end = AR_END_T;                             // the wave, then the panel (ar_results)
       ar_sound(AR_SND_WIN);
       for (int i = 0; i < arena_players; i++) {

@@ -272,3 +272,12 @@ comprendre le pilote et ne sont plus nécessaires pour construire la ROM.
 vainqueur en grand ; START rejoue aussitôt une partie identique (mêmes joueurs, réglages et stage),
 BUTTON 2 (ou 20 secondes sans réponse) revient au menu, ouvert directement avec les derniers
 réglages : seul le jeu redémarre, sans son animation de démarrage, pas la console.
+
+**Les sauvegardes** : les réglages du menu sont retrouvés au démarrage, et le record de chaque
+durée d'arène (le meilleur score d'un joueur humain) s'affiche dans le menu et à la fin des
+parties (NEW! quand il est battu). Ils sont dans la NVRAM de la MONOCORE (offset 0, 44 octets,
+avec un identifiant, une version et une somme de contrôle) : le simulateur la conserve ; sur la
+MiSTer elle survit aux resets, et à l'extinction dès que le core l'écrira sur la carte SD.
+
+**Le menu** : des bulles du jeu montent autour du panneau et éclatent en haut ; le panneau a la
+hauteur des lignes du mode choisi.

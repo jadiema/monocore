@@ -34,6 +34,26 @@ static inline uint16_t rgb555(uint32_t c) {
 }
 static int arena_pending, arena_players = 4, arena_restart, arena_guide, arena_multi;   // the ARENA mode (arena.h)
 static int arena_cpu, arena_level = 1, arena_time = 120, arena_teams, arena_specials;
+#include <stddef.h>
+// The save, in the NVRAM (the simulator keeps it; the core will write it to the SD card): the
+// settings of the menu, read at power on and written when a game is chosen, and a record per
+// length of an arena (the humans' best score). A magic, a version and a sum: anything else is
+// not read.
+#define SAVE_MAGIC 0x50423453u                     // "PB4S"
+typedef struct { uint32_t magic; uint16_t version, size; uint8_t set[12]; uint32_t best[4]; uint32_t sum; } save_t;
+static save_t save;
+static int arena_time_i, arena_record;             // the length chosen; a record beaten (the results)
+static uint32_t save_sum(const save_t *v) {
+  const uint8_t *b = (const uint8_t *)v; uint32_t x = 0x1234;
+  for (uint32_t i = 0; i < offsetof(save_t, sum); i++) x = x * 31 + b[i];
+  return x;
+}
+static void save_write(void) {
+  save.magic = SAVE_MAGIC; save.version = 1; save.size = sizeof save; save.sum = save_sum(&save);
+  const uint8_t *b = (const uint8_t *)&save;
+  for (uint32_t i = 0; i < sizeof save; i++) MC_NVRAM[i] = b[i];
+}
+
 static uint32_t arena_wait;
 static int layout_pref = -1;                       // the layout chosen in the menu (-1: DIP switch 1)
 static int launching, launch_shown, launch_1p;   // the launch: behind a screen of ours (launch_frame)
@@ -98,8 +118,7 @@ static void menu_palettes(void) {
 // palettes the game never uses and the 4-player screen and the arena use only when they show
 // (not with the menu or the launch screen): handed out again at every frame of a panel.
 static const uint8_t grad_pool[] = {234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248,
-                                    249, 250, 251, 252, 253, 254, 208, 209, 210, 211, 212, 213, 215, 216, 217,
-                                    218, 219, 220};
+                                    249, 250, 251, 252, 253, 254, 208, 209, 210, 211, 212, 213};   // (215-220: the menu's bubbles)
 // (the arena's results: only the palettes the arena leaves free, 225-239 but the shadow's 227)
 static const uint8_t grad_pool_arena[] = {225, 226, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239};
 static const uint8_t *grad_p = grad_pool; static int grad_cap = sizeof grad_pool;
@@ -625,6 +644,65 @@ static void video_four(void) {
 
 #include "arena.h"
 
+// Bubbles around the menu: six colours of the game rising slowly behind the panel and around it,
+// wobbling, with the game's shine; at the top they burst (the game's burst) and start again from
+// the bottom. Their palettes are read from the ROM (the title has not loaded them: found on the
+// bench, $1D034-$1E7D8) into 215-220; their tiles and bursts from the game's scripts (arena.h).
+#define MB_N 12
+static const uint32_t mb_pal_rom[6] = {0x1E7D8, 0x1E574, 0x1D034, 0x1E3BA, 0x1E354, 0x1E6EA};
+static struct { int32_t x, y; int col, t, ph, sp; } mb[MB_N];
+static int mb_ready;
+static uint32_t mb_rng = 77;
+static int menu_shown(void);                       // (the menu is drawn: below)
+static uint32_t mb_rand(void) { mb_rng = mb_rng * 1103515245u + 12345u; return mb_rng >> 16; }
+static void mb_spawn(int i, int anywhere) {
+  mb[i].x = (int32_t)(16 + mb_rand() % 288) << 8;
+  mb[i].y = anywhere ? (int32_t)(24 + mb_rand() % 200) << 8 : (int32_t)(232 + mb_rand() % 40) << 8;
+  mb[i].col = (int)(mb_rand() % 6); mb[i].t = 0; mb[i].ph = (int)(mb_rand() % 64); mb[i].sp = 96 + (int)(mb_rand() % 96);
+}
+static void menu_bubbles(int *outp) {
+  static const int8_t wob[16] = {0, 2, 4, 5, 6, 5, 4, 2, 0, -2, -4, -5, -6, -5, -4, -2};
+  const uint16_t *smap = (const uint16_t *)spr_map_file;
+  int out = *outp;
+  if (!mb_ready) {
+    for (int k = 0; k < 6; k++) ar_read_scripts(k, k);
+    for (int i = 0; i < MB_N; i++) mb_spawn(i, 1);
+    mb_ready = 1;
+  }
+  for (int k = 0; k < 6; k++)
+    for (int c = 1; c < 16; c++) PALETTE[(215 + k) * 16 + c] = rgb555(ar_r16(mb_pal_rom[k] + 2 * c));
+  for (int i = 0; i < MB_N && out < MC_SPRITES - 9; i++) {
+    int k = mb[i].col;
+    if (!mb[i].t) {                                  // rising
+      mb[i].y -= mb[i].sp; mb[i].ph++;
+      if (mb[i].y < (28 << 8)) mb[i].t = AR_POP_T;   // the top: it bursts
+      uint32_t num = ar_idles[k] ? ar_idle[k][(vframe >> 3) % ar_idles[k]] : 0;
+      if (!num || !smap[num]) continue;
+      int slot = cache_get(smap[num]);
+      if (slot < 0) continue;
+      sprite_t *sp = &mc_spr[out++];
+      sp->x = (int16_t)((mb[i].x >> 8) + wob[(mb[i].ph >> 3) & 15] - 8); sp->y = (int16_t)((mb[i].y >> 8) - 8);
+      sp->tile = (uint16_t)(slot * 4); sp->pal = (uint8_t)(215 + k); sp->w = 2; sp->h = 2;
+      sp->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO)); sp->zoomx = 256; sp->zoomy = 256;
+    } else {                                         // bursting: the game's frames
+      int f = (AR_POP_T - mb[i].t) / 3;
+      if (--mb[i].t == 0 || f >= (int)ar_bursts[k]) { mb_spawn(i, 0); continue; }
+      for (int j = 0; j < 9 && out < MC_SPRITES; j++) {
+        uint32_t num = ar_burst[k][f][j];
+        if (!num || !smap[num]) continue;
+        int slot = cache_get(smap[num]);
+        if (slot < 0) continue;
+        sprite_t *sp = &mc_spr[out++];
+        sp->x = (int16_t)((mb[i].x >> 8) - 24 + (j / 3) * 16); sp->y = (int16_t)((mb[i].y >> 8) - 24 + (j % 3) * 16);
+        sp->tile = (uint16_t)(slot * 4); sp->pal = (uint8_t)(215 + k); sp->w = 2; sp->h = 2;
+        sp->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | ((ar_burst_flip[k][f][j] & 1) ? SA_HFLIP : 0) | ((ar_burst_flip[k][f][j] & 2) ? SA_VFLIP : 0));
+        sp->zoomx = 256; sp->zoomy = 256;
+      }
+    }
+  }
+  *outp = out;
+}
+
 static uint32_t frames_short, tall_left;          // frames where tall columns had to stay sprites
 static void video_frame(void) {
   vframe++;
@@ -704,6 +782,7 @@ static void video_frame(void) {
   uint32_t count = spr_map_size / 2, anim = (neo.frame / ((neo.lspc_mode >> 8) + 1)) & 7;
   int out = 0;
   if (arena_on) arena_frame(&out);                 // its bubbles, launchers, dragons in front
+  if (menu_shown() && !four_mode) menu_bubbles(&out);   // the bubbles around the menu
   for (int n = nmax - 1; n >= 1 && out < MC_SPRITES; n--) {
     if (sp_layer[n] || !sp_rows[n]) continue;
     int x = sp_x[n] >= 0x1E0 ? sp_x[n] - 0x200 : sp_x[n];
@@ -867,6 +946,27 @@ static int menu_ids(int *ids) {
   return n;
 }
 static int menu_lines(void) { int ids[11]; return menu_ids(ids); }
+static void save_settings(void) {                  // the menu as it is
+  uint8_t v[12] = {(uint8_t)menu_mode, (uint8_t)menu_players, (uint8_t)menu_cpu, (uint8_t)menu_level,
+                   (uint8_t)menu_guide, (uint8_t)menu_stage, (uint8_t)menu_multi, (uint8_t)menu_specials,
+                   (uint8_t)menu_time, (uint8_t)menu_teams, (uint8_t)(menu_screen < 0 ? 0 : menu_screen), 0};
+  for (int i = 0; i < 12; i++) save.set[i] = v[i];
+  save_write();
+}
+static void save_load(void) {                      // at power on: the settings again, if a save is there
+  uint8_t *b = (uint8_t *)&save;
+  for (uint32_t i = 0; i < sizeof save; i++) b[i] = MC_NVRAM[i];
+  if (save.magic != SAVE_MAGIC || save.version != 1 || save.size != sizeof save || save.sum != save_sum(&save)) {
+    for (uint32_t i = 0; i < sizeof save; i++) b[i] = 0;
+    return;
+  }
+  const uint8_t *v = save.set;                     // each within its range
+  menu_mode = v[0] & 1; menu_players = v[1] >= 1 && v[1] <= 4 ? v[1] : 4; menu_cpu = v[2] < menu_players ? v[2] : 0;
+  menu_level = v[3] < 3 ? v[3] : 1; menu_guide = v[4] < 3 ? v[4] : 2; menu_stage = v[5] < 9 ? v[5] : 0;
+  menu_multi = v[6] & 1; menu_specials = v[7] & 1; menu_time = v[8] < 4 ? v[8] : 1; menu_teams = v[9] & 1;
+  menu_screen = v[10] & 1;
+  if (menu_mode && menu_players < 2) menu_players = 2;
+}
 // The stage of the game's versus rounds: 5328(a5) & 7 ($1094D0) indexes its table of decors at
 // $3F526 (found on the bench); forced during the launch of the arena until the round is loaded.
 static int launch_stage = -1;
@@ -878,10 +978,12 @@ static const char *const level_name[3] = {"  EASY  ", " NORMAL ", "  HARD  "};
 #define MENU_X 7
 #define MENU_Y 8
 #define MENU_W 26
-#define MENU_H 19
+#define MENU_H 20                                  // at most (the arena's 10 lines); menu_h: as drawn
+static int menu_h = MENU_H;
 static int menu_drawn_cell(uint32_t x, uint32_t y) {
-  return menu_drawn && x >= MENU_X - 1 && x <= MENU_X + MENU_W + 1 && y >= MENU_Y - 1 && y <= MENU_Y + MENU_H + 1;
+  return menu_drawn && x >= MENU_X - 1 && x <= MENU_X + MENU_W + 1 && y >= MENU_Y - 1 && y <= MENU_Y + menu_h + 1;
 }
+static int menu_shown(void) { return menu_drawn; }
 static int round_started(void) { if (!(ram16(0x1034C8) & 0x20)) launch_gap = 1; return launch_gap && (ram16(0x1034C8) & 0x20); }
 static void menu_inputs(void) {
   uint32_t in[4] = {IN_P1, IN_P2, IN_P3, IN_P4};
@@ -926,12 +1028,13 @@ static void menu_inputs(void) {
     if (e & IN_B(2)) menu_open = 0;
     else if (e & (IN_START | IN_B(1))) {
       menu_open = 0;
+      save_settings();                               // the settings kept (the NVRAM)
       neo_ram[0xFD8A ^ 1] = level_dip[menu_level];     // DIFFICULTY
       launch_gap = 0;
       if (menu_mode) {                               // ARENA: a game of two loads the graphics
         arena_pending = 1; arena_wait = 0; arena_players = menu_players; arena_guide = menu_guide; arena_multi = menu_multi;
         arena_cpu = menu_cpu; arena_level = menu_level; arena_time = time_secs[menu_time];
-        arena_teams = menu_teams && menu_players == 4; arena_specials = menu_specials;
+        arena_teams = menu_teams && menu_players == 4; arena_specials = menu_specials; arena_time_i = menu_time;
         launch_stage = menu_stage ? menu_stage - 1 : (int)((vframe * 2654435761u) >> 29);   // RANDOM: 0-7
         neo_ram[0xF614 ^ 1] = neo_ram[0xF615 ^ 1] = 0;
         start_mask = 5; start_force = 8; auto_frames = 1200;
@@ -1050,21 +1153,32 @@ static void hint_frame(void) {
       }
       if ((vframe >> 4) & 1) l[3 + menu_sel][1] = '>';   // the line chosen
     }
-    for (int i = 1; i < MENU_W - 1; i++) l[13][i] = '-';   // a rule above the help
-    PUT(14, 3, "UP/DOWN    : LINE");
-    PUT(15, 3, "LEFT/RIGHT : CHANGE");
-    PUT(16, 3, "START      : PLAY");
-    PUT(17, 3, "BUTTON 2   : BACK");
+    int rule = 3 + menu_lines(), h = rule + 6 + (menu_mode ? 1 : 0);   // the panel as high as the lines of the mode
+    if (h < menu_h && menu_drawn)                    // smaller: the cells below go back to the game
+      fix_back(MENU_X - 1, MENU_Y + h, MENU_W + 3, menu_h - h + 2);
+    menu_h = h;
+    for (int i = 1; i < MENU_W - 1; i++) l[rule][i] = '-';   // a rule above the help
+    PUT(rule + 1, 3, "UP/DOWN    : LINE");
+    PUT(rule + 2, 3, "LEFT/RIGHT : CHANGE");
+    PUT(rule + 3, 3, "START      : PLAY");
+    PUT(rule + 4, 3, "BUTTON 2   : BACK");
+    if (menu_mode) {                                 // the record of the length chosen
+      static const char *const tn[4] = {"1 MIN", "2 MIN", "3 MIN", "5 MIN"};
+      char rec[24] = "RECORD 2 MIN : 00000"; uint32_t v = save.best[menu_time] > 99999 ? 99999 : save.best[menu_time];
+      for (int i = 0; i < 5; i++) rec[7 + i] = tn[menu_time][i];
+      for (int i = 19; i >= 15; i--) { rec[i] = (char)('0' + v % 10); v /= 10; }
+      PUT(rule + 5, 3, rec);
+    }
     #undef PUT
     menu_palettes(); grad_reset();
-    panel_frame(MENU_X, MENU_Y, MENU_W, MENU_H);
+    panel_frame(MENU_X, MENU_Y, MENU_W, menu_h);
     static const uint16_t player_col[4] = {(6 << 10) | (31 << 5) | 6, (8 << 10) | (18 << 5) | 31, (31 << 10) | (8 << 5) | 8, (31 << 10) | (28 << 5) | 4};
-    for (int r = 0; r < MENU_H; r++)
+    for (int r = 0; r < menu_h; r++)
       for (int i = 0; i < MENU_W; i++) {
         int line = (r >= 3 && r < 3 + menu_lines()) ? r - 3 : -1;
-        uint16_t letter = rgb(31, 31, 31), cell = panel_cell(r - 3, MENU_H - 3);
+        uint16_t letter = rgb(31, 31, 31), cell = panel_cell(r - 3, menu_h - 3);
         if (r <= 2) { letter = rgb(31, 28, 4); cell = r == 1 ? rgb(24, 4, 3) : r == 0 ? rgb(14, 1, 2) : rgb(18, 2, 2); }   // the title bar
-        else if (r >= 13) letter = rgb(15, 16, 21);                     // the rule, the help
+        else if (r >= rule) letter = rgb(15, 16, 21);                   // the rule, the help
         else if (line == menu_sel) { cell = rgb(4, 11, 27); letter = rgb(31, 31, 12); }   // the line chosen
         if (line >= 0 && i >= 13 && line != menu_sel) letter = rgb(6, 28, 31);   // a value
         if (r == 4 && i >= 15 && i <= 21 && !((i - 15) & 1)) {          // a player: lit if chosen (PLAYERS: row 4)
@@ -1078,7 +1192,7 @@ static void hint_frame(void) {
         TILEMAP(0)[(MENU_Y + r) * 64 + MENU_X + i] = MC_TILE((uint8_t)l[r][i], (uint32_t)pal, 0);
       }
     menu_drawn = 1;
-  } else if (menu_drawn) { menu_drawn = 0; fix_back(MENU_X - 1, MENU_Y - 1, MENU_W + 3, MENU_H + 3); }
+  } else if (menu_drawn) { menu_drawn = 0; fix_back(MENU_X - 1, MENU_Y - 1, MENU_W + 3, MENU_H + 3); menu_h = MENU_H; }
   // the title and the demo (not a game): a box, bottom right, for the menu
   int box = 0;                                     // (no box at the title: a start on any pad opens the menu)
   if (box) {
@@ -1139,6 +1253,7 @@ void m68k_stop(m68k_t *c) { while (c->ipl <= (c->srh & 7)) wfi(); }
 
 int main(void) {
   __asm__ volatile("mv %0, sp" : "=r"(boot_sp));
+  save_load();                                     // the settings and records kept
   game_boot();
   return 0;
 }
