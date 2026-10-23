@@ -17,11 +17,14 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
    sur ses boutons.
    Le menu propose aussi **MODE : ARENA** (première ligne) : un mode à nous, écrit en C
    (`arena.h`) avec les graphismes du jeu. Les joueurs jouent sur **un seul grand plateau** ;
-   chacun tire sa couleur (joueur 1 vert, 2 bleu, 3 rouge, 4 orange) et ne fait éclater que les
+   chacun tire sa couleur (joueur 1 vert, 2 bleu, 3 rouge, 4 jaune) et ne fait éclater que les
    groupes de 3 de sa couleur ; une bulle qui touche une autre couleur s'y accroche ; les bulles
    en vol rebondissent sur les murs et entre elles ; les bulles décrochées tombent (points au
    joueur qui les a fait tomber) ; le plafond descend toutes les 20 s ; **2 minutes, le meilleur
-   score gagne**. Gauche / droite visent, le bouton 1 tire. Le jeu lance une manche à deux (pour
+   score gagne**. Gauche / droite visent, le bouton 1 tire. Le décor du stage en fond, les
+   lanceurs et dragons du jeu (Bub pour le joueur 1, Bob en bleu, rouge et jaune), ses bruitages
+   (tir, accrochage, éclatement, chute, plafond, dernières secondes, fanfare) et la musique du
+   stage. Le jeu lance une manche à deux (pour
    charger ses graphismes), puis l'arène prend la main ; à la fin, la console redémarre.
 2. **Un joueur 3 ou 4 peut encore arriver en cours de partie avec son Start** : son aire apparaît
    au début de la manche suivante (P3 READY / P4 READY en bas de l'écran pendant une partie à

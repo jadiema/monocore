@@ -17,7 +17,7 @@ extern const uint8_t sounds_file[], sounds_tab_file[], music_file[], music_tab_f
 
 #define VRAM_BYTES  0x11000u                       // 0x8800 words
 #define DECOR_W     14                             // decor of the four fields, at most (cells of 8 x 8,
-#define DECOR_H     23                             // 8 bpp, at the end of CHR RAM; see the layouts)
+#define DECOR_H     30                             // 8 bpp, at the end of CHR RAM; see the layouts, arena.h)
 #define DECOR_BYTES ((DECOR_W * DECOR_H + 1) * 64)  // + one empty cell for the rest of layer 1
 #define CACHE_SLOTS ((MC_CHRRAM_SIZE - VRAM_BYTES - DECOR_BYTES) / 128)
 #define CACHE_BASE  (CHRRAM_BASE + VRAM_BYTES)
