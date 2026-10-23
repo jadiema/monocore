@@ -53,6 +53,7 @@ static void ar_sound(uint32_t code) { neo_platform_sound(0x1A, code); }
 #define AR_SND_DANGER 0x4E
 #define AR_SND_ALERT  0x54
 #define AR_SND_WIN    0x26
+#define AR_SND_GEAR   0x42                         // the launcher turning: a tick of its wheel
 
 // the points won, written where they were won, in the colour of the player, rising for 0.4 s
 static struct { int8_t col, row, k; uint8_t t, len, shown_row; uint16_t val; } ar_pts[8];
@@ -204,6 +205,7 @@ static uint16_t ar_r16(uint32_t a);
 #define AR_NEEDLE_T 0x626A2
 #define AR_WHEEL_T  0x3D990
 static int ar_wheel[4];                            // how far each wheel has turned
+static int ar_tick[4];                             // the wheel's frame at its last tick
 static uint16_t ar_r16(uint32_t a) { return *(const uint16_t *)(neo_rom + (a & ~1u)); }
 static uint32_t ar_r32(uint32_t a) { return (uint32_t)ar_r16(a) << 16 | ar_r16(a + 2); }
 static uint32_t ar_tile_of(uint32_t d, int i) { uint32_t t0 = ar_r16(d + 2 + 4 * i), t1 = ar_r16(d + 4 + 4 * i); return t0 | ((t1 & 0xF0) << 12); }
@@ -330,6 +332,7 @@ static void ar_draw_launcher(int *out, int k) {    // the needle at the aim, the
   int a = ar_ang[k] < 0 ? -ar_ang[k] : ar_ang[k], idx = a * 60 / 75;
   ar_block(out, ar_r32(AR_NEEDLE_T + 4 * idx), lx + ((-32 * 192) >> 8), ly + ((-32 * 192) >> 8), ar_ang[k] < 0, 76);
   int w = ((ar_wheel[k] / 3) % 9 + 9) % 9;
+  if (w != ar_tick[k]) { ar_tick[k] = w; ar_sound(AR_SND_GEAR); }   // a tooth of the wheel: its tick
   ar_block(out, ar_r32(AR_WHEEL_T + 4 * w), lx + ((-48 * 192) >> 8), ly + ((-24 * 192) >> 8), 0, 80);
 }
 // The dragons of the game, by their scripts in the ROM (the routine of a dragon, $42C3C, plays one

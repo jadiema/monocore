@@ -63,6 +63,23 @@ void neo_platform_bank(void) {
 static uint8_t hint_on[2], box_on;
 #define HINT_ROW 29
 #define TEXT_PAL 214                               // never used by the game: yellow letters on black
+// the menu and the launch screen: the font's letter (colour 1) and its cell (colour 2) in palettes
+// of ours (221-225, never used by the game): a red title bar, a night-blue panel, the line chosen
+// in bright blue, the values in cyan, the help in grey
+#define MENU_PAL_PANEL 221
+#define MENU_PAL_TITLE 222
+#define MENU_PAL_SEL   223
+#define MENU_PAL_VAL   224
+#define MENU_PAL_HELP  225
+static void menu_palettes(void) {
+  static const uint16_t c[5][2] = {
+    {(31 << 10) | (31 << 5) | 31, (1 << 10) | (3 << 5) | 11},     // panel: white on night blue
+    {(31 << 10) | (28 << 5) | 4, (20 << 10) | (2 << 5) | 2},      // title: yellow on red
+    {(31 << 10) | (31 << 5) | 10, (3 << 10) | (10 << 5) | 26},    // chosen: light yellow on blue
+    {(6 << 10) | (28 << 5) | 31, (1 << 10) | (3 << 5) | 11},      // values: cyan on night blue
+    {(17 << 10) | (18 << 5) | 22, (1 << 10) | (3 << 5) | 11}};    // help: grey on night blue
+  for (int k = 0; k < 5; k++) { PALETTE[(MENU_PAL_PANEL + k) * 16 + 1] = c[k][0]; PALETTE[(MENU_PAL_PANEL + k) * 16 + 2] = c[k][1]; }
+}
 #define BOX_X    26                                // the box of the title: 13 x 5 cells, bottom right
 #define BOX_Y    24
 static int menu_drawn_cell(uint32_t x, uint32_t y);
@@ -862,15 +879,19 @@ static void launch_frame(void) {
   if (launching && !(DIPSW & 0x8000)) {            // (TEMPORARY: DIP 16 shows the game behind)
     int w = four_mode ? 48 : 40, h = four_mode ? 36 : 32, r0 = four_mode ? 15 : 13;
     for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) TILEMAP(0)[y * 64 + x] = MC_TILE(' ', TEXT_PAL, 0);   // black (opaque)
+    menu_palettes();
+    for (int y = r0 - 1; y <= r0 + 6; y++)          // a panel: the title bar, then night blue
+      for (int x = (w - 26) / 2; x < (w - 26) / 2 + 26; x++)
+        TILEMAP(0)[y * 64 + x] = MC_TILE(' ', y <= r0 ? MENU_PAL_TITLE : MENU_PAL_PANEL, 0);
     char t1[] = "BUST-A-MOVE AGAIN 4P", t2[24] = "VERSUS  -  4 PLAYERS", t3[] = "GET READY";
     static uint32_t shown_since; if (!launch_shown) shown_since = vframe;
     uint32_t el = vframe - shown_since;            // GET READY, then 3, 2, 1 (a second each)
     if (el >= 60 && el < 240) { t3[0] = ' '; t3[1] = ' '; t3[2] = ' '; t3[3] = ' '; t3[4] = (char)('3' - (el - 60) / 60); t3[5] = ' '; t3[6] = ' '; t3[7] = ' '; t3[8] = ' '; }
     if (arena_pending) { const char *a = "ARENA   -  4 PLAYERS"; for (int i = 0; a[i]; i++) t2[i] = a[i]; t2[20] = 0; }
     t2[11] = (char)('0' + (arena_pending ? arena_players : menu_players));
-    for (int i = 0; t1[i]; i++) TILEMAP(0)[r0 * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t1[i], TEXT_PAL, 0);
-    for (int i = 0; t2[i]; i++) TILEMAP(0)[(r0 + 2) * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t2[i], TEXT_PAL, 0);
-    if (el >= 60 || ((vframe >> 4) & 1)) for (int i = 0; t3[i] && !(el >= 240); i++) TILEMAP(0)[(r0 + 5) * 64 + (w - 9) / 2 + i] = MC_TILE((uint8_t)t3[i], TEXT_PAL, 0);
+    for (int i = 0; t1[i]; i++) TILEMAP(0)[r0 * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t1[i], MENU_PAL_TITLE, 0);
+    for (int i = 0; t2[i]; i++) TILEMAP(0)[(r0 + 2) * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t2[i], MENU_PAL_VAL, 0);
+    if (el >= 60 || ((vframe >> 4) & 1)) for (int i = 0; t3[i] && !(el >= 240); i++) TILEMAP(0)[(r0 + 5) * 64 + (w - 9) / 2 + i] = MC_TILE((uint8_t)t3[i], MENU_PAL_PANEL, 0);
     PALETTE[TEXT_PAL * 16 + 1] = (31 << 10) | (28 << 5) | 6; PALETTE[TEXT_PAL * 16 + 2] = 0;
     DISP_CTRL = DISP_ON | DISP_LAYER(0);           // the game's screen hidden
     launch_shown = 1;
@@ -901,8 +922,16 @@ static void hint_frame(void) {
     PUT(13, 3, "START      : PLAY");
     PUT(14, 3, "BUTTON 2   : BACK");
     #undef PUT
+    menu_palettes();
     for (int r = 0; r < MENU_H; r++)
-      for (int i = 0; i < MENU_W; i++) TILEMAP(0)[(MENU_Y + r) * 64 + MENU_X + i] = MC_TILE((uint8_t)l[r][i], TEXT_PAL, 0);
+      for (int i = 0; i < MENU_W; i++) {
+        int pal = MENU_PAL_PANEL, line = (r >= 3 && r <= 9 && (r & 1)) ? (r - 3) / 2 : -1;
+        if (r <= 2) pal = MENU_PAL_TITLE;                               // the title bar
+        else if (r >= 11) pal = MENU_PAL_HELP;                          // the help
+        else if (line == menu_sel) pal = MENU_PAL_SEL;                  // the line chosen
+        else if (line >= 0 && i >= 13) pal = MENU_PAL_VAL;              // a value
+        TILEMAP(0)[(MENU_Y + r) * 64 + MENU_X + i] = MC_TILE((uint8_t)l[r][i], (uint32_t)pal, 0);
+      }
     menu_drawn = 1;
   } else if (menu_drawn) { menu_drawn = 0; fix_back(MENU_X, MENU_Y, MENU_W, MENU_H); }
   // the title and the demo (not a game): a box, bottom right, for the menu
