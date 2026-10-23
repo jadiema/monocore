@@ -590,12 +590,13 @@ static void ar_results(void) {
     PUTC(r, 6, line, PCOL(k));
   }
   { static const char *const tn[4] = {"1 MIN", "2 MIN", "3 MIN", "5 MIN"};   // the record
-    char rec[32] = "RECORD 2 MIN  00000            "; uint32_t v = save.best[arena_time_i] > 99999 ? 99999 : save.best[arena_time_i];
-    for (int i = 0; i < 5; i++) rec[7 + i] = tn[arena_time_i][i];
-    for (int i = 18; i >= 14; i--) { rec[i] = (char)('0' + v % 10); v /= 10; }
-    for (int i = 0; i < 3 && save.name[arena_time_i][i]; i++) rec[20 + i] = save.name[arena_time_i][i];
-    if (arena_record) { rec[24] = 'N'; rec[25] = 'E'; rec[26] = 'W'; rec[27] = '!'; }
-    rec[28] = 0;
+    char rec[32] = "REC 2 MIN MONO  00000          "; uint32_t v = save.best[arena_time_i] > 99999 ? 99999 : save.best[arena_time_i];
+    for (int i = 0; i < 5; i++) rec[4 + i] = tn[arena_time_i & 3][i];
+    if (arena_time_i >= 4) { const char *m = "MULTI"; for (int i = 0; i < 5; i++) rec[10 + i] = m[i]; }
+    for (int i = 20; i >= 16; i--) { rec[i] = (char)('0' + v % 10); v /= 10; }
+    for (int i = 0; i < 3 && save.name[arena_time_i][i]; i++) rec[22 + i] = save.name[arena_time_i][i];
+    if (arena_record) { rec[26] = 'N'; rec[27] = 'E'; rec[28] = 'W'; rec[29] = '!'; }
+    rec[30] = 0;
     PUTC(rows - 4, 2, rec, arena_record ? rgb(31, 28, 4) : rgb(20, 22, 28)); }
   PUTC(rows - 2, 2, "START: AGAIN   BUTTON 2: MENU", rgb(31, 31, 31));   // the choice (ar_end)
   #undef PUTC

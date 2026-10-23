@@ -274,7 +274,7 @@ BUTTON 2 (ou 20 secondes sans réponse) revient au menu, ouvert directement avec
 réglages : seul le jeu redémarre, sans son animation de démarrage, pas la console.
 
 **Les sauvegardes** : les réglages du menu sont retrouvés au démarrage, et le record de chaque
-durée d'arène (le meilleur score d'un joueur humain) s'affiche dans le menu et à la fin des
+durée d'arène et de chaque règle de couleurs (MONO, MULTI) (le meilleur score d'un joueur humain) s'affiche dans le menu et à la fin des
 parties (NEW! quand il est battu). Ils sont dans la NVRAM de la MONOCORE (offset 0, 44 octets,
 avec un identifiant, une version et une somme de contrôle) : le simulateur la conserve ; sur la
 MiSTer elle survit aux resets, et à l'extinction dès que le core l'écrira sur la carte SD.

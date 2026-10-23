@@ -40,15 +40,18 @@ static int arena_cpu, arena_level = 1, arena_time = 120, arena_teams, arena_spec
 // length of an arena (the humans' best score). A magic, a version and a sum: anything else is
 // not read.
 #define SAVE_MAGIC 0x50423453u                     // "PB4S"
-typedef struct { uint32_t magic; uint16_t version, size; uint8_t set[12]; uint32_t best[4]; char name[4][4]; uint32_t sum; } save_t;
-#define SAVE_VERSION 2                             // (2: the records' initials)
+// the records: one by length (1, 2, 3, 5 min) and by colours (MONO, MULTI): index length + 4 x MULTI
+typedef struct { uint32_t magic; uint16_t version, size; uint8_t set[12]; uint32_t best[8]; char name[8][4]; uint32_t sum; } save_t;
+#define SAVE_VERSION 3                             // (2: the records' initials; 3: MONO and MULTI apart)
+typedef struct { uint32_t magic; uint16_t version, size; uint8_t set[12]; uint32_t best[4]; char name[4][4]; uint32_t sum; } save_v2_t;
 static save_t save;
 static int arena_time_i, arena_record;             // the length chosen; a record beaten (the results)
-static uint32_t save_sum(const save_t *v) {
+static uint32_t save_sum_n(const void *v, uint32_t n) {
   const uint8_t *b = (const uint8_t *)v; uint32_t x = 0x1234;
-  for (uint32_t i = 0; i < offsetof(save_t, sum); i++) x = x * 31 + b[i];
+  for (uint32_t i = 0; i < n; i++) x = x * 31 + b[i];
   return x;
 }
+static uint32_t save_sum(const save_t *v) { return save_sum_n(v, offsetof(save_t, sum)); }
 static void save_write(void) {
   save.magic = SAVE_MAGIC; save.version = SAVE_VERSION; save.size = sizeof save; save.sum = save_sum(&save);
   const uint8_t *b = (const uint8_t *)&save;
@@ -956,8 +959,16 @@ static void save_settings(void) {                  // the menu as it is
 }
 static void save_load(void) {                      // at power on: the settings again, if a save is there
   uint8_t *b = (uint8_t *)&save;
+  static save_v2_t v2; uint8_t *b2 = (uint8_t *)&v2;
+  for (uint32_t i = 0; i < sizeof v2; i++) b2[i] = MC_NVRAM[i];
   for (uint32_t i = 0; i < sizeof save; i++) b[i] = MC_NVRAM[i];
-  if (save.magic != SAVE_MAGIC || save.version != SAVE_VERSION || save.size != sizeof save || save.sum != save_sum(&save)) {
+  if (v2.magic == SAVE_MAGIC && v2.version == 2 && v2.size == sizeof v2 && v2.sum == save_sum_n(&v2, offsetof(save_v2_t, sum))) {
+    for (uint32_t i = 0; i < sizeof save; i++) b[i] = 0;   // a version 2 save: its records in both
+    for (int i = 0; i < 12; i++) save.set[i] = v2.set[i];  // MONO and MULTI (it did not tell them apart)
+    for (int t = 0; t < 4; t++)
+      for (int m = 0; m < 2; m++) { save.best[t + 4 * m] = v2.best[t]; for (int i = 0; i < 4; i++) save.name[t + 4 * m][i] = v2.name[t][i]; }
+    save_write();
+  } else if (save.magic != SAVE_MAGIC || save.version != SAVE_VERSION || save.size != sizeof save || save.sum != save_sum(&save)) {
     for (uint32_t i = 0; i < sizeof save; i++) b[i] = 0;
     return;
   }
@@ -1035,7 +1046,8 @@ static void menu_inputs(void) {
       if (menu_mode) {                               // ARENA: a game of two loads the graphics
         arena_pending = 1; arena_wait = 0; arena_players = menu_players; arena_guide = menu_guide; arena_multi = menu_multi;
         arena_cpu = menu_cpu; arena_level = menu_level; arena_time = time_secs[menu_time];
-        arena_teams = menu_teams && menu_players == 4; arena_specials = menu_specials; arena_time_i = menu_time;
+        arena_teams = menu_teams && menu_players == 4; arena_specials = menu_specials;
+        arena_time_i = menu_time + 4 * menu_multi;   // the record's index: length and colours
         launch_stage = menu_stage ? menu_stage - 1 : (int)((vframe * 2654435761u) >> 29);   // RANDOM: 0-7
         neo_ram[0xF614 ^ 1] = neo_ram[0xF615 ^ 1] = 0;
         start_mask = 5; start_force = 8; auto_frames = 1200;
@@ -1163,11 +1175,13 @@ static void hint_frame(void) {
     PUT(rule + 2, 2, "START: PLAY   B2: BACK");
     if (menu_mode) {                                 // the record of the length chosen
       static const char *const tn[4] = {"1 MIN", "2 MIN", "3 MIN", "5 MIN"};
-      char rec[24] = "RECORD 2 MIN 00000    "; uint32_t v = save.best[menu_time] > 99999 ? 99999 : save.best[menu_time];
-      for (int i = 0; i < 5; i++) rec[7 + i] = tn[menu_time][i];
-      for (int i = 17; i >= 13; i--) { rec[i] = (char)('0' + v % 10); v /= 10; }
-      for (int i = 0; i < 3 && save.name[menu_time][i]; i++) rec[19 + i] = save.name[menu_time][i];   // its initials
-      rec[22] = 0;
+      int ri = menu_time + 4 * menu_multi;           // the record of this length and these colours
+      char rec[26] = "REC 2MIN MONO  00000    "; uint32_t v = save.best[ri] > 99999 ? 99999 : save.best[ri];
+      rec[4] = tn[menu_time][0];
+      if (menu_multi) { const char *m = "MULTI"; for (int i = 0; i < 5; i++) rec[9 + i] = m[i]; }
+      for (int i = 19; i >= 15; i--) { rec[i] = (char)('0' + v % 10); v /= 10; }
+      for (int i = 0; i < 3 && save.name[ri][i]; i++) rec[21 + i] = save.name[ri][i];   // its initials
+      rec[24] = 0;
       PUT(rule + 3, 2, rec);
     }
     #undef PUT
