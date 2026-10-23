@@ -32,7 +32,7 @@ static inline uint16_t rgb555(uint32_t c) {
            b = ((c << 1) & 0x1E) | ((c >> 12) & 1);
   return (uint16_t)((r << 10) | (g << 5) | b);
 }
-static int arena_pending, arena_players = 4, arena_restart;   // the ARENA mode (arena.h)
+static int arena_pending, arena_players = 4, arena_restart, arena_guide;   // the ARENA mode (arena.h)
 static uint32_t arena_wait;
 static int four_mode, four_last = 381;          // four_last: past the last sprite of the frame list
 extern uint32_t neo_list_last;                  // neort.c: the last sprite the list was sent to
@@ -758,14 +758,14 @@ static void inputs(void) {
 // start of players 1 and 2 together (the game of two, where the rounds follow one another),
 // players 3 and 4 joined as chosen, and the menus of the game (GAME SELECT...) validated with
 // button 1 until the first round starts. The game sees no input while the menu is open.
-static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn, menu_mode;
+static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn, menu_mode, menu_guide;
 static uint32_t pad_prev[4], start_force, start_mask, auto_frames;
 static const uint8_t level_dip[3] = {1, 3, 6};
 static const char *const level_name[3] = {"  EASY  ", " NORMAL ", "  HARD  "};
 #define MENU_X 7
 #define MENU_Y 8
 #define MENU_W 26
-#define MENU_H 15
+#define MENU_H 17
 static int menu_drawn_cell(uint32_t x, uint32_t y) {
   return menu_drawn && x >= MENU_X && x < MENU_X + MENU_W && y >= MENU_Y && y < MENU_Y + MENU_H;
 }
@@ -783,17 +783,18 @@ static void menu_inputs(void) {
     uint32_t e = 0;                                // any pad drives the menu
     for (int k = 0; k < 4; k++) e |= in[k] & ~pad_prev[k];
     if ((e & IN_UP) && menu_sel > 0) menu_sel--;
-    if ((e & IN_DOWN) && menu_sel < 2) menu_sel++;
+    if ((e & IN_DOWN) && menu_sel < 3) menu_sel++;
     int d = (e & IN_RIGHT) ? 1 : (e & IN_LEFT) ? -1 : 0;
     if (d && menu_sel == 0) menu_mode ^= 1;
     if (d && menu_sel == 1) menu_players = (menu_players + d + 3) % 4 + 1;
     if (d && menu_sel == 2) menu_level = (menu_level + d + 3) % 3;
+    if (d && menu_sel == 3) menu_guide ^= 1;
     if (e & IN_B(2)) menu_open = 0;
     else if (e & (IN_START | IN_B(1))) {
       menu_open = 0;
       neo_ram[0xFD8A ^ 1] = level_dip[menu_level];     // DIFFICULTY
       if (menu_mode) {                               // ARENA: a game of two loads the graphics
-        arena_pending = 1; arena_wait = 0; arena_players = menu_players;
+        arena_pending = 1; arena_wait = 0; arena_players = menu_players; arena_guide = menu_guide;
         neo_ram[0xF614 ^ 1] = neo_ram[0xF615 ^ 1] = 0;
         start_mask = 5; start_force = 8; auto_frames = 1200;
       } else {
@@ -825,11 +826,12 @@ static void hint_frame(void) {
     PUT(3, 3, "MODE"); PUT(3, 13, "<"); PUT(3, 14, menu_mode ? " ARENA  " : " VERSUS "); PUT(3, 22, ">");
     PUT(5, 3, "PLAYERS"); PUT(5, 13, "<    >"); l[5][16] = (char)('0' + menu_players);
     PUT(7, 3, "LEVEL"); PUT(7, 13, "<"); PUT(7, 14, level_name[menu_level]); PUT(7, 22, ">");
+    PUT(9, 3, "GUIDE"); PUT(9, 13, "<"); PUT(9, 14, menu_guide ? "   ON   " : "   OFF  "); PUT(9, 22, ">");
     if ((vframe >> 4) & 1) l[3 + 2 * menu_sel][1] = '>';   // the line chosen
-    PUT(9, 3, "UP/DOWN    : LINE");
-    PUT(10, 3, "LEFT/RIGHT : CHANGE");
-    PUT(11, 3, "START      : PLAY");
-    PUT(12, 3, "BUTTON 2   : BACK");
+    PUT(11, 3, "UP/DOWN    : LINE");
+    PUT(12, 3, "LEFT/RIGHT : CHANGE");
+    PUT(13, 3, "START      : PLAY");
+    PUT(14, 3, "BUTTON 2   : BACK");
     #undef PUT
     for (int r = 0; r < MENU_H; r++)
       for (int i = 0; i < MENU_W; i++) TILEMAP(0)[(MENU_Y + r) * 64 + MENU_X + i] = MC_TILE((uint8_t)l[r][i], TEXT_PAL, 0);

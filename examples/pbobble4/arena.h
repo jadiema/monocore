@@ -633,7 +633,7 @@ static void arena_frame(int *outp) {
   for (int k = 0; k < arena_players; k++) {        // the launchers: the next bubble and the aim
     int32_t x = FX(AR_X + 40 + 80 * k), y = FX(AR_LY - 10);
     if (!ar_fly[k].on) ar_sprite(&out, x, y, k, 256);
-    for (int d = 1; d <= 5; d++)
+    for (int d = 1; d <= 5 && arena_guide; d++)   // the aiming guide: an option of the menu (GUIDE)
       ar_sprite(&out, x + ar_sinv(ar_ang[k]) * 7 * d, y - ar_cosv(ar_ang[k]) * 7 * d, k, 80);
   }
   for (int r = 0; r < AR_ROWS && !ar_end; r++)    // (the results: the landscape alone behind them)
