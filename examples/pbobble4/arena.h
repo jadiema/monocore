@@ -59,6 +59,8 @@ static uint32_t ar_score[4], ar_clock, ar_end, ar_rng = 12345;
 #define AR_END_T   (22 * 60)                     // the wave, then 20 s to choose: again or the menu
 #define AR_WAVE_T  96
 static int ar_order[4], ar_win_team;
+static int ar_rec_player, ar_naming, ar_name_pos, ar_name_t, ar_paused;
+static char ar_name[4];
 static uint32_t ar_prev[4];
 static uint32_t ar_start;                          // frames of READY / GO before the first shot
 static uint8_t ar_jump[4];                         // a dragon jumps when its player shoots
@@ -588,11 +590,13 @@ static void ar_results(void) {
     PUTC(r, 6, line, PCOL(k));
   }
   { static const char *const tn[4] = {"1 MIN", "2 MIN", "3 MIN", "5 MIN"};   // the record
-    char rec[30] = "RECORD 2 MIN : 00000"; uint32_t v = save.best[arena_time_i] > 99999 ? 99999 : save.best[arena_time_i];
+    char rec[32] = "RECORD 2 MIN  00000            "; uint32_t v = save.best[arena_time_i] > 99999 ? 99999 : save.best[arena_time_i];
     for (int i = 0; i < 5; i++) rec[7 + i] = tn[arena_time_i][i];
-    for (int i = 19; i >= 15; i--) { rec[i] = (char)('0' + v % 10); v /= 10; }
-    if (arena_record) { const char *n = "  NEW!"; for (int i = 0; n[i]; i++) rec[20 + i] = n[i]; rec[26] = 0; }
-    PUTC(rows - 4, 4, rec, arena_record ? rgb(31, 28, 4) : rgb(20, 22, 28)); }
+    for (int i = 18; i >= 14; i--) { rec[i] = (char)('0' + v % 10); v /= 10; }
+    for (int i = 0; i < 3 && save.name[arena_time_i][i]; i++) rec[20 + i] = save.name[arena_time_i][i];
+    if (arena_record) { rec[24] = 'N'; rec[25] = 'E'; rec[26] = 'W'; rec[27] = '!'; }
+    rec[28] = 0;
+    PUTC(rows - 4, 2, rec, arena_record ? rgb(31, 28, 4) : rgb(20, 22, 28)); }
   PUTC(rows - 2, 2, "START: AGAIN   BUTTON 2: MENU", rgb(31, 31, 31));   // the choice (ar_end)
   #undef PUTC
   #undef PCOL
@@ -632,7 +636,7 @@ static void arena_start_again(int again) {         // again: the graphics read a
   for (int k = 0; k < 4; k++) { ar_cur[k] = (uint8_t)ar_pick(k); ar_next[k] = (uint8_t)ar_pick(k); ar_stun[k] = 0; }
   for (int i = 0; i < 64; i++) { ar_fall[i].on = 0; ar_pop[i].t = 0; }
   for (int i = 0; i < 8; i++) { ar_pts[i].t = 0; ar_pts[i].len = 0; }
-  ar_clock = AR_TIME; ar_end = 0; ar_start = AR_READY; ar_win_team = -1; ar_order[0] = 0;
+  ar_clock = AR_TIME; ar_end = 0; ar_start = AR_READY; ar_win_team = -1; ar_order[0] = 0; ar_naming = 0; ar_paused = 0;
   for (int k = 0; k < 4; k++) ar_jump[k] = 0;
   for (int i = 0; i < 64 * 64; i++) { TILEMAP(0)[i] = MC_TILE(FIX_EMPTY, 0, 0); TILEMAP(1)[i] = MC_TILE(DECOR_W * DECOR_H, DECOR_PAL, 0); }
   arena_on = 1; ar_cleared = 0;
@@ -710,6 +714,93 @@ static void ar_guide_full(int *out, int k) {
     if (hit) break;
     if ((n + phase) % 4 == 0 && n > 3) ar_draw_shot(out, x, y, ar_cur[k], 72);
   }
+}
+
+// a panel in the style of the results (a frame in three tones, a shadow, bands of a gradient), and
+// its text; cleared after
+static int pn_x0, pn_y0, pn_w, pn_rows;
+static uint16_t pn_cell(int r) { return r < 2 ? rgb(18, 2, 2) : r < pn_rows - 1 ? panel_cell(1, 7) : panel_cell(5, 7); }
+static void ar_panel(int x0, int y0, int w, int rows) {
+  pn_x0 = x0; pn_y0 = y0; pn_w = w; pn_rows = rows;
+  grad_reset_arena();
+  PALETTE[MENU_PAL_SHADE * 16 + 1] = 0; PALETTE[MENU_PAL_SHADE * 16 + 2] = 0;
+  for (int y = y0 - 1; y <= y0 + rows; y++)
+    for (int x = x0 - 1; x <= x0 + w; x++) {
+      int band = (y - y0 + 1) * 3 / (rows + 2);
+      TILEMAP(0)[y * 64 + x] = MC_TILE(' ', grad_pal(0, frame_cell(band * 2 + 1, 6)), 0);
+    }
+  for (int y = y0; y <= y0 + rows + 1; y++) TILEMAP(0)[y * 64 + x0 + w + 1] = MC_TILE(' ', MENU_PAL_SHADE, 0);
+  for (int x = x0; x <= x0 + w + 1; x++) TILEMAP(0)[(y0 + rows + 1) * 64 + x] = MC_TILE(' ', MENU_PAL_SHADE, 0);
+  for (int r = 0; r < rows; r++)
+    for (int x = 0; x < w; x++) TILEMAP(0)[(y0 + r) * 64 + x0 + x] = MC_TILE(' ', grad_pal(0, pn_cell(r)), 0);
+}
+static void ar_panel_text(int r, int x, const char *t, uint16_t col) {
+  for (int i = 0; t[i] && x + i < pn_w; i++)
+    TILEMAP(0)[(pn_y0 + r) * 64 + pn_x0 + x + i] = MC_TILE((uint8_t)t[i], grad_pal(col, pn_cell(r)), 0);
+}
+static void ar_panel_clear(void) {
+  for (int y = pn_y0 - 1; y <= pn_y0 + pn_rows + 1; y++)
+    for (int x = pn_x0 - 1; x <= pn_x0 + pn_w + 1; x++) TILEMAP(0)[y * 64 + x] = MC_TILE(FIX_EMPTY, 0, 0);
+}
+// PAUSE: START during a game; START goes on, BUTTON 2 back to the menu. Everything stops (the
+// clock, the shots, the computer), the picture stays.
+static int ar_pause_step(void) {
+  static uint32_t prev;
+  uint32_t pads = IN_P1 | IN_P2 | IN_P3 | IN_P4, e = pads & ~prev;
+  prev = pads;
+  if (!ar_paused) {
+    if (!(e & IN_START)) return 0;
+    ar_paused = 1; ar_sound(AR_SND_STICK);
+    ar_panel(14, 13, 20, 6);
+    ar_panel_text(0, 7, "PAUSE", rgb(31, 28, 4));
+    ar_panel_text(3, 1, "START    : CONTINUE", rgb(31, 31, 31));
+    ar_panel_text(4, 1, "BUTTON 2 : QUIT", rgb(31, 31, 31));
+    return 1;
+  }
+  if (e & IN_START) { ar_paused = 0; ar_panel_clear(); return 1; }
+  if (e & IN_B(2)) { ar_paused = 0; ar_panel_clear(); arena_restart = 1; }   // the menu (the game alone starts again)
+  return 1;
+}
+// The initials of a record: the player who made it enters three letters with its pad (UP/DOWN the
+// letter, LEFT/RIGHT which one, BUTTON 1 the next, then done; 30 s and they are taken as they are)
+static void ar_name_draw(void) {
+  ar_panel(12, 12, 24, 8);
+  uint16_t pc = PALETTE[(HUD_PAL + ar_rec_player) * 16 + 1];
+  ar_panel_text(0, 6, "NEW RECORD!", rgb(31, 28, 4));
+  char who[] = "PLAYER 1"; who[7] = (char)('1' + ar_rec_player);
+  ar_panel_text(2, 8, who, pc);
+  ar_panel_text(3, 4, "ENTER YOUR NAME", rgb(31, 31, 31));
+  for (int i = 0; i < 3; i++) {
+    char c[2] = {ar_name[i], 0};
+    if (i == ar_name_pos && ((vframe >> 3) & 1)) c[0] = '_';
+    ar_panel_text(5, 9 + 2 * i, c, i == ar_name_pos ? rgb(31, 28, 4) : pc);
+  }
+  ar_panel_text(7, 1, "UP/DOWN  BUTTON 1: OK", rgb(15, 16, 21));
+}
+static void ar_name_start(void) {
+  ar_naming = 1; ar_name_pos = 0; ar_name_t = 30 * 60;
+  for (int i = 0; i < 3; i++) { char c = save.name[arena_time_i][i]; ar_name[i] = c >= 'A' && c <= 'Z' ? c : 'A'; }
+  ar_name[3] = 0;
+}
+static void ar_name_done(void) {
+  save.best[arena_time_i] = ar_score[ar_rec_player];
+  for (int i = 0; i < 4; i++) save.name[arena_time_i][i] = ar_name[i];
+  save_write();
+  ar_naming = 0; ar_panel_clear();
+}
+static void ar_name_step(void) {
+  static const uint32_t padv[4] = {0, 1, 2, 3};
+  static uint32_t prev;
+  uint32_t all[4] = {IN_P1, IN_P2, IN_P3, IN_P4}, p = all[padv[ar_rec_player & 3]], e = p & ~prev;
+  prev = p;
+  if (e & IN_UP) ar_name[ar_name_pos] = ar_name[ar_name_pos] == 'Z' ? 'A' : (char)(ar_name[ar_name_pos] + 1);
+  if (e & IN_DOWN) ar_name[ar_name_pos] = ar_name[ar_name_pos] == 'A' ? 'Z' : (char)(ar_name[ar_name_pos] - 1);
+  if ((e & IN_LEFT) && ar_name_pos > 0) ar_name_pos--;
+  if ((e & IN_RIGHT) && ar_name_pos < 2) ar_name_pos++;
+  if (e & (IN_UP | IN_DOWN)) ar_sound(AR_SND_GEAR);
+  if (e & (IN_B(1) | IN_START)) { ar_sound(AR_SND_STICK); if (ar_name_pos < 2) ar_name_pos++; else { ar_name_done(); return; } }
+  if (--ar_name_t <= 0) { ar_name_done(); return; }
+  ar_name_draw();
 }
 
 // The computer's dragons (CPU in the menu: the last players). Ready to shoot, a dragon tries 29
@@ -807,6 +898,8 @@ static void arena_frame(int *outp) {
       if (n && !(r & 1)) ar_sound(AR_SND_POP);
     }
     for (int i = 0; i < 64; i++) if (ar_pop[i].t) ar_pop[i].t--;   // the bursts go on (the game stopped)
+    if (el == AR_WAVE_T && !ar_naming && arena_record && save.best[arena_time_i] < ar_score[ar_rec_player]) ar_name_start();
+    if (ar_naming) { ar_name_step(); if (!ar_naming) ar_results(); goto ar_updated; }   // (the time stops)
     if (el == AR_WAVE_T) ar_results();
     if (el > AR_WAVE_T) {                           // the choice: START again (the same), BUTTON 2 the menu
       static uint32_t prev_pads;
@@ -820,6 +913,7 @@ static void arena_frame(int *outp) {
       if (e & IN_B(2)) ar_end = 2;                 // the menu (below: the game starts again)
     }
     if (--ar_end == 1) arena_restart = 1;
+  ar_updated:;
   } else if (ar_start) {                          // READY ... GO!
     ar_start--;
     hud_text(19, 16, ar_start > 30 ? "READY" : " GO! ", HUD_PAL + 3);
@@ -832,6 +926,7 @@ static void arena_frame(int *outp) {
       if (ar_ang[k] > 75) ar_ang[k] = 75;
       ar_prev[k] = in[k];
     }
+  } else if (ar_pause_step()) {                   // PAUSE: nothing moves
   } else {
     if (ar_clock) ar_clock--;
     if (ar_clock && ar_clock <= 10 * 60 && ar_clock % 60 == 0) ar_sound(AR_SND_ALERT);   // the last 10 s
@@ -845,10 +940,10 @@ static void arena_frame(int *outp) {
       if (arena_teams) win_team = ar_score[2] + ar_score[3] > ar_score[0] + ar_score[1] ? 1 : 0;
       for (int i = 0; i < 4; i++) ar_order[i] = order[i];
       ar_win_team = win_team;
-      arena_record = 0;                              // the humans' best score: a record?
+      arena_record = 0;                              // the humans' best score: a record? (its initials
+      uint32_t top = save.best[arena_time_i];        //  are asked after the wave: ar_naming)
       for (int k = 0; k < arena_players - arena_cpu; k++)
-        if (ar_score[k] > save.best[arena_time_i]) { save.best[arena_time_i] = ar_score[k]; arena_record = 1; }
-      if (arena_record) save_write();
+        if (ar_score[k] > top) { top = ar_score[k]; arena_record = 1; ar_rec_player = k; }
       ar_end = AR_END_T;                             // the wave, then the panel (ar_results)
       ar_sound(AR_SND_WIN);
       for (int i = 0; i < arena_players; i++) {

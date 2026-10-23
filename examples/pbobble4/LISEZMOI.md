@@ -281,3 +281,8 @@ MiSTer elle survit aux resets, et à l'extinction dès que le core l'écrira sur
 
 **Le menu** : des bulles du jeu montent autour du panneau et éclatent en haut ; le panneau a la
 hauteur des lignes du mode choisi.
+
+**Pendant une arène** : START met en pause (tout s'arrête ; START reprend, BUTTON 2 revient au
+menu). **Un record battu** par un joueur humain : il entre ses trois initiales avec sa manette
+(HAUT/BAS la lettre, GAUCHE/DROITE laquelle, BUTTON 1 la suivante puis valide), affichées avec le
+record dans le menu et les résultats.
