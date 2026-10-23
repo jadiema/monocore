@@ -238,11 +238,21 @@ static int ar_place(int32_t x, int32_t y, int *pr, int *pc) {
   *pr = best / 32; *pc = best % 32; return 1;
 }
 
+// Colours dealt fairly: as many bubbles of each colour (to one), shuffled (a bag): in MONO each
+// player starts with as many bubbles of its colour as the others, and so on for each new row
+static void ar_deal(int8_t *out, int n) {
+  int extra[8] = {0}, left = n % ar_ncol;          // the remainder: colours drawn, each at most once
+  while (left) { int c = (int)(ar_rand() % ar_ncol); if (!extra[c]) { extra[c] = 1; left--; } }
+  int i = 0;
+  for (int c = 0; c < ar_ncol; c++) for (int j = 0; j < n / ar_ncol + extra[c]; j++) out[i++] = (int8_t)c;
+  for (int k = n - 1; k > 0; k--) { int j = (int)(ar_rand() % (uint32_t)(k + 1)); int8_t t = out[k]; out[k] = out[j]; out[j] = t; }
+}
 static void ar_new_row(void) {                      // the ceiling comes down: a new row on top
   ar_sound(AR_SND_DANGER);
   for (int r = AR_ROWS - 1; r > 0; r--) for (int c = 0; c < AR_COLS; c++) ar_grid[r][c] = ar_grid[r - 1][c];
   ar_shift ^= 1;
-  for (int c = 0; c < AR_COLS; c++) ar_grid[0][c] = c < ar_cols(0) ? (int8_t)(ar_rand() % ar_ncol) : -1;
+  { int8_t bag[AR_COLS]; ar_deal(bag, ar_cols(0));   // a fair row
+    for (int c = 0; c < AR_COLS; c++) ar_grid[0][c] = c < ar_cols(0) ? bag[c] : -1; }
   int lost[4] = {0};
   for (int c = 0; c < AR_COLS; c++) if (ar_grid[AR_ROWS - 1][c] >= 0) {
     int32_t x = ar_cx(AR_ROWS - 1, c); int who = 0;   // the launcher below: the nearest
@@ -621,6 +631,8 @@ static void arena_start_again(int again);
 static void arena_start(void) { arena_start_again(0); }
 static void arena_start_again(int again) {         // again: the graphics read at the first start kept
   ar_ncol = arena_multi ? 6 : arena_players;
+  ar_rng ^= (uint32_t)mc_cycles() * 2654435761u;    // a new board each game (the moment it starts)
+  ar_rand();
   if (!again) {                                    // (the game is stopped: its lists no longer hold them)
     ar_take_graphics();
     ar_take_stamp(0); ar_take_stamp(1);
@@ -631,8 +643,11 @@ static void arena_start_again(int again) {         // again: the graphics read a
   uint32_t mask = ((uint32_t)ram16(0x1034C6) << 16) | ram16(0x1034C8);   // the fields stop (scheduler mask)
   mask &= ~((1u << 5) | (1u << 6) | (1u << 7) | (1u << 9));
   *(uint16_t *)(neo_ram + 0x34C6) = (uint16_t)(mask >> 16); *(uint16_t *)(neo_ram + 0x34C8) = (uint16_t)mask;
-  for (int r = 0; r < AR_ROWS; r++) for (int c = 0; c < AR_COLS; c++)
-    ar_grid[r][c] = (r < 7 && c < ar_cols(r)) ? (int8_t)(ar_rand() % ar_ncol) : -1;
+  { static int8_t bag[AR_ROWS * AR_COLS]; int n = 0, i = 0;   // the start: 7 rows, dealt fairly
+    for (int r = 0; r < 7; r++) n += ar_cols(r);
+    ar_deal(bag, n);
+    for (int r = 0; r < AR_ROWS; r++) for (int c = 0; c < AR_COLS; c++)
+      ar_grid[r][c] = (r < 7 && c < ar_cols(r)) ? bag[i++] : -1; }
   for (int k = 0; k < 4; k++) { ar_ang[k] = 0; ar_fly[k].on = 0; ar_score[k] = 0; ar_prev[k] = 0xFFFFFFFF; ar_idle_t[k] = 0; ar_hurry_shown[k] = 0; }
   for (int k = 0; k < 4; k++) { ar_cur[k] = (uint8_t)ar_pick(k); ar_next[k] = (uint8_t)ar_pick(k); ar_stun[k] = 0; }
   for (int i = 0; i < 64; i++) { ar_fall[i].on = 0; ar_pop[i].t = 0; }
