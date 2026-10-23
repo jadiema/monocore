@@ -30,3 +30,4 @@ rtl/tb/obj_*/
 *.qarlog
 build_id.v
 greybox_tmp/
+mister/tb/obj_nvsave/

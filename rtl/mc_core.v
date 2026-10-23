@@ -34,6 +34,13 @@ module mc_core (
 	input  wire        kb_down,
 	input  wire        kb_ext,
 	input  wire [7:0]  kb_code,
+	// the NVRAM's second port: its copy to and from the SD card (mister/mc_nvsave.sv)
+	input  wire        nv_b_en,
+	input  wire [3:0]  nv_b_we,
+	input  wire [12:0] nv_b_addr,
+	input  wire [31:0] nv_b_wdata,
+	output wire [31:0] nv_b_rdata,
+	output wire        nv_written,    // the CPU wrote to the NVRAM (this cycle)
 	// debug output (simulation)
 	output wire        dbg_valid,
 	output wire [7:0]  dbg_char,
@@ -284,9 +291,11 @@ module mc_core (
 	assign s_ready[S_WRAM] = 1'b1;
 	assign s_wrok[S_WRAM] = 1'b1;
 
-	mc_ram32 #(.AW(13)) nvram (.clk(clk),
-		.en(s_rd[S_NVRAM] || s_wr[S_NVRAM]), .we(s_wr[S_NVRAM] ? s_be : 4'd0),
-		.addr(s_wr[S_NVRAM] ? s_waddr[14:2] : s_raddr[14:2]), .wdata(s_wdata), .rdata(s_rdata[S_NVRAM]));
+	mc_ram32_tdp #(.AW(13)) nvram (.clk(clk),
+		.a_en(s_rd[S_NVRAM] || s_wr[S_NVRAM]), .a_we(s_wr[S_NVRAM] ? s_be : 4'd0),
+		.a_addr(s_wr[S_NVRAM] ? s_waddr[14:2] : s_raddr[14:2]), .a_wdata(s_wdata), .a_rdata(s_rdata[S_NVRAM]),
+		.b_en(nv_b_en), .b_we(nv_b_we), .b_addr(nv_b_addr), .b_wdata(nv_b_wdata), .b_rdata(nv_b_rdata));
+	assign nv_written = s_wr[S_NVRAM];
 	assign s_ready[S_NVRAM] = 1'b1;
 	assign s_wrok[S_NVRAM] = 1'b1;
 

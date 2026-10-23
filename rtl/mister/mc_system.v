@@ -56,6 +56,15 @@ module mc_system #(
 	// sound
 	output reg  [15:0] audio_l,
 	output reg  [15:0] audio_r,
+	// the NVRAM's copy to and from the SD card (mister/mc_nvsave.sv): its second port, and the core
+	// kept in reset while it is loaded
+	input  wire        nv_hold,
+	input  wire        nv_b_en,
+	input  wire [3:0]  nv_b_we,
+	input  wire [12:0] nv_b_addr,
+	input  wire [31:0] nv_b_wdata,
+	output wire [31:0] nv_b_rdata,
+	output wire        nv_written,
 	// status
 	output wire        running,        // ROM loaded and core out of reset
 	output wire        dbg_valid,
@@ -147,7 +156,7 @@ module mc_system #(
 	reg [3:0] rst_cnt;
 	reg       core_rst_n;
 	always @(posedge clk) begin
-		if (reset || l_active || !loaded || !sd_ready) begin rst_cnt <= 0; core_rst_n <= 1'b0; end
+		if (reset || l_active || !loaded || !sd_ready || nv_hold) begin rst_cnt <= 0; core_rst_n <= 1'b0; end
 		else if (rst_cnt != 4'd15) rst_cnt <= rst_cnt + 4'd1;
 		else core_rst_n <= 1'b1;
 	end
@@ -209,6 +218,8 @@ module mc_system #(
 		.in_p1(p1), .in_p2(p2), .in_p3(p3), .in_p4(p4), .in_sys(in_sys), .dip(dip_rom ^ dip_osd),
 		.in_analog(analog), .in_paddle(paddles),
 		.kb_stb(kb_stb), .kb_down(ps2_key[9]), .kb_ext(ps2_key[8]), .kb_code(ps2_key[7:0]),
+		.nv_b_en(nv_b_en), .nv_b_we(nv_b_we), .nv_b_addr(nv_b_addr), .nv_b_wdata(nv_b_wdata), .nv_b_rdata(nv_b_rdata),
+		.nv_written(nv_written),
 		.dbg_valid(dbg_valid), .dbg_char(dbg_char),
 		.vcount(vcount), .vblank_pulse(), .line_start(),
 		.px_valid(px_valid), .px_x(px_x), .px_y(px_y), .px_rgb(px_rgb), .window_cycles(dbg_window),

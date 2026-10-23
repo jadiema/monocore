@@ -86,3 +86,56 @@ module mc_ram8_dp #(
 	end
 	always @(posedge clk) if (b_en) b_rdata <= mem[b_addr];
 endmodule
+
+// True dual-port 32-bit RAM: both ports read and write (byte enables), one clock. The NVRAM: port A
+// for the CPU, port B for its copy to and from the SD card (mister/mc_nvsave.sv).
+module mc_ram32_tdp #(
+	parameter AW = 10
+) (
+	input  wire          clk,
+	input  wire          a_en,
+	input  wire [3:0]    a_we,
+	input  wire [AW-1:0] a_addr,
+	input  wire [31:0]   a_wdata,
+	output wire [31:0]   a_rdata,
+	input  wire          b_en,
+	input  wire [3:0]    b_we,
+	input  wire [AW-1:0] b_addr,
+	input  wire [31:0]   b_wdata,
+	output wire [31:0]   b_rdata
+);
+	genvar i;
+	generate for (i = 0; i < 4; i = i + 1) begin: lane
+		mc_ram8_tdp #(.AW(AW)) u (
+			.clk(clk),
+			.a_en(a_en), .a_we(a_we[i]), .a_addr(a_addr), .a_wdata(a_wdata[8 * i +: 8]), .a_rdata(a_rdata[8 * i +: 8]),
+			.b_en(b_en), .b_we(b_we[i]), .b_addr(b_addr), .b_wdata(b_wdata[8 * i +: 8]), .b_rdata(b_rdata[8 * i +: 8])
+		);
+	end endgenerate
+endmodule
+
+module mc_ram8_tdp #(
+	parameter AW = 10
+) (
+	input  wire          clk,
+	input  wire          a_en,
+	input  wire          a_we,
+	input  wire [AW-1:0] a_addr,
+	input  wire [7:0]    a_wdata,
+	output reg  [7:0]    a_rdata,
+	input  wire          b_en,
+	input  wire          b_we,
+	input  wire [AW-1:0] b_addr,
+	input  wire [7:0]    b_wdata,
+	output reg  [7:0]    b_rdata
+);
+	(* ramstyle = "M10K, no_rw_check" *) reg [7:0] mem [0:(1 << AW) - 1] /* verilator public */;
+	always @(posedge clk) if (a_en) begin
+		if (a_we) mem[a_addr] <= a_wdata;
+		a_rdata <= mem[a_addr];
+	end
+	always @(posedge clk) if (b_en) begin
+		if (b_we) mem[b_addr] <= b_wdata;
+		b_rdata <= mem[b_addr];
+	end
+endmodule

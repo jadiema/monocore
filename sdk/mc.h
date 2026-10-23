@@ -127,7 +127,7 @@ int  mc_key_event(void);                    // next event: 0x200 if down, 0x100 
 // WRAM 128 KB: .data, .bss, heap (malloc), then the stack (MC_STACK bytes at the top).
 #define MC_STACK 16384
 size_t mc_heap_free(void);                  // free bytes in the heap
-#define MC_NVRAM      ((volatile uint8_t *)NVRAM_BASE)   // 32 KB (not saved to the SD card yet)
+#define MC_NVRAM      ((volatile uint8_t *)NVRAM_BASE)   // 32 KB, kept in saves/MONOCORE/<rom>.sav (MiSTer)
 #define MC_NVRAM_SIZE 0x8000u
 static inline void mc_copy(volatile void *dst, const void *src, uint32_t n) { dma_copy(dst, src, n); }
 static inline void mc_fill(volatile void *dst, uint32_t pattern, uint32_t n) { dma_fill(dst, pattern, n); }

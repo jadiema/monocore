@@ -40,3 +40,4 @@ set_global_assignment -name SYSTEMVERILOG_FILE ../rtl/hazard3/hazard3_regfile_1w
 set_global_assignment -name SYSTEMVERILOG_FILE ../rtl/hazard3/hazard3_triggers.v
 set_global_assignment -name SDC_FILE MONOCORE.sdc
 set_global_assignment -name SYSTEMVERILOG_FILE monocore.sv
+set_global_assignment -name SYSTEMVERILOG_FILE mc_nvsave.sv

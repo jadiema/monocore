@@ -6,7 +6,7 @@
 //  the SDRAM pins, video and audio.
 //
 //  ROM loading: any file chosen in the OSD ("Charger une ROM", .MNC) is copied to the SDRAM, then the
-//  console starts. A file named boot.rom in the core's games folder (games/MONOCORE) is loaded at
+//  console starts. Its NVRAM is kept in saves/MONOCORE/<rom>.sav (mc_nvsave.sv). A file named boot.rom in the core's games folder (games/MONOCORE) is loaded at
 //  start-up.
 //============================================================================
 
@@ -44,7 +44,7 @@ assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 localparam CONF_STR = {
 	"MONOCORE;;",
 	"-;",
-	"F1,MNC,Charger une ROM;",
+	"FS1,MNC,Charger une ROM;",
 	"-;",
 	"O[122:121],Format d'image,Original,Plein ecran,[ARC1],[ARC2];",
 	"O[3],Lecture SDRAM,Normale,Retardee;",
@@ -53,6 +53,10 @@ localparam CONF_STR = {
 	"O[5],Cartouche,Automatique,Manuelle;",
 	"O[7:6],Horloge cartouche,3 MHz,6 MHz,12 MHz;",
 	"O[8],Lecture cartouche,Double,Simple;",
+	"-;",
+	"O[9],Sauvegarde auto,Oui,Non;",
+	"D0R[10],Recharger la sauvegarde;",
+	"D0R[11],Ecrire la sauvegarde;",
 	"-;",
 	"J1,Bouton 1,Bouton 2,Bouton 3,Bouton 4,Bouton 5,Bouton 6,Start,Piece;",
 	"jn,A,B,X,Y,L,R,Start,Select;",
@@ -76,6 +80,18 @@ wire  [26:0] ioctl_addr;
 wire  [15:0] ioctl_dout;
 wire  [15:0] ioctl_index;
 
+// the save file of the ROM (saves/MONOCORE/<rom>.sav, virtual disk 0): mc_nvsave.sv
+wire         img_mounted, img_readonly;
+wire  [63:0] img_size;
+wire  [31:0] sd_lba;
+wire         sd_rd, sd_wr, sd_ack, sd_buff_wr;
+wire  [12:0] sd_buff_addr;
+wire  [15:0] sd_buff_dout, sd_buff_din;
+wire         nv_enabled, nv_busy, nv_hold, nv_en, nv_written;
+wire   [3:0] nv_we;
+wire  [12:0] nv_addr;
+wire  [31:0] nv_wdata, nv_rdata;
+
 hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 (
 	.clk_sys(clk_sys),
@@ -86,7 +102,20 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 	.forced_scandoubler(forced_scandoubler),
 	.buttons(buttons),
 	.status(status),
-	.status_menumask(16'd0),
+	.status_menumask({15'd0, ~nv_enabled}),   // D0: the save entries need a save file
+
+	.img_mounted(img_mounted),
+	.img_readonly(img_readonly),
+	.img_size(img_size),
+	.sd_lba('{sd_lba}),
+	.sd_blk_cnt('{6'd0}),
+	.sd_rd(sd_rd),
+	.sd_wr(sd_wr),
+	.sd_ack(sd_ack),
+	.sd_buff_addr(sd_buff_addr),
+	.sd_buff_dout(sd_buff_dout),
+	.sd_buff_din('{sd_buff_din}),
+	.sd_buff_wr(sd_buff_wr),
 
 	.joystick_0(joystick_0),
 	.joystick_1(joystick_1),
@@ -129,6 +158,38 @@ wire  [7:0] r, g, b;
 wire [15:0] snd_l, snd_r;
 wire [15:0] dq_o;
 wire        dq_oe;
+
+///////////////////////   SAVE   ///////////////////////////////
+
+mc_nvsave nvsave
+(
+	.clk(clk_sys),
+	.downloading(ioctl_download),
+	.img_mounted(img_mounted),
+	.img_readonly(img_readonly),
+	.img_size(img_size),
+	.sd_lba(sd_lba),
+	.sd_rd(sd_rd),
+	.sd_wr(sd_wr),
+	.sd_ack(sd_ack),
+	.sd_buff_addr(sd_buff_addr),
+	.sd_buff_dout(sd_buff_dout),
+	.sd_buff_din(sd_buff_din),
+	.sd_buff_wr(sd_buff_wr),
+	.osd_open(OSD_STATUS),
+	.autosave(~status[9]),
+	.req_load(status[10]),
+	.req_save(status[11]),
+	.nv_en(nv_en),
+	.nv_we(nv_we),
+	.nv_addr(nv_addr),
+	.nv_wdata(nv_wdata),
+	.nv_rdata(nv_rdata),
+	.nv_written(nv_written),
+	.hold(nv_hold),
+	.enabled(nv_enabled),
+	.busy(nv_busy)
+);
 
 mc_system system
 (
@@ -175,6 +236,14 @@ mc_system system
 
 	.audio_l(snd_l),
 	.audio_r(snd_r),
+
+	.nv_hold(nv_hold),
+	.nv_b_en(nv_en),
+	.nv_b_we(nv_we),
+	.nv_b_addr(nv_addr),
+	.nv_b_wdata(nv_wdata),
+	.nv_b_rdata(nv_rdata),
+	.nv_written(nv_written),
 
 	.running(running),
 	.dbg_valid(),
@@ -242,7 +311,7 @@ assign AUDIO_R = snd_r;
 // LED: on while a ROM is loading (SD card or cartridge), blinking after a cartridge read error
 reg [24:0] led_cnt;
 always @(posedge clk_sys) led_cnt <= led_cnt + 1'd1;
-assign LED_USER = ioctl_download | cart_busy | (cart_error & led_cnt[24]);
+assign LED_USER = ioctl_download | cart_busy | nv_busy | (cart_error & led_cnt[24]);
 assign LED_DISK = {1'b0, ~running};
 
 endmodule
