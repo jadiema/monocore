@@ -499,6 +499,14 @@ static void ar_text_score(void) {
     for (int i = 6; i >= 3; i--) { t[i] = (char)('0' + v % 10); v /= 10; }
     hud_text(col[k], 1, t, HUD_PAL + k);
   }
+  if (arena_teams) {                                // the teams: P1 + P2 on the left, P3 + P4 on the right
+    for (int g = 0; g < 2; g++) {
+      char t[13] = "TEAM 1 00000"; t[5] = (char)('1' + g);
+      uint32_t v = ar_score[2 * g] + ar_score[2 * g + 1]; if (v > 99999) v = 99999;
+      for (int i = 11; i >= 7; i--) { t[i] = (char)('0' + v % 10); v /= 10; }
+      hud_text(g ? 31 : 5, 2, t, HUD_PAL + 2 * g);
+    }
+  }
   uint32_t s = (ar_clock + 59) / 60; char t[6] = "0:00";
   t[0] = (char)('0' + s / 60); t[2] = (char)('0' + (s % 60) / 10); t[3] = (char)('0' + s % 10);
   hud_text(22, 1, t, HUD_PAL + 3);
@@ -661,9 +669,24 @@ static void arena_frame(int *outp) {
         for (int j = i + 1; j < arena_players; j++)
           if (ar_score[order[j]] > ar_score[order[i]]) { int t = order[i]; order[i] = order[j]; order[j] = t; }
       for (int r = 0; r < 64 * 64; r++) TILEMAP(0)[r] = MC_TILE(FIX_EMPTY, 0, 0);
+      int win_team = -1;
+      if (arena_teams) {                              // the teams: the totals decide
+        uint32_t a = ar_score[0] + ar_score[1], b = ar_score[2] + ar_score[3];
+        win_team = b > a ? 1 : 0;
+        for (int g = 0; g < 2; g++) {
+          int tg = g ? 1 - win_team : win_team;
+          char line[] = "1ST  TEAM 1  P1+P2  00000";
+          line[0] = g ? '2' : '1'; line[1] = g ? 'N' : 'S'; line[2] = g ? 'D' : 'T';
+          line[10] = (char)('1' + tg); line[14] = (char)('1' + 2 * tg); line[17] = (char)('2' + 2 * tg);
+          uint32_t v = ar_score[2 * tg] + ar_score[2 * tg + 1]; if (v > 99999) v = 99999;
+          for (int c = 24; c >= 20; c--) { line[c] = (char)('0' + v % 10); v /= 10; }
+          hud_text(8, 11 + 2 * g, line, HUD_PAL + 2 * tg);
+        }
+      }
       char t[] = "PLAYER 1 WINS!"; t[7] = (char)('1' + order[0]);
       if (order[0] >= arena_players - arena_cpu) { const char *c = "   CPU 1 WINS!"; for (int i = 0; c[i]; i++) t[i] = c[i]; t[7] = (char)('1' + order[0]); }
-      hud_text(13, 9, t, HUD_PAL + order[0]);
+      if (win_team >= 0) { const char *c = "  TEAM 1 WINS!"; for (int i = 0; c[i]; i++) t[i] = c[i]; t[7] = (char)('1' + win_team); }
+      hud_text(13, win_team >= 0 ? 8 : 9, t, HUD_PAL + (win_team >= 0 ? 2 * win_team : order[0]));
       for (int i = 0; i < arena_players; i++) {
         int k = order[i]; char line[] = "1ST  PLAYER 1  00000";
         static const char *const place[4] = {"1ST", "2ND", "3RD", "4TH"};
@@ -672,10 +695,13 @@ static void arena_frame(int *outp) {
         if (k >= arena_players - arena_cpu) { line[5] = ' '; line[6] = ' '; line[7] = ' '; line[8] = 'C'; line[9] = 'P'; line[10] = 'U'; }   // "   CPU 3"
         uint32_t v = ar_score[k] > 99999 ? 99999 : ar_score[k];
         for (int c = 19; c >= 15; c--) { line[c] = (char)('0' + v % 10); v /= 10; }
-        hud_text(10, 13 + 2 * i, line, HUD_PAL + k);
+        hud_text(10, (win_team >= 0 ? 16 : 13) + 2 * i, line, HUD_PAL + k);   // (teams: the players below)
       }
       ar_sound(AR_SND_WIN);
-      for (int i = 0; i < arena_players; i++) ar_dragon_play(order[i], i ? AR_WORRY : AR_HAPPY, 1);
+      for (int i = 0; i < arena_players; i++) {
+        int happy = win_team >= 0 ? order[i] / 2 == win_team : i == 0;   // (teams: both winners jump)
+        ar_dragon_play(order[i], happy ? AR_HAPPY : AR_WORRY, 1);
+      }
     }
     if (ar_clock && ar_clock % AR_DROP == 0) ar_new_row();
     for (int k = 0; k < arena_players; k++) {      // aim and shoot

@@ -33,7 +33,7 @@ static inline uint16_t rgb555(uint32_t c) {
   return (uint16_t)((r << 10) | (g << 5) | b);
 }
 static int arena_pending, arena_players = 4, arena_restart, arena_guide, arena_multi;   // the ARENA mode (arena.h)
-static int arena_cpu, arena_level = 1, arena_time = 120;
+static int arena_cpu, arena_level = 1, arena_time = 120, arena_teams;
 static uint32_t arena_wait;
 static int layout_pref = -1;                       // the layout chosen in the menu (-1: DIP switch 1)
 static int launching, launch_shown, launch_1p;   // the launch: behind a screen of ours (launch_frame)
@@ -831,22 +831,23 @@ static void inputs(void) {
 // start of players 1 and 2 together (the game of two, where the rounds follow one another),
 // players 3 and 4 joined as chosen, and the menus of the game (GAME SELECT...) validated with
 // button 1 until the first round starts. The game sees no input while the menu is open.
-static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn, menu_mode, menu_guide = 2, menu_screen = -1, menu_multi, menu_cpu, menu_time = 1;
+static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn, menu_mode, menu_guide = 2, menu_screen = -1, menu_multi, menu_cpu, menu_time = 1, menu_teams;
 static const int time_secs[4] = {60, 120, 180, 300};
 // the lines of the menu: MODE, PLAYERS, LEVEL, then GUIDE (arena) or SCREEN (versus, 3-4 players)
 static int menu_stage;                             // ARENA: 0 RANDOM, 1-8 the game's versus stages 0-7
 // the lines of the menu, by mode: their ids in menu_ids, one a row
-enum { L_MODE, L_PLAYERS, L_CPU, L_LEVEL, L_GUIDE, L_STAGE, L_COLORS, L_TIME, L_SCREEN };
+enum { L_MODE, L_PLAYERS, L_CPU, L_LEVEL, L_GUIDE, L_STAGE, L_COLORS, L_TIME, L_SCREEN, L_TEAMS };
 static int menu_ids(int *ids) {
   int n = 0;
   ids[n++] = L_MODE; ids[n++] = L_PLAYERS;
   if (menu_mode) ids[n++] = L_CPU;
+  if (menu_mode && menu_players == 4) ids[n++] = L_TEAMS;   // 2 against 2: four players only
   ids[n++] = L_LEVEL;
   if (menu_mode) { ids[n++] = L_GUIDE; ids[n++] = L_STAGE; ids[n++] = L_COLORS; ids[n++] = L_TIME; }
   else { if (menu_players >= 2) ids[n++] = L_STAGE; if (menu_players >= 3) ids[n++] = L_SCREEN; }   // (one player: the game's own menus)
   return n;
 }
-static int menu_lines(void) { int ids[9]; return menu_ids(ids); }
+static int menu_lines(void) { int ids[10]; return menu_ids(ids); }
 // The stage of the game's versus rounds: 5328(a5) & 7 ($1094D0) indexes its table of decors at
 // $3F526 (found on the bench); forced during the launch of the arena until the round is loaded.
 static int launch_stage = -1;
@@ -883,7 +884,7 @@ static void menu_inputs(void) {
     if ((e & IN_UP) && menu_sel > 0) menu_sel--;
     if ((e & IN_DOWN) && menu_sel < menu_lines() - 1) menu_sel++;
     int d = (e & IN_RIGHT) ? 1 : (e & IN_LEFT) ? -1 : 0;
-    int ids[9], nl = menu_ids(ids), id = ids[menu_sel < nl ? menu_sel : nl - 1];
+    int ids[10], nl = menu_ids(ids), id = ids[menu_sel < nl ? menu_sel : nl - 1];
     if (d && id == L_MODE) { menu_mode ^= 1; if (menu_mode && menu_players < 2) menu_players = 2; }
     if (d && id == L_PLAYERS) {                      // ARENA: 2-4 players; VERSUS: 1-4
       int lo = menu_mode ? 2 : 1;
@@ -898,6 +899,7 @@ static void menu_inputs(void) {
     if (d && id == L_STAGE) menu_stage = (menu_stage + d + 9) % 9;   // RANDOM, the 8 stages
     if (d && id == L_COLORS) menu_multi ^= 1;                        // MONO, MULTI
     if (d && id == L_TIME) menu_time = (menu_time + d + 4) % 4;      // 1, 2, 3, 5 minutes
+    if (d && id == L_TEAMS) menu_teams ^= 1;                         // OFF, ON (P1 + P2 against P3 + P4)
     if (menu_cpu > menu_players - 1) menu_cpu = menu_players - 1;    // one player at least
     if (menu_sel >= menu_lines()) menu_sel = menu_lines() - 1;
     if (e & IN_B(2)) menu_open = 0;
@@ -908,6 +910,7 @@ static void menu_inputs(void) {
       if (menu_mode) {                               // ARENA: a game of two loads the graphics
         arena_pending = 1; arena_wait = 0; arena_players = menu_players; arena_guide = menu_guide; arena_multi = menu_multi;
         arena_cpu = menu_cpu; arena_level = menu_level; arena_time = time_secs[menu_time];
+        arena_teams = menu_teams && menu_players == 4;
         launch_stage = menu_stage ? menu_stage - 1 : (int)((vframe * 2654435761u) >> 29);   // RANDOM: 0-7
         neo_ram[0xF614 ^ 1] = neo_ram[0xF615 ^ 1] = 0;
         start_mask = 5; start_force = 8; auto_frames = 1200;
@@ -1002,7 +1005,7 @@ static void hint_frame(void) {
     for (int r = 0; r < MENU_H; r++) { for (int i = 0; i < MENU_W; i++) l[r][i] = ' '; l[r][MENU_W] = 0; }
     #define PUT(r, c, str) do { const char *q_ = (str); for (int i_ = 0; q_[i_]; i_++) l[r][(c) + i_] = q_[i_]; } while (0)
     PUT(1, 3, "BUST-A-MOVE AGAIN 4P");
-    { int ids[9], nl = menu_ids(ids);              // the lines of the mode, one a row from row 3
+    { int ids[10], nl = menu_ids(ids);             // the lines of the mode, one a row from row 3
       static const char *const g[3] = {"  OFF   ", " SHORT  ", "  FULL  "}, *const tm[4] = {" 1 MIN  ", " 2 MIN  ", " 3 MIN  ", " 5 MIN  "};
       for (int i = 0; i < nl; i++) {
         int r = 3 + i; const char *name = "", *val = 0;
@@ -1017,6 +1020,7 @@ static void hint_frame(void) {
         case L_COLORS: name = "COLORS"; val = menu_multi ? " MULTI  " : "  MONO  "; break;
         case L_TIME: name = "TIME"; val = tm[menu_time]; break;
         case L_SCREEN: name = "SCREEN"; val = menu_screen ? " 2 X 2  " : "  LINE  "; break;
+        case L_TEAMS: name = "TEAMS"; val = menu_teams ? " 2 VS 2 " : "  OFF   "; break;
         }
         PUT(r, 3, name);
         if (val) { PUT(r, 13, "<"); PUT(r, 14, val); PUT(r, 22, ">"); }
