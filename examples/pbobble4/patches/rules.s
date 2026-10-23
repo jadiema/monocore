@@ -25,7 +25,7 @@
 	.section .p_061E2E,"ax"
 	jsr	lost_now
 	bra.s	.+0x22-6			| to the end of the site (. is the bra, 6 bytes in)
-	.fill	13,2,0x4e71
+	.fill	12,2,0x4e71
 | expect 061E76 28 crc32 0x763ed612	(during LOST: keep the opponent frozen)
 	.section .p_061E76,"ax"
 	jsr	keep_frozen
@@ -46,6 +46,15 @@
 	jmp	banners4
 	nop
 	nop
+| expect 022992 8 crc32 0x16f1f2cd	(move.w -10194(a5),d0 / cmp.w -28650(a5),d0: the rounds played
+	.section .p_022992,"ax"		|  against the rounds of the match, then bge $229D6, its end)
+	jsr	round_limit
+	nop
+| expect 022190 32 crc32 0x07a89e0b	(the rounds lost by the loser d0: -10236(a5); up to the movem
+	.section .p_022190,"ax"		|  that gives d0 back, at $221AC)
+	jsr	rounds_lost
+	bra.s	.+0x20-6
+	.fill	12,2,0x4e71
 | expect 0221C2 40 crc32 0xbbf53349	(the rounds won by the winner d0: -10244(a5), -10252(a5);
 	.section .p_0221C2,"ax"		|  up to the movem that gives d0 back, at $221E6)
 	jsr	rounds_won
@@ -177,6 +186,38 @@ rounds_won:
 	move.l	(%sp)+, %d0
 	rts
 2:	lea	-10252(%a5), %a0
+	rts
+
+| The rounds lost, likewise: with the factory settings (versus in 3 rounds) the match of player 1
+| against player 2 ended after a few 4-player rounds and the game went on with one player against
+| the computer. Otherwise what $22190-$221AF did: +1 to the rounds lost by d0 (at most 999), d0
+| kept, a0 on the rounds lost.
+rounds_lost:
+	tst.b	FOURROUND
+	bne.s	2f
+	move.l	%d0, -(%sp)
+	lea	-10236(%a5), %a0
+	asl.w	#1, %d0
+	addq.w	#1, 0(%a0,%d0.w)
+	cmpi.w	#999, 0(%a0,%d0.w)
+	ble.s	1f
+	move.w	#999, 0(%a0,%d0.w)
+1:	move.l	(%sp)+, %d0
+	rts
+2:	lea	-10236(%a5), %a0
+	rts
+
+| The match of the game ends when the rounds played (-10194(a5)) reach the rounds of the match
+| (-28650(a5): 1, 3 or 5, from VS ROUND): with four players no round counts, so no player reaches
+| the rounds won, and the match ended at the limit, with a winner among players 1 and 2. With four
+| players the limit does not apply (d0 compared with $7FFF: never reached); otherwise as $22992.
+round_limit:
+	move.w	-10194(%a5), %d0
+	tst.b	FOURROUND
+	bne.s	1f
+	cmp.w	-28650(%a5), %d0
+	rts
+1:	cmpi.w	#0x7FFF, %d0
 	rts
 
 banners4:					| the banners of the result, with two players only (the fields

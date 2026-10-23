@@ -182,6 +182,7 @@ static const layout_t *L = &layouts[0];
 static int four_layout;                            // 0: 2 x 2, 1: 4 x 1
 // Where each player is: in 4 x 1, only the players present (1, 2, and 3 or 4 if they joined) get a
 // column, side by side and centred (three players: three columns); in 2 x 2, the four places.
+static uint32_t conv_miss, conv_out_max, conv_miss_frames;   // the 4-player conversion, measured
 static int16_t fx[4], fy[4];
 static uint8_t fcol[4], frow[4], fon[4], fcount;
 static int place_fields(void) {                   // 1 when the places changed
@@ -291,13 +292,15 @@ static void decor_line(int sl, uint16_t *line) {
   }
 }
 
-static void decor_draw(void) {
+// The decor drawn by rows of cells, two per frame (one row is about 180 000 cycles: the whole decor
+// in one frame took up to 4.2 million, five frames in a row without the game). reset: a new decor,
+// its palettes are taken again.
+static void decor_rows(int r0, int r1, int reset) {
   static uint16_t line[168];                       // the field and the column on its right
   static uint8_t cells[DECOR_W * 64];
-  uint32_t opaque = 0;
-  for (int i = 0; i < 256; i++) decor_slot[i] = 0;
-  decor_slots = 0;
-  for (int ty = 0; ty < L->dh * 8; ty++) {
+  if (reset) { for (int i = 0; i < 256; i++) decor_slot[i] = 0; decor_slots = 0; }
+  if (r1 > L->dh) r1 = L->dh;
+  for (int ty = r0 * 8; ty < r1 * 8; ty++) {
     int sy = FOUR_TOP + ty * L->en / L->ed;
     if (sy < 224) decor_line(sy + 16, line); else for (int x = 0; x < 168; x++) line[x] = 0xFFFF;
     for (int tx = 0; tx < L->dw * 8; tx++) {
@@ -307,13 +310,11 @@ static void decor_draw(void) {
         uint32_t pal = v >> 4, slot = decor_slot[pal];
         if (!slot && decor_slots < DECOR_SLOTS) { decor_pal_of[decor_slots] = (uint8_t)pal; slot = decor_slot[pal] = ++decor_slots; }
         if (slot) b = (uint8_t)(((slot - 1) << 4) | (v & 15));
-        opaque++;
       }
       cells[(tx >> 3) * 64 + (ty & 7) * 8 + (tx & 7)] = b;
     }
     if ((ty & 7) == 7) mc_copy((volatile void *)(DECOR_BASE + (ty >> 3) * L->dw * 64), cells, L->dw * 64);
   }
-  mc_debug("DECOR frame %u: %u palettes, %u%% opaque\n", neo.frame, decor_slots, opaque * 100 / (L->dw * 8 * L->dh * 8));
 }
 
 // An empty decor (the game clears or moves it away, at the end of a round of players 1 and 2) does
@@ -330,13 +331,34 @@ static int decor_empty(void) {                    // one line in 16 of the decor
   }
   return full * 4 < all;
 }
+// A new decor comes after an empty one (the game clears the decor between two rounds): it is drawn
+// at once, by rows, its palettes taken again. The same decor moving (an animated decor: the sun of
+// the sunset, the clouds of the beach) is drawn again at most every 2 s, or it would be drawn at
+// every frame and leave no time to the game.
+static int decor_row = -1, decor_reset, decor_was_empty = 1;
+static uint32_t decor_started;
+static void decor_force(void) { decor_sign = 1; decor_was_empty = 1; }
 static void decor_frame(void) {
-  uint32_t h = 2166136261u;                        // the decor changes: draw it again
+  uint32_t h = 2166136261u, shown = 0;
   for (int n = 1; n < LIST_FIRST; n++) {
     h = (h ^ neo_vram[0x8000 + n]) * 16777619u; h = (h ^ (neo_vram[0x8200 + n] & 0x7F)) * 16777619u;
     h = (h ^ (neo_vram[n * 64 + 1] >> 8)) * 16777619u;
+    shown += (neo_vram[0x8200 + n] & 0x3F) != 0;
   }
-  if (h != decor_sign) { decor_sign = h; if (!decor_empty()) decor_draw(); }
+  if (shown < 8) decor_was_empty = 1;              // (almost) no decor sprite: cleared
+  if (h != decor_sign && decor_row < 0 && (decor_was_empty || vframe - decor_started >= 120)) {
+    decor_sign = h;
+    if (decor_empty()) decor_was_empty = 1;
+    else {
+      decor_row = 0; decor_reset = decor_was_empty; decor_was_empty = 0; decor_started = vframe;
+      if (decor_reset) mc_debug("DECOR frame %u: a new decor\n", neo.frame);
+    }
+  }
+  if (decor_row >= 0) {
+    decor_rows(decor_row, decor_row + 2, decor_row == 0 && decor_reset);
+    decor_row += 2;
+    if (decor_row >= L->dh) decor_row = -1;
+  }
   const uint16_t *p = neo_pal[neo.pal_bank];        // its palettes, with the fades of the game
   for (int k = 0; k < decor_slots; k++)
     for (int c = 0; c < 16; c++) PALETTE[(DECOR_PAL + k) * 16 + c] = rgb555(p[decor_pal_of[k] * 16 + c]);
@@ -471,7 +493,7 @@ static void video_four(void) {
       if (t1 & 8) num = (num & ~7u) | anim; else if (t1 & 4) num = (num & ~3u) | (anim & 3);
       if (num >= count || smap[num] == 0) continue;
       int slot = cache_get(smap[num]);
-      if (slot < 0) continue;
+      if (slot < 0) { conv_miss++; continue; }
       uint32_t pal = t1 >> 8;
       if (pal == DRAGON_PAL && f >= 2) pal = f == 2 ? DRAGON3_PAL : DRAGON4_PAL;
       sprite_t *s = &mc_spr[out++];
@@ -489,6 +511,10 @@ static void video_four(void) {
       if (four_layout && pal >= 28 && pal <= 36 && zy == 255) { s->zoomy = 192; s->y += 1; }
     }
   }
+  if (conv_miss) conv_miss_frames++;
+  if (out > conv_out_max) conv_out_max = out;
+  if (vframe % 600 == 0) { mc_debug("CONV4 frame %u: sprites up to %u, %u frames lost tiles (cache)\n", vframe, conv_out_max, conv_miss_frames); conv_out_max = 0; conv_miss_frames = 0; }
+  conv_miss = 0;
   decor_frame();                                   // the decor, on layer 1
   dragons_frame();
   mc_sprites_used(out);
@@ -503,14 +529,14 @@ static void video_frame(void) {
   int four = four_running(), lay = DIPSW & 1;
   if (four && four_mode && lay != four_layout) {     // DIP switch 1 changed during a game
     four_layout = lay; L = &layouts[lay];
-    place_fields(); hud_open(); decor_sign = 1;
+    place_fields(); hud_open(); decor_force();
   } else if (four && four_mode && place_fields()) hud_open();   // a player came or went
   if (four != four_mode) {
     four_layout = lay; L = &layouts[lay];
     four_mode = four; mc_video_mode(four ? FOUR_W : 320, four ? FOUR_H : 224);
     if (four) { place_fields(); hud_open(); }
     else { neo_platform_bank(); hud_close(); }      // the palettes 208-255 and the fix layer of the game again
-    decor_sign = 1;
+    decor_force();
     mc_debug("FOUR %d frame %u tasks %04X%04X\n", four, neo.frame, ram16(0x1034C6), ram16(0x1034C8));
   }
   // 1. positions, sizes and groups: a sticky sprite continues the chain on its right, and so does a
@@ -572,7 +598,7 @@ static void video_frame(void) {
       if (t1 & 8) num = (num & ~7u) | anim; else if (t1 & 4) num = (num & ~3u) | (anim & 3);
       if (num >= count || smap[num] == 0) continue;
       int slot = cache_get(smap[num]);
-      if (slot < 0) continue;
+      if (slot < 0) { conv_miss++; continue; }
       sprite_t *s = &mc_spr[out++];
       s->x = (int16_t)x; s->y = (int16_t)y; s->tile = (uint16_t)(slot * 4);
       s->pal = (uint8_t)(t1 >> 8); s->w = 2; s->h = 2;

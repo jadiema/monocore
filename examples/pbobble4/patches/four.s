@@ -231,3 +231,13 @@ pad1_t:	.long	0x100FF5, 0x100FF9, PAD3+1, PAD4+1		| $62B52
 score_t: .long	0x1057DC, 0x1057E0, SCORE3, SCORE4		| $434C8
 count_t: .long	0x10900A, 0x10900C, COUNT3, COUNT4		| $44E72
 opp_all: .long	0x10D5D2+0x14, 0x10D668+0x14, P3S+0x14, P4S+0x14	| +$14 of each player
+
+| The game ends the fields between two rounds with trap #2 and a mask of tasks: $1F0 (tasks 4-8)
+| and $1E0 (tasks 5-8). Task 7 (player 3) is in them; task 9 (player 4) is added, or the field of
+| player 4 would outlive its round and the next round could not make its fields.
+| expect 02172C 6 crc32 0x874f809a	(move.l #$1F0,-(a7) before trap #2)
+	.section .p_02172C,"ax"
+	move.l	#0x3F0, -(%sp)
+| expect 022CB0 6 crc32 0x9af890fe	(move.l #$1E0,-(a7) before trap #2)
+	.section .p_022CB0,"ax"
+	move.l	#0x3E0, -(%sp)

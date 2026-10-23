@@ -221,6 +221,16 @@ octet qui diffère dépend de cet appui.
    la tâche du joueur 4 ne pouvait pas être créée. Le jeu utilise les tâches 0-6, 8, 10, 14 et 15 ;
    le joueur 3 garde la 7, le joueur 4 prend la 9 (`four.s`, `field.s`, `band.s`, l'ordonnanceur
    en C du dossier privé).
+   Entre deux manches, le jeu supprime ses aires par `trap #2` avec un masque de tâches (`$1F0`,
+   `$1E0` : tâches 4 ou 5 à 8) : la tâche 9 y est ajoutée (`$3F0`, `$3E0`), sinon l'aire du joueur 4
+   survivait à sa manche et la suivante ne pouvait pas créer les siennes.
+   **Le match ne finit plus à quatre** : avec les réglages d'usine (versus en 3 manches), le match
+   « joueur 1 contre joueur 2 » finissait aussi par les manches perdues (`$22190`, `-10236`) et par
+   la limite de manches jouées (`$22992` : `-10194` contre `-28650`) ; dans une manche à quatre,
+   ni l'un ni l'autre ne compte (`rounds_lost`, `round_limit`) : 9 manches de suite sur le banc.
+   **Décor** : composé par rangées (2 par image ; tout d'un coup, jusqu'à 4,2 millions de cycles,
+   cinq images sans le jeu) ; un nouveau décor après un décor vidé par le jeu, un décor animé
+   repris au plus toutes les 2 s.
    **Menu de l'écran titre** (`main.c`) : nombre de joueurs et difficulté, puis les menus du jeu
    validés tout seuls. **Réglages du jeu** (DIP logiciels, `$10FD84`) : le BIOS émulé les met aux
    valeurs d'usine de la table du jeu (ils étaient à zéro : LEVEL 1, sans continuation, démo
