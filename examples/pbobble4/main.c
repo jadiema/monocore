@@ -32,6 +32,8 @@ static inline uint16_t rgb555(uint32_t c) {
            b = ((c << 1) & 0x1E) | ((c >> 12) & 1);
   return (uint16_t)((r << 10) | (g << 5) | b);
 }
+static int arena_on, arena_pending, arena_players = 4, arena_restart;   // the ARENA mode (arena.h)
+static uint32_t arena_wait;
 static int four_mode, four_last = 381;          // four_last: past the last sprite of the frame list
 extern uint32_t neo_list_last;                  // neort.c: the last sprite the list was sent to
 #define HUD_PAL     208                            // palettes 208-254 are never used by the game:
@@ -76,9 +78,13 @@ void neo_platform_fix(uint32_t x, uint32_t y, uint32_t e) {
   TILEMAP(0)[y * 64 + x] = MC_TILE(e & 0xFFF, e >> 12, 0);
 }
 static uint32_t idle_cycles, waits;                 // load, reported every 10 s
+extern void _start(void);
 void neo_platform_wait(uint32_t frame) {   // sleep until the vblank (neo.frame changes in the handler:
   uint32_t t0 = (uint32_t)mc_cycles(); waits++;
-  while (*(volatile uint32_t *)&neo.frame == frame) wfi();   // read it again on every turn)
+  while (*(volatile uint32_t *)&neo.frame == frame) {   // read it again on every turn)
+    wfi();
+    if (*(volatile int *)&arena_restart) { mc_irq_off(); IRQ_ENABLE = 0; _start(); }   // the end of an arena:
+  }                                                // the console starts again, as at power on
   idle_cycles += (uint32_t)mc_cycles() - t0;
 }
 uint32_t neo_platform_line(void) {                 // MONOCORE line -> Neo Geo line from the vblank
@@ -212,6 +218,7 @@ static inline uint32_t ram16(uint32_t a) { a &= 0xFFFF; return neo_ram[a] | neo_
 // OUT): FOURROUND ($10F616) says the round had a field for player 3 or 4.
 static uint32_t four_ended;
 static int four_running(void) {
+  if (arena_on) return 1;                          // the arena uses the 384 x 288 screen
   if (neo_ram[0xF65C ^ 1] | neo_ram[0xF65D ^ 1]) { four_ended = neo.frame; return 1; }
   return neo_ram[0xF616 ^ 1] && four_mode && neo.frame - four_ended < 180;
 }
@@ -523,6 +530,8 @@ static void video_four(void) {
   DISP_CTRL = DISP_ON | DISP_SPRITES | DISP_LAYER(0) | DISP_LAYER(1);
 }
 
+#include "arena.h"
+
 static uint32_t frames_short, tall_left;          // frames where tall columns had to stay sprites
 static void video_frame(void) {
   vframe++;
@@ -530,7 +539,7 @@ static void video_frame(void) {
   if (four && four_mode && lay != four_layout) {     // DIP switch 1 changed during a game
     four_layout = lay; L = &layouts[lay];
     place_fields(); hud_open(); decor_force();
-  } else if (four && four_mode && place_fields()) hud_open();   // a player came or went
+  } else if (four && four_mode && !arena_on && place_fields()) hud_open();   // a player came or went
   if (four != four_mode) {
     four_layout = lay; L = &layouts[lay];
     four_mode = four; mc_video_mode(four ? FOUR_W : 320, four ? FOUR_H : 224);
@@ -561,7 +570,7 @@ static void video_frame(void) {
     sp_zx[n] = (uint8_t)zx; sp_zy[n] = (uint8_t)zy; sp_head[n] = (uint16_t)head; sp_layer[n] = 0;
     px = x; ptop = top; prows = rows; pzy = zy; pw = zx + 1; pzx = zx;
   }
-  if (four_mode) { video_four(); return; }
+  if (four_mode) { if (arena_on) arena_frame(); else video_four(); return; }
   // 2. tall columns without shrink go to layers, the first ones (behind) on layer 3; a column that
   //    does not fit the current layer opens the next one, so the Neo Geo drawing order is kept
   int layer = 4, lx = 0, ly = 0;
@@ -729,14 +738,14 @@ static void inputs(void) {
 // start of players 1 and 2 together (the game of two, where the rounds follow one another),
 // players 3 and 4 joined as chosen, and the menus of the game (GAME SELECT...) validated with
 // button 1 until the first round starts. The game sees no input while the menu is open.
-static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn;
+static int menu_open, menu_pad, menu_sel, menu_players = 4, menu_level = 1, menu_drawn, menu_mode;
 static uint32_t pad_prev[4], start_force, start_mask, auto_frames;
 static const uint8_t level_dip[3] = {1, 3, 6};
 static const char *const level_name[3] = {"  EASY  ", " NORMAL ", "  HARD  "};
 #define MENU_X 7
 #define MENU_Y 8
 #define MENU_W 26
-#define MENU_H 13
+#define MENU_H 15
 static int menu_drawn_cell(uint32_t x, uint32_t y) {
   return menu_drawn && x >= MENU_X && x < MENU_X + MENU_W && y >= MENU_Y && y < MENU_Y + MENU_H;
 }
@@ -753,19 +762,26 @@ static void menu_inputs(void) {
   } else if (menu_open) {
     uint32_t e = 0;                                // any pad drives the menu
     for (int k = 0; k < 4; k++) e |= in[k] & ~pad_prev[k];
-    if (e & IN_UP) menu_sel = 0;
-    if (e & IN_DOWN) menu_sel = 1;
+    if ((e & IN_UP) && menu_sel > 0) menu_sel--;
+    if ((e & IN_DOWN) && menu_sel < 2) menu_sel++;
     int d = (e & IN_RIGHT) ? 1 : (e & IN_LEFT) ? -1 : 0;
-    if (d && menu_sel == 0) menu_players = (menu_players + d + 3) % 4 + 1;
-    if (d && menu_sel == 1) menu_level = (menu_level + d + 3) % 3;
+    if (d && menu_sel == 0) menu_mode ^= 1;
+    if (d && menu_sel == 1) menu_players = (menu_players + d + 3) % 4 + 1;
+    if (d && menu_sel == 2) menu_level = (menu_level + d + 3) % 3;
     if (e & IN_B(2)) menu_open = 0;
     else if (e & (IN_START | IN_B(1))) {
       menu_open = 0;
       neo_ram[0xFD8A ^ 1] = level_dip[menu_level];     // DIFFICULTY
-      neo_ram[0xF614 ^ 1] = menu_players >= 3;           // JOIN3, JOIN4 (patches/four.s)
-      neo_ram[0xF615 ^ 1] = menu_players == 4;
-      start_mask = menu_players == 1 ? 1 : 5; start_force = 8;
-      auto_frames = menu_players == 1 ? 0 : 1200;
+      if (menu_mode) {                               // ARENA: a game of two loads the graphics
+        arena_pending = 1; arena_wait = 0; arena_players = menu_players;
+        neo_ram[0xF614 ^ 1] = neo_ram[0xF615 ^ 1] = 0;
+        start_mask = 5; start_force = 8; auto_frames = 1200;
+      } else {
+        neo_ram[0xF614 ^ 1] = menu_players >= 3;         // JOIN3, JOIN4 (patches/four.s)
+        neo_ram[0xF615 ^ 1] = menu_players == 4;
+        start_mask = menu_players == 1 ? 1 : 5; start_force = 8;
+        auto_frames = menu_players == 1 ? 0 : 1200;
+      }
     }
     neo.p1 = neo.p2 = neo.p3 = neo.p4 = 0; neo.status_b = 0; neo.st34 = 0;   // the game sees nothing
   }
@@ -786,13 +802,14 @@ static void hint_frame(void) {
     for (int r = 0; r < MENU_H; r++) { for (int i = 0; i < MENU_W; i++) l[r][i] = ' '; l[r][MENU_W] = 0; }
     #define PUT(r, c, str) do { const char *q_ = (str); for (int i_ = 0; q_[i_]; i_++) l[r][(c) + i_] = q_[i_]; } while (0)
     PUT(1, 3, "BUST-A-MOVE AGAIN 4P");
-    PUT(3, 3, "PLAYERS"); PUT(3, 13, "<    >"); l[3][16] = (char)('0' + menu_players);
-    PUT(5, 3, "LEVEL"); PUT(5, 13, "<"); PUT(5, 14, level_name[menu_level]); PUT(5, 22, ">");
-    if ((vframe >> 4) & 1) l[menu_sel ? 5 : 3][1] = '>';   // the line chosen
-    PUT(7, 3, "UP/DOWN    : LINE");
-    PUT(8, 3, "LEFT/RIGHT : CHANGE");
-    PUT(9, 3, "START      : PLAY");
-    PUT(10, 3, "BUTTON 2   : BACK");
+    PUT(3, 3, "MODE"); PUT(3, 13, "<"); PUT(3, 14, menu_mode ? " ARENA  " : " VERSUS "); PUT(3, 22, ">");
+    PUT(5, 3, "PLAYERS"); PUT(5, 13, "<    >"); l[5][16] = (char)('0' + menu_players);
+    PUT(7, 3, "LEVEL"); PUT(7, 13, "<"); PUT(7, 14, level_name[menu_level]); PUT(7, 22, ">");
+    if ((vframe >> 4) & 1) l[3 + 2 * menu_sel][1] = '>';   // the line chosen
+    PUT(9, 3, "UP/DOWN    : LINE");
+    PUT(10, 3, "LEFT/RIGHT : CHANGE");
+    PUT(11, 3, "START      : PLAY");
+    PUT(12, 3, "BUTTON 2   : BACK");
     #undef PUT
     for (int r = 0; r < MENU_H; r++)
       for (int i = 0; i < MENU_W; i++) TILEMAP(0)[(MENU_Y + r) * 64 + MENU_X + i] = MC_TILE((uint8_t)l[r][i], TEXT_PAL, 0);
@@ -837,7 +854,11 @@ static void vblank(void) {
              waits, four_mode ? " (4 players)" : "");
     conv_sum = conv_max = 0; frames_short = 0; idle_cycles = 0; waits = 0;
   }
-  neo_vblank(&cpu);
+  if (arena_pending && !arena_on && (ram16(0x1034C8) & 0x20)) {   // the game's round is loaded (decor,
+    ar_scan();                                     // palettes): its bubbles noted, then the arena
+    if (++arena_wait > 90) { arena_pending = 0; arena_start(); }
+  }
+  if (!arena_on) neo_vblank(&cpu);                 // the game is frozen while the arena plays
 }
 
 // --- translated program ---
