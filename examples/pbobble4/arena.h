@@ -157,6 +157,15 @@ static uint32_t ar_seen_tile[64];
 static uint32_t ar_idle[4][8], ar_idles[4];        // the tiles at rest, per colour
 static uint32_t ar_burst[4][8][9], ar_bursts[4];   // the frames of a burst: 3 x 3 tiles each
 static uint8_t ar_burst_flip[4][8][9];
+static uint16_t ar_r16(uint32_t a);
+// The launcher of the game, from its ROM: the needle (definitions by angle at $626A2: 4 x 4 tiles,
+// angle 0 upright to 60 leaning; leaning left with a mirror), at (-32, -32) from the launcher's
+// bubble; the wheel (9 frames turning as the needle moves, at $3D990: 6 x 4 tiles), at (-48, -24)
+// (the list gives y 32 lines above the screen's).
+// Palettes 76 and 80.
+#define AR_NEEDLE_T 0x626A2
+#define AR_WHEEL_T  0x3D990
+static int ar_wheel[4];                            // how far each wheel has turned
 static uint16_t ar_r16(uint32_t a) { return *(const uint16_t *)(neo_rom + (a & ~1u)); }
 static uint32_t ar_r32(uint32_t a) { return (uint32_t)ar_r16(a) << 16 | ar_r16(a + 2); }
 static uint32_t ar_tile_of(uint32_t d, int i) { uint32_t t0 = ar_r16(d + 2 + 4 * i), t1 = ar_r16(d + 4 + 4 * i); return t0 | ((t1 & 0xF0) << 12); }
@@ -250,7 +259,7 @@ static void ar_take_stamp(int f) {
       if (x < x0 - 16 || x >= x0 + 144 || y < 160 || y >= 240) continue;
       int dx = x + 8 - ax, dy = y + 8 - ay;
       if (dx < -72 || dx > 72) continue;
-      if (dy < -8 && dx > -12 && dx < 12) continue;     // the needle of the launcher: the dots aim
+      if ((pl == 76 && dy < 0 && dx > -32 && dx < 32) || pl == 80) continue;   // its needle, its wheel: drawn moving
       ar_tile_t *t = &ar_stamp[f][n_out++];
       t->dx = (int16_t)dx; t->dy = (int16_t)dy; t->num = t0 | ((t1 & 0xF0) << 12); t->pal = (uint8_t)pl; t->flip = (uint8_t)(t1 & 3);
     }
@@ -258,6 +267,30 @@ static void ar_take_stamp(int f) {
   ar_stamps[f] = n_out;
   int d16 = 0, d21 = 0; for (int i = 0; i < n_out; i++) { d16 += ar_stamp[f][i].pal == 16; d21 += ar_stamp[f][i].pal == 21; }
   mc_debug("STAMP %d: %d tiles, anchor %d %d, dragon tiles %d %d\n", f, n_out, ax, ay, d16, d21);
+}
+static void ar_block(int *out, uint32_t d, int32_t x0, int32_t y0, int flip, uint8_t pal) {   // a definition, 3/4 size
+  const uint16_t *smap = (const uint16_t *)spr_map_file;
+  uint32_t size = ar_r16(d), cols = (size & 0xFF) + 1, rows = ((size >> 8) & 0xFF) + 1;
+  for (uint32_t c = 0; c < cols; c++)
+    for (uint32_t r = 0; r < rows && *out < MC_SPRITES; r++) {
+      uint32_t i = c * rows + r, num = ar_tile_of(d, (int)i), t1 = ar_r16(d + 4 + 4 * i);
+      if (!num || !smap[num]) continue;
+      int slot = cache_get(smap[num]);
+      if (slot < 0) continue;
+      int cc = flip ? (int)(cols - 1 - c) : (int)c, fl = (int)(t1 & 3) ^ (flip ? 1 : 0);
+      sprite_t *s = &mc_spr[(*out)++];
+      s->x = (int16_t)(x0 + ((cc * 16 * 192) >> 8)); s->y = (int16_t)(y0 + (((int)r * 16 * 192) >> 8));
+      s->tile = (uint16_t)(slot * 4); s->pal = pal; s->w = 2; s->h = 2;
+      s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | ((fl & 1) ? SA_HFLIP : 0) | ((fl & 2) ? SA_VFLIP : 0));
+      s->zoomx = 192; s->zoomy = 192;
+    }
+}
+static void ar_draw_launcher(int *out, int k) {    // the needle at the aim, the wheel turning
+  int32_t lx = AR_X + 40 + 80 * k, ly = AR_LY - 10;
+  int a = ar_ang[k] < 0 ? -ar_ang[k] : ar_ang[k], idx = a * 60 / 75;
+  ar_block(out, ar_r32(AR_NEEDLE_T + 4 * idx), lx + ((-32 * 192) >> 8), ly + ((-32 * 192) >> 8), ar_ang[k] < 0, 76);
+  int w = ((ar_wheel[k] / 3) % 9 + 9) % 9;
+  ar_block(out, ar_r32(AR_WHEEL_T + 4 * w), lx + ((-48 * 192) >> 8), ly + ((-24 * 192) >> 8), 0, 80);
 }
 static void ar_draw_stamp(int *out, int k) {
   const uint16_t *smap = (const uint16_t *)spr_map_file;
@@ -377,8 +410,8 @@ static void arena_frame(int *outp) {
     if (ar_start == 30) ar_sound(AR_SND_SHOT);
     if (!ar_start) for (int i = 0; i < 5; i++) TILEMAP(0)[16 * 64 + 19 + i] = MC_TILE(FIX_EMPTY, 0, 0);   // (spaces are opaque)
     for (int k = 0; k < arena_players; k++) {      // they may aim already
-      if (in[k] & IN_LEFT) ar_ang[k] -= 2;
-      if (in[k] & IN_RIGHT) ar_ang[k] += 2;
+      if (in[k] & IN_LEFT) { ar_ang[k] -= 2; if (ar_ang[k] >= -75) ar_wheel[k]--; }
+      if (in[k] & IN_RIGHT) { ar_ang[k] += 2; if (ar_ang[k] <= 75) ar_wheel[k]++; }
       if (ar_ang[k] < -75) ar_ang[k] = -75;
       if (ar_ang[k] > 75) ar_ang[k] = 75;
       ar_prev[k] = in[k];
@@ -408,8 +441,8 @@ static void arena_frame(int *outp) {
     }
     if (ar_clock && ar_clock % AR_DROP == 0) ar_new_row();
     for (int k = 0; k < arena_players; k++) {      // aim and shoot
-      if (in[k] & IN_LEFT) ar_ang[k] -= 2;
-      if (in[k] & IN_RIGHT) ar_ang[k] += 2;
+      if (in[k] & IN_LEFT) { ar_ang[k] -= 2; if (ar_ang[k] >= -75) ar_wheel[k]--; }
+      if (in[k] & IN_RIGHT) { ar_ang[k] += 2; if (ar_ang[k] <= 75) ar_wheel[k]++; }
       if (ar_ang[k] < -75) ar_ang[k] = -75;
       if (ar_ang[k] > 75) ar_ang[k] = 75;
       uint32_t e = in[k] & ~ar_prev[k];
@@ -495,6 +528,7 @@ static void arena_frame(int *outp) {
   for (int r = 0; r < AR_ROWS && !ar_end; r++)    // (the results: the landscape alone behind them)
     for (int c = 0; c < ar_cols(r); c++)
       if (ar_grid[r][c] >= 0) ar_sprite(&out, ar_cx(r, c), ar_cy(r), ar_grid[r][c], 256);
+  for (int k = 0; k < arena_players; k++) ar_draw_launcher(&out, k);  // in front of the machine
   for (int k = 0; k < arena_players; k++) ar_draw_stamp(&out, k);   // behind the bubbles
   ar_masks(&out);                                  // then the edges, then the game's decor
   *outp = out;
