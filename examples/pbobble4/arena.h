@@ -18,7 +18,7 @@
 #define AR_DROP   (20 * 60)                        // the ceiling comes down
 #define FX(v)     ((int32_t)(v) << 8)              // 24.8 fixed point
 #define AR_DX     AR_X                             // the game's 320-pixel screen under the board
-#define AR_DY     8
+#define AR_DY     20
 
 static const int16_t ar_sin[91] = {0, 4, 9, 13, 18, 22, 27, 31, 36, 40, 44, 49, 53, 58, 62, 66, 71, 75, 79, 83, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 139, 143, 147, 150, 154, 158, 161, 165, 168, 171, 175, 178, 181, 184, 187, 190, 193, 196, 199, 202, 204, 207, 210, 212, 215, 217, 219, 222, 224, 226, 228, 230, 232, 234, 236, 237, 239, 241, 242, 243, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 254, 255, 255, 255, 256, 256, 256, 256};
 static int ar_sinv(int d) { int s = d < 0 ? -1 : 1; d = d < 0 ? -d : d; return s * ar_sin[d > 90 ? 90 : d]; }
@@ -34,6 +34,9 @@ static struct { int on; int32_t x, y, vx, vy; } ar_fly[4];
 static struct { int on, col; int32_t x, y, vy; } ar_fall[64];
 static uint32_t ar_score[4], ar_clock, ar_end, ar_rng = 12345;
 static uint32_t ar_prev[4];
+static uint32_t ar_start;                          // frames of READY / GO before the first shot
+static uint8_t ar_jump[4];                         // a dragon jumps when its player shoots
+#define AR_READY  90
 
 // the game's sounds (tools/sound/sounds.txt): shot, stick, burst, fall, ready go, danger, alert, fanfare
 static void ar_sound(uint32_t code) { neo_platform_sound(0x1A, code); }
@@ -204,6 +207,7 @@ static void ar_take_stamp(int f) {
       if (x < x0 - 16 || x >= x0 + 144 || y < 160 || y >= 240) continue;
       int dx = x + 8 - ax, dy = y + 8 - ay;
       if (dx < -72 || dx > 72) continue;
+      if (dy < -8 && dx > -12 && dx < 12) continue;     // the needle of the launcher: the dots aim
       ar_tile_t *t = &ar_stamp[f][n_out++];
       t->dx = (int16_t)dx; t->dy = (int16_t)dy; t->num = t0 | ((t1 & 0xF0) << 12); t->pal = (uint8_t)pl; t->flip = (uint8_t)(t1 & 3);
     }
@@ -222,8 +226,13 @@ static void ar_draw_stamp(int *out, int k) {
     if (slot < 0) continue;
     uint32_t pal = t->pal;
     if (pal == DRAGON_PAL && k >= 2) pal = k == 2 ? DRAGON3_PAL : DRAGON4_PAL;
+    int dy = 0;
+    if (t->pal == 16 || t->pal == DRAGON_PAL) {      // the dragon: breathes, jumps at a shot
+      dy = ((vframe + k * 16) >> 5) & 1;
+      if (ar_jump[k]) dy -= ar_jump[k] > 8 ? 16 - ar_jump[k] : ar_jump[k];
+    }
     sprite_t *s = &mc_spr[(*out)++];
-    s->x = (int16_t)(lx + ((t->dx * 192) >> 8) - 6); s->y = (int16_t)(ly + ((t->dy * 192) >> 8) - 6);
+    s->x = (int16_t)(lx + ((t->dx * 192) >> 8) - 6); s->y = (int16_t)(ly + ((t->dy * 192) >> 8) - 6 + dy);
     s->tile = (uint16_t)(slot * 4); s->pal = (uint8_t)pal; s->w = 2; s->h = 2;
     s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | ((t->flip & 1) ? SA_HFLIP : 0) | ((t->flip & 2) ? SA_VFLIP : 0));
     s->zoomx = 192; s->zoomy = 192;
@@ -265,7 +274,8 @@ static void arena_start(void) {
     ar_grid[r][c] = (r < 7 && c < ar_cols(r)) ? (int8_t)(ar_rand() % arena_players) : -1;
   for (int k = 0; k < 4; k++) { ar_ang[k] = 0; ar_fly[k].on = 0; ar_score[k] = 0; ar_prev[k] = 0xFFFFFFFF; }
   for (int i = 0; i < 64; i++) ar_fall[i].on = 0;
-  ar_clock = AR_TIME; ar_end = 0;
+  ar_clock = AR_TIME; ar_end = 0; ar_start = AR_READY;
+  for (int k = 0; k < 4; k++) ar_jump[k] = 0;
   for (int i = 0; i < 64 * 64; i++) { TILEMAP(0)[i] = MC_TILE(FIX_EMPTY, 0, 0); TILEMAP(1)[i] = MC_TILE(DECOR_W * DECOR_H, DECOR_PAL, 0); }
   arena_on = 1; ar_cleared = 0;
   mc_debug("ARENA frame %u: %d players, bubbles %X/%u %X/%u %X/%u %X/%u\n", neo.frame, arena_players, ar_num[0], ar_pal[0], ar_num[1], ar_pal[1], ar_num[2], ar_pal[2], ar_num[3], ar_pal[3]);
@@ -309,14 +319,39 @@ static void arena_frame(int *outp) {
     for (int i = 0; i < 16; i++) PALETTE[215 * 16 + i] = i ? ar_hue(rgb555(p[ar_src4 * 16 + i]), 250) : 0; }
   if (ar_end) {                                    // the results, then the console starts again
     if (--ar_end == 1) arena_restart = 1;
+  } else if (ar_start) {                          // READY ... GO!
+    ar_start--;
+    hud_text(19, 16, ar_start > 30 ? "READY" : " GO! ", HUD_PAL + 3);
+    if (ar_start == 30) ar_sound(AR_SND_SHOT);
+    if (!ar_start) for (int i = 0; i < 5; i++) TILEMAP(0)[16 * 64 + 19 + i] = MC_TILE(FIX_EMPTY, 0, 0);   // (spaces are opaque)
+    for (int k = 0; k < arena_players; k++) {      // they may aim already
+      if (in[k] & IN_LEFT) ar_ang[k] -= 2;
+      if (in[k] & IN_RIGHT) ar_ang[k] += 2;
+      if (ar_ang[k] < -75) ar_ang[k] = -75;
+      if (ar_ang[k] > 75) ar_ang[k] = 75;
+      ar_prev[k] = in[k];
+    }
   } else {
     if (ar_clock) ar_clock--;
     if (ar_clock && ar_clock <= 10 * 60 && ar_clock % 60 == 0) ar_sound(AR_SND_ALERT);   // the last 10 s
     if (!ar_clock) {
-      ar_end = 8 * 60;
-      int best = 0; for (int k = 1; k < arena_players; k++) if (ar_score[k] > ar_score[best]) best = k;
-      char t[] = "PLAYER 1 WINS!"; t[7] = (char)('1' + best);
-      hud_text(13, 17, t, HUD_PAL + best);
+      ar_end = 10 * 60;
+      int order[4] = {0, 1, 2, 3};                   // the ranking, best first
+      for (int i = 0; i < arena_players; i++)
+        for (int j = i + 1; j < arena_players; j++)
+          if (ar_score[order[j]] > ar_score[order[i]]) { int t = order[i]; order[i] = order[j]; order[j] = t; }
+      for (int r = 0; r < 64 * 64; r++) TILEMAP(0)[r] = MC_TILE(FIX_EMPTY, 0, 0);
+      char t[] = "PLAYER 1 WINS!"; t[7] = (char)('1' + order[0]);
+      hud_text(13, 9, t, HUD_PAL + order[0]);
+      for (int i = 0; i < arena_players; i++) {
+        int k = order[i]; char line[] = "1ST  PLAYER 1  00000";
+        static const char *const place[4] = {"1ST", "2ND", "3RD", "4TH"};
+        for (int c = 0; c < 3; c++) line[c] = place[i][c];
+        line[12] = (char)('1' + k);
+        uint32_t v = ar_score[k] > 99999 ? 99999 : ar_score[k];
+        for (int c = 19; c >= 15; c--) { line[c] = (char)('0' + v % 10); v /= 10; }
+        hud_text(10, 13 + 2 * i, line, HUD_PAL + k);
+      }
       ar_sound(AR_SND_WIN);
     }
     if (ar_clock && ar_clock % AR_DROP == 0) ar_new_row();
@@ -326,7 +361,9 @@ static void arena_frame(int *outp) {
       if (ar_ang[k] < -75) ar_ang[k] = -75;
       if (ar_ang[k] > 75) ar_ang[k] = 75;
       uint32_t e = in[k] & ~ar_prev[k];
-      if ((e & (IN_B(1) | IN_UP)) && !ar_fly[k].on && ar_clock) {
+      if (ar_jump[k]) ar_jump[k]--;
+      if ((e & (IN_B(1) | IN_UP)) && !ar_fly[k].on && ar_clock && !ar_start) {
+        ar_jump[k] = 16;
         ar_fly[k].on = 1; ar_fly[k].x = FX(AR_X + 40 + 80 * k); ar_fly[k].y = FX(AR_LY - 10);
         ar_fly[k].vx = ar_sinv(ar_ang[k]) * 6; ar_fly[k].vy = -ar_cosv(ar_ang[k]) * 6;
         ar_sound(AR_SND_SHOT);
@@ -379,7 +416,7 @@ static void arena_frame(int *outp) {
     for (int d = 1; d <= 5; d++)
       ar_sprite(&out, x + ar_sinv(ar_ang[k]) * 7 * d, y - ar_cosv(ar_ang[k]) * 7 * d, k, 80);
   }
-  for (int r = 0; r < AR_ROWS; r++)
+  for (int r = 0; r < AR_ROWS && !ar_end; r++)    // (the results: the landscape alone behind them)
     for (int c = 0; c < ar_cols(r); c++)
       if (ar_grid[r][c] >= 0) ar_sprite(&out, ar_cx(r, c), ar_cy(r), ar_grid[r][c], 256);
   for (int k = 0; k < arena_players; k++) ar_draw_stamp(&out, k);   // behind the bubbles
