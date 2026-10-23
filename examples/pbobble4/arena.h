@@ -82,6 +82,9 @@ static void ar_points_frame(void) {
   }
 }
 
+// where the launcher of player k is: 80 pixels apart, symmetric about the middle of the board
+static int32_t ar_lx(int k) { return AR_X + 160 - 40 * (arena_players - 1) + 80 * k; }
+
 static uint32_t ar_rand(void) { ar_rng = ar_rng * 1103515245u + 12345u; return ar_rng >> 16; }
 static int ar_cols(int r) { return ((r + ar_shift) & 1) ? AR_COLS - 1 : AR_COLS; }
 static int32_t ar_cx(int r, int c) { return FX(AR_X + 8 + c * 16 + (((r + ar_shift) & 1) ? 8 : 0)); }
@@ -246,27 +249,29 @@ static void ar_scan(void) {
   }
 }
 static void ar_take_graphics(void) {
+  // the eight bubble palettes of the game (29-36, its colours 0-7) are always loaded: each player's
+  // colour is the nearest in hue among them, whether a bubble of it shows or not; its tile comes
+  // from its script (below), the bubbles seen only if no script
   static const int want[4][3] = {{0, 31, 0}, {0, 8, 31}, {31, 0, 0}, {31, 31, 4}};
   const uint16_t *pal = neo_pal[neo.pal_bank];
   uint64_t taken = 0;
   for (int k = 0; k < 4; k++) {
     int best = -1, bd = 0;
-    for (int pl = 20; pl <= 40; pl++) {
-      if (!ar_seen_tile[pl] || (taken >> pl & 1)) continue;
+    for (int pl = 29; pl <= 36; pl++) {
+      if (taken >> pl & 1) continue;
       int r = 0, g = 0, b = 0;
       for (int i = 4; i <= 10; i++) { uint32_t c = rgb555(pal[pl * 16 + i]); r += (c >> 10) & 31; g += (c >> 5) & 31; b += c & 31; }
       r /= 7; g /= 7; b /= 7;
       int d = (r - want[k][0]) * (r - want[k][0]) + (g - want[k][1]) * (g - want[k][1]) + (b - want[k][2]) * (b - want[k][2]);
       if (best < 0 || d < bd) { best = pl; bd = d; }
     }
-    if (best < 0) best = 29;                       // (never seen: whatever is there)
     taken |= 1ull << best;
     ar_pal[k] = (uint8_t)best; ar_num[k] = ar_seen_tile[best];
   }
-  // player 4 is yellow: its bubble (often orange, a yellow one is rarely there) in palette 215
-  // (never used by the game), turned yellow as the dragon of player 4
-  for (int k = 0; k < 4; k++)                       // the game's colour of each: its palette
+  for (int k = 0; k < 4; k++) {                     // the game's colour of each: its palette
     if (ar_pal[k] >= 29 && ar_pal[k] <= 36) ar_read_scripts(k, ar_pal[k] - 29);
+    if (ar_idles[k]) ar_num[k] = ar_idle[k][0];       // its tile, from its script
+  }
   ar_src4 = ar_pal[3]; ar_pal[3] = 215;
 }
 
@@ -321,7 +326,7 @@ static void ar_block(int *out, uint32_t d, int32_t x0, int32_t y0, int flip, uin
     }
 }
 static void ar_draw_launcher(int *out, int k) {    // the needle at the aim, the wheel turning
-  int32_t lx = AR_X + 40 + 80 * k, ly = AR_LY - 10;
+  int32_t lx = ar_lx(k), ly = AR_LY - 10;
   int a = ar_ang[k] < 0 ? -ar_ang[k] : ar_ang[k], idx = a * 60 / 75;
   ar_block(out, ar_r32(AR_NEEDLE_T + 4 * idx), lx + ((-32 * 192) >> 8), ly + ((-32 * 192) >> 8), ar_ang[k] < 0, 76);
   int w = ((ar_wheel[k] / 3) % 9 + 9) % 9;
@@ -363,7 +368,7 @@ static void ar_dragon_step(int k) {
 }
 static void ar_draw_dragon(int *out, int k) {
   if (!ar_drag_n[ar_drag[k].mood]) return;
-  int32_t lx = AR_X + 40 + 80 * k, ly = AR_LY - 10;
+  int32_t lx = ar_lx(k), ly = AR_LY - 10;
   uint8_t pal = k == 0 ? 16 : k == 2 ? DRAGON3_PAL : k == 3 ? DRAGON4_PAL : DRAGON_PAL;
   int dx = k ? 24 : -56;
   ar_block(out, ar_drag_def[ar_drag[k].mood][ar_drag[k].frame], lx + ((dx * 192) >> 8), ly, k == 0, pal);
@@ -406,7 +411,7 @@ static void ar_compose(void) {
     ar_img_row = cy;
     for (int y = 0; y < 8; y++) for (int x = 0; x < AR_IMG_W * 8; x++) ar_img[y][x] = 0;
     for (int k = 0; k < arena_players; k++) {
-      int f = k ? 1 : 0; int32_t lx = AR_X + 40 + 80 * k, ly = AR_LY - 10;
+      int f = k ? 1 : 0; int32_t lx = ar_lx(k), ly = AR_LY - 10;
       for (int i = 0; i < ar_stamps[f]; i++) {
         ar_tile_t *t = &ar_stamp[f][i];
         ar_img_tile(t->num, t->pal, t->flip, lx + ((t->dx * 192) >> 8) - 6, ly + ((t->dy * 192) >> 8) - 6);
@@ -459,7 +464,8 @@ static void arena_start(void) {
 }
 
 static void ar_text_score(void) {
-  static const uint8_t col[4] = {4, 12, 29, 37};   // inside the board (columns 4-43)
+  static const uint8_t cols[3][4] = {{4, 37}, {4, 12, 37}, {4, 12, 29, 37}};   // inside the board (columns 4-43)
+  const uint8_t *col = cols[arena_players >= 2 ? arena_players - 2 : 0];
   for (int k = 0; k < arena_players; k++) {
     char t[8] = "P1 0000"; t[1] = (char)('1' + k);
     uint32_t v = ar_score[k] > 9999 ? 9999 : ar_score[k];
@@ -498,7 +504,7 @@ static void ar_sprite_pal(int *out, int32_t x, int32_t y, int k, uint16_t zoom, 
 // a dot every 16 pixels, the dots moving along it.
 static void ar_sprite(int *out, int32_t x, int32_t y, int k, uint16_t zoom);
 static void ar_guide_full(int *out, int k) {
-  int32_t x = FX(AR_X + 40 + 80 * k), y = FX(AR_LY - 10);
+  int32_t x = FX(ar_lx(k)), y = FX(AR_LY - 10);
   int32_t vx = ar_sinv(ar_ang[k]) * 4, vy = -ar_cosv(ar_ang[k]) * 4;   // 4 pixels a step
   int phase = 3 - (int)((vframe >> 1) % 4);        // the dots move away from the launcher
   for (int n = 0; n < 160; n++) {
@@ -588,7 +594,7 @@ static void arena_frame(int *outp) {
       if (ar_jump[k]) ar_jump[k]--;
       if ((e & (IN_B(1) | IN_UP)) && !ar_fly[k].on && ar_clock && !ar_start) {
         ar_jump[k] = 16; ar_dragon_play(k, AR_SHOOT, 0);
-        ar_fly[k].on = 1; ar_fly[k].x = FX(AR_X + 40 + 80 * k); ar_fly[k].y = FX(AR_LY - 10);
+        ar_fly[k].on = 1; ar_fly[k].x = FX(ar_lx(k)); ar_fly[k].y = FX(AR_LY - 10);
         ar_fly[k].vx = ar_sinv(ar_ang[k]) * 6; ar_fly[k].vy = -ar_cosv(ar_ang[k]) * 6;
         ar_sound(AR_SND_SHOT);
       }
@@ -659,7 +665,7 @@ static void arena_frame(int *outp) {
     else ar_sprite_pal(&out, ar_pop[i].x, ar_pop[i].y, k, (uint16_t)(256 + (8 - t) * 12), (uint8_t)(AR_GREY_PAL + k));
   }
   for (int k = 0; k < arena_players; k++) {        // the launchers: the next bubble and the aim
-    int32_t x = FX(AR_X + 40 + 80 * k), y = FX(AR_LY - 10);
+    int32_t x = FX(ar_lx(k)), y = FX(AR_LY - 10);
     if (!ar_fly[k].on) ar_sprite(&out, x, y, k, 256);
     if (arena_guide == 1)                          // the aiming guide (GUIDE in the menu): SHORT
       for (int d = 1; d <= 5; d++)

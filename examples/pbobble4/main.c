@@ -826,7 +826,7 @@ static void menu_inputs(void) {
 static void launch_frame(void) {
   if (launching) {
     int w = four_mode ? 48 : 40, h = four_mode ? 36 : 32, r0 = four_mode ? 15 : 13;
-    for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) TILEMAP(0)[y * 64 + x] = MC_TILE(FIX_EMPTY, 0, 0);
+    for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) TILEMAP(0)[y * 64 + x] = MC_TILE(' ', TEXT_PAL, 0);   // black (opaque)
     char t1[] = "BUST-A-MOVE AGAIN 4P", t2[24] = "VERSUS  -  4 PLAYERS", t3[] = "GET READY";
     if (arena_pending) { const char *a = "ARENA   -  4 PLAYERS"; for (int i = 0; a[i]; i++) t2[i] = a[i]; t2[20] = 0; }
     t2[11] = (char)('0' + (arena_pending ? arena_players : menu_players));
