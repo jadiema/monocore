@@ -97,8 +97,11 @@ canvas#screen { image-rendering: pixelated; image-rendering: crisp-edges; max-wi
 body.dragging .bezel { outline: 2px dashed var(--pad); outline-offset: 6px; }
 
 /* keys */
-.keys { margin-top: 22px; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.keys { margin-top: 22px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 14px; }
 .keys section { min-width: 0; }
+.keys section.sys { grid-column: 1 / -1; }          /* the four players on one line, the system below */
+.keys section.sys .keymap { grid-template-columns: auto 1fr auto 1fr; }
+@media (max-width: 1100px) { .keys { grid-template-columns: repeat(2, minmax(0, 1fr)); } .keys section.sys .keymap { grid-template-columns: auto 1fr; } }
 h2 { font: 600 12px var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--silk-dim); margin: 0 0 8px; }
 .keymap { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; }
 .keymap dt { color: var(--silk-dim); }
@@ -208,8 +211,7 @@ kbd {
                 <dt>Direction</dt><dd><kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd></dd>
                 <dt>Boutons 1–3</dt><dd><kbd data-code="KeyZ">Z</kbd> <kbd data-code="KeyX">X</kbd> <kbd data-code="KeyC">C</kbd></dd>
                 <dt>Boutons 4–6</dt><dd><kbd data-code="KeyA">A</kbd> <kbd data-code="KeyS">S</kbd> <kbd data-code="KeyD">D</kbd></dd>
-                <dt>Start / pièce</dt><dd><kbd data-code="Digit1">1</kbd> ou <kbd>Entrée</kbd> · <kbd data-code="Digit5">5</kbd></dd>
-                <dt>Menus</dt><dd>valider avec le bouton 1 (<kbd>Z</kbd>) dans la plupart des jeux (Start ne fait que commencer)</dd>
+                <dt>Start / pièce</dt><dd><kbd data-code="Digit1">1</kbd>/<kbd>Entrée</kbd> · <kbd data-code="Digit5">5</kbd></dd>
               </dl>
             </section>
             <section>
@@ -230,16 +232,17 @@ kbd {
               </dl>
             </section>
             <section>
-              <h2>Joueur 4 (pavé numérique)</h2>
+              <h2>Joueur 4 (pavé num.)</h2>
               <dl class="keymap">
                 <dt>Direction</dt><dd><kbd>pavé 4</kbd> <kbd>pavé 8</kbd> <kbd>pavé 5</kbd> <kbd>pavé 6</kbd></dd>
                 <dt>Boutons 1–3</dt><dd><kbd>pavé 0</kbd> <kbd>pavé .</kbd> <kbd>pavé Entrée</kbd></dd>
                 <dt>Start</dt><dd><kbd data-code="Digit4">4</kbd> ou <kbd>pavé +</kbd></dd>
               </dl>
             </section>
-            <section>
+            <section class="sys">
               <h2>Système et manettes</h2>
               <dl class="keymap">
+                <dt>Menus</dt><dd>valider avec le bouton 1 (<kbd>Z</kbd>) dans la plupart des jeux (Start ne fait que commencer)</dd>
                 <dt>Service / test</dt><dd><kbd data-code="Digit9">9</kbd> · <kbd data-code="Digit0">0</kbd></dd>
                 <dt>Tilt</dt><dd><kbd data-code="KeyT">T</kbd></dd>
                 <dt>Manettes</dt><dd>jusqu'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris</dd>
