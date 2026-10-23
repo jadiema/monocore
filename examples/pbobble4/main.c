@@ -34,7 +34,11 @@ static inline uint16_t rgb555(uint32_t c) {
 }
 static int arena_pending, arena_players = 4, arena_restart, arena_guide;   // the ARENA mode (arena.h)
 static uint32_t arena_wait;
-static int launching, launch_shown;               // the launch: behind a screen of ours (launch_frame)
+static int launching, launch_shown, launch_1p;   // the launch: behind a screen of ours (launch_frame)
+// the first round of the game launched: its task 5 (the field of player 1), once it has gone away
+// after the launch (a demo of the game, PLAY INSTRUCTIONS, has a field of its own: task 5 too)
+static int launch_gap;
+static int round_started(void);
 static int four_mode, four_last = 381;          // four_last: past the last sprite of the frame list
 extern uint32_t neo_list_last;                  // neort.c: the last sprite the list was sent to
 #define HUD_PAL     208                            // palettes 208-254 are never used by the game:
@@ -771,6 +775,7 @@ static const char *const level_name[3] = {"  EASY  ", " NORMAL ", "  HARD  "};
 static int menu_drawn_cell(uint32_t x, uint32_t y) {
   return menu_drawn && x >= MENU_X && x < MENU_X + MENU_W && y >= MENU_Y && y < MENU_Y + MENU_H;
 }
+static int round_started(void) { if (!(ram16(0x1034C8) & 0x20)) launch_gap = 1; return launch_gap && (ram16(0x1034C8) & 0x20); }
 static void menu_inputs(void) {
   uint32_t in[4] = {IN_P1, IN_P2, IN_P3, IN_P4};
   int title = neo_ram[0xFDAF ^ 1] == 1 && !four_mode;
@@ -795,6 +800,7 @@ static void menu_inputs(void) {
     else if (e & (IN_START | IN_B(1))) {
       menu_open = 0;
       neo_ram[0xFD8A ^ 1] = level_dip[menu_level];     // DIFFICULTY
+      launch_gap = 0;
       if (menu_mode) {                               // ARENA: a game of two loads the graphics
         arena_pending = 1; arena_wait = 0; arena_players = menu_players; arena_guide = menu_guide;
         neo_ram[0xF614 ^ 1] = neo_ram[0xF615 ^ 1] = 0;
@@ -804,6 +810,7 @@ static void menu_inputs(void) {
         neo_ram[0xF615 ^ 1] = menu_players == 4;
         start_mask = menu_players == 1 ? 1 : 5; start_force = 8;
         auto_frames = menu_players == 1 ? 0 : 1200;
+        launch_1p = menu_players == 1;               // one player: the start again until it is taken
       }
     }
     neo.p1 = neo.p2 = neo.p3 = neo.p4 = 0; neo.status_b = 0; neo.st34 = 0;   // the game sees nothing
@@ -812,27 +819,43 @@ static void menu_inputs(void) {
   // the launch (after the menu, until the first round, or the arena): the game gets our presses
   // only, behind a screen of ours (launch_frame), so it goes the same way every time
   launching = start_force || auto_frames || (arena_pending && !arena_on);
-  if (launching) { neo.p1 = neo.p2 = neo.p3 = neo.p4 = 0; neo.status_b = 0; neo.st34 = 0; }
+  static uint32_t launch_time;
+  if (!launching) launch_time = 0;
+  if (launching) {
+    neo.p1 = neo.p2 = neo.p3 = neo.p4 = 0; neo.status_b = 0; neo.st34 = 0;
+    launch_time++;
+    // the game not in a game yet (its BIOS USER_MODE 2): the start again, every second (the game
+    // may not take it at once, in a change of its demo for instance)
+    if (neo_ram[0xFDAF ^ 1] != 2 && !start_force && launch_time % 60 == 0) start_force = 8;
+    if (launch_time > 40 * 60) arena_restart = 1;  // never started: the console starts again
+  }
+  if (launch_1p) {                                 // one player: the game's menus are his; the start again
+    static uint32_t t1p;                           // every second until the game is in a game
+    if (neo_ram[0xFDAF ^ 1] == 2) launch_1p = 0;
+    else if (!start_force && ++t1p % 60 == 0) start_force = 8;
+  }
   if (start_force) { start_force--; neo.status_b |= (uint8_t)start_mask; }
   if (auto_frames) {                               // the menus of the game, until the first round
-    auto_frames--;
-    if (ram16(0x1034C8) & 0x20) auto_frames = 0;   // task 5 runs: the field of player 1
-    else if (!start_force && auto_frames % 20 < 4) { neo.p1 |= 0x10; neo.p2 |= 0x10; }
+    if (round_started()) auto_frames = 0;           // the first round: the field of player 1
+    else if (!start_force && neo_ram[0xFDAF ^ 1] == 2 && launch_time % 20 < 4) { neo.p1 |= 0x10; neo.p2 |= 0x10; }
   }
 }
 
 // The launch screen: the title, the mode chosen, GET READY blinking, on black; when it ends the fix
 // layer goes back to the game's (a 4-player screen opens its own)
 static void launch_frame(void) {
-  if (launching) {
+  if (launching && !(DIPSW & 0x8000)) {            // (TEMPORARY: DIP 16 shows the game behind)
     int w = four_mode ? 48 : 40, h = four_mode ? 36 : 32, r0 = four_mode ? 15 : 13;
     for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) TILEMAP(0)[y * 64 + x] = MC_TILE(' ', TEXT_PAL, 0);   // black (opaque)
     char t1[] = "BUST-A-MOVE AGAIN 4P", t2[24] = "VERSUS  -  4 PLAYERS", t3[] = "GET READY";
+    static uint32_t shown_since; if (!launch_shown) shown_since = vframe;
+    uint32_t el = vframe - shown_since;            // GET READY, then 3, 2, 1 (a second each)
+    if (el >= 60 && el < 240) { t3[0] = ' '; t3[1] = ' '; t3[2] = ' '; t3[3] = ' '; t3[4] = (char)('3' - (el - 60) / 60); t3[5] = ' '; t3[6] = ' '; t3[7] = ' '; t3[8] = ' '; }
     if (arena_pending) { const char *a = "ARENA   -  4 PLAYERS"; for (int i = 0; a[i]; i++) t2[i] = a[i]; t2[20] = 0; }
     t2[11] = (char)('0' + (arena_pending ? arena_players : menu_players));
     for (int i = 0; t1[i]; i++) TILEMAP(0)[r0 * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t1[i], TEXT_PAL, 0);
     for (int i = 0; t2[i]; i++) TILEMAP(0)[(r0 + 2) * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t2[i], TEXT_PAL, 0);
-    if ((vframe >> 4) & 1) for (int i = 0; t3[i]; i++) TILEMAP(0)[(r0 + 5) * 64 + (w - 9) / 2 + i] = MC_TILE((uint8_t)t3[i], TEXT_PAL, 0);
+    if (el >= 60 || ((vframe >> 4) & 1)) for (int i = 0; t3[i] && !(el >= 240); i++) TILEMAP(0)[(r0 + 5) * 64 + (w - 9) / 2 + i] = MC_TILE((uint8_t)t3[i], TEXT_PAL, 0);
     PALETTE[TEXT_PAL * 16 + 1] = (31 << 10) | (28 << 5) | 6; PALETTE[TEXT_PAL * 16 + 2] = 0;
     DISP_CTRL = DISP_ON | DISP_LAYER(0);           // the game's screen hidden
     launch_shown = 1;
@@ -905,7 +928,7 @@ static void vblank(void) {
              waits, four_mode ? " (4 players)" : "");
     conv_sum = conv_max = 0; frames_short = 0; idle_cycles = 0; waits = 0;
   }
-  if (arena_pending && !arena_on && (ram16(0x1034C8) & 0x20)) {   // the game's round is loaded (decor,
+  if (arena_pending && !arena_on && round_started()) {   // the game's round is loaded (decor,
     ar_scan();                                     // palettes): its bubbles noted, then the arena
     if (++arena_wait > 90) { arena_pending = 0; arena_start(); }
   }
