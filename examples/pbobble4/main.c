@@ -100,13 +100,17 @@ static void menu_palettes(void) {
 static const uint8_t grad_pool[] = {234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248,
                                     249, 250, 251, 252, 253, 254, 208, 209, 210, 211, 212, 213, 215, 216, 217,
                                     218, 219, 220};
+// (the arena's results: only the palettes the arena leaves free, 225-239 but the shadow's 227)
+static const uint8_t grad_pool_arena[] = {225, 226, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239};
+static const uint8_t *grad_p = grad_pool; static int grad_cap = sizeof grad_pool;
 static uint32_t grad_key[sizeof grad_pool]; static int grad_n;
-static void grad_reset(void) { grad_n = 0; }
+static void grad_reset(void) { grad_n = 0; grad_p = grad_pool; grad_cap = sizeof grad_pool; }
+static void grad_reset_arena(void) { grad_n = 0; grad_p = grad_pool_arena; grad_cap = sizeof grad_pool_arena; }
 static uint32_t grad_pal(uint16_t letter, uint16_t cell) {
   uint32_t key = (uint32_t)letter << 16 | cell;
-  for (int i = 0; i < grad_n; i++) if (grad_key[i] == key) return grad_pool[i];
-  if (grad_n >= (int)sizeof grad_pool) return MENU_PAL_PANEL;
-  uint32_t p = grad_pool[grad_n]; grad_key[grad_n++] = key;
+  for (int i = 0; i < grad_n; i++) if (grad_key[i] == key) return grad_p[i];
+  if (grad_n >= grad_cap) return grad_p[0];
+  uint32_t p = grad_p[grad_n]; grad_key[grad_n++] = key;
   PALETTE[p * 16 + 1] = letter; PALETTE[p * 16 + 2] = cell;
   return p;
 }
