@@ -136,38 +136,15 @@ static void layer_open(int layer, int x, int top) {
   mc_layer_scroll(layer, -(x & 15), -(top & 15));   // screen x = layer x - scroll
 }
 
-// In the arena the frames of the two fields go from the game's decor: each column of a frame
-// (x 16, 144, 160, 296 on the Neo Geo screen) shows the column of landscape next to it, and the
-// bar on top (the first line) the tile under it: one landscape behind the whole board.
-static uint16_t sp_src[381];                       // the column whose tiles column n shows
-static int arena_frame_dir(int x) {                // a column on a frame: where its landscape is
-  if (x >= 0x1E0) x -= 0x200;
-  int a = x < 16 ? 16 : x, b = x + 16 > 32 ? 32 : x + 16;      // overlap with the frame 16-31
-  if (b - a >= 8) return 1;
-  a = x < 144 ? 144 : x; b = x + 16 > 176 ? 176 : x + 16;      // the middle 144-175
-  if (b - a >= 8) return x + 8 < 160 ? -1 : 1;
-  a = x < 296 ? 296 : x; b = x + 16 > 312 ? 312 : x + 16;      // the right 296-311
-  if (b - a >= 8) return -1;
-  return 0;
-}
 static int arena_on;
-static int src_row(int n, int j, int top) {        // the tile of row j that column n shows
-  if (!arena_on) return j;
-  int y = (top + j * 16) & 0x1FF;
-  if (y >= 0x1F0) y -= 0x200;
-  if (y < 32) { int jj = j + (32 - y + 15) / 16; return jj < 32 ? jj : j; }   // the bar on top: the sky under it
-  return j;
-}
 static void layer_column(int layer, int n) {
   volatile uint32_t *map = TILEMAP(layer);
   const uint16_t *smap = (const uint16_t *)spr_map_file;
   uint32_t count = spr_map_size / 2;
   int x = sp_x[n] & 0x1FF, top = sp_top[n] & 0x1FF, rows = sp_rows[n] > 32 ? 32 : sp_rows[n];
   int mx = (x >> 4) & 31;
-  int m = sp_src[n];
   for (int j = 0; j < rows; j++) {
-    int jj = src_row(n, j, top);
-    uint32_t t0 = neo_vram[m * 64 + jj * 2], t1 = neo_vram[m * 64 + jj * 2 + 1];
+    uint32_t t0 = neo_vram[n * 64 + j * 2], t1 = neo_vram[n * 64 + j * 2 + 1];
     uint32_t num = t0 | ((t1 & 0xF0) << 12);
     if (num >= count) continue;
     map[(((top >> 4) + j) & 31) * 32 + mx] =
@@ -598,19 +575,19 @@ static void video_frame(void) {
   // the arena (arena.h): the game's own decor (sprites 1-117: the stage, its clouds moving) drawn as
   // on the 2-player screen, shifted under the board; the arena's sprites in front
   int ox = arena_on ? AR_DX : 0, oy = arena_on ? AR_DY : 0, nmax = arena_on ? LIST_FIRST : 381;
-  for (int n = 1; n < 381; n++) sp_src[n] = (uint16_t)n;
-  if (arena_on)                                    // the frames show the landscape next to them
+  // The game's decor is drawn in groups of columns across the screen, back to front: the far
+  // background (sky and clouds, scrolling), the landscape, then the frames of the two fields and
+  // their floors (tiles common to every stage). In the arena the last group is not drawn: one
+  // landscape behind the whole board.
+  if (arena_on) {
+    int prev = -1000;
     for (int n = 1; n < LIST_FIRST; n++) {
-      int x = sp_x[n] & 0x1FF, dir = arena_frame_dir(x);
-      if (!dir || !sp_rows[n]) continue;
-      for (int step = 1; step <= 4; step++) {        // the nearest column of the same group (x mod 16)
-        int want = (x + dir * 16 * step) & 0x1FF, found = 0;
-        if (arena_frame_dir(want)) continue;         // itself a frame: further
-        for (int m = 1; m < LIST_FIRST; m++)
-          if ((sp_x[m] & 0x1FF) == want && sp_top[m] == sp_top[n] && sp_rows[m] >= sp_rows[n]) { sp_src[n] = (uint16_t)m; found = 1; break; }
-        if (found) break;
-      }
+      if (!sp_rows[n] || (neo_vram[0x8200 + n] & 0x40)) continue;   // the head of a column
+      int x = sp_x[n] & 0x1FF; if (x >= 0x1E0) x -= 0x200;
+      if (x < prev - 64) nmax = n;                 // back to the left: a new group
+      prev = x;
     }
+  }
   // 2. tall columns without shrink go to layers, the first ones (behind) on layer 3; a column that
   //    does not fit the current layer opens the next one, so the Neo Geo drawing order is kept
   int layer = 4, lx = 0, ly = 0;
@@ -644,8 +621,7 @@ static void video_frame(void) {
       int y = (sp_top[n] + ((k * 16 * (zy + 1)) >> 8)) & 0x1FF;
       if (y >= 0x1F0) y -= 0x200;
       if (y <= -16 || y >= 224) continue;
-      int m = sp_src[n], kk = src_row(n, k, sp_top[n]);
-      uint32_t t0 = neo_vram[m * 64 + kk * 2], t1 = neo_vram[m * 64 + kk * 2 + 1];
+      uint32_t t0 = neo_vram[n * 64 + k * 2], t1 = neo_vram[n * 64 + k * 2 + 1];
       uint32_t num = t0 | ((t1 & 0xF0) << 12);
       if (t1 & 8) num = (num & ~7u) | anim; else if (t1 & 4) num = (num & ~3u) | (anim & 3);
       if (num >= count || smap[num] == 0) continue;
