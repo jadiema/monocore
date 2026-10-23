@@ -21,8 +21,9 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
    groupes de 3 de sa couleur ; une bulle qui touche une autre couleur s'y accroche ; les bulles
    en vol rebondissent sur les murs et entre elles ; les bulles décrochées tombent (points au
    joueur qui les a fait tomber) ; le plafond descend toutes les 20 s ; **2 minutes, le meilleur
-   score gagne**. Gauche / droite visent, le bouton 1 tire. Le décor du stage en fond, les
-   lanceurs et dragons du jeu (Bub pour le joueur 1, Bob en bleu, rouge et jaune), ses bruitages
+   score gagne**. Gauche / droite visent, le bouton 1 tire. Le décor du stage en fond, en un seul
+   paysage (celui de l'écran du jeu, sans les cadres des aires, animé par le jeu qui continue de
+   tourner sans ses aires), les lanceurs et dragons du jeu (Bub pour le joueur 1, Bob en bleu, rouge et jaune), ses bruitages
    (tir, accrochage, éclatement, chute, plafond, dernières secondes, fanfare) et la musique du
    stage. Le jeu lance une manche à deux (pour
    charger ses graphismes), puis l'arène prend la main ; à la fin, la console redémarre.

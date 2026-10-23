@@ -3,9 +3,10 @@
 // bursts only groups of 3 of its colour; a bubble that touches another colour sticks there. The
 // bubbles in flight bounce on the walls and on each other. Bubbles cut from the ceiling fall and
 // count for the player who cut them. The ceiling comes down every 20 s. 2 minutes; the best score
-// wins. The game is started as a game of two (it loads its decor, palettes and bubble graphics),
-// then frozen (no vertical blank for it) while the arena has the screen; at the end the console
-// starts again from its reset.
+// wins. The game is started as a game of two (it loads its decor, palettes and bubble graphics);
+// then its fields (tasks 5, 6, 7, 9) are suspended and it gets no input, while the rest of it runs
+// on: its decor (clouds moving) and music, drawn behind the board; at the end the console starts
+// again from its reset.
 
 #define AR_COLS   20                               // even rows 20 bubbles, odd rows 19 (half a bubble in)
 #define AR_ROWS   15
@@ -16,6 +17,8 @@
 #define AR_TIME   (120 * 60)
 #define AR_DROP   (20 * 60)                        // the ceiling comes down
 #define FX(v)     ((int32_t)(v) << 8)              // 24.8 fixed point
+#define AR_DX     AR_X                             // the game's 320-pixel screen under the board
+#define AR_DY     8
 
 static const int16_t ar_sin[91] = {0, 4, 9, 13, 18, 22, 27, 31, 36, 40, 44, 49, 53, 58, 62, 66, 71, 75, 79, 83, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 139, 143, 147, 150, 154, 158, 161, 165, 168, 171, 175, 178, 181, 184, 187, 190, 193, 196, 199, 202, 204, 207, 210, 212, 215, 217, 219, 222, 224, 226, 228, 230, 232, 234, 236, 237, 239, 241, 242, 243, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 254, 255, 255, 255, 256, 256, 256, 256};
 static int ar_sinv(int d) { int s = d < 0 ? -1 : 1; d = d < 0 ? -d : d; return s * ar_sin[d > 90 ? 90 : d]; }
@@ -227,24 +230,12 @@ static void ar_draw_stamp(int *out, int k) {
   }
 }
 
-// The decor of the stage behind the board: the inside of the field of player 1 (120 x 208 source
-// pixels, inside its frame), at its own size, side by side across the board; its palettes follow the
-// game's (decor_frame's slots 240-254)
-static const layout_t ar_layout = {{0}, {0}, 256, 256, 15, 26, 16, 0, 16, 16, {0}, {0}, 0, 0, 24};
-static void ar_decor(void) {
-  const layout_t *keep = L; L = &ar_layout;
-  decor_rows(0, 26, 1);
-  L = keep;
-  for (int i = 0; i < 64 * 64; i++) TILEMAP(1)[i] = MC_TILE(DECOR_W * DECOR_H, DECOR_PAL, 0);
-  for (int x = AR_X; x < AR_X + 320; x += 120)     // (the inside of the frame only: no seam)
-    for (int cy = 0; cy < 26; cy++)
-      for (int cx = 0; cx < 15 && x + cx * 8 < AR_X + 320; cx++)
-        TILEMAP(1)[(AR_Y / 8 + cy) * 64 + x / 8 + cx] = MC_TILE(cy * 15 + cx, DECOR_PAL, 0);
-}
-
 static void arena_start(void) {
   ar_take_graphics();
   ar_take_stamp(0); ar_take_stamp(1);
+  uint32_t mask = ((uint32_t)ram16(0x1034C6) << 16) | ram16(0x1034C8);   // the fields stop (scheduler mask)
+  mask &= ~((1u << 5) | (1u << 6) | (1u << 7) | (1u << 9));
+  *(uint16_t *)(neo_ram + 0x34C6) = (uint16_t)(mask >> 16); *(uint16_t *)(neo_ram + 0x34C8) = (uint16_t)mask;
   for (int r = 0; r < AR_ROWS; r++) for (int c = 0; c < AR_COLS; c++)
     ar_grid[r][c] = (r < 7 && c < ar_cols(r)) ? (int8_t)(ar_rand() % arena_players) : -1;
   for (int k = 0; k < 4; k++) { ar_ang[k] = 0; ar_fly[k].on = 0; ar_score[k] = 0; ar_prev[k] = 0xFFFFFFFF; }
@@ -280,17 +271,15 @@ static void ar_sprite(int *out, int32_t x, int32_t y, int k, uint16_t zoom) {   
   s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO)); s->zoomx = zoom; s->zoomy = zoom;
 }
 
-static void arena_frame(void) {
+static void arena_frame(int *outp) {
   uint32_t in[4] = {IN_P1, IN_P2, IN_P3, IN_P4};
   if (!ar_cleared) {                               // the panels of the 4-player screen go; the decor
     for (int i = 0; i < 64 * 64; i++) TILEMAP(0)[i] = MC_TILE(FIX_EMPTY, 0, 0);
-    ar_decor();
+    for (int l = 1; l <= 3; l++) mc_layer(l, spr_file, MC_TILE16 | MC_4BPP, 32, 32, 0);   // the game's decor
     ar_sound(AR_SND_READY);
     ar_cleared = 1;
   }
-  { const uint16_t *p = neo_pal[neo.pal_bank];     // the palettes of the decor, the dragons
-    for (int k = 0; k < decor_slots; k++)
-      for (int c = 0; c < 16; c++) PALETTE[(DECOR_PAL + k) * 16 + c] = rgb555(p[decor_pal_of[k] * 16 + c]);
+  { const uint16_t *p = neo_pal[neo.pal_bank];     // the colours of the dragons, the yellow
     dragons_frame();
     for (int i = 0; i < 16; i++) PALETTE[215 * 16 + i] = i ? ar_hue(rgb555(p[ar_src4 * 16 + i]), 250) : 0; }
   if (ar_end) {                                    // the results, then the console starts again
@@ -355,8 +344,8 @@ static void arena_frame(void) {
     for (int i = 0; i < 64; i++)                   // the bubbles falling
       if (ar_fall[i].on) { ar_fall[i].vy += FX(1) / 4; ar_fall[i].y += ar_fall[i].vy; if (ar_fall[i].y > FX(300)) ar_fall[i].on = 0; }
   }
-  // drawing
-  int out = 0;
+  // drawing (the game's decor is added behind, by video_frame)
+  int out = *outp;
   for (int k = 0; k < 4; k++) if (ar_fly[k].on) ar_sprite(&out, ar_fly[k].x, ar_fly[k].y, k, 256);
   for (int i = 0; i < 64; i++) if (ar_fall[i].on) ar_sprite(&out, ar_fall[i].x, ar_fall[i].y, ar_fall[i].col, 256);
   for (int k = 0; k < arena_players; k++) {        // the launchers: the next bubble and the aim
@@ -369,8 +358,6 @@ static void arena_frame(void) {
     for (int c = 0; c < ar_cols(r); c++)
       if (ar_grid[r][c] >= 0) ar_sprite(&out, ar_cx(r, c), ar_cy(r), ar_grid[r][c], 256);
   for (int k = 0; k < arena_players; k++) ar_draw_stamp(&out, k);   // behind the bubbles
-  mc_sprites_used(out);
-  mc_copy(SPRITES, mc_spr, (uint32_t)out * sizeof(sprite_t));
+  *outp = out;
   ar_text_score();
-  DISP_CTRL = DISP_ON | DISP_SPRITES | DISP_LAYER(0) | DISP_LAYER(1);
 }
