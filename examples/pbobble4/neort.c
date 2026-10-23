@@ -216,6 +216,7 @@ static void read_inputs(void) {
   wram8(BIOS_STATCHANGE, cur & ~prev);
 }
 
+int neo_skip_eye;                                  // the platform asks: no eye catcher this boot
 void neo_reset(m68k_t *c) {
   cpu = c;
   for (uint32_t i = 0; i < sizeof neo_ram; i++) neo_ram[i] = 0;
@@ -432,7 +433,8 @@ uint32_t neo_bios(m68k_t *c, uint32_t pc) {
     return rte(c);
   case SYSTEM_RETURN: {                // the game gives the machine back after a request
     uint32_t next = 2;
-    if (neo.user_request == 0 && neo_rom[0x114 ^ 1] == 1) next = 1;   // the game's own eye catcher
+    if (neo.user_request == 0 && neo_rom[0x114 ^ 1] == 1 && !neo_skip_eye) next = 1;   // the game's own eye catcher
+    neo_skip_eye = 0;                              // (skipped once after a return to the menu)
     return call_user(c, next);
   }
   case SYSTEM_IO:

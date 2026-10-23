@@ -267,3 +267,8 @@ comprendre le pilote et ne sont plus nécessaires pour construire la ROM.
   `SFX_GAIN` règlent l'équilibre (crêtes de 0,36 à 0,45 sur les séances) ; un son absent est
   signalé `SOUND xx yy missing`.
 - **Taille** : la ROM fait 25,8 Mo (carte SD).
+
+**À la fin d'une arène** : le plateau éclate en vague, le panneau des résultats s'affiche avec le
+vainqueur en grand ; START rejoue aussitôt une partie identique (mêmes joueurs, réglages et stage),
+BUTTON 2 (ou 20 secondes sans réponse) revient au menu, ouvert directement avec les derniers
+réglages : seul le jeu redémarre, sans son animation de démarrage, pas la console.

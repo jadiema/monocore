@@ -56,7 +56,7 @@ static struct { int t, col; int32_t x, y; } ar_pop[64];   // bubbles bursting (a
 static uint32_t ar_score[4], ar_clock, ar_end, ar_rng = 12345;
 // The results: the board bursts row by row (1.5 s), then a panel (as the menu's: a frame, a
 // shadow, the bands of a gradient) with the ranking, the winner (both, in teams) big above it
-#define AR_END_T   (12 * 60)
+#define AR_END_T   (22 * 60)                     // the wave, then 20 s to choose: again or the menu
 #define AR_WAVE_T  96
 static int ar_order[4], ar_win_team;
 static uint32_t ar_prev[4];
@@ -543,7 +543,7 @@ static int ar_pick(int k) {
 // letters of a player in his colour; the cells in bands (the title, the lines, the bottom) and the
 // frame in three tones, so it fits the 14 palettes the arena leaves free
 static void ar_results(void) {
-  int tm = ar_win_team >= 0, rows = 3 + (tm ? 5 : 0) + 2 * arena_players, x0 = 8, y0 = 13, w = 32;
+  int tm = ar_win_team >= 0, rows = 5 + (tm ? 5 : 0) + 2 * arena_players, x0 = 8, y0 = tm ? 11 : 13, w = 32;
   grad_reset_arena();
   PALETTE[MENU_PAL_SHADE * 16 + 1] = 0; PALETTE[MENU_PAL_SHADE * 16 + 2] = 0;
   for (int y = y0 - 1; y <= y0 + rows; y++)        // the frame in three tones, top to bottom
@@ -587,6 +587,7 @@ static void ar_results(void) {
     for (int c = 19; c >= 15; c--) { line[c] = (char)('0' + v % 10); v /= 10; }
     PUTC(r, 6, line, PCOL(k));
   }
+  PUTC(rows - 2, 2, "START: AGAIN   BUTTON 2: MENU", rgb(31, 31, 31));   // the choice (ar_end)
   #undef PUTC
   #undef PCOL
   #undef CELL_OF
@@ -605,11 +606,15 @@ static void ar_draw_shot(int *out, int32_t x, int32_t y, int col, uint16_t zoom)
   else ar_sprite(out, x, y, col, zoom);
 }
 
-static void arena_start(void) {
+static void arena_start_again(int again);
+static void arena_start(void) { arena_start_again(0); }
+static void arena_start_again(int again) {         // again: the graphics read at the first start kept
   ar_ncol = arena_multi ? 6 : arena_players;
-  ar_take_graphics();
-  ar_take_stamp(0); ar_take_stamp(1);
-  ar_read_dragon();
+  if (!again) {                                    // (the game is stopped: its lists no longer hold them)
+    ar_take_graphics();
+    ar_take_stamp(0); ar_take_stamp(1);
+    ar_read_dragon();
+  }
   for (int k = 0; k < 4; k++) ar_dragon_play(k, AR_REST, 1);
 
   uint32_t mask = ((uint32_t)ram16(0x1034C6) << 16) | ram16(0x1034C8);   // the fields stop (scheduler mask)
@@ -797,6 +802,17 @@ static void arena_frame(int *outp) {
     }
     for (int i = 0; i < 64; i++) if (ar_pop[i].t) ar_pop[i].t--;   // the bursts go on (the game stopped)
     if (el == AR_WAVE_T) ar_results();
+    if (el > AR_WAVE_T) {                           // the choice: START again (the same), BUTTON 2 the menu
+      static uint32_t prev_pads;
+      uint32_t pads = IN_P1 | IN_P2 | IN_P3 | IN_P4, e = pads & ~prev_pads;
+      prev_pads = pads;
+      if (e & IN_START) {
+        for (int r = 0; r < 64 * 64; r++) TILEMAP(0)[r] = MC_TILE(FIX_EMPTY, 0, 0);
+        arena_start_again(1);                      // the same players, settings and stage, at once
+        return;                                    // (no sprites of ours this frame: *outp as it was)
+      }
+      if (e & IN_B(2)) ar_end = 2;                 // the menu (below: the game starts again)
+    }
     if (--ar_end == 1) arena_restart = 1;
   } else if (ar_start) {                          // READY ... GO!
     ar_start--;

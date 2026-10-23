@@ -156,12 +156,27 @@ void neo_platform_fix(uint32_t x, uint32_t y, uint32_t e) {
 }
 static uint32_t idle_cycles, waits;                 // load, reported every 10 s
 extern void _start(void);
+extern int neo_skip_eye;
+// The return to the menu after an arena: the game alone starts again (its RAM, its CPU, the
+// video), not the console: this program goes on with its settings. The stack is taken back to
+// where main() had it (the game's run is left as it is), then game_boot() as at power on, without
+// the game's eye catcher (16 s); a screen of ours covers it until the title, where the menu opens.
+static uintptr_t boot_sp;
+static int reboot_menu;
+void game_boot(void);
+static void soft_restart(void) {
+  mc_irq_off();
+  reboot_menu = 1; neo_skip_eye = 1;
+  __asm__ volatile("mv sp, %0\n\tj game_boot" :: "r"(boot_sp));
+  for (;;) {}
+}
 void neo_platform_wait(uint32_t frame) {   // sleep until the vblank (neo.frame changes in the handler:
   uint32_t t0 = (uint32_t)mc_cycles(); waits++;
   while (*(volatile uint32_t *)&neo.frame == frame) {   // read it again on every turn)
     wfi();
-    if (*(volatile int *)&arena_restart) { mc_irq_off(); IRQ_ENABLE = 0; _start(); }   // the end of an arena:
-  }                                                // the console starts again, as at power on
+    if (*(volatile int *)&arena_restart == 2) { mc_irq_off(); IRQ_ENABLE = 0; _start(); }   // never launched:
+    if (*(volatile int *)&arena_restart == 1) soft_restart();   // the console starts again; the end of an
+  }                                                // arena: the game alone, then the menu
   idle_cycles += (uint32_t)mc_cycles() - t0;
 }
 uint32_t neo_platform_line(void) {                 // MONOCORE line -> Neo Geo line from the vblank
@@ -874,7 +889,8 @@ static void menu_inputs(void) {
   if (!title) menu_open = 0;
   if (title && !menu_open && !start_force && !auto_frames)
     for (int k = 0; k < 4; k++)
-      if (in[k] & ~pad_prev[k] & IN_START) {
+      if ((in[k] & ~pad_prev[k] & IN_START) || (reboot_menu && k == 0)) {   // (after an arena: at once)
+        reboot_menu = 0;
         menu_open = 2; menu_pad = k; menu_sel = 0;
         if (menu_screen < 0) menu_screen = (DIPSW & 1) ? 0 : 1;   // the layout of DIP switch 1 to start with (on: LINE)
         break;
@@ -934,7 +950,7 @@ static void menu_inputs(void) {
   for (int k = 0; k < 4; k++) pad_prev[k] = in[k];
   // the launch (after the menu, until the first round, or the arena): the game gets our presses
   // only, behind a screen of ours (launch_frame), so it goes the same way every time
-  launching = start_force || auto_frames || (arena_pending && !arena_on);
+  launching = start_force || auto_frames || (arena_pending && !arena_on) || reboot_menu;   // (and the return to the menu)
   static uint32_t launch_time;
   if (!launching) launch_time = 0;
   if (launching) {
@@ -942,8 +958,8 @@ static void menu_inputs(void) {
     launch_time++;
     // the game not in a game yet (its BIOS USER_MODE 2): the start again, every second (the game
     // may not take it at once, in a change of its demo for instance)
-    if (neo_ram[0xFDAF ^ 1] != 2 && !start_force && launch_time % 60 == 0) start_force = 8;
-    if (launch_time > 40 * 60) arena_restart = 1;  // never started: the console starts again
+    if (neo_ram[0xFDAF ^ 1] != 2 && !start_force && !reboot_menu && launch_time % 60 == 0) start_force = 8;
+    if (launch_time > 40 * 60) arena_restart = 2;  // never started: the console starts again
   }
   if (launch_1p) {                                 // one player: the game's menus are his; the start again
     static uint32_t t1p;                           // every second until the game is in a game
@@ -973,7 +989,7 @@ static void launch_frame(void) {
     for (int y = r0 - 1; y <= r0 + 6; y++)
       for (int x = (w - 26) / 2; x < (w - 26) / 2 + 26; x++)
         TILEMAP(0)[y * 64 + x] = MC_TILE(' ', grad_pal(0, LCELL(y)), 0);
-    { int np = arena_pending ? arena_players : menu_players;  // the players, in their colours
+    if (!reboot_menu) { int np = arena_pending ? arena_players : menu_players;  // the players, in their colours
       for (int k = 0; k < 4; k++) {
         char p[3] = {(arena_pending && k >= np - arena_cpu) ? 'C' : 'P', (char)('1' + k), 0};   // C: the computer
         static const uint16_t pc[4] = {(6 << 10) | (31 << 5) | 6, (8 << 10) | (18 << 5) | 31, (31 << 10) | (8 << 5) | 8, (31 << 10) | (28 << 5) | 4};
@@ -986,6 +1002,7 @@ static void launch_frame(void) {
     if (counting) { for (int i = 0; i < 9; i++) t3[i] = ' '; t3[4] = (char)('3' - (arena_wait > 179 ? 2 : arena_wait / 60)); }
     if (arena_pending) { const char *a = "ARENA   -  4 PLAYERS"; for (int i = 0; a[i]; i++) t2[i] = a[i]; t2[20] = 0; }
     t2[11] = (char)('0' + (arena_pending ? arena_players : menu_players));
+    if (reboot_menu) { const char *a = "  BACK TO THE MENU  "; for (int i = 0; a[i]; i++) t2[i] = a[i]; t2[20] = 0; }
     if (arena_pending && arena_cpu) {                // humans and computer: "ARENA - 1P + 3 CPU"
       const char *a = "ARENA - 1P + 3 CPU  "; for (int i = 0; a[i]; i++) t2[i] = a[i]; t2[20] = 0;
       t2[8] = (char)('0' + arena_players - arena_cpu); t2[13] = (char)('0' + arena_cpu);
@@ -1121,7 +1138,14 @@ uint32_t m68k_external(m68k_t *c, uint32_t pc) {
 void m68k_stop(m68k_t *c) { while (c->ipl <= (c->srh & 7)) wfi(); }
 
 int main(void) {
+  __asm__ volatile("mv %0, sp" : "=r"(boot_sp));
+  game_boot();
+  return 0;
+}
+void game_boot(void) {
   mc_init();
+  four_mode = 0; arena_on = 0; arena_pending = 0; arena_restart = 0;   // (again after an arena)
+  start_force = auto_frames = 0; launch_1p = 0; launch_shown = 0; launching = 0; menu_open = 0; menu_drawn = 0;
   mc_video_mode(320, 224);
   mc_layer(0, fix_file, MC_TILE8 | MC_4BPP, 64, 32, 3);
   for (int l = 1; l <= 3; l++) mc_layer(l, spr_file, MC_TILE16 | MC_4BPP, 32, 32, 0);
@@ -1135,5 +1159,5 @@ int main(void) {
   mc_display(DISP_ON | DISP_LAYER(0) | DISP_SPRITES);
   mc_on_vblank(vblank);
   m68k_run(&cpu);
-  return 0;
+  for (;;) {}
 }
