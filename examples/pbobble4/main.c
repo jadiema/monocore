@@ -1041,7 +1041,10 @@ static void hint_frame(void) {
         if (line >= 0 && i >= 13 && line != menu_sel) letter = rgb(6, 28, 31);   // a value
         if (r == 4 && i >= 15 && i <= 21 && !((i - 15) & 1)) {          // a player: lit if chosen (PLAYERS: row 4)
           int k = (i - 15) / 2;
-          letter = k < menu_players ? player_col[k] : rgb(5, 7, 13);
+          int humans = menu_players - (menu_mode ? menu_cpu : 0);
+          uint16_t pc = player_col[k];                 // a computer's dragon: its colour, greyed (half)
+          uint16_t half = rgb(((pc >> 10) & 31) / 2 + 3, ((pc >> 5) & 31) / 2 + 3, (pc & 31) / 2 + 3);
+          letter = k < humans ? pc : k < menu_players ? half : rgb(5, 7, 13);
         }
         uint32_t pal = grad_pal(letter, cell);
         TILEMAP(0)[(MENU_Y + r) * 64 + MENU_X + i] = MC_TILE((uint8_t)l[r][i], (uint32_t)pal, 0);
