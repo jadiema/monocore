@@ -93,6 +93,30 @@ static void menu_palettes(void) {
     {(31 << 10) | (28 << 5) | 4, (1 << 10) | (3 << 5) | 11}};     // player 4 yellow
   for (int k = 0; k < 13; k++) { PALETTE[(MENU_PAL_PANEL + k) * 16 + 1] = c[k][0]; PALETTE[(MENU_PAL_PANEL + k) * 16 + 2] = c[k][1]; }
 }
+// Gradients: a palette for each pair (letter colour, cell colour) a panel needs, from a pool of
+// palettes the game never uses and the 4-player screen and the arena use only when they show
+// (not with the menu or the launch screen): handed out again at every frame of a panel.
+static const uint8_t grad_pool[] = {234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248,
+                                    249, 250, 251, 252, 253, 254, 208, 209, 210, 211, 212, 213, 215, 216, 217,
+                                    218, 219, 220};
+static uint32_t grad_key[sizeof grad_pool]; static int grad_n;
+static void grad_reset(void) { grad_n = 0; }
+static uint32_t grad_pal(uint16_t letter, uint16_t cell) {
+  uint32_t key = (uint32_t)letter << 16 | cell;
+  for (int i = 0; i < grad_n; i++) if (grad_key[i] == key) return grad_pool[i];
+  if (grad_n >= (int)sizeof grad_pool) return MENU_PAL_PANEL;
+  uint32_t p = grad_pool[grad_n]; grad_key[grad_n++] = key;
+  PALETTE[p * 16 + 1] = letter; PALETTE[p * 16 + 2] = cell;
+  return p;
+}
+static uint16_t rgb(int r, int g, int b) { return (uint16_t)((r << 10) | (g << 5) | b); }
+static uint16_t lerp_rgb(int r0, int g0, int b0, int r1, int g1, int b1, int i, int n) {   // from one colour to another
+  if (n < 2) n = 2;
+  return rgb(r0 + (r1 - r0) * i / (n - 1), g0 + (g1 - g0) * i / (n - 1), b0 + (b1 - b0) * i / (n - 1));
+}
+// in steps (7 for the inside, 6 for the frame), so a panel needs about 28 palettes of the 33
+static uint16_t panel_cell(int r, int h) { int s = r < 0 ? 0 : r * 6 / (h > 1 ? h - 1 : 1); return lerp_rgb(1, 3, 13, 9, 2, 15, s, 7); }       // night blue down to violet
+static uint16_t frame_cell(int r, int h) { int s = r < 0 ? 0 : r * 5 / (h > 1 ? h - 1 : 1); return lerp_rgb(8, 18, 31, 22, 10, 28, s, 6); }   // light blue down to mauve
 // a panel: its frame (one cell around), its shadow (one cell right and down), the cells inside with
 // the palette pal_of(row, column) gives
 static void panel_frame(int x0, int y0, int w, int h) {
@@ -100,7 +124,7 @@ static void panel_frame(int x0, int y0, int w, int h) {
     for (int x = x0 - 1; x <= x0 + w + 1; x++) {
       int inside = x >= x0 - 1 && x <= x0 + w && y >= y0 - 1 && y <= y0 + h;   // (the panel: x0 to x0 + w - 1)
       int shadow = !inside && x >= x0 && y >= y0;
-      if (inside) TILEMAP(0)[y * 64 + x] = MC_TILE(' ', MENU_PAL_FRAME, 0);
+      if (inside) TILEMAP(0)[y * 64 + x] = MC_TILE(' ', grad_pal(0, frame_cell(y - y0 + 1, h + 2)), 0);
       else if (shadow) TILEMAP(0)[y * 64 + x] = MC_TILE(' ', MENU_PAL_SHADE, 0);
     }
 }
@@ -904,14 +928,18 @@ static void launch_frame(void) {
     int w = four_mode ? 48 : 40, h = four_mode ? 36 : 32, r0 = four_mode ? 15 : 13;
     for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) TILEMAP(0)[y * 64 + x] = MC_TILE(' ', TEXT_PAL, 0);   // black (opaque)
     menu_palettes();
+    grad_reset();
     panel_frame((w - 26) / 2, r0 - 1, 26, 8);
-    for (int y = r0 - 1; y <= r0 + 6; y++)          // a panel: the title bar, then night blue
+    // a panel: the title bar, then the gradient; the letters on it in grad_pal of their row
+    #define LCELL(y) ((y) == r0 ? rgb(24, 4, 3) : (y) < r0 ? rgb(14, 1, 2) : panel_cell((y) - r0 - 1, 6))
+    for (int y = r0 - 1; y <= r0 + 6; y++)
       for (int x = (w - 26) / 2; x < (w - 26) / 2 + 26; x++)
-        TILEMAP(0)[y * 64 + x] = MC_TILE(' ', y == r0 ? MENU_PAL_TITLE : y < r0 ? MENU_PAL_DARK : MENU_PAL_PANEL, 0);
+        TILEMAP(0)[y * 64 + x] = MC_TILE(' ', grad_pal(0, LCELL(y)), 0);
     { int np = arena_pending ? arena_players : menu_players;  // the players, in their colours
       for (int k = 0; k < 4; k++) {
         char p[3] = {'P', (char)('1' + k), 0};
-        for (int i = 0; i < 2; i++) TILEMAP(0)[(r0 + 3) * 64 + (w - 14) / 2 + k * 4 + i] = MC_TILE((uint8_t)p[i], (uint32_t)(k < np ? MENU_PAL_P1 + k : MENU_PAL_OFF), 0);
+        static const uint16_t pc[4] = {(6 << 10) | (31 << 5) | 6, (8 << 10) | (18 << 5) | 31, (31 << 10) | (8 << 5) | 8, (31 << 10) | (28 << 5) | 4};
+        for (int i = 0; i < 2; i++) TILEMAP(0)[(r0 + 3) * 64 + (w - 14) / 2 + k * 4 + i] = MC_TILE((uint8_t)p[i], grad_pal(k < np ? pc[k] : rgb(5, 7, 13), LCELL(r0 + 3)), 0);
       } }
     char t1[] = "BUST-A-MOVE AGAIN 4P", t2[24] = "VERSUS  -  4 PLAYERS", t3[] = "GET READY";   // (the players: row + 3)
     static uint32_t shown_since; if (!launch_shown) shown_since = vframe;
@@ -919,9 +947,9 @@ static void launch_frame(void) {
     if (el >= 60 && el < 240) { t3[0] = ' '; t3[1] = ' '; t3[2] = ' '; t3[3] = ' '; t3[4] = (char)('3' - (el - 60) / 60); t3[5] = ' '; t3[6] = ' '; t3[7] = ' '; t3[8] = ' '; }
     if (arena_pending) { const char *a = "ARENA   -  4 PLAYERS"; for (int i = 0; a[i]; i++) t2[i] = a[i]; t2[20] = 0; }
     t2[11] = (char)('0' + (arena_pending ? arena_players : menu_players));
-    for (int i = 0; t1[i]; i++) TILEMAP(0)[r0 * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t1[i], MENU_PAL_TITLE, 0);
-    for (int i = 0; t2[i]; i++) TILEMAP(0)[(r0 + 2) * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t2[i], MENU_PAL_VAL, 0);
-    if (el >= 60 || ((vframe >> 4) & 1)) for (int i = 0; t3[i] && !(el >= 240); i++) TILEMAP(0)[(r0 + 5) * 64 + (w - 9) / 2 + i] = MC_TILE((uint8_t)t3[i], MENU_PAL_PANEL, 0);
+    for (int i = 0; t1[i]; i++) TILEMAP(0)[r0 * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t1[i], grad_pal(rgb(31, 28, 4), LCELL(r0)), 0);
+    for (int i = 0; t2[i]; i++) TILEMAP(0)[(r0 + 2) * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t2[i], grad_pal(rgb(6, 28, 31), LCELL(r0 + 2)), 0);
+    if (el >= 60 || ((vframe >> 4) & 1)) for (int i = 0; t3[i] && !(el >= 240); i++) TILEMAP(0)[(r0 + 5) * 64 + (w - 9) / 2 + i] = MC_TILE((uint8_t)t3[i], grad_pal(rgb(31, 31, 31), LCELL(r0 + 5)), 0);
     PALETTE[TEXT_PAL * 16 + 1] = (31 << 10) | (28 << 5) | 6; PALETTE[TEXT_PAL * 16 + 2] = 0;
     DISP_CTRL = DISP_ON | DISP_LAYER(0);           // the game's screen hidden
     launch_shown = 1;
@@ -953,20 +981,22 @@ static void hint_frame(void) {
     PUT(13, 3, "START      : PLAY");
     PUT(14, 3, "BUTTON 2   : BACK");
     #undef PUT
-    menu_palettes();
+    menu_palettes(); grad_reset();
     panel_frame(MENU_X, MENU_Y, MENU_W, MENU_H);
+    static const uint16_t player_col[4] = {(6 << 10) | (31 << 5) | 6, (8 << 10) | (18 << 5) | 31, (31 << 10) | (8 << 5) | 8, (31 << 10) | (28 << 5) | 4};
     for (int r = 0; r < MENU_H; r++)
       for (int i = 0; i < MENU_W; i++) {
-        int pal = MENU_PAL_PANEL, line = (r >= 3 && r <= 9 && (r & 1)) ? (r - 3) / 2 : -1;
-        if (r <= 2) pal = r == 1 ? MENU_PAL_TITLE : MENU_PAL_DARK;     // the title bar, shaded
-        else if (r == 10) pal = MENU_PAL_HELP;                          // the rule
-        else if (r >= 11) pal = MENU_PAL_HELP;                          // the help
-        else if (line == menu_sel && !(r == 5 && i >= 15 && i <= 21)) pal = MENU_PAL_SEL;   // the line chosen
-        else if (line >= 0 && i >= 13) pal = MENU_PAL_VAL;              // a value
+        int line = (r >= 3 && r <= 9 && (r & 1)) ? (r - 3) / 2 : -1;
+        uint16_t letter = rgb(31, 31, 31), cell = panel_cell(r - 3, MENU_H - 3);
+        if (r <= 2) { letter = rgb(31, 28, 4); cell = r == 1 ? rgb(24, 4, 3) : r == 0 ? rgb(14, 1, 2) : rgb(18, 2, 2); }   // the title bar
+        else if (r >= 10) letter = rgb(15, 16, 21);                     // the rule, the help
+        else if (line == menu_sel) { cell = rgb(4, 11, 27); letter = rgb(31, 31, 12); }   // the line chosen
+        if (line >= 0 && i >= 13 && line != menu_sel) letter = rgb(6, 28, 31);   // a value
         if (r == 5 && i >= 15 && i <= 21 && !((i - 15) & 1)) {          // a player: lit if chosen
           int k = (i - 15) / 2;
-          pal = k < menu_players ? MENU_PAL_P1 + k : MENU_PAL_OFF;
+          letter = k < menu_players ? player_col[k] : rgb(5, 7, 13);
         }
+        uint32_t pal = grad_pal(letter, cell);
         TILEMAP(0)[(MENU_Y + r) * 64 + MENU_X + i] = MC_TILE((uint8_t)l[r][i], (uint32_t)pal, 0);
       }
     menu_drawn = 1;
