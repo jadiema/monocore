@@ -300,3 +300,17 @@ qu'une partie, et compileraient bien plus lentement). Il est remplacé par une t
 entrée par adresse paire, étiquettes en valeurs `&&L_...`) : un accès et un saut. Charge à quatre
 78 % → 68 %, à deux 55 % → 46 % ; RAM et VRAM identiques sur 3 000 images (pbobble4 à quatre et
 contre l'ordinateur, pbobble2), banc différentiel contre Musashi sans échec.
+
+## Le format des animations du jeu (pour le mode ARENA)
+
+Le moteur d'animation des objets (`$6FDFC`, `$6FE14`-`$6FEF2`) lit des **scripts** : une suite de
+mots ; un code 0-4 est une **image** (5 à 1 paramètres écrits dans l'objet : `+36`, `+44`
+(attributs), `+40` (dy), `+38` (dx), `+42` (palette), puis une **durée** et l'adresse d'une
+**définition de sprite**) ; -1 une **boucle** (adresse, nombre) ; -2 la **fin** ; -3 l'**appel**
+d'une routine. Une définition de sprite : un mot de taille (0 : une tuile ; sinon colonnes - 1 et
+rangées - 1), puis les tuiles (numéro, attributs), colonne par colonne. La liste de sprites
+reprend l'adresse de la définition (`+32` de l'objet) et ses octets `+43` (palette) et `+45`.
+Tables de scripts par couleur (0-7, palettes 29-36) : en versus, la bulle au repos `$44C8A`
+(8 tuiles, 8 images chacune, en boucle ; en versus toutes les bulles d'une couleur partagent leur
+état, `$10D51E`) et l'éclatement `$43464` (images de 3 x 3 tuiles, 3 images chacune) ; en solo,
+`$44C56` (la chute) et `$43430` (l'éclatement). L'arène lit ces scripts dans la ROM au démarrage.

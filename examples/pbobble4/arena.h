@@ -33,7 +33,7 @@ static int ar_ang[4];                              // aim, degrees from the vert
 static struct { int on; int32_t x, y, vx, vy; } ar_fly[4];
 static struct { int on, col; int32_t x, y, vy; } ar_fall[64];
 static struct { int t, col; int32_t x, y; } ar_pop[64];   // bubbles bursting (as the game: grey, blinking)
-#define AR_POP_T    24
+#define AR_POP_T    18                            // 6 frames of the game's burst, 3 each
 #define AR_GREY_PAL 217                            // 217-220: the grey of each colour
 static uint32_t ar_score[4], ar_clock, ar_end, ar_rng = 12345;
 static uint32_t ar_prev[4];
@@ -147,6 +147,39 @@ static void ar_new_row(void) {                      // the ceiling comes down: a
 // sprite list during the start of the game's round are noted (tile and palette, one tile, not
 // empty), and the four colours are chosen among them, nearest in hue to green, blue, red, yellow
 static uint32_t ar_seen_tile[64];
+// The game's own animations of the bubbles, read from its scripts in the ROM at the start of the
+// arena (the format of its animation engine, $6FE14-$6FEF2: words; 0-4 a frame: 5-1 parameters, a
+// duration, a sprite definition; -1 a loop; -2 the end; -3 a call). Versus: a bubble at rest
+// ($44C8A, by colour: 8 tiles of 8 frames, all the bubbles of a colour in step) and a bubble
+// bursting ($43464: frames of 3 x 3 tiles, 3 frames each).
+#define AR_IDLE_T   0x44C8A
+#define AR_BURST_T  0x43464
+static uint32_t ar_idle[4][8], ar_idles[4];        // the tiles at rest, per colour
+static uint32_t ar_burst[4][8][9], ar_bursts[4];   // the frames of a burst: 3 x 3 tiles each
+static uint8_t ar_burst_flip[4][8][9];
+static uint16_t ar_r16(uint32_t a) { return *(const uint16_t *)(neo_rom + (a & ~1u)); }
+static uint32_t ar_r32(uint32_t a) { return (uint32_t)ar_r16(a) << 16 | ar_r16(a + 2); }
+static uint32_t ar_tile_of(uint32_t d, int i) { uint32_t t0 = ar_r16(d + 2 + 4 * i), t1 = ar_r16(d + 4 + 4 * i); return t0 | ((t1 & 0xF0) << 12); }
+static void ar_read_scripts(int k, int colour) {   // colour: the game's 0-7 (palette 29-36)
+  static const int8_t nparam[5] = {5, 4, 3, 2, 1};
+  for (int pass = 0; pass < 2; pass++) {
+    uint32_t a = ar_r32((pass ? AR_BURST_T : AR_IDLE_T) + 4 * colour), n = 0;
+    for (int step = 0; step < 24 && n < 8; step++) {
+      int op = (int16_t)ar_r16(a); a += 2;
+      if (op < 0 || op > 4) break;                 // a loop, the end, a call: the frames are read
+      a += 2 * nparam[op];
+      uint32_t dur = ar_r16(a), d = ar_r32(a + 2); a += 6;
+      if (d >= neo_rom_size) break;
+      uint32_t size = ar_r16(d);
+      if (!pass) { if (size) break; ar_idle[k][n++] = ar_tile_of(d, 0); continue; }
+      if (((size & 0xFF) != 2) || (((size >> 8) & 0xFF) != 2)) break;   // the burst: its 3 x 3 frames
+      if (!dur) continue;                          // (a frame that waits: shown by the next one)
+      for (int i = 0; i < 9; i++) { ar_burst[k][n][i] = ar_tile_of(d, i); ar_burst_flip[k][n][i] = (uint8_t)(ar_r16(d + 4 + 4 * i) & 3); }
+      n++;
+    }
+    if (pass) ar_bursts[k] = n; else ar_idles[k] = n;
+  }
+}
 static uint8_t ar_src4;                            // the palette the yellow of player 4 comes from
 static uint16_t ar_hue(uint16_t c, int target) {    // any saturated colour to the hue target (0-1535)
   int r = (c >> 10) & 31, g = (c >> 5) & 31, b = c & 31;
@@ -188,6 +221,8 @@ static void ar_take_graphics(void) {
   }
   // player 4 is yellow: its bubble (often orange, a yellow one is rarely there) in palette 215
   // (never used by the game), turned yellow as the dragon of player 4
+  for (int k = 0; k < 4; k++)                       // the game's colour of each: its palette
+    if (ar_pal[k] >= 29 && ar_pal[k] <= 36) ar_read_scripts(k, ar_pal[k] - 29);
   ar_src4 = ar_pal[3]; ar_pal[3] = 215;
 }
 
@@ -307,7 +342,8 @@ static void ar_sprite(int *out, int32_t x, int32_t y, int k, uint16_t zoom) { ar
 static void ar_sprite_pal(int *out, int32_t x, int32_t y, int k, uint16_t zoom, uint8_t pal) {   // one bubble, centred
   if (*out >= MC_SPRITES) return;
   const uint16_t *smap = (const uint16_t *)spr_map_file;
-  int slot = cache_get(smap[ar_num[k]]);
+  uint32_t num = ar_idles[k] ? ar_idle[k][(vframe >> 3) % ar_idles[k]] : ar_num[k];   // the game's shine
+  int slot = cache_get(smap[num]);
   if (slot < 0) return;
   int size = (16 * zoom) >> 8;
   sprite_t *s = &mc_spr[(*out)++];
@@ -427,9 +463,26 @@ static void arena_frame(int *outp) {
   int out = *outp;
   for (int k = 0; k < 4; k++) if (ar_fly[k].on) ar_sprite(&out, ar_fly[k].x, ar_fly[k].y, k, 256);
   for (int i = 0; i < 64; i++) if (ar_fall[i].on) ar_sprite(&out, ar_fall[i].x, ar_fall[i].y, ar_fall[i].col, 256);
-  for (int i = 0; i < 64; i++) {                   // a burst: blinks grey, then swells grey and goes
+  for (int i = 0; i < 64; i++) {                   // a burst: the game's frames (3 x 3 tiles, 3 frames each)
     int t = ar_pop[i].t, k = ar_pop[i].col;
     if (!t) continue;
+    if (ar_bursts[k]) {
+      int f = (AR_POP_T - t) / 3;
+      if (f >= (int)ar_bursts[k]) continue;
+      const uint16_t *smap = (const uint16_t *)spr_map_file;
+      for (int j = 0; j < 9 && out < MC_SPRITES; j++) {   // column by column, as the Neo Geo blocks
+        uint32_t num = ar_burst[k][f][j];
+        if (!num || !smap[num]) continue;
+        int slot = cache_get(smap[num]);
+        if (slot < 0) continue;
+        sprite_t *sp = &mc_spr[out++];
+        sp->x = (int16_t)((ar_pop[i].x >> 8) - 24 + (j / 3) * 16); sp->y = (int16_t)((ar_pop[i].y >> 8) - 24 + (j % 3) * 16);
+        sp->tile = (uint16_t)(slot * 4); sp->pal = ar_pal[k]; sp->w = 2; sp->h = 2;
+        sp->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | ((ar_burst_flip[k][f][j] & 1) ? SA_HFLIP : 0) | ((ar_burst_flip[k][f][j] & 2) ? SA_VFLIP : 0));
+        sp->zoomx = 256; sp->zoomy = 256;
+      }
+      continue;
+    }
     if (t > 8) ar_sprite_pal(&out, ar_pop[i].x, ar_pop[i].y, k, 256, ((t >> 2) & 1) ? (uint8_t)(AR_GREY_PAL + k) : ar_pal[k]);
     else ar_sprite_pal(&out, ar_pop[i].x, ar_pop[i].y, k, (uint16_t)(256 + (8 - t) * 12), (uint8_t)(AR_GREY_PAL + k));
   }
