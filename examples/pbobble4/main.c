@@ -952,14 +952,15 @@ static void launch_frame(void) {
         for (int i = 0; i < 2; i++) TILEMAP(0)[(r0 + 3) * 64 + (w - 14) / 2 + k * 4 + i] = MC_TILE((uint8_t)p[i], grad_pal(k < np ? pc[k] : rgb(5, 7, 13), LCELL(r0 + 3)), 0);
       } }
     char t1[] = "BUST-A-MOVE AGAIN 4P", t2[24] = "VERSUS  -  4 PLAYERS", t3[] = "GET READY";   // (the players: row + 3)
-    static uint32_t shown_since; if (!launch_shown) shown_since = vframe;
-    uint32_t el = vframe - shown_since;            // GET READY, then 3, 2, 1 (a second each)
-    if (el >= 60 && el < 240) { t3[0] = ' '; t3[1] = ' '; t3[2] = ' '; t3[3] = ' '; t3[4] = (char)('3' - (el - 60) / 60); t3[5] = ' '; t3[6] = ' '; t3[7] = ' '; t3[8] = ' '; }
+    // GET READY while the game loads its round, then (the arena) 3, 2, 1 until it starts: the
+    // countdown is the arena's wait after the round is loaded (arena_wait, 180 frames)
+    int counting = arena_pending && arena_wait > 0, el = counting ? 60 + (int)arena_wait : 0;
+    if (counting) { for (int i = 0; i < 9; i++) t3[i] = ' '; t3[4] = (char)('3' - (arena_wait > 179 ? 2 : arena_wait / 60)); }
     if (arena_pending) { const char *a = "ARENA   -  4 PLAYERS"; for (int i = 0; a[i]; i++) t2[i] = a[i]; t2[20] = 0; }
     t2[11] = (char)('0' + (arena_pending ? arena_players : menu_players));
     for (int i = 0; t1[i]; i++) TILEMAP(0)[r0 * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t1[i], grad_pal(rgb(31, 28, 4), LCELL(r0)), 0);
     for (int i = 0; t2[i]; i++) TILEMAP(0)[(r0 + 2) * 64 + (w - 20) / 2 + i] = MC_TILE((uint8_t)t2[i], grad_pal(rgb(6, 28, 31), LCELL(r0 + 2)), 0);
-    if (el >= 60 || ((vframe >> 4) & 1)) for (int i = 0; t3[i] && !(el >= 240); i++) TILEMAP(0)[(r0 + 5) * 64 + (w - 9) / 2 + i] = MC_TILE((uint8_t)t3[i], grad_pal(rgb(31, 31, 31), LCELL(r0 + 5)), 0);
+    if (el >= 60 || ((vframe >> 4) & 1)) for (int i = 0; t3[i]; i++) TILEMAP(0)[(r0 + 5) * 64 + (w - 9) / 2 + i] = MC_TILE((uint8_t)t3[i], grad_pal(rgb(31, 31, 31), LCELL(r0 + 5)), 0);
     PALETTE[TEXT_PAL * 16 + 1] = (31 << 10) | (28 << 5) | 6; PALETTE[TEXT_PAL * 16 + 2] = 0;
     DISP_CTRL = DISP_ON | DISP_LAYER(0);           // the game's screen hidden
     launch_shown = 1;
@@ -1054,7 +1055,7 @@ static void vblank(void) {
   }
   if (arena_pending && !arena_on && round_started()) {   // the game's round is loaded (decor,
     ar_scan();                                     // palettes): its bubbles noted, then the arena
-    if (++arena_wait > 90) { arena_pending = 0; arena_start(); }
+    if (++arena_wait > 180) { arena_pending = 0; arena_start(); }   // (3 s: the countdown 3 2 1)
   }
   neo_vblank(&cpu);                                // (arena: the game runs on, its fields suspended)
 }
