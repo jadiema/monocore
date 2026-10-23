@@ -843,7 +843,7 @@ static int menu_ids(int *ids) {
   if (menu_mode) ids[n++] = L_CPU;
   ids[n++] = L_LEVEL;
   if (menu_mode) { ids[n++] = L_GUIDE; ids[n++] = L_STAGE; ids[n++] = L_COLORS; ids[n++] = L_TIME; }
-  else if (menu_players >= 3) ids[n++] = L_SCREEN;
+  else { if (menu_players >= 2) ids[n++] = L_STAGE; if (menu_players >= 3) ids[n++] = L_SCREEN; }   // (one player: the game's own menus)
   return n;
 }
 static int menu_lines(void) { int ids[9]; return menu_ids(ids); }
@@ -918,6 +918,7 @@ static void menu_inputs(void) {
         start_mask = menu_players == 1 ? 1 : 5; start_force = 8;
         auto_frames = menu_players == 1 ? 0 : 1200;
         launch_1p = menu_players == 1;               // one player: the start again until it is taken
+        launch_stage = menu_stage ? menu_stage - 1 : -1;   // RANDOM in versus: the game's own sequence
       }
     }
     neo.p1 = neo.p2 = neo.p3 = neo.p4 = 0; neo.status_b = 0; neo.st34 = 0;   // the game sees nothing
@@ -941,7 +942,7 @@ static void menu_inputs(void) {
     if (neo_ram[0xFDAF ^ 1] == 2) launch_1p = 0;
     else if (!start_force && ++t1p % 60 == 0) start_force = 8;
   }
-  if (arena_pending && !arena_on && launch_stage >= 0)   // the stage chosen, until the round is loaded
+  if (launching && (arena_pending || auto_frames) && !arena_on && launch_stage >= 0)   // the stage chosen, until the round is loaded
     *(uint16_t *)(neo_ram + 0x94D0) = (uint16_t)launch_stage;
   if (start_force) { start_force--; neo.status_b |= (uint8_t)start_mask; }
   if (auto_frames) {                               // the menus of the game, until the first round

@@ -9,11 +9,14 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
    ne l'indique à l'écran, pour laisser le titre du jeu intact) : un
    menu s'ouvre (son mode d'emploi y est écrit), que toutes les manettes peuvent régler : haut /
    bas choisit la ligne, gauche / droite change le chiffre ou la difficulté ; en VERSUS à 3 ou 4
-   joueurs, la ligne SCREEN choisit l'écran (LINE : les aires côte à côte, 2 X 2), au départ
+   joueurs, la ligne STAGE choisit le stage de la première manche (RANDOM : la suite du jeu,
+   sans rien forcer ; le jeu passe ensuite au stage suivant à chaque manche), la ligne SCREEN
+   choisit l'écran (LINE : les aires côte à côte, 2 X 2), au départ
    celui du DIP switch 1 ; en ARENA (2 à 4 joueurs), la ligne CPU donne les derniers dragons à l'ordinateur (de 0 à
    joueurs - 1, leur score s'affiche C3, C4… ; LEVEL règle leur force : EASY vise à 6° près et
    réfléchit une seconde, NORMAL 3° et une demi-seconde, HARD juste et tout de suite), la ligne
-   TIME la durée (1, 2, 3 ou 5 minutes), la ligne COLORS choisit la règle (MONO : chacun tire sa couleur et ne fait éclater que
+   TIME la durée (1, 2, 3 ou 5 minutes) ; un joueur qui ne tire pas pendant 8 secondes voit
+   HURRY! clignoter au-dessus de son lanceur, et 3 secondes plus tard son tir part tout seul ; la ligne COLORS choisit la règle (MONO : chacun tire sa couleur et ne fait éclater que
    la sienne ; MULTI : six couleurs du jeu, chacun tire des bulles de toutes les couleurs, la
    suivante annoncée dans son panneau NEXT, tout groupe de 3 éclate pour celui qui l'a formé), la
    ligne STAGE choisit le décor (RANDOM, ou l'un des 8 stages

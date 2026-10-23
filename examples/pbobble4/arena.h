@@ -35,6 +35,11 @@ static int ar_ncol;                                // the colours of the board: 
 static uint8_t ar_cur[4], ar_next[4];              // each player's bubble to shoot, and the next one
 static int ar_ang[4];                              // aim, degrees from the vertical
 static struct { int on, col; int32_t x, y, vx, vy; } ar_fly[4];
+// HURRY!, as in the game: a player who has not shot for 8 s sees it blink over the launcher (an
+// alert), and 3 s later the shot goes by itself where the launcher aims
+#define AR_HURRY      (8 * 60)
+#define AR_HURRY_SHOT (11 * 60)
+static int ar_idle_t[4], ar_hurry_shown[4];
 static struct { int on, col; int32_t x, y, vy; } ar_fall[64];
 static struct { int t, col; int32_t x, y; } ar_pop[64];   // bubbles bursting (as the game: grey, blinking)
 #define AR_POP_T    18                            // 6 frames of the game's burst, 3 each
@@ -473,7 +478,7 @@ static void arena_start(void) {
   *(uint16_t *)(neo_ram + 0x34C6) = (uint16_t)(mask >> 16); *(uint16_t *)(neo_ram + 0x34C8) = (uint16_t)mask;
   for (int r = 0; r < AR_ROWS; r++) for (int c = 0; c < AR_COLS; c++)
     ar_grid[r][c] = (r < 7 && c < ar_cols(r)) ? (int8_t)(ar_rand() % ar_ncol) : -1;
-  for (int k = 0; k < 4; k++) { ar_ang[k] = 0; ar_fly[k].on = 0; ar_score[k] = 0; ar_prev[k] = 0xFFFFFFFF; }
+  for (int k = 0; k < 4; k++) { ar_ang[k] = 0; ar_fly[k].on = 0; ar_score[k] = 0; ar_prev[k] = 0xFFFFFFFF; ar_idle_t[k] = 0; ar_hurry_shown[k] = 0; }
   for (int k = 0; k < 4; k++) { ar_cur[k] = (uint8_t)ar_pick(k); ar_next[k] = (uint8_t)ar_pick(k); }
   for (int i = 0; i < 64; i++) { ar_fall[i].on = 0; ar_pop[i].t = 0; }
   for (int i = 0; i < 8; i++) { ar_pts[i].t = 0; ar_pts[i].len = 0; }
@@ -587,6 +592,7 @@ static int ar_group_if(int r, int c, int col) {    // the group a bubble of col 
   return t;
 }
 static struct { int target, wait, has; } ar_ai[4];
+
 static uint32_t ar_ai_input(int k) {               // the buttons of a computer's dragon, this frame
   static const int err[3] = {6, 3, 0}, think[3] = {60, 30, 8};
   int lv = arena_level < 0 || arena_level > 2 ? 1 : arena_level;
@@ -679,12 +685,20 @@ static void arena_frame(int *outp) {
       if (ar_ang[k] > 75) ar_ang[k] = 75;
       uint32_t e = in[k] & ~ar_prev[k];
       if (ar_jump[k]) ar_jump[k]--;
+      if (!ar_fly[k].on && ar_clock && !ar_start) ar_idle_t[k]++; else ar_idle_t[k] = 0;
+      if (ar_idle_t[k] == AR_HURRY) ar_sound(AR_SND_ALERT);
+      if (ar_idle_t[k] >= AR_HURRY_SHOT) e |= IN_B(1);   // the shot goes by itself
+      { int col = (int)(ar_lx(k) / 8) - 3, row = (AR_LY - 60) / 8;   // (blank: the empty tile; a space is black)
+        int on = ar_idle_t[k] >= AR_HURRY && ((ar_idle_t[k] >> 3) & 1);
+        if (on) { hud_text(col, row, "HURRY!", HUD_PAL + k); ar_hurry_shown[k] = 1; }
+        else if (ar_hurry_shown[k]) { for (int i = 0; i < 6; i++) TILEMAP(0)[row * 64 + col + i] = MC_TILE(FIX_EMPTY, 0, 0); ar_hurry_shown[k] = 0; } }
       if ((e & (IN_B(1) | IN_UP)) && !ar_fly[k].on && ar_clock && !ar_start) {
         ar_jump[k] = 16; ar_dragon_play(k, AR_SHOOT, 0);
         ar_fly[k].on = 1; ar_fly[k].col = ar_cur[k]; ar_fly[k].x = FX(ar_lx(k)); ar_fly[k].y = FX(AR_LY - 10);
         ar_cur[k] = ar_next[k]; ar_next[k] = (uint8_t)ar_pick(k);
         ar_fly[k].vx = ar_sinv(ar_ang[k]) * 6; ar_fly[k].vy = -ar_cosv(ar_ang[k]) * 6;
         ar_sound(AR_SND_SHOT);
+        ar_idle_t[k] = 0;
       }
       ar_prev[k] = in[k];
     }
