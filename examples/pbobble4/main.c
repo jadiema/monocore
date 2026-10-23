@@ -906,7 +906,7 @@ static void hint_frame(void) {
     menu_drawn = 1;
   } else if (menu_drawn) { menu_drawn = 0; fix_back(MENU_X, MENU_Y, MENU_W, MENU_H); }
   // the title and the demo (not a game): a box, bottom right, for the menu
-  int box = !four_mode && !menu_open && neo_ram[0xFDAF ^ 1] == 1;     // USER_MODE 1: the title, the demo
+  int box = 0;                                     // (no box at the title: a start on any pad opens the menu)
   if (box) {
     static const char *const lines[5] = {"             ", " 1-4 PLAYERS ", " PRESS START ", "  ANY PAD    ", "             "};
     for (uint32_t r = 0; r < 5; r++)

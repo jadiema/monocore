@@ -5,7 +5,8 @@ Le jeu d'origine ne gère que 2 joueurs ; celui-ci en accepte jusqu'à 4, chacun
 
 ## Jouer
 
-1. **À l'écran titre (ou pendant la démonstration), n'importe quelle manette appuie sur Start** : un
+1. **À l'écran titre (ou pendant la démonstration), n'importe quelle manette appuie sur Start** (rien
+   ne l'indique à l'écran, pour laisser le titre du jeu intact) : un
    menu s'ouvre (son mode d'emploi y est écrit), que toutes les manettes peuvent régler : haut /
    bas choisit la ligne, gauche / droite change le chiffre ou la difficulté ; en VERSUS à 3 ou 4
    joueurs, la ligne SCREEN choisit l'écran (LINE : les aires côte à côte, 2 X 2), au départ
