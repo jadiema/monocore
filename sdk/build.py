@@ -8,7 +8,7 @@ project.txt (one setting per line, # starts a comment):
     title   = ATTRAPE-ETOILES       title stored in the ROM header
     sources = main.c other.c        C files of the program
     cflags  = -I../lib -Wno-unused  extra compiler options for these files (optional)
-    sprites = sheet.png             sprite sheets (16 pixels wide)  -> sheet_chr, sheet_pal
+    sprites = sheet.png             sprite sheets (16, 32, 64 wide) -> sheet_chr, sheet_pal
     maps    = level.png             maps in 16 x 16 tiles           -> level_chr, level_pal, level_map,
                                                                        level_width, level_height
     sounds  = boom.wav              sounds (WAV), for play_sample() -> boom_data, boom_count, boom_rate

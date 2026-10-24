@@ -12,6 +12,7 @@ static uint32_t seed = 0x2545F491u;
 static uint8_t spr_pal[64], spr_flip[64];
 static uint16_t spr_zoom[64];
 static uint8_t sheet_pal = 8;
+static uint8_t spr_cells = 2;                  // sprite width and height in 8 x 8 cells
 
 // tunes
 typedef struct { const char *start, *p; int beat, count, volume, on; } track_t;
@@ -203,13 +204,15 @@ void load_sprites(const uint8_t *chr, const uint8_t *pal, int palette) {
   for (int n = 0; n < 64; n++) spr_pal[n] = sheet_pal;
 }
 
+void sprite_size(int size) { spr_cells = size >= 64 ? 8 : size >= 32 ? 4 : 2; }
+
 void sprite(int n, int x, int y, int picture) {
   n &= 63;
   volatile sprite_t *s = &SPRITES[n];
   s->x = (int16_t)x; s->y = (int16_t)y;
-  s->tile = (uint16_t)(picture * 4);
+  s->tile = (uint16_t)(picture * spr_cells * spr_cells);
   s->pal = spr_pal[n];
-  s->w = 2; s->h = 2;
+  s->w = spr_cells; s->h = spr_cells;
   s->zoomx = spr_zoom[n]; s->zoomy = spr_zoom[n];
   s->attr = SA_ON | SA_PRIO(4) | spr_flip[n];
 }
@@ -237,7 +240,8 @@ int collide(int x1, int y1, int x2, int y2) {
   int dx = x1 - x2, dy = y1 - y2;
   if (dx < 0) dx = -dx;
   if (dy < 0) dy = -dy;
-  return dx < 14 && dy < 14;
+  int d = spr_cells * 7;                       // 14 for 16 x 16, 56 for 64 x 64
+  return dx < d && dy < d;
 }
 
 // ---------------------------------------------------------------- map

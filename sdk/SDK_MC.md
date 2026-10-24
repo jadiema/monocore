@@ -1,7 +1,7 @@
 # SDK bas niveau « mc » de la MONOCORE-1
 
 La bibliothèque **easy** du manuel fixe une configuration simple (un plan de texte, une carte,
-64 sprites de 16 × 16). Le SDK **mc** donne accès à toute la console, en C uniquement, pour
+64 sprites de 16 × 16, 32 × 32 ou 64 × 64). Le SDK **mc** donne accès à toute la console, en C uniquement, pour
 écrire ou porter des jeux complexes : aucune ligne d'assembleur n'est nécessaire, le démarrage
 et l'entrée des interruptions restant assurés par `crt0.S`.
 

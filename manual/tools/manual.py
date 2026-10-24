@@ -97,7 +97,7 @@ FIG_LAYERS = '''
  </g>
  <g font-weight="600" fill="#222">
   <text x="300" y="45">4. le texte (plan 0)</text><text x="300" y="61" font-weight="400" fill="#555">toujours devant</text>
-  <text x="300" y="92">3. les sprites</text><text x="300" y="108" font-weight="400" fill="#555">64 objets mobiles de 16 x 16</text>
+  <text x="300" y="92">3. les sprites</text><text x="300" y="108" font-weight="400" fill="#555">64 objets mobiles de 16 x 16 à 64 x 64</text>
   <text x="300" y="139">2. le décor (plan 1)</text><text x="300" y="155" font-weight="400" fill="#555">tuiles de 16 x 16, il défile</text>
   <text x="300" y="186">1. la couleur de fond</text><text x="300" y="202" font-weight="400" fill="#555">là où rien n'est dessiné</text>
  </g>
@@ -299,18 +299,20 @@ A('<div class="sheet-row"><img class="sheet" src="images/sheet_x8.png"><div>' +
   table(['N°', 'Nom dans le code', 'Dessin'], [['0', c('SHIP'), 'vaisseau'], ['1', c('STAR'), 'étoile'], ['2', c('STAR2'), 'étoile qui scintille'], ['3', c('BOMB'), 'bombe'], ['4', c('EXPLOSION'), 'explosion'], ['5', c('HEART'), 'cœur']]) +
   p("La planche des exemples, agrandie huit fois. Elle est dans <code>04_sprites/sheet.png</code>.") + '</div></div>')
 A(p("Il suffit de la nommer dans <code>project.txt</code> (<code>sprites = sheet.png</code>) : <code>build.py</code> la convertit et la rend disponible sous les noms <code>sheet_chr</code> (les dessins) et <code>sheet_pal</code> (les couleurs)."))
+A(box('tip', 'De plus grands sprites', p("Pour un héros plus détaillé, la planche peut faire <b>32 ou 64 pixels de large</b>, avec des dessins de 32 x 32 ou de 64 x 64 posés les uns sous les autres. Le programme appelle alors une fois <code>sprite_size(64)</code> (ou <code>sprite_size(32)</code>) après <code>load_sprites</code> : tous les sprites prennent cette taille, et les dessins se numérotent toujours 0, 1, 2… du haut vers le bas.")))
 A(h2('Afficher et déplacer'))
 A(listing(source('04_sprites'), '04_sprites/main.c'))
 A(screen('screen_04.png', 'Le vaisseau agrandi deux fois (bouton 2), et les étoiles qui scintillent.'))
 A(table(['Fonction', 'Effet'], [
   [c('load_sprites(chr, pal, 8)'), "choisit la planche et range ses couleurs dans la palette 8"],
+  [c('sprite_size(64)'), "choisit la taille des sprites : 16 (au départ), 32 ou 64, la largeur de la planche"],
   [c('sprite(n, x, y, picture)'), "affiche le sprite n (0 à 63) à la position x, y avec le dessin choisi"],
   [c('hide_sprite(n)'), "fait disparaître le sprite n"],
   [c('flip_sprite(n, h, v)'), "le retourne horizontalement (h = 1) et/ou verticalement (v = 1)"],
   [c('scale_sprite(n, 200)'), "l'agrandit (200 = double, 50 = moitié)"],
-  [c('collide(x1, y1, x2, y2)'), "vrai si deux sprites de 16 x 16 se touchent"]]))
+  [c('collide(x1, y1, x2, y2)'), "vrai si deux sprites se touchent"]]))
 A(box('tip', 'Animer', p("Pour animer un sprite, on change de dessin régulièrement. <code>(frame_count / 10) % 2</code> vaut 0 pendant 10 images, puis 1 pendant 10 images, etc. : de quoi alterner deux dessins six fois par seconde. Avec <code>% 4</code>, on fait tourner quatre dessins.")))
-A(box('warn', 'Les limites', p("On peut afficher jusqu'à <b>64 sprites sur une même ligne</b> de l'écran. Au-delà, les derniers ne sont pas dessinés sur cette ligne : le moniteur du simulateur l'indique en rouge.")))
+A(box('warn', 'Les limites', p("On peut afficher jusqu'à <b>64 sprites sur une même ligne</b> de l'écran, et 1280 pixels de sprites en tout sur cette ligne : c'est 80 sprites de 16 x 16 mais seulement <b>20 sprites de 64 x 64</b> côte à côte. Au-delà, les derniers ne sont pas dessinés sur cette ligne : le moniteur du simulateur l'indique en rouge.")))
 
 # ---------------------------------------------------------------- 7
 A(chapter(7, 'Le son', "Des bips, des bruits, des mélodies et des échantillons.", 7))
@@ -411,11 +413,11 @@ A(box('warn', "Règle d'or", p("Ne comptez jamais sur un nombre de cycles pour r
 
 # ---------------------------------------------------------------- 11
 A(chapter(11, 'Passer au SDK mc', "Quand easy devient trop petit : toute la console, toujours en C, sans assembleur.", 11))
-A(p("La bibliothèque <code>easy</code> range la console d'une façon simple et fixe : un plan de texte, un décor, 64 sprites de 16 x 16. C'est parfait pour apprendre, mais un jeu plus ambitieux, ou l'adaptation d'un jeu existant, a besoin de tout le reste : les quatre plans, les 512 sprites, les interruptions, la mémoire. Le chapitre 10 a montré qu'on peut tout faire avec les registres ; le SDK <b>mc</b> (pour <i>MONOCORE</i>) donne à ces registres des fonctions pratiques, sans rien cacher."))
+A(p("La bibliothèque <code>easy</code> range la console d'une façon simple et fixe : un plan de texte, un décor, 64 sprites de 16 x 16, 32 x 32 ou 64 x 64. C'est parfait pour apprendre, mais un jeu plus ambitieux, ou l'adaptation d'un jeu existant, a besoin de tout le reste : les quatre plans, les 512 sprites, les interruptions, la mémoire. Le chapitre 10 a montré qu'on peut tout faire avec les registres ; le SDK <b>mc</b> (pour <i>MONOCORE</i>) donne à ces registres des fonctions pratiques, sans rien cacher."))
 A(table(['', 'easy', 'mc'], [
   ['Pour qui', 'débuter, petits jeux', 'jeux complexes, adaptations'],
   ['Plans', 'texte (0) et décor (1)', 'les quatre, réglés librement'],
-  ['Sprites', '64, de 16 x 16', '512, de 8 x 8 à 256 x 256, zoom'],
+  ['Sprites', '64, de 16 x 16, 32 x 32 ou 64 x 64','512, de 8 x 8 à 256 x 256, zoom'],
   ['Interruptions', 'cachées', 'VBLANK, deux timers, effets raster, en C'],
   ['Mémoire', 'variables seulement', '<code>malloc</code>, <code>free</code>, CHR RAM'],
   ['Bibliothèque C', '—', '<code>string.h</code>, <code>stdlib.h</code>, <code>stdio.h</code>…']]))
@@ -521,12 +523,13 @@ A(table(['Fonction', 'Traduction', 'Description'], [
   [c('held(player, button)'), 'tenu', "vrai si le bouton du joueur (1 à 4) est enfoncé"],
   [c('pressed(player, button)'), 'appuyé', "vrai si le bouton du joueur (1 à 4) vient d'être enfoncé"],
   [c('load_sprites(chr, pal, palette)'), 'charger les sprites', "choisit la planche de sprites"],
+  [c('sprite_size(size)'), 'taille des sprites', "16, 32 ou 64 : taille de tous les sprites"],
   [c('sprite(n, x, y, picture)'), 'sprite', "affiche le sprite n (0 à 63) avec le dessin <i>picture</i>"],
   [c('hide_sprite(n)'), 'cacher', "cache le sprite n"],
   [c('flip_sprite(n, h, v)'), 'retourner', "retourne le sprite n"],
   [c('scale_sprite(n, percent)'), 'mettre à l\'échelle', "agrandit ou réduit le sprite n"],
   [c('sprite_palette(n, palette)'), 'palette du sprite', "change la palette du sprite n"],
-  [c('collide(x1, y1, x2, y2)'), 'se heurter', "vrai si deux sprites de 16 x 16 se touchent"],
+  [c('collide(x1, y1, x2, y2)'), 'se heurter', "vrai si deux sprites se touchent"],
   [c('load_map(chr, pal, map, w, h, palette)'), 'charger le décor', "installe un décor de w x h tuiles"],
   [c('scroll_map(x, y)'), 'faire défiler', "fait défiler le décor"],
   [c('tone(channel, freq, volume)'), 'note', "son carré sur un canal"],
@@ -541,7 +544,7 @@ A(table(['Réglage', 'Contenu', 'Noms créés pour le programme'], [
   [c('name'), "nom du fichier produit (<code>build/name.mnc</code>)", ''],
   [c('title'), "titre inscrit dans la ROM", ''],
   [c('sources'), "fichiers C du programme", ''],
-  [c('sprites'), "planches de sprites (PNG de 16 pixels de large)", c('x_chr') + ' ' + c('x_pal')],
+  [c('sprites'), "planches de sprites (PNG de 16, 32 ou 64 pixels de large)", c('x_chr') + ' ' + c('x_pal')],
   [c('maps'), "décors (PNG, tuiles de 16 x 16)", c('x_chr') + ' ' + c('x_pal') + ' ' + c('x_map') + ' ' + c('x_width') + ' ' + c('x_height')],
   [c('sounds'), "sons (WAV)", c('x_data') + ' ' + c('x_count') + ' ' + c('x_rate')],
   [c('origin'), "origine inscrite dans la ROM (facultatif)", ''],

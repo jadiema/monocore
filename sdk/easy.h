@@ -3,7 +3,7 @@
 // It sets the console up in one simple, fixed way:
 //   - layer 0: text (8 x 8 font, 40 columns x 30 rows in 320 x 240), in front of everything;
 //   - layer 1: the map (16 x 16 tiles), behind the sprites;
-//   - 64 sprites of 16 x 16 pixels, drawn from one sprite sheet (see load_sprites);
+//   - 64 sprites of 16 x 16 pixels (or 32 x 32, 64 x 64: see sprite_size), drawn from one sprite sheet;
 //   - palettes 0-7: text inks; palettes 8-15: sprites and map.
 // The hardware registers (monocore.h) can still be used directly alongside.
 #pragma once
@@ -47,13 +47,16 @@ int pressed(int player, uint32_t button);   // the button has just gone down (on
 // ---------------------------------------------------------------- sprites
 // The sprite sheet is an image 16 pixels wide: one 16 x 16 picture under the other.
 // The first picture is number 0, the next one 1, and so on.
+// For bigger sprites, the sheet is 32 or 64 pixels wide (32 x 32 or 64 x 64 pictures) and the
+// program calls sprite_size(32) or sprite_size(64) once; all the sprites then have that size.
 void load_sprites(const uint8_t *chr, const uint8_t *pal, int palette);
+void sprite_size(int size);                          // 16 (default), 32 or 64: width of the sheet
 void sprite(int n, int x, int y, int picture);       // shows sprite n (0-63)
 void hide_sprite(int n);
 void flip_sprite(int n, int horizontal, int vertical);
 void scale_sprite(int n, int percent);               // 100 = normal size, 200 = double
 void sprite_palette(int n, int palette);             // palette of sprite n (default: the sheet's)
-int  collide(int x1, int y1, int x2, int y2);        // two 16 x 16 sprites touch
+int  collide(int x1, int y1, int x2, int y2);        // two sprites (of the sprite_size) touch
 
 // ---------------------------------------------------------------- map
 // Image converted into 16 x 16 tiles: graphics (.chr), palette (.pal), tile map (.map).

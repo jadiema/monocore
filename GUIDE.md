@@ -122,7 +122,7 @@ Pour une musique, le plus simple est de cadencer un séquenceur avec le timer 0 
 
 ## 7. Aller plus loin : le SDK bas niveau « mc »
 
-Ce guide accède au matériel par ses registres, et le manuel du programmeur utilise la bibliothèque `easy`, volontairement simple (un plan de texte, une carte, 64 sprites de 16 × 16). Entre les deux, le SDK **mc** donne accès à toute la console en C, sans assembleur, pour les jeux complexes et les portages. Il suffit d'ajouter une ligne dans `project.txt` :
+Ce guide accède au matériel par ses registres, et le manuel du programmeur utilise la bibliothèque `easy`, volontairement simple (un plan de texte, une carte, 64 sprites de 16 × 16, 32 × 32 ou 64 × 64). Entre les deux, le SDK **mc** donne accès à toute la console en C, sans assembleur, pour les jeux complexes et les portages. Il suffit d'ajouter une ligne dans `project.txt` :
 
 ```
 library = mc
