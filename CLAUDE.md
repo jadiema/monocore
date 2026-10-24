@@ -33,7 +33,7 @@ Quartus : ouvrir `mister/MONOCORE.qpf` (voir `mister/LISEZMOI.md`). `quartus_tri
 
 ## SDK
 
-- `sdk/monocore.h` : registres matériels. `sdk/easy.h` / `easy.c` : bibliothèque pour débutants (init, wait_frame, print, sprite, load_map, play…). `sdk/build.py` construit un jeu à partir d'un `project.txt`.
+- `sdk/monocore.h` : registres matériels. `sdk/easy.h` / `easy.c` : bibliothèque pour débutants (init, wait_frame, print, sprite, load_map, play…). `sdk/build.py` construit un jeu à partir d'un `project.txt` et déclare les noms qu'il crée dans `build/assets.h`, inclus d'office. Avec `easy`, `init()` charge toutes les planches (mises bout à bout, une entrée par dessin) et le premier décor, chacun avec sa palette de couleurs.
 - `sdk/mc.h` / `mc.c` : SDK bas niveau (interruptions en C, raster, sprites par table fantôme + DMA, CHR RAM, PCM/PSG, virgule fixe), avec une petite libc (`sdk/libc.c`, en-têtes dans `sdk/libc/`). Choisi par `library = mc` dans `project.txt` ; `easy` reste la valeur par défaut. Référence : `sdk/SDK_MC.md`. La clé `data =` embarque des fichiers bruts ; `cflags =` ajoute des options de compilation aux seuls fichiers du programme (chemins d'inclusion, code produit par un traducteur).
 - Le manuel (`manual/`) a un exemple par chapitre dans `manual/examples/`. Exemples `mc` : `examples/aube` (écran d'accueil actuel, `boot.rom`), `examples/boot` (l'ancien), `examples/nebula` (shoot'em up complet), `examples/horizon` (course en fausse 3D), `examples/test_inputs`, `examples/test_sdk`.
 

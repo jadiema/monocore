@@ -6,12 +6,6 @@
 // by two PCM voices. START plays the sequence again.
 #include "mc.h"
 
-extern const uint8_t scene_chr[], scene_map[], logo_chr[], logo_map[], prompt_chr[], prompt_map[];
-extern const uint8_t mote_chr[];
-extern const int scene_width, scene_height;
-extern const uint8_t music_l_file[], music_r_file[];
-extern const uint32_t music_l_size, music_r_size;
-
 #define PAL_LOGO   20                  // 4 bpp layers and sprites, after the 256 colours of the scene
 #define PAL_PROMPT 21
 #define PAL_MOTE   22                  // 22-25: four brightnesses of the specks of light

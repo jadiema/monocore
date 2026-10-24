@@ -1,13 +1,7 @@
 #include "easy.h"
 
-extern const uint8_t sheet_chr[], sheet_pal[];
-extern const uint8_t landscape_chr[], landscape_pal[], landscape_map[];
-extern const uint32_t landscape_width, landscape_height;     // in 16 x 16 tiles
-
 int main(void) {
-  init();
-  load_sprites(sheet_chr, sheet_pal, 8);
-  load_map(landscape_chr, landscape_pal, landscape_map, landscape_width, landscape_height, 9);
+  init();                    // loads sheet.png and shows the map landscape.png
   print_ink(2, 1, "GAUCHE / DROITE : VITESSE", 1);
 
   int camera = 0;            // screen position in the map, in pixels

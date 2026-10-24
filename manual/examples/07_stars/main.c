@@ -1,19 +1,13 @@
 // ATTRAPE-ETOILES - the complete game of the MONOCORE-1 manual
 #include "easy.h"
 
-extern const uint8_t sheet_chr[], sheet_pal[];
-extern const uint8_t landscape_chr[], landscape_pal[], landscape_map[];
-extern const uint32_t landscape_width, landscape_height;
-extern const int8_t boom_data[];
-extern const uint32_t boom_count, boom_rate;
-
-// pictures of the sheet
-#define SHIP      0
-#define STAR      1
-#define STAR2     2
-#define BOMB      3
-#define EXPLOSION 4
-#define HEART     5
+// pictures of sheet.png
+#define SHIP      (sheet + 0)
+#define STAR      (sheet + 1)
+#define STAR2     (sheet + 2)
+#define BOMB      (sheet + 3)
+#define EXPLOSION (sheet + 4)
+#define HEART     (sheet + 5)
 
 // sprites in use
 #define SPR_PLAYER  0
@@ -67,19 +61,21 @@ static void move_items(void) {
     it->y = it->y + it->speed;
     if (it->y > 240) drop_item(it);            // out at the bottom: drop it again from the top
 
-    if (collide(it->x, it->y, player_x, 196)) {
+    int picture = it->bomb ? BOMB : (((frame_count / 8 + i) % 2) ? STAR : STAR2);
+    sprite(SPR_ITEM + i, it->x, it->y, picture);
+
+    if (collide(SPR_ITEM + i, SPR_PLAYER)) {
       if (it->bomb) {
         lives = lives - 1;
         explosion = 30;                        // 30 frames of explosion
-        play_sample(0, boom_data, boom_count, boom_rate, 230);
+        play_sample(0, boom, 230);
       } else {
         score = score + 10;
         tone(1, 1200, 120);                    // a short "ding"
       }
-      drop_item(it);
+      drop_item(it);                           // back to the top, out of the screen
+      hide_sprite(SPR_ITEM + i);               // until it is shown there, at the next frame
     }
-    int picture = it->bomb ? BOMB : (((frame_count / 8 + i) % 2) ? STAR : STAR2);
-    sprite(SPR_ITEM + i, it->x, it->y, picture);
   }
 }
 
@@ -143,10 +139,8 @@ static void game_over(void) {
 }
 
 int main(void) {
-  init();
+  init();                                      // loads sheet.png and landscape.png
   background(0, 0, 0);
-  load_sprites(sheet_chr, sheet_pal, 8);
-  load_map(landscape_chr, landscape_pal, landscape_map, landscape_width, landscape_height, 9);
   best = 500;
   for (;;) {
     title_screen();

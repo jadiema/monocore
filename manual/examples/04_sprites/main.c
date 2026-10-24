@@ -1,16 +1,13 @@
 #include "easy.h"
 
-extern const uint8_t sheet_chr[], sheet_pal[];   // built from sheet.png
-
-// picture numbers in the sheet
-#define SHIP   0
-#define STAR   1
-#define STAR2  2
+// pictures of sheet.png: sheet is the number of its first picture
+#define SHIP   (sheet + 0)
+#define STAR   (sheet + 1)
+#define STAR2  (sheet + 2)
 
 int main(void) {
-  init();
+  init();                        // also loads sheet.png
   background(0, 0, 40);
-  load_sprites(sheet_chr, sheet_pal, 8);
   print_ink(3, 1, "MANETTE:BOUGER  B1:MIROIR  B2:TAILLE", 2);
 
   int x = 152, y = 120;          // ship position

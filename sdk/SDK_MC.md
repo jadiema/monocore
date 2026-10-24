@@ -18,6 +18,13 @@ disponibles, ce qui permet de compiler la plupart du code C portable sans modifi
 La clé `cflags = …` ajoute des options de compilation aux fichiers C du programme (chemins
 d'inclusion, avertissements), par exemple pour du code produit par un traducteur.
 
+Les noms que `build.py` crée pour les fichiers de `project.txt` sont déclarés tout seuls
+(`build/assets.h`, inclus d'office dans chaque fichier C) : `x_chr`, `x_pal` pour `sprites`,
+`x_chr`, `x_pal`, `x_map`, `x_width`, `x_height` pour `maps` et `maps8`, `x_data`, `x_count`,
+`x_rate` pour `sounds`, `x_file`, `x_size` pour `data` (`x` : le nom du fichier sans extension).
+Les tableaux sont des `const uint8_t[]` (`const int8_t[]` pour les sons), les nombres des
+`const uint32_t`. Avec `mc`, les planches de sprites peuvent avoir n'importe quelle largeur.
+
 La nouvelle clé `data = fichier.bin …` embarque des fichiers bruts dans la ROM (niveaux,
 musiques, données d'un jeu porté) : symboles `fichier_file` (données) et `fichier_size` (taille).
 

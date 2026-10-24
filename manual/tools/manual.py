@@ -292,27 +292,27 @@ A(box('know', 'Joueurs 3 et 4', p("Les manettes 3 et 4 existent depuis la versio
 # ---------------------------------------------------------------- 6
 A(chapter(6, 'Les sprites', "Des objets qui bougent : votre héros, les ennemis, les bonus.", 6))
 A(h2('Dessiner une planche'))
-A(p("Les dessins des sprites se rangent dans une <b>planche</b> (<i>sprite sheet</i>) : une image PNG de <b>16 pixels de large</b>, où les dessins de 16 x 16 sont posés les uns sous les autres. Le premier porte le numéro 0, le suivant le numéro 1, et ainsi de suite. Dessinez-la avec n'importe quel logiciel de dessin (Aseprite, LibreSprite, GIMP, Paint…) en respectant deux règles :"))
-A(ul(["<b>15 couleurs au plus</b> pour toute la planche ;",
+A(p("Les dessins des sprites se rangent dans une <b>planche</b> (<i>sprite sheet</i>) : une image PNG de <b>16 pixels de large</b>, où les dessins de 16 x 16 sont posés les uns sous les autres. Le premier porte le numéro 0, le suivant le numéro 1, et ainsi de suite. Dessinez-la avec n'importe quel logiciel de dessin (Aseprite, LibreSprite, GIMP, Paint…) en respectant trois règles :"))
+A(ul(["une <b>seule colonne</b> de dessins, de haut en bas : la largeur de l'image est celle d'un dessin ;",
+      "<b>15 couleurs au plus</b> pour toute la planche ;",
       "le <b>transparent</b> (les pixels effacés de l'image) laisse voir ce qui est derrière le sprite."]))
 A('<div class="sheet-row"><img class="sheet" src="images/sheet_x8.png"><div>' +
   table(['N°', 'Nom dans le code', 'Dessin'], [['0', c('SHIP'), 'vaisseau'], ['1', c('STAR'), 'étoile'], ['2', c('STAR2'), 'étoile qui scintille'], ['3', c('BOMB'), 'bombe'], ['4', c('EXPLOSION'), 'explosion'], ['5', c('HEART'), 'cœur']]) +
   p("La planche des exemples, agrandie huit fois. Elle est dans <code>04_sprites/sheet.png</code>.") + '</div></div>')
-A(p("Il suffit de la nommer dans <code>project.txt</code> (<code>sprites = sheet.png</code>) : <code>build.py</code> la convertit et la rend disponible sous les noms <code>sheet_chr</code> (les dessins) et <code>sheet_pal</code> (les couleurs)."))
-A(box('tip', 'De plus grands sprites', p("Pour un héros plus détaillé, la planche peut faire <b>32 ou 64 pixels de large</b>, avec des dessins de 32 x 32 ou de 64 x 64 posés les uns sous les autres. Le programme appelle alors une fois <code>sprite_size(64)</code> (ou <code>sprite_size(32)</code>) après <code>load_sprites</code> : tous les sprites prennent cette taille, et les dessins se numérotent toujours 0, 1, 2… du haut vers le bas.")))
+A(p("Il suffit de la nommer dans <code>project.txt</code> (<code>sprites = sheet.png</code>) : <code>build.py</code> la convertit, et <code>init()</code> la charge avec ses couleurs. Dans le programme, <code>sheet</code> (le nom du fichier sans <code>.png</code>) est le numéro de son premier dessin : <code>sheet + 2</code> est son troisième dessin. Ce nom est prêt à l'emploi, il n'y a rien à déclarer."))
+A(p("Un jeu peut avoir plusieurs planches : <code>sprites = hero.png enemies.png</code>. Leurs dessins se numérotent à la suite, et <code>hero + 1</code> ou <code>enemies + 3</code> les désignent sans avoir à compter. Chaque planche garde ses propres 15 couleurs."))
+A(box('tip', 'De plus grands sprites', p("Pour un héros plus détaillé, une planche peut faire <b>32 ou 64 pixels de large</b>, avec des dessins de 32 x 32 ou de 64 x 64 posés les uns sous les autres. Chaque dessin garde la taille de sa planche : un héros de 64 x 64 et des bonus de 16 x 16 se côtoient sans rien changer au programme.")))
 A(h2('Afficher et déplacer'))
 A(listing(source('04_sprites'), '04_sprites/main.c'))
 A(screen('screen_04.png', 'Le vaisseau agrandi deux fois (bouton 2), et les étoiles qui scintillent.'))
 A(table(['Fonction', 'Effet'], [
-  [c('load_sprites(chr, pal, 8)'), "choisit la planche et range ses couleurs dans la palette 8"],
-  [c('sprite_size(64)'), "choisit la taille des sprites : 16 (au départ), 32 ou 64, la largeur de la planche"],
   [c('sprite(n, x, y, picture)'), "affiche le sprite n (0 à 63) à la position x, y avec le dessin choisi"],
   [c('hide_sprite(n)'), "fait disparaître le sprite n"],
   [c('flip_sprite(n, h, v)'), "le retourne horizontalement (h = 1) et/ou verticalement (v = 1)"],
   [c('scale_sprite(n, 200)'), "l'agrandit (200 = double, 50 = moitié)"],
-  [c('collide(x1, y1, x2, y2)'), "vrai si deux sprites se touchent"]]))
+  [c('collide(a, b)'), "vrai si les sprites a et b se touchent"]]))
 A(box('tip', 'Animer', p("Pour animer un sprite, on change de dessin régulièrement. <code>(frame_count / 10) % 2</code> vaut 0 pendant 10 images, puis 1 pendant 10 images, etc. : de quoi alterner deux dessins six fois par seconde. Avec <code>% 4</code>, on fait tourner quatre dessins.")))
-A(box('warn', 'Les limites', p("On peut afficher jusqu'à <b>64 sprites sur une même ligne</b> de l'écran, et 1280 pixels de sprites en tout sur cette ligne : c'est 80 sprites de 16 x 16 mais seulement <b>20 sprites de 64 x 64</b> côte à côte. Au-delà, les derniers ne sont pas dessinés sur cette ligne : le moniteur du simulateur l'indique en rouge.")))
+A(box('warn', 'Les limites', p("On peut afficher jusqu'à <b>64 sprites sur une même ligne</b> de l'écran, et 1280 pixels de sprites en tout sur cette ligne : c'est 80 sprites de 16 x 16 mais seulement <b>20 sprites de 64 x 64</b> côte à côte. Au-delà, les derniers ne sont pas dessinés sur cette ligne : le moniteur du simulateur l'indique en rouge. Un jeu a au plus <b>8 planches et décors</b> en tout, car chacun prend l'une des 8 palettes de couleurs.")))
 
 # ---------------------------------------------------------------- 7
 A(chapter(7, 'Le son', "Des bips, des bruits, des mélodies et des échantillons.", 7))
@@ -323,7 +323,7 @@ A(table(['Fonction', 'Effet'], [
   [c('quiet(channel)'), "fait taire le canal"],
   [c('play(channel, tune, 15, 100)'), "joue une mélodie en boucle, toute seule"],
   [c('stop(channel)'), "arrête la mélodie"],
-  [c('play_sample(voice, data, count, rate, volume)'), "joue un son enregistré (fichier WAV)"]]))
+  [c('play_sample(voice, sound, volume)'), "joue un son enregistré (fichier WAV)"]]))
 A(listing(source('05_sound'), '05_sound/main.c'))
 A(screen('screen_05.png', 'Le petit piano : chaque bouton joue une note.'))
 A(h2('Écrire une mélodie'))
@@ -337,11 +337,8 @@ A(table(['Écriture', 'Signification'], [
   [c('.'), "un temps de silence"]]))
 A(p("Le troisième nombre de <code>play()</code> règle le tempo : le nombre d'images par temps. 15 images, c'est 4 temps par seconde (240 à la minute) ; 30, deux fois plus lent. Pour jouer plusieurs voix en même temps (une mélodie et une basse), lancez deux mélodies sur deux canaux."))
 A(h2('Les sons enregistrés'))
-A(p("Un fichier WAV nommé dans <code>project.txt</code> (<code>sounds = boom.wav</code>) devient trois noms : <code>boom_data</code> (les échantillons), <code>boom_count</code> (leur nombre) et <code>boom_rate</code> (leur fréquence). On le joue avec :"))
-A(listing("""extern const int8_t boom_data[];
-extern const uint32_t boom_count, boom_rate;
-...
-play_sample(0, boom_data, boom_count, boom_rate, 230);""", numbers=False))
+A(p("Un fichier WAV nommé dans <code>project.txt</code> (<code>sounds = boom.wav</code>) devient le nom <code>boom</code>. On le joue sur la voix 0, au volume 230, avec :"))
+A(listing("""play_sample(0, boom, 230);""", numbers=False))
 A(box('tip', 'Bonne pratique', p("Gardez des sons courts et en 8 000 à 22 050 Hz : ils occupent moins de place dans la ROM et sonnent très « arcade ». Un son de 16 000 Hz pendant une demi-seconde occupe 8 Ko.")))
 
 # ---------------------------------------------------------------- 8
@@ -349,7 +346,7 @@ A(chapter(8, 'Le décor', "Un grand paysage en tuiles, qui défile derrière les
 A(p("Le décor (<i>map</i>) est une grande image découpée en <b>tuiles de 16 x 16 pixels</b>. Les tuiles identiques ne sont stockées qu'une fois : un ciel uni ou un sol répétitif ne coûtent presque rien. Le décor peut mesurer jusqu'à <b>1024 x 1024 pixels</b> et il boucle : en défilant au-delà du bord droit, on retrouve le bord gauche."))
 A(ul(["Dessinez une image dont la largeur et la hauteur sont des multiples de 16, en <b>15 couleurs</b> au plus ;",
       "nommez-la dans <code>project.txt</code> : <code>maps = landscape.png</code> ;",
-      "le programme reçoit <code>landscape_chr</code>, <code>landscape_pal</code>, <code>landscape_map</code> (la carte des tuiles), <code>landscape_width</code> et <code>landscape_height</code> (largeur et hauteur en tuiles)."]))
+      "<code>init()</code> l'affiche, avec ses couleurs ; s'il y a plusieurs décors (<code>maps = level1.png level2.png</code>), c'est le premier, et <code>load_map(level2)</code> passe au suivant."]))
 A(listing(source('06_scroll'), '06_scroll/main.c'))
 A(screen('screen_06.png', 'Le paysage de 1024 pixels défile derrière le vaisseau.'))
 A(p("<code>scroll_map(x, y)</code> (« faire défiler le décor ») indique quel point du décor apparaît dans le coin en haut à gauche de l'écran. En augmentant <code>x</code> à chaque image, le décor glisse vers la gauche : on a l'impression d'avancer vers la droite."))
@@ -385,7 +382,7 @@ A(ol(["Changez les couleurs, la vitesse, le nombre de points par étoile.",
 
 # ---------------------------------------------------------------- 10
 A(chapter(10, 'Sous le capot', "La bibliothèque easy n'est qu'un raccourci : voici ce que la console sait faire d'autre.", 10))
-A(p("Toutes les fonctions de <code>easy</code> écrivent dans des <b>registres</b> : des adresses mémoire spéciales qui commandent les circuits de la console. <code>monocore.h</code> leur donne des noms. Vous pouvez les utiliser à côté de <code>easy</code>, à condition de respecter son rangement (plans 0 et 1, palettes 0 à 15, sprites 0 à 63) ou de ne pas l'utiliser du tout."))
+A(p("Toutes les fonctions de <code>easy</code> écrivent dans des <b>registres</b> : des adresses mémoire spéciales qui commandent les circuits de la console. <code>monocore.h</code> leur donne des noms. Vous pouvez les utiliser à côté de <code>easy</code>, à condition de respecter son rangement (plans 0 et 1, palettes 0 à 15 : les 8 encres puis les 8 palettes de couleurs, sprites 0 à 63) ou de ne pas l'utiliser du tout."))
 A(h2("Changer la taille de l'écran"))
 A(listing("""SCREEN_W = 256;   // from 224 to 384 pixels wide
 SCREEN_H = 224;   // from 192 to 288 lines""", numbers=False))
@@ -515,42 +512,40 @@ A(table(['Fonction', 'Traduction', 'Description'], [
   [c('random(n)'), 'au hasard', "nombre au hasard de 0 à n - 1"],
   [c('background(r, g, b)'), 'fond', "couleur du fond (rouge, vert, bleu de 0 à 255)"],
   [c('ink(n, r, g, b)'), 'encre', "couleur de l'encre de texte n (0 à 7)"],
-  [c('load_palette(n, pal)'), 'charger une palette', "range une palette de 16 couleurs (fichier .pal) en palette n"],
+  [c('load_palette(n, pal)'), 'charger une palette', "range les couleurs d'une image en palette n (0 à 7), par exemple <code>load_palette(3, hero_pal)</code>"],
   [c('cls()'), "effacer l'écran", "efface tout le texte (de <i>CLear Screen</i>)"],
   [c('print(col, row, text)'), 'imprimer', "écrit en blanc, colonne <i>col</i>, ligne <i>row</i>"],
   [c('print_ink(col, row, text, ink)'), 'imprimer en couleur', "écrit avec l'encre choisie"],
   [c('print_num(col, row, n, digits, ink)'), 'imprimer un nombre', "écrit un nombre sur <i>digits</i> chiffres, complété par des zéros"],
   [c('held(player, button)'), 'tenu', "vrai si le bouton du joueur (1 à 4) est enfoncé"],
   [c('pressed(player, button)'), 'appuyé', "vrai si le bouton du joueur (1 à 4) vient d'être enfoncé"],
-  [c('load_sprites(chr, pal, palette)'), 'charger les sprites', "choisit la planche de sprites"],
-  [c('sprite_size(size)'), 'taille des sprites', "16, 32 ou 64 : taille de tous les sprites"],
   [c('sprite(n, x, y, picture)'), 'sprite', "affiche le sprite n (0 à 63) avec le dessin <i>picture</i>"],
   [c('hide_sprite(n)'), 'cacher', "cache le sprite n"],
   [c('flip_sprite(n, h, v)'), 'retourner', "retourne le sprite n"],
   [c('scale_sprite(n, percent)'), 'mettre à l\'échelle', "agrandit ou réduit le sprite n"],
-  [c('sprite_palette(n, palette)'), 'palette du sprite', "change la palette du sprite n"],
-  [c('collide(x1, y1, x2, y2)'), 'se heurter', "vrai si deux sprites se touchent"],
-  [c('load_map(chr, pal, map, w, h, palette)'), 'charger le décor', "installe un décor de w x h tuiles"],
+  [c('sprite_palette(n, palette)'), 'palette du sprite', "change la palette du sprite n (-1 : celle de sa planche)"],
+  [c('collide(a, b)'), 'se heurter', "vrai si les sprites a et b se touchent"],
+  [c('load_map(map)'), 'charger le décor', "remplace le décor affiché par <code>init()</code>"],
   [c('scroll_map(x, y)'), 'faire défiler', "fait défiler le décor"],
   [c('tone(channel, freq, volume)'), 'note', "son carré sur un canal"],
   [c('noise(channel, volume)'), 'bruit', "bruit sur un canal"],
   [c('quiet(channel)'), 'silence', "fait taire un canal"],
   [c('play(channel, tune, frames, volume)'), 'jouer', "joue une mélodie en boucle"],
   [c('stop(channel)'), 'arrêter', "arrête la mélodie du canal"],
-  [c('play_sample(voice, data, count, rate, volume)'), 'jouer un échantillon', "joue un son enregistré"]], 'ref'))
+  [c('play_sample(voice, sound, volume)'), 'jouer un échantillon', "joue un son enregistré"]], 'ref'))
 A(p("Boutons : <code>UP</code> (haut), <code>DOWN</code> (bas), <code>LEFT</code> (gauche), <code>RIGHT</code> (droite), <code>B1</code> à <code>B6</code>, <code>START</code>, <code>COIN</code> (pièce). Encres par défaut : 0 blanc, 1 jaune, 2 cyan, 3 vert, 4 rouge, 5 violet, 6 orange, 7 gris."))
 A(h3('Le fichier project.txt'))
 A(table(['Réglage', 'Contenu', 'Noms créés pour le programme'], [
   [c('name'), "nom du fichier produit (<code>build/name.mnc</code>)", ''],
   [c('title'), "titre inscrit dans la ROM", ''],
   [c('sources'), "fichiers C du programme", ''],
-  [c('sprites'), "planches de sprites (PNG de 16, 32 ou 64 pixels de large)", c('x_chr') + ' ' + c('x_pal')],
-  [c('maps'), "décors (PNG, tuiles de 16 x 16)", c('x_chr') + ' ' + c('x_pal') + ' ' + c('x_map') + ' ' + c('x_width') + ' ' + c('x_height')],
-  [c('sounds'), "sons (WAV)", c('x_data') + ' ' + c('x_count') + ' ' + c('x_rate')],
+  [c('sprites'), "planches de sprites (PNG de 16, 32 ou 64 pixels de large)", c('x') + " : numéro de son premier dessin"],
+  [c('maps'), "décors (PNG, tuiles de 16 x 16)", c('x') + " : le décor, pour <code>load_map</code>"],
+  [c('sounds'), "sons (WAV)", c('x') + " : le son, pour <code>play_sample</code>"],
   [c('origin'), "origine inscrite dans la ROM (facultatif)", ''],
   [c('rotation'), "orientation de l'écran au démarrage : 0 à 3 quarts de tour (facultatif)", ''],
   [c('dip'), "DIP switches par défaut, par exemple <code>0x01</code> (facultatif)", '']], 'ref'))
-A(p("<code>x</code> est le nom du fichier sans son extension : <code>sheet.png</code> donne <code>sheet_chr</code> et <code>sheet_pal</code>."))
+A(p("<code>x</code> est le nom du fichier sans son extension : <code>sheet.png</code> donne <code>sheet</code>. Les planches puis les décors reçoivent chacun une palette de couleurs, dans l'ordre de <code>project.txt</code> (0, 1, 2…). Les données brutes existent aussi sous les noms <code>x_chr</code>, <code>x_pal</code>, <code>x_map</code>, <code>x_data</code>… (utiles avec <code>load_palette</code> ou le SDK <b>mc</b>)."))
 
 A(chapter('B', 'Carte mémoire et registres', "Pour programmer la console directement (monocore.h).", 2))
 A(table(['Adresse', 'Taille', 'Contenu'], [
@@ -611,11 +606,12 @@ A(table(['Limite', 'Valeur'], [
 A(h3('Messages et problèmes fréquents'))
 A(table(['Symptôme', 'Cause probable et remède'], [
   ["<code>error: expected ';'</code>", "il manque un point-virgule à la fin de la ligne indiquée (ou de la précédente)"],
-  ['<code>undefined symbol: sheet_chr</code>', "l'image n'est pas déclarée dans <code>project.txt</code>, ou porte un autre nom"],
+  ["<code>use of undeclared identifier 'sheet'</code>", "l'image n'est pas nommée dans <code>project.txt</code>, ou porte un autre nom"],
+  ['<code>ERROR: … 8 at most</code>', "plus de 8 planches et décors : regroupez des dessins dans une même planche"],
   ['<code>ERROR: tool not found: clang</code>', "LLVM n'est pas installé ou pas dans le chemin (chapitre 2)"],
   ['<code>ERROR: no project.txt file</code>', "la commande n'est pas lancée dans le dossier du programme"],
   ['écran noir', "<code>init()</code> oublié, ou le programme n'appelle jamais <code>wait_frame()</code>"],
-  ['sprite invisible', "planche non chargée, sprite hors de l'écran, ou plus de 64 sprites sur la ligne"],
+  ['sprite invisible', "numéro de dessin au-delà du dernier, sprite hors de l'écran, ou plus de 64 sprites sur la ligne"],
   ['couleurs bizarres', "plus de 15 couleurs dans l'image : réduisez la palette"],
   ['le jeu ralentit', "trop de calculs par image : regardez la charge dans le moniteur"],
   ['rien sur le MiSTer', "barrette SDRAM absente, ou essayer l'option « Lecture SDRAM : Retardée »"]]))

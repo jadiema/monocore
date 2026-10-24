@@ -3,11 +3,23 @@
 // It sets the console up in one simple, fixed way:
 //   - layer 0: text (8 x 8 font, 40 columns x 30 rows in 320 x 240), in front of everything;
 //   - layer 1: the map (16 x 16 tiles), behind the sprites;
-//   - 64 sprites of 16 x 16 pixels (or 32 x 32, 64 x 64: see sprite_size), drawn from one sprite sheet;
-//   - palettes 0-7: text inks; palettes 8-15: sprites and map.
+//   - 64 sprites of 16 x 16, 32 x 32 or 64 x 64 pixels, drawn from the sprite sheets;
+//   - 8 text inks, and 8 colour palettes (0-7) for the sheets and the maps
+//     (hardware palettes 0-7 and 8-15; the numbers 8-15 are also accepted for the colour palettes).
 // The hardware registers (monocore.h) can still be used directly alongside.
 #pragma once
 #include "monocore.h"
+
+// ---------------------------------------------------------------- files of project.txt
+// build.py turns each file into one name, the file name without its extension:
+//   sprites = hero.png      -> hero       number of the first picture of the sheet: sprite(0, x, y, hero + 2)
+//   maps    = land.png      -> land       a map, for load_map(land)
+//   sounds  = boom.wav      -> boom       a sound, for play_sample(0, boom, 200)
+// These names are declared by build.py: there is nothing to write before using them.
+// init() loads all the sheets and the first map, each with its own colour palette, in the order of
+// project.txt: first the sheets, then the maps (8 at most in all).
+typedef struct { const uint8_t *chr, *pal, *map; uint32_t width, height, palette; } map_t;   // size in tiles
+typedef struct { const int8_t *data; uint32_t count, rate; } sound_t;
 
 // ---------------------------------------------------------------- start-up and time
 void init(void);                     // call once, at the start of the program
@@ -19,7 +31,7 @@ int  random(int n);                  // random number from 0 to n - 1
 // r, g, b from 0 to 255
 void background(int r, int g, int b);                // screen background colour
 void ink(int n, int r, int g, int b);                // colour of text ink n (0-7)
-void load_palette(int n, const uint8_t *pal);        // palette n (8-15) from a .pal file
+void load_palette(int n, const uint8_t *pal);        // colour palette n (0-7) from hero_pal, land_pal...
 
 // ---------------------------------------------------------------- text
 // columns 0-39, rows 0-29 (in 320 x 240)
@@ -45,23 +57,19 @@ int held(int player, uint32_t button);      // the button is down (player 1 to 4
 int pressed(int player, uint32_t button);   // the button has just gone down (once per press)
 
 // ---------------------------------------------------------------- sprites
-// The sprite sheet is an image 16 pixels wide: one 16 x 16 picture under the other.
-// The first picture is number 0, the next one 1, and so on.
-// For bigger sprites, the sheet is 32 or 64 pixels wide (32 x 32 or 64 x 64 pictures) and the
-// program calls sprite_size(32) or sprite_size(64) once; all the sprites then have that size.
-void load_sprites(const uint8_t *chr, const uint8_t *pal, int palette);
-void sprite_size(int size);                          // 16 (default), 32 or 64: width of the sheet
-void sprite(int n, int x, int y, int picture);       // shows sprite n (0-63)
+// A sprite sheet is an image 16, 32 or 64 pixels wide: square pictures one under the other, all
+// the size of the width. The pictures of all the sheets are numbered one after the other; the name
+// of a sheet is the number of its first picture.
+void sprite(int n, int x, int y, int picture);       // shows sprite n (0-63) with a picture
 void hide_sprite(int n);
 void flip_sprite(int n, int horizontal, int vertical);
 void scale_sprite(int n, int percent);               // 100 = normal size, 200 = double
-void sprite_palette(int n, int palette);             // palette of sprite n (default: the sheet's)
-int  collide(int x1, int y1, int x2, int y2);        // two sprites (of the sprite_size) touch
+void sprite_palette(int n, int palette);             // palette (0-7) of sprite n; -1 = its sheet's
+int  collide(int a, int b);                          // sprites a and b touch
 
 // ---------------------------------------------------------------- map
-// Image converted into 16 x 16 tiles: graphics (.chr), palette (.pal), tile map (.map).
-// width and height in tiles (at most 64 x 64, i.e. 1024 x 1024 pixels).
-void load_map(const uint8_t *chr, const uint8_t *pal, const uint8_t *map, int width, int height, int palette);
+// Image cut into 16 x 16 tiles, at most 64 x 64 tiles (1024 x 1024 pixels).
+void load_map(map_t map);                            // changes the map (init() shows the first one)
 void scroll_map(int x, int y);                       // map position of the screen's top-left corner
 
 // ---------------------------------------------------------------- sound
@@ -76,5 +84,5 @@ void quiet(int channel);
 // frames_per_beat: 8 = fast, 15 = moderate, 30 = slow. It plays by itself, in a loop.
 void play(int channel, const char *tune, int frames_per_beat, int volume);
 void stop(int channel);
-// An 8-bit sample converted from a WAV file by build.py, played once.
-void play_sample(int voice, const int8_t *data, uint32_t count, int rate, int volume);
+// A sound of project.txt, played once on voice 0-7.
+void play_sample(int voice, sound_t sound, int volume);
