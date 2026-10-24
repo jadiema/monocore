@@ -246,12 +246,14 @@ static uint16_t sp_head[381];
 // A layer takes any tall column without shrink (a background is drawn as columns of sprites,
 // chained or not, sometimes split in several groups): the columns of one layer share the same
 // position modulo 16 (the scroll of the layer) and each takes its own column of the 32 x 32 map.
-static void layer_open(int layer, int x, int top) {
+static void layer_open(int layer, int x, int top, int prio) {
+  mc_layer(layer, spr_file, MC_TILE16 | MC_4BPP, 32, 32, prio);   // prio 1: a layer in front of earlier sprites
   mc_fill(TILEMAP(layer), 0, 32 * 32 * 4);
   mc_layer_scroll(layer, -(x & 15), -(top & 15));   // screen x = layer x - scroll
 }
 
 static int arena_on;
+static int front_n = 382;                          // the first column on a front layer (video_frame)
 static void layer_column(int layer, int n) {
   volatile uint32_t *map = TILEMAP(layer);
   const uint16_t *smap = (const uint16_t *)spr_map_file;
@@ -764,15 +766,37 @@ static void video_frame(void) {
   }
   // 2. tall columns without shrink go to layers, the first ones (behind) on layer 3; a column that
   //    does not fit the current layer opens the next one, so the Neo Geo drawing order is kept
-  int layer = 4, lx = 0, ly = 0;
+  //    A layer of priority 0 is behind every sprite: a tall column covered by a column left as
+  //    sprites and drawn before it (behind it on the Neo Geo) would hide behind it (the title: the
+  //    logo PUZZLE BOBBLE over a plaid of short columns). The first such column and the tall ones
+  //    after it go to layers "in front" (priority 1: pixel 2), the sprites drawn before it get
+  //    priority 1 (behind those layers), the later ones 2 (in front: a sprite wins a tie). cover:
+  //    the 16 x 16 cells of the 512 x 512 space taken by sprites, in the order of drawing (from the
+  //    front layers on, only by the later sprites, those in front of them).
+  static uint32_t cover[32];
+  for (int i = 0; i < 32; i++) cover[i] = 0;
+  int layer = 4, lx = 0, ly = 0, front = 0, new_group = 0;
+  front_n = nmax;
   uint32_t used = 0;
   for (int n = 1; n < nmax; n++) {
-    if (sp_rows[n] < 8 || sp_zx[n] != 15 || sp_zy[n] != 0xFF) continue;
+    if (!sp_rows[n]) continue;
+    int cx = (sp_x[n] & 0x1FF) >> 4, cy = (sp_top[n] & 0x1FF) >> 4;
+    int ch = ((sp_rows[n] > 32 ? 32 : sp_rows[n]) * (sp_zy[n] + 1) + 255) >> 8;   // its height in cells
+    int tall = sp_rows[n] >= 8 && sp_zx[n] == 15 && sp_zy[n] == 0xFF, hidden = 0;
+    if (tall) for (int r = 0; r <= ch && !hidden; r++) hidden = (cover[(cy + r) & 31] >> cx) & 1;
+    if (tall && hidden && !front) {                   // in front of earlier sprites: the front layers
+      front = 1; front_n = n; new_group = 1; hidden = 0;
+      for (int i = 0; i < 32; i++) cover[i] = 0;
+    }
+    if (!tall || hidden) {                            // a sprite: its place covered from now on
+      for (int r = 0; r <= ch; r++) cover[(cy + r) & 31] |= 1u << cx | 1u << ((cx + 1) & 31);
+      continue;
+    }
     int x = sp_x[n] & 0x1FF, top = sp_top[n] & 0x1FF, mx = (x >> 4) & 31;
-    if (layer > 3 || (x & 15) != lx || (top & 15) != ly || (used >> mx) & 1) {
+    if (layer > 3 || new_group || (x & 15) != lx || (top & 15) != ly || (used >> mx) & 1) {
       if (layer == (arena_on ? 2 : 1)) { frames_short++; tall_left++; break; }   // no layer left (arena: 1 is its own)
-      layer--; lx = x & 15; ly = top & 15; used = 0;
-      layer_open(layer, x, top);
+      layer--; lx = x & 15; ly = top & 15; used = 0; new_group = 0;
+      layer_open(layer, x, top, front);
       if (arena_on) mc_layer_scroll(layer, -(x & 15) - ox, -(top & 15) - oy);
     }
     used |= 1u << mx; sp_layer[n] = (uint8_t)layer;
@@ -805,7 +829,7 @@ static void video_frame(void) {
       sprite_t *s = &mc_spr[out++];
       s->x = (int16_t)(x + ox); s->y = (int16_t)(y + oy); s->tile = (uint16_t)(slot * 4);
       s->pal = (uint8_t)(t1 >> 8); s->w = 2; s->h = 2;
-      s->attr = (uint8_t)(SA_ON | SA_PRIO(SPR_PRIO) | ((t1 & 1) ? SA_HFLIP : 0) | ((t1 & 2) ? SA_VFLIP : 0));
+      s->attr = (uint8_t)(SA_ON | SA_PRIO(n < front_n ? SPR_PRIO - 1 : SPR_PRIO) | ((t1 & 1) ? SA_HFLIP : 0) | ((t1 & 2) ? SA_VFLIP : 0));   // (behind the front layers)
       s->zoomx = (uint16_t)((zx + 1) << 4); s->zoomy = (uint16_t)(zy + 1);
     }
   }
