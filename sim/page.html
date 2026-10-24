@@ -196,6 +196,7 @@ kbd {
             <button class="btn" id="fsBtn">Plein écran</button>
             <span class="spacer"></span>
             <select class="btn" id="romSelect" aria-label="ROM intégrée">
+              <option value="aube">AUBE (démarrage)</option>
               <option value="test">ROM de test</option>
               <option value="hello">Exemple « Bonjour »</option>
             </select>
@@ -643,7 +644,7 @@ __CORE_JS__
   });
   window.addEventListener('pagehide', saveNv);
 
-  loadRom(b64(ROMS.test), 'test');
+  loadRom(b64(ROMS.aube), 'aube');
   // show a first frame behind the power button
   for (let i = 0; i < 40; i++) m.runFrame();
   draw(); layoutScreen(); updateMonitor();
