@@ -689,7 +689,7 @@ static void ar_sprite(int *out, int32_t x, int32_t y, int k, uint16_t zoom) { ar
 static void ar_sprite_h(int *out, int32_t x, int32_t y, int k) {
   int before = *out;
   ar_sprite(out, x, y, k, 256);
-  if (*out > before) { mc_spr[before].zoomy = 224; mc_spr[before].y += 1; }
+  (void)before;                                    // (16 lines: the whole bubble)
 }
 static void ar_sprite_pal(int *out, int32_t x, int32_t y, int k, uint16_t zoom, uint8_t pal) {   // one bubble, centred
   if (*out >= MC_SPRITES) return;
@@ -1034,6 +1034,7 @@ static void arena_frame(int *outp) {
   int out = *outp;
   for (int k = 0; k < 4; k++) if (ar_fly[k].on) ar_draw_shot(&out, ar_fly[k].x, ar_fly[k].y, ar_fly[k].col, 256);
   for (int i = 0; i < 64; i++) if (ar_fall[i].on) ar_sprite(&out, ar_fall[i].x, ar_fall[i].y, ar_fall[i].col, 256);
+  int pop_first = out;                             // (the bursts: trimmed at the end if a line is full)
   for (int i = 0; i < 64; i++) {                   // a burst: the game's frames (3 x 3 tiles, 3 frames each)
     int t = ar_pop[i].t, k = ar_pop[i].col;
     if (!t) continue;
@@ -1057,6 +1058,7 @@ static void arena_frame(int *outp) {
     if (t > 8) ar_sprite_pal(&out, ar_pop[i].x, ar_pop[i].y, k, 256, ((t >> 2) & 1) ? (uint8_t)(AR_GREY_PAL + k) : ar_pal[k]);
     else ar_sprite_pal(&out, ar_pop[i].x, ar_pop[i].y, k, (uint16_t)(256 + (8 - t) * 12), (uint8_t)(AR_GREY_PAL + k));
   }
+  int pop_last = out;
   for (int k = 0; k < arena_players; k++) {        // the launchers: the next bubble and the aim
     int32_t x = FX(ar_lx(k)), y = FX(AR_LY - 10);
     if (!ar_fly[k].on) ar_draw_shot(&out, x, y, ar_cur[k], 256);
@@ -1073,6 +1075,24 @@ static void arena_frame(int *outp) {
   for (int k = 0; k < arena_players; k++) { ar_dragon_step(k); ar_draw_dragon(&out, k); }
   for (int k = 0; k < arena_players; k++) ar_draw_launcher(&out, k);  // in front of the machine
                                                    // (the still launchers: layer 1)
+  // A line of the screen holds 64 sprites: where the bubbles, launchers and dragons and the bursts
+  // pass 62 (2 left for the game's decor), tiles of bursts go, the last first (two big groups at
+  // once, or the wave of the results); the bubbles keep their 16 lines
+  {
+    static uint8_t ln[300];
+    for (int y = 0; y < 300; y++) ln[y] = 0;
+    for (int i = 0; i < out; i++) {
+      int y0 = mc_spr[i].y, h = (mc_spr[i].h * 8 * mc_spr[i].zoomy) >> 8;
+      for (int y = y0 < 0 ? 0 : y0; y < y0 + h && y < 300; y++) ln[y]++;
+    }
+    for (int i = pop_last - 1; i >= pop_first; i--) {
+      int y0 = mc_spr[i].y, h = (mc_spr[i].h * 8 * mc_spr[i].zoomy) >> 8, full = 0;
+      for (int y = y0 < 0 ? 0 : y0; y < y0 + h && y < 300 && !full; y++) full = ln[y] > 62;
+      if (!full) continue;
+      for (int y = y0 < 0 ? 0 : y0; y < y0 + h && y < 300; y++) ln[y]--;
+      mc_spr[i].y = -64;                           // out of the screen
+    }
+  }
   *outp = out;
   if (!ar_end) ar_points_frame();
   ar_text_score();
