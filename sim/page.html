@@ -396,6 +396,7 @@ __CORE_JS__
   const relabel = [];                       // texts that depend on the state, redone on a language change
   function applyLang(l) {
     lang = l;
+    Monocore.lang = l;
     document.documentElement.lang = l;
     try { localStorage.setItem('monocore-lang', l); } catch (e) { /* no storage */ }
     document.querySelectorAll('[data-i18n]').forEach((e) => { e.textContent = t(e.dataset.i18n); });

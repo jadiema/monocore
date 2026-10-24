@@ -17,6 +17,19 @@
   const RESET_PC = 0x100;
   const NVRAM_BASE = 0x18000000, NVRAM_SIZE = 0x8000;
 
+  // Messages of the simulator, in French and English (Monocore.lang chooses; French by default)
+  const MSG = {
+    noMagic: ['Signature MNC1 absente : ce fichier n\'est pas une ROM MONOCORE-1', 'No MNC1 signature: this file is not a MONOCORE-1 ROM'],
+    noHandler: ['Exception %1 à pc=0x%2 sans gestionnaire (mtvec = 0)', 'Exception %1 at pc=0x%2 with no handler (mtvec = 0)'],
+    outOfMemory: ['Exécution hors mémoire à pc=0x%1', 'Execution outside memory at pc=0x%1'],
+    misaligned: ['pc mal aligné : 0x%1', 'misaligned pc: 0x%1'],
+  };
+  function msg(key, ...args) {
+    let s = MSG[key][Monocore.lang === 'en' ? 1 : 0];
+    args.forEach((a, i) => { s = s.replace('%' + (i + 1), a); });
+    return s;
+  }
+
   // OKI MSM6295 ADPCM tables
   const OKI_STEP = [];
   for (let i = 0; i < 49; i++) OKI_STEP.push(Math.floor(16.0 * Math.pow(11.0 / 10.0, i)));
@@ -62,7 +75,7 @@
       this.rom32 = new Int32Array(this.rom.buffer);
       this.romDV = new DataView(this.rom.buffer);
       const magic = String.fromCharCode(this.rom[0], this.rom[1], this.rom[2], this.rom[3]);
-      if (magic !== 'MNC1') throw new Error('Signature MNC1 absente : ce fichier n\'est pas une ROM MONOCORE-1');
+      if (magic !== 'MNC1') throw new Error(msg('noMagic'));
       const str = (o) => { let s = ''; for (let i = 0; i < 32 && this.rom[o + i]; i++) s += String.fromCharCode(this.rom[o + i]); return s; };
       this.header = {
         version: this.romDV.getUint32(4, true),
@@ -625,7 +638,7 @@
     irqLine() { return (this.irqStatus & this.irqEnable) !== 0; }
 
     trap(cause, pc, tval) {
-      if (!this.mtvec) { this.error('Exception ' + cause + ' à pc=0x' + (pc >>> 0).toString(16) + ' sans gestionnaire (mtvec = 0)'); return; }
+      if (!this.mtvec) { this.error(msg('noHandler', cause, (pc >>> 0).toString(16))); return; }
       this.mepc = pc >>> 0; this.mcause = cause >>> 0; this.mtval = tval >>> 0;
       this.mstatus = (this.mstatus & ~0x88) | ((this.mstatus & 8) << 4);
       this.pc = this.mtvec & ~3;
@@ -649,8 +662,8 @@
           let ins;
           if (pc < romSize) ins = rom32[pc >>> 2];
           else if (pc >= WRAM_BASE && pc < WRAM_BASE + WRAM_SIZE) ins = wram32[(pc - WRAM_BASE) >>> 2];
-          else { this.pc = pc; this.cycles = cyc; this.error('Exécution hors mémoire à pc=0x' + (pc >>> 0).toString(16)); return; }
-          if (pc & 3) { this.pc = pc; this.cycles = cyc; this.error('pc mal aligné : 0x' + (pc >>> 0).toString(16)); return; }
+          else { this.pc = pc; this.cycles = cyc; this.error(msg('outOfMemory', (pc >>> 0).toString(16))); return; }
+          if (pc & 3) { this.pc = pc; this.cycles = cyc; this.error(msg('misaligned', (pc >>> 0).toString(16))); return; }
           n++; cyc++;
           const op = ins & 0x7f, rd = (ins >> 7) & 31, f3 = (ins >> 12) & 7, rs1 = (ins >> 15) & 31, rs2 = (ins >> 20) & 31;
           let npc = (pc + 4) >>> 0;
@@ -841,6 +854,7 @@
   Monocore.CPU_HZ = CPU_HZ;
   Monocore.AUDIO_HZ = AUDIO_HZ;
   Monocore.FPS = FPS;
+  Monocore.lang = 'fr';     // language of the messages: 'fr' or 'en'
 
   root.Monocore = Monocore;
   if (typeof module !== 'undefined' && module.exports) module.exports = Monocore;
