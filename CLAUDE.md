@@ -5,6 +5,7 @@ Console virtuelle figée pour MiSTer (DE10-Nano, Cyclone V 5CSEBA6U23I7). Un seu
 ## Conventions
 
 - **Langue** : la documentation et les textes à l'écran sont en français. **Tout ce qui est technique est en anglais** : noms de fonctions, de fichiers, de variables, de registres, clés de configuration, réglages, commentaires dans le code. Ne jamais mélanger les deux langues dans la syntaxe du code.
+- **Page du simulateur bilingue** : chaque texte de `sim/page.html` est dans le dictionnaire `I18N` (français, anglais) ; la spécification et le guide ont une traduction anglaise (`SPEC.en.md`, `GUIDE.en.md`) à tenir à jour avec le texte français, qui fait référence.
 - Le simulateur JavaScript (`sim/core.js`) est la **référence** : le RTL doit produire les mêmes images au pixel près et le même son au bit près. Toute modification du comportement se fait d'abord dans `SPEC.md`, puis dans le simulateur et le RTL ensemble, et se vérifie avec les tests de régression.
 - Une modification du RTL doit garder le timing à 50 MHz (marge actuelle : 1,32 ns, essai Quartus n° 5).
 

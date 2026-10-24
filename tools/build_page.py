@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble the single-file simulator page: core + page template + docs + embedded ROMs.
+"""Assemble the single-file simulator page: core + page template + docs (French and English) + embedded ROMs.
 usage: build_page.py out.html"""
 import base64, json, os, sys
 import markdown
@@ -20,6 +20,8 @@ core = open(os.path.join(ROOT, 'sim/core.js'), encoding='utf-8').read()
 assert '</script' not in core
 page = page.replace('__CORE_JS__', core)
 page = page.replace('__ROMS_JSON__', json.dumps(roms))
+page = page.replace('__SPEC_HTML_EN__', md('SPEC.en.md'))
+page = page.replace('__GUIDE_HTML_EN__', md('GUIDE.en.md'))
 page = page.replace('__SPEC_HTML__', md('SPEC.md'))
 page = page.replace('__GUIDE_HTML__', md('GUIDE.md'))
 os.makedirs(os.path.dirname(out), exist_ok=True)

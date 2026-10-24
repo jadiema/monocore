@@ -161,16 +161,25 @@ kbd {
 .doc strong { color: #fff; }
 .doc-files { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
 
+.lang { display: flex; border: 1px solid var(--trace); border-radius: 5px; overflow: hidden; margin-left: 8px; }
+.lang button { font: 600 12px var(--f-mono); letter-spacing: .08em; background: none; color: var(--silk-dim); border: 0; padding: 7px 9px; cursor: pointer; }
+.lang button[aria-pressed="true"] { background: var(--trace); color: var(--silk); }
+html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"] { display: none; }
+
 @media (prefers-reduced-motion: reduce) { .bar i, .dip::after { transition: none; } }
 </style>
 
 <div class="wrap">
   <header>
-    <div class="brand"><h1>MONOCORE-1</h1><span>CONSOLE VIRTUELLE · SIMULATEUR v0.1</span></div>
+    <div class="brand"><h1>MONOCORE-1</h1><span data-i18n="brand">CONSOLE VIRTUELLE · SIMULATEUR v0.1</span></div>
     <nav role="tablist" aria-label="Sections">
-      <button role="tab" id="tab-sim" aria-selected="true" aria-controls="view-sim">Simulateur</button>
-      <button role="tab" id="tab-spec" aria-selected="false" aria-controls="view-spec">Spécification</button>
-      <button role="tab" id="tab-guide" aria-selected="false" aria-controls="view-guide">Créer une ROM</button>
+      <button role="tab" id="tab-sim" aria-selected="true" aria-controls="view-sim" data-i18n="tabSim">Simulateur</button>
+      <button role="tab" id="tab-spec" aria-selected="false" aria-controls="view-spec" data-i18n="tabSpec">Spécification</button>
+      <button role="tab" id="tab-guide" aria-selected="false" aria-controls="view-guide" data-i18n="tabGuide">Créer une ROM</button>
+      <div class="lang" role="group" aria-label="Langue / Language" data-i18n-aria="langGroup">
+        <button type="button" data-lang="fr" aria-pressed="true" title="Français">FR</button>
+        <button type="button" data-lang="en" aria-pressed="false" title="English">EN</button>
+      </div>
     </nav>
   </header>
 
@@ -180,111 +189,111 @@ kbd {
         <div class="screen-unit">
           <div class="bezel" id="bezel">
             <div class="screen-box" id="screenBox">
-              <canvas id="screen" width="320" height="240" aria-label="Écran de la console"></canvas>
+              <canvas id="screen" width="320" height="240" aria-label="Écran de la console" data-i18n-aria="screen"></canvas>
               <div class="overlay" id="overlay">
-                <button class="btn primary" id="startBtn">Mettre sous tension</button>
-                <p>Le son démarre avec ce bouton. Clavier ou manette : voir les commandes sous l'écran.</p>
+                <button class="btn primary" id="startBtn" data-i18n="power">Mettre sous tension</button>
+                <p data-i18n="powerHint">Le son démarre avec ce bouton. Clavier ou manette : voir les commandes sous l'écran.</p>
               </div>
             </div>
           </div>
           <div class="transport">
             <button class="btn" id="pauseBtn" aria-pressed="false">Pause</button>
-            <button class="btn" id="resetBtn">Reset</button>
+            <button class="btn" id="resetBtn" data-i18n="reset">Reset</button>
             <button class="btn" id="muteBtn" aria-pressed="false">Couper le son</button>
-            <button class="btn" id="aspectBtn" aria-pressed="false">Pixels carrés</button>
-            <button class="btn" id="wideBtn" aria-pressed="false" title="L'image étirée en 16:9, comme une MiSTer en plein écran sur un écran 16:9">16:9</button>
-            <button class="btn" id="fsBtn">Plein écran</button>
+            <button class="btn" id="aspectBtn" aria-pressed="false" data-i18n="square">Pixels carrés</button>
+            <button class="btn" id="wideBtn" aria-pressed="false" data-i18n-title="wideTitle" title="L'image étirée en 16:9, comme une MiSTer en plein écran sur un écran 16:9">16:9</button>
+            <button class="btn" id="fsBtn" data-i18n="fullscreen">Plein écran</button>
             <span class="spacer"></span>
-            <select class="btn" id="romSelect" aria-label="ROM intégrée">
-              <option value="aube">AUBE (démarrage)</option>
-              <option value="test">ROM de test</option>
-              <option value="hello">Exemple « Bonjour »</option>
+            <select class="btn" id="romSelect" aria-label="ROM intégrée" data-i18n-aria="romSel">
+              <option value="aube" data-i18n="optAube">AUBE (démarrage)</option>
+              <option value="test" data-i18n="optTest">ROM de test</option>
+              <option value="hello" data-i18n="optHello">Exemple « Bonjour »</option>
             </select>
-            <label class="btn primary" for="romFile">Charger une ROM…</label>
+            <label class="btn primary" for="romFile" data-i18n="loadRom">Charger une ROM…</label>
             <input type="file" id="romFile" accept=".mnc,.bin" hidden>
           </div>
-          <p class="drop-hint">Tu peux aussi glisser un fichier <code>.mnc</code> sur l'écran. <span class="romname" id="romName"></span></p>
+          <p class="drop-hint"><span data-i18n-html="dropHint">Tu peux aussi glisser un fichier <code>.mnc</code> sur l'écran.</span> <span class="romname" id="romName"></span></p>
 
           <div class="keys">
             <section>
-              <h2>Joueur 1</h2>
+              <h2 data-i18n="p1">Joueur 1</h2>
               <dl class="keymap">
-                <dt>Direction</dt><dd><kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd></dd>
-                <dt>Boutons 1–3</dt><dd><kbd data-code="KeyZ">Z</kbd> <kbd data-code="KeyX">X</kbd> <kbd data-code="KeyC">C</kbd></dd>
-                <dt>Boutons 4–6</dt><dd><kbd data-code="KeyA">A</kbd> <kbd data-code="KeyS">S</kbd> <kbd data-code="KeyD">D</kbd></dd>
-                <dt>Start / pièce</dt><dd><kbd data-code="Digit1">1</kbd>/<kbd>Entrée</kbd> · <kbd data-code="Digit5">5</kbd></dd>
+                <dt data-i18n="dir">Direction</dt><dd><kbd>←</kbd> <kbd>↑</kbd> <kbd>↓</kbd> <kbd>→</kbd></dd>
+                <dt data-i18n="b13">Boutons 1–3</dt><dd><kbd data-code="KeyZ">Z</kbd> <kbd data-code="KeyX">X</kbd> <kbd data-code="KeyC">C</kbd></dd>
+                <dt data-i18n="b46">Boutons 4–6</dt><dd><kbd data-code="KeyA">A</kbd> <kbd data-code="KeyS">S</kbd> <kbd data-code="KeyD">D</kbd></dd>
+                <dt data-i18n="startCoin">Start / pièce</dt><dd><kbd data-code="Digit1">1</kbd>/<kbd data-i18n="enter">Entrée</kbd> · <kbd data-code="Digit5">5</kbd></dd>
               </dl>
             </section>
             <section>
-              <h2>Joueur 2</h2>
+              <h2 data-i18n="p2">Joueur 2</h2>
               <dl class="keymap">
-                <dt>Direction</dt><dd><kbd data-code="KeyJ">J</kbd> <kbd data-code="KeyI">I</kbd> <kbd data-code="KeyK">K</kbd> <kbd data-code="KeyL">L</kbd></dd>
-                <dt>Boutons 1–3</dt><dd><kbd data-code="KeyN">N</kbd> <kbd data-code="KeyM">M</kbd> <kbd data-code="Comma">,</kbd></dd>
-                <dt>Boutons 4–6</dt><dd><kbd data-code="KeyH">H</kbd> <kbd data-code="KeyU">U</kbd> <kbd data-code="KeyO">O</kbd></dd>
-                <dt>Start / pièce</dt><dd><kbd data-code="Digit2">2</kbd> · <kbd data-code="Digit6">6</kbd></dd>
+                <dt data-i18n="dir">Direction</dt><dd><kbd data-code="KeyJ">J</kbd> <kbd data-code="KeyI">I</kbd> <kbd data-code="KeyK">K</kbd> <kbd data-code="KeyL">L</kbd></dd>
+                <dt data-i18n="b13">Boutons 1–3</dt><dd><kbd data-code="KeyN">N</kbd> <kbd data-code="KeyM">M</kbd> <kbd data-code="Comma">,</kbd></dd>
+                <dt data-i18n="b46">Boutons 4–6</dt><dd><kbd data-code="KeyH">H</kbd> <kbd data-code="KeyU">U</kbd> <kbd data-code="KeyO">O</kbd></dd>
+                <dt data-i18n="startCoin">Start / pièce</dt><dd><kbd data-code="Digit2">2</kbd> · <kbd data-code="Digit6">6</kbd></dd>
               </dl>
             </section>
             <section>
-              <h2>Joueur 3</h2>
+              <h2 data-i18n="p3">Joueur 3</h2>
               <dl class="keymap">
-                <dt>Direction</dt><dd><kbd data-code="KeyE">E</kbd> <kbd data-code="KeyR">R</kbd> <kbd data-code="KeyF">F</kbd> <kbd data-code="KeyG">G</kbd></dd>
-                <dt>Boutons 1–3</dt><dd><kbd data-code="KeyQ">Q</kbd> <kbd data-code="KeyW">W</kbd> <kbd data-code="KeyV">V</kbd></dd>
+                <dt data-i18n="dir">Direction</dt><dd><kbd data-code="KeyE">E</kbd> <kbd data-code="KeyR">R</kbd> <kbd data-code="KeyF">F</kbd> <kbd data-code="KeyG">G</kbd></dd>
+                <dt data-i18n="b13">Boutons 1–3</dt><dd><kbd data-code="KeyQ">Q</kbd> <kbd data-code="KeyW">W</kbd> <kbd data-code="KeyV">V</kbd></dd>
                 <dt>Start</dt><dd><kbd data-code="Digit3">3</kbd></dd>
               </dl>
             </section>
             <section>
-              <h2>Joueur 4 (pavé num.)</h2>
+              <h2 data-i18n="p4">Joueur 4 (pavé num.)</h2>
               <dl class="keymap">
-                <dt>Direction</dt><dd><kbd>pavé 4</kbd> <kbd>pavé 8</kbd> <kbd>pavé 5</kbd> <kbd>pavé 6</kbd></dd>
-                <dt>Boutons 1–3</dt><dd><kbd>pavé 0</kbd> <kbd>pavé .</kbd> <kbd>pavé Entrée</kbd></dd>
-                <dt>Start</dt><dd><kbd data-code="Digit4">4</kbd> ou <kbd>pavé +</kbd></dd>
+                <dt data-i18n="dir">Direction</dt><dd data-i18n-html="p4dir"><kbd>pavé 4</kbd> <kbd>pavé 8</kbd> <kbd>pavé 5</kbd> <kbd>pavé 6</kbd></dd>
+                <dt data-i18n="b13">Boutons 1–3</dt><dd data-i18n-html="p4btn"><kbd>pavé 0</kbd> <kbd>pavé .</kbd> <kbd>pavé Entrée</kbd></dd>
+                <dt>Start</dt><dd data-i18n-html="p4start"><kbd data-code="Digit4">4</kbd> ou <kbd>pavé +</kbd></dd>
               </dl>
             </section>
             <section class="sys">
-              <h2>Système et manettes</h2>
+              <h2 data-i18n="sys">Système et manettes</h2>
               <dl class="keymap">
-                <dt>Menus</dt><dd>valider avec le bouton 1 (<kbd>Z</kbd>) dans la plupart des jeux (Start ne fait que commencer)</dd>
-                <dt>Service / test</dt><dd><kbd data-code="Digit9">9</kbd> · <kbd data-code="Digit0">0</kbd></dd>
+                <dt data-i18n="menus">Menus</dt><dd data-i18n-html="menusDd">valider avec le bouton 1 (<kbd>Z</kbd>) dans la plupart des jeux (Start ne fait que commencer)</dd>
+                <dt data-i18n="service">Service / test</dt><dd><kbd data-code="Digit9">9</kbd> · <kbd data-code="Digit0">0</kbd></dd>
                 <dt>Tilt</dt><dd><kbd data-code="KeyT">T</kbd></dd>
-                <dt>Manettes</dt><dd>jusqu'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris</dd>
-                <dt>Clavier</dt><dd><label><input type="checkbox" id="kbdMode"> clavier de la console</label> (<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 à 4</dd>
-                <dt>Disposition</dt><dd>les lettres sont celles marquées sur ton clavier (QWERTY, AZERTY…) ; les chiffres sont ceux de la rangée du haut, sans Majuscule</dd>
+                <dt data-i18n="pads">Manettes</dt><dd data-i18n="padsDd">jusqu'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris</dd>
+                <dt data-i18n="kbd">Clavier</dt><dd><label><input type="checkbox" id="kbdMode"> <span data-i18n="kbdLabel">clavier de la console</span></label> <span data-i18n-html="kbdDd">(<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 à 4</span></dd>
+                <dt data-i18n="layout">Disposition</dt><dd data-i18n="layoutDd">les lettres sont celles marquées sur ton clavier (QWERTY, AZERTY…) ; les chiffres sont ceux de la rangée du haut, sans Majuscule</dd>
               </dl>
             </section>
           </div>
         </div>
 
-        <aside class="instruments" aria-label="Moniteur matériel">
+        <aside class="instruments" aria-label="Moniteur matériel" data-i18n-aria="monitor">
           <div class="panel">
-            <h2>Processeur RV32IM · 50 MHz <span class="pill ok" id="runPill">Prêt</span></h2>
+            <h2><span data-i18n="cpu">Processeur RV32IM · 50 MHz</span> <span class="pill ok" id="runPill">Prêt</span></h2>
             <div class="meter">
-              <div class="meter-head"><span>Charge par image</span><span id="cpuVal">0 %</span></div>
+              <div class="meter-head"><span data-i18n="load">Charge par image</span><span id="cpuVal">0 %</span></div>
               <div class="bar" id="cpuBar"><i></i></div>
             </div>
             <dl class="facts">
               <dt>Instructions / s</dt><dd id="mips">–</dd>
-              <dt>Pic sur 1 s</dt><dd id="cpuPeak">–</dd>
-              <dt>Timer 0</dt><dd id="timer0">arrêté</dd>
-              <dt>Images / s</dt><dd id="fps">–</dd>
+              <dt data-i18n="peak">Pic sur 1 s</dt><dd id="cpuPeak">–</dd>
+              <dt>Timer 0</dt><dd id="timer0">–</dd>
+              <dt data-i18n="fps">Images / s</dt><dd id="fps">–</dd>
             </dl>
           </div>
           <div class="panel">
-            <h2>Vidéo <span class="pill ok" id="ovfPill">Sprites OK</span></h2>
+            <h2><span data-i18n="video">Vidéo</span> <span class="pill ok" id="ovfPill">Sprites OK</span></h2>
             <dl class="facts">
-              <dt>Résolution</dt><dd id="res">–</dd>
+              <dt data-i18n="res">Résolution</dt><dd id="res">–</dd>
               <dt>Rotation</dt><dd id="rot">–</dd>
-              <dt>Image n°</dt><dd id="frameNo">–</dd>
+              <dt data-i18n="frameNo">Image n°</dt><dd id="frameNo">–</dd>
             </dl>
             <div class="meter">
-              <div class="meter-head"><span>Sprites sur la ligne la plus chargée</span><span id="sprVal">0 / 64</span></div>
+              <div class="meter-head"><span data-i18n="sprLine">Sprites sur la ligne la plus chargée</span><span id="sprVal">0 / 64</span></div>
               <div class="bar" id="sprBar"><i></i></div>
             </div>
           </div>
           <div class="panel">
-            <h2>Son · 48 kHz stéréo</h2>
-            <div class="meter-head"><span>Voix PCM</span><span id="pcmVal">0 / 8</span></div>
+            <h2 data-i18n="sound">Son · 48 kHz stéréo</h2>
+            <div class="meter-head"><span data-i18n="pcm">Voix PCM</span><span id="pcmVal">0 / 8</span></div>
             <div class="voices" id="pcmVoices"></div>
-            <div class="meter-head" style="margin-top:10px"><span>Canaux PSG</span><span id="psgVal">0 / 8</span></div>
+            <div class="meter-head" style="margin-top:10px"><span data-i18n="psg">Canaux PSG</span><span id="psgVal">0 / 8</span></div>
             <div class="voices psg" id="psgVoices"></div>
           </div>
           <div class="panel">
@@ -293,7 +302,7 @@ kbd {
             <div class="dip-labels" id="dipLabels"></div>
           </div>
           <div class="panel">
-            <h2>Console de debug</h2>
+            <h2 data-i18n="debug">Console de debug</h2>
             <pre class="console" id="console" aria-live="polite"></pre>
           </div>
         </aside>
@@ -301,10 +310,12 @@ kbd {
     </div>
 
     <div id="view-spec" role="tabpanel" aria-labelledby="tab-spec" hidden>
-      <article class="doc">__SPEC_HTML__</article>
+      <article class="doc" data-lang="fr" lang="fr">__SPEC_HTML__</article>
+      <article class="doc" data-lang="en" lang="en">__SPEC_HTML_EN__</article>
     </div>
     <div id="view-guide" role="tabpanel" aria-labelledby="tab-guide" hidden>
-      <article class="doc">__GUIDE_HTML__</article>
+      <article class="doc" data-lang="fr" lang="fr">__GUIDE_HTML__</article>
+      <article class="doc" data-lang="en" lang="en">__GUIDE_HTML_EN__</article>
     </div>
   </main>
 </div>
@@ -317,6 +328,84 @@ __CORE_JS__
   'use strict';
   const ROMS = __ROMS_JSON__;
   const $ = (id) => document.getElementById(id);
+
+  // ---------------------------------------------------------------- languages
+  // Every text of the page in French and English: data-i18n (text), data-i18n-html (markup),
+  // data-i18n-aria / data-i18n-title (attributes) name a key; the script uses t(key).
+  const I18N = {
+    brand: ['CONSOLE VIRTUELLE · SIMULATEUR v0.1', 'VIRTUAL CONSOLE · SIMULATOR v0.1'],
+    tabSim: ['Simulateur', 'Simulator'], tabSpec: ['Spécification', 'Specification'], tabGuide: ['Créer une ROM', 'Make a ROM'],
+    langGroup: ['Langue', 'Language'],
+    screen: ['Écran de la console', 'Console screen'],
+    power: ['Mettre sous tension', 'Power on'],
+    powerHint: ['Le son démarre avec ce bouton. Clavier ou manette : voir les commandes sous l\'écran.',
+                'Sound starts with this button. Keyboard or pad: see the controls below the screen.'],
+    pause: ['Pause', 'Pause'], resume: ['Reprendre', 'Resume'], reset: ['Reset', 'Reset'],
+    mute: ['Couper le son', 'Mute'], unmute: ['Activer le son', 'Unmute'],
+    square: ['Pixels carrés', 'Square pixels'],
+    wideTitle: ['L\'image étirée en 16:9, comme une MiSTer en plein écran sur un écran 16:9',
+                'The picture stretched to 16:9, like a MiSTer in full screen on a 16:9 display'],
+    fullscreen: ['Plein écran', 'Full screen'],
+    romSel: ['ROM intégrée', 'Built-in ROM'],
+    optAube: ['AUBE (démarrage)', 'AUBE (boot)'], optTest: ['ROM de test', 'Test ROM'], optHello: ['Exemple « Bonjour »', '“Hello” example'],
+    loadRom: ['Charger une ROM…', 'Load a ROM…'],
+    dropHint: ['Tu peux aussi glisser un fichier <code>.mnc</code> sur l\'écran.', 'You can also drop a <code>.mnc</code> file on the screen.'],
+    p1: ['Joueur 1', 'Player 1'], p2: ['Joueur 2', 'Player 2'], p3: ['Joueur 3', 'Player 3'], p4: ['Joueur 4 (pavé num.)', 'Player 4 (keypad)'],
+    dir: ['Direction', 'Direction'], b13: ['Boutons 1–3', 'Buttons 1–3'], b46: ['Boutons 4–6', 'Buttons 4–6'], startCoin: ['Start / pièce', 'Start / coin'],
+    enter: ['Entrée', 'Enter'],
+    p4dir: ['<kbd>pavé 4</kbd> <kbd>pavé 8</kbd> <kbd>pavé 5</kbd> <kbd>pavé 6</kbd>', '<kbd>pad 4</kbd> <kbd>pad 8</kbd> <kbd>pad 5</kbd> <kbd>pad 6</kbd>'],
+    p4btn: ['<kbd>pavé 0</kbd> <kbd>pavé .</kbd> <kbd>pavé Entrée</kbd>', '<kbd>pad 0</kbd> <kbd>pad .</kbd> <kbd>pad Enter</kbd>'],
+    p4start: ['<kbd data-code="Digit4">4</kbd> ou <kbd>pavé +</kbd>', '<kbd data-code="Digit4">4</kbd> or <kbd>pad +</kbd>'],
+    sys: ['Système et manettes', 'System and pads'],
+    menus: ['Menus', 'Menus'],
+    menusDd: ['valider avec le bouton 1 (<kbd>Z</kbd>) dans la plupart des jeux (Start ne fait que commencer)',
+              'confirm with button 1 (<kbd>Z</kbd>) in most games (Start only starts)'],
+    service: ['Service / test', 'Service / test'],
+    pads: ['Manettes', 'Pads'],
+    padsDd: ['jusqu\'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris', 'up to 4 USB or Bluetooth pads: players 1 to 4, analog sticks included'],
+    kbd: ['Clavier', 'Keyboard'], kbdLabel: ['clavier de la console', 'console keyboard'],
+    kbdDd: ['(<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 à 4', '(<kbd>F9</kbd>): the keys go to the game instead of players 1 to 4'],
+    layout: ['Disposition', 'Layout'],
+    layoutDd: ['les lettres sont celles marquées sur ton clavier (QWERTY, AZERTY…) ; les chiffres sont ceux de la rangée du haut, sans Majuscule',
+               'letters are the ones printed on your keyboard (QWERTY, AZERTY…); digits are those of the top row, without Shift'],
+    monitor: ['Moniteur matériel', 'Hardware monitor'],
+    cpu: ['Processeur RV32IM · 50 MHz', 'RV32IM processor · 50 MHz'],
+    load: ['Charge par image', 'Load per frame'], peak: ['Pic sur 1 s', 'Peak over 1 s'], fps: ['Images / s', 'Frames / s'],
+    stopped: ['arrêté', 'stopped'],
+    video: ['Vidéo', 'Video'], res: ['Résolution', 'Resolution'], frameNo: ['Image n°', 'Frame #'],
+    sprLine: ['Sprites sur la ligne la plus chargée', 'Sprites on the busiest line'],
+    sound: ['Son · 48 kHz stéréo', 'Sound · 48 kHz stereo'], pcm: ['Voix PCM', 'PCM voices'], psg: ['Canaux PSG', 'PSG channels'],
+    debug: ['Console de debug', 'Debug console'],
+    ready: ['Prêt', 'Ready'], running: ['En marche', 'Running'], halted: ['Arrêt', 'Halted'],
+    sprOk: ['Sprites OK', 'Sprites OK'], overflow: ['Débordement', 'Overflow'],
+    kb: ['Ko', 'KB'],
+    romRejected: ['ROM refusée', 'ROM rejected'], cpuHalt: ['Arrêt du CPU', 'CPU halted'],
+    romLog: ['octets, entrée', 'bytes, entry'],
+    noSound: ['Son indisponible dans ce navigateur.', 'Sound unavailable in this browser.'],
+    fsDenied: ['Plein écran refusé par le navigateur.', 'Full screen refused by the browser.'],
+  };
+  const LANGS = ['fr', 'en'];
+  let lang = 'fr';
+  try {
+    const q = new URLSearchParams(location.search).get('lang');
+    const saved = localStorage.getItem('monocore-lang');
+    lang = LANGS.includes(q) ? q : LANGS.includes(saved) ? saved : /^fr\b/i.test(navigator.language || 'fr') ? 'fr' : 'en';
+  } catch (e) { /* no storage */ }
+  const t = (k) => I18N[k][LANGS.indexOf(lang)];
+  const sep = () => (lang === 'fr' ? ' : ' : ': ');
+  const relabel = [];                       // texts that depend on the state, redone on a language change
+  function applyLang(l) {
+    lang = l;
+    document.documentElement.lang = l;
+    try { localStorage.setItem('monocore-lang', l); } catch (e) { /* no storage */ }
+    document.querySelectorAll('[data-i18n]').forEach((e) => { e.textContent = t(e.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-html]').forEach((e) => { e.innerHTML = t(e.dataset.i18nHtml); });
+    document.querySelectorAll('[data-i18n-aria]').forEach((e) => { e.setAttribute('aria-label', t(e.dataset.i18nAria)); });
+    document.querySelectorAll('[data-i18n-title]').forEach((e) => { e.title = t(e.dataset.i18nTitle); });
+    document.querySelectorAll('.lang button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.lang === l ? 'true' : 'false'));
+    relabel.forEach((f) => f());
+  }
+  document.querySelectorAll('.lang button').forEach((b) => b.addEventListener('click', () => applyLang(b.dataset.lang)));
 
   // ---------------------------------------------------------------- tabs
   const tabs = ['sim', 'spec', 'guide'];
@@ -353,25 +442,33 @@ __CORE_JS__
     try { let s = ''; for (let i = 0; i < m.nvram.length; i += 8192) s += String.fromCharCode.apply(null, m.nvram.subarray(i, i + 8192)); localStorage.setItem(nvKey(), btoa(s)); } catch (e) { /* storage unavailable */ }
   }
 
+  let romInfo = null;
+  function showRomName() {
+    if (!romInfo) return;
+    $('romName').innerHTML = '';
+    const b = document.createElement('b'); b.textContent = romInfo.title;
+    $('romName').append('ROM' + sep(), b, ' · ' + romInfo.origin + ' · ' + (romInfo.size / 1024).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' ' + t('kb'));
+  }
+  relabel.push(showRomName);
+
   function loadRom(bytes, label) {
     saveNv();
     try {
       const nm = new Monocore(bytes);
       m = nm;
     } catch (e) {
-      log('ROM refusée (' + label + ') : ' + e.message + '\n', 'err');
+      log(t('romRejected') + ' (' + label + ')' + sep() + e.message + '\n', 'err');
       return;
     }
     m.onDebug = (c) => log(c);
-    m.onError = (e) => { log('\nArrêt du CPU : ' + e + '\n', 'err'); setPill('runPill', 'bad', 'Arrêt'); };
+    m.onError = (e) => { log('\n' + t('cpuHalt') + sep() + e + '\n', 'err'); setPill('runPill', 'bad', 'halted'); };
     try { const s = localStorage.getItem(nvKey()); if (s) m.nvram.set(b64(s).subarray(0, m.nvram.length)); } catch (e) { /* no storage */ }
     romKey = label;
-    $('romName').innerHTML = '';
-    const b = document.createElement('b'); b.textContent = m.header.title || label;
-    $('romName').append('ROM : ', b, ' · ' + (m.header.origin || '') + ' · ' + (bytes.length / 1024).toFixed(1) + ' Ko');
-    log('— ' + (m.header.title || label) + ' (' + bytes.length + ' octets, entrée 0x' + m.header.entry.toString(16) + ')\n');
+    romInfo = { title: m.header.title || label, origin: m.header.origin || '', size: bytes.length };
+    showRomName();
+    log('— ' + (m.header.title || label) + ' (' + bytes.length + ' ' + t('romLog') + ' 0x' + m.header.entry.toString(16) + ')\n');
     syncDips(true);
-    setPill('runPill', 'ok', running ? 'En marche' : 'Prêt');
+    setPill('runPill', 'ok', running ? 'running' : 'ready');
     peakWin.length = 0;
   }
 
@@ -412,7 +509,7 @@ __CORE_JS__
     try {
       ac = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000 });
       nextT = 0;
-    } catch (e) { ac = null; log('Son indisponible dans ce navigateur.\n', 'err'); }
+    } catch (e) { ac = null; log(t('noSound') + '\n', 'err'); }
   }
   function pushAudio(n) {
     if (!ac || muted || n <= 0) return;
@@ -540,7 +637,8 @@ __CORE_JS__
   const pcmEls = [], psgEls = [];
   for (let i = 0; i < 8; i++) { const e = document.createElement('i'); $('pcmVoices').appendChild(e); pcmEls.push(e); }
   for (let i = 0; i < 8; i++) { const e = document.createElement('i'); $('psgVoices').appendChild(e); psgEls.push(e); }
-  function setPill(id, cls, text) { const p = $(id); p.className = 'pill ' + cls; p.textContent = text; }
+  function setPill(id, cls, key) { const p = $(id); p.className = 'pill ' + cls; p.dataset.key = key; p.textContent = t(key); }
+  relabel.push(() => document.querySelectorAll('.pill[data-key]').forEach((p) => { p.textContent = t(p.dataset.key); }));
   function setBar(id, frac) {
     const b = $(id); b.querySelector('i').style.width = Math.min(100, frac * 100).toFixed(1) + '%';
     b.className = 'bar' + (frac >= 0.9 ? ' bad' : frac >= 0.7 ? ' warn' : '');
@@ -566,11 +664,11 @@ __CORE_JS__
       instrAcc = 0; framesAcc = 0; lastStat = now;
       $('sprVal').textContent = sprPeakWin + ' / 64';
       setBar('sprBar', sprPeakWin / 64);
-      setPill('ovfPill', ovfWin ? 'bad' : 'ok', ovfWin ? 'Débordement' : 'Sprites OK');
+      setPill('ovfPill', ovfWin ? 'bad' : 'ok', ovfWin ? 'overflow' : 'sprOk');
       sprPeakWin = 0; ovfWin = false;
     }
     const t0 = m.timers[0];
-    $('timer0').textContent = t0.on && t0.reload ? (1e8 / t0.reload).toFixed(1) + ' Hz' : 'arrêté';
+    $('timer0').textContent = t0.on && t0.reload ? (1e8 / t0.reload).toFixed(1) + ' Hz' : t('stopped');
     const rot = (m.gpuDV.getUint32(0, true) >> 8) & 3;
     $('res').textContent = m.scrW + ' × ' + m.scrH;
     $('rot').textContent = (rot * 90) + '°';
@@ -615,18 +713,20 @@ __CORE_JS__
     if (!ac) startAudio();
     if (ac && ac.state === 'suspended') ac.resume();
     running = true; $('overlay').hidden = true;
-    setPill('runPill', 'ok', 'En marche');
+    setPill('runPill', 'ok', 'running');
     canvas.focus && canvas.focus();
   });
   $('pauseBtn').addEventListener('click', (e) => {
-    paused = !paused; e.currentTarget.setAttribute('aria-pressed', paused); e.currentTarget.textContent = paused ? 'Reprendre' : 'Pause';
-    setPill('runPill', paused ? 'warn' : 'ok', paused ? 'Pause' : 'En marche');
+    paused = !paused; e.currentTarget.setAttribute('aria-pressed', paused); labelButtons();
+    setPill('runPill', paused ? 'warn' : 'ok', paused ? 'pause' : 'running');
   });
-  $('resetBtn').addEventListener('click', () => { if (m) { saveNv(); const dip = m.dip; m.reset(); m.dip = dip; setPill('runPill', 'ok', running ? 'En marche' : 'Prêt'); log('— reset\n'); } });
-  $('muteBtn').addEventListener('click', (e) => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); e.currentTarget.textContent = muted ? 'Activer le son' : 'Couper le son'; });
+  $('resetBtn').addEventListener('click', () => { if (m) { saveNv(); const dip = m.dip; m.reset(); m.dip = dip; setPill('runPill', 'ok', running ? 'running' : 'ready'); log('— reset\n'); } });
+  $('muteBtn').addEventListener('click', (e) => { muted = !muted; e.currentTarget.setAttribute('aria-pressed', muted); labelButtons(); });
+  function labelButtons() { $('pauseBtn').textContent = t(paused ? 'resume' : 'pause'); $('muteBtn').textContent = t(muted ? 'unmute' : 'mute'); }
+  relabel.push(labelButtons);
   $('aspectBtn').addEventListener('click', (e) => { squarePixels = !squarePixels; wide = false; $('wideBtn').setAttribute('aria-pressed', false); e.currentTarget.setAttribute('aria-pressed', squarePixels); layoutScreen(); });
   $('wideBtn').addEventListener('click', (e) => { wide = !wide; squarePixels = false; $('aspectBtn').setAttribute('aria-pressed', false); e.currentTarget.setAttribute('aria-pressed', wide); layoutScreen(); });
-  $('fsBtn').addEventListener('click', () => { const b = $('bezel'); if (b.requestFullscreen) b.requestFullscreen().catch(() => log('Plein écran refusé par le navigateur.\n', 'err')); });
+  $('fsBtn').addEventListener('click', () => { const b = $('bezel'); if (b.requestFullscreen) b.requestFullscreen().catch(() => log(t('fsDenied') + '\n', 'err')); });
   $('romSelect').addEventListener('change', (e) => loadRom(b64(ROMS[e.target.value]), e.target.value));
   function loadFile(f) {
     if (!f) return;
@@ -644,6 +744,8 @@ __CORE_JS__
   });
   window.addEventListener('pagehide', saveNv);
 
+  applyLang(lang);
+  relabel.push(() => { const e = $('timer0'); if (I18N.stopped.includes(e.textContent)) e.textContent = t('stopped'); });
   loadRom(b64(ROMS.aube), 'aube');
   // show a first frame behind the power button
   for (let i = 0; i < 40; i++) m.runFrame();

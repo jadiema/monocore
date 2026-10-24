@@ -6,8 +6,9 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 |---|---|
 | `SPEC.md` | la spécification complète (CPU, mémoire, vidéo, son, entrées, format de ROM, budget FPGA) |
 | `GUIDE.md` | créer sa propre ROM, pas à pas |
+| `SPEC.en.md`, `GUIDE.en.md` | leur traduction anglaise, affichée par le simulateur en anglais |
 | `sim/core.js` | le simulateur (CPU RV32IM, vidéo par lignes, son), utilisable dans le navigateur et dans Node |
-| `sim/page.html` | la page du simulateur (modèle) ; `tools/build_page.py` produit `dist/monocore.html` |
+| `sim/page.html` | la page du simulateur (modèle, en français et en anglais : bouton FR / EN ou `?lang=en`) ; `tools/build_page.py` produit `dist/monocore.html` |
 | `sdk/` | en-têtes, démarrage, script d'édition de liens, outils PNG et WAV, outil `build.py`, et deux bibliothèques : `easy` pour débuter (voir le manuel) et `mc`, le SDK bas niveau avec sa petite libc, pour les jeux complexes et les portages (voir `sdk/SDK_MC.md`) |
 | `rom/` | la ROM de test (mire et résolutions, plans et raster, sprites, son, contrôles, CPU et DMA) |
 | `examples/hello/` | exemple minimal à copier pour démarrer un jeu (registres bruts, `Makefile`) |
