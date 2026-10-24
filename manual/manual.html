@@ -373,54 +373,52 @@ ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></di
 <div class="box know"><div class="box-t">Joueurs 3 et 4</div><p>Les manettes 3 et 4 existent depuis la version 2 de la console. Sur un core MiSTer plus ancien, <code>held(3, …)</code> et <code>held(4, …)</code> répondent toujours faux : le jeu reste jouable à un ou deux.</p></div>
 <section class="chap-open c6"><div class="chap-num">6</div><div class="chap-band"></div><h1 id="ch6">Les sprites</h1><p class="lead">Des objets qui bougent : votre héros, les ennemis, les bonus.</p></section>
 <h2>Dessiner une planche</h2>
-<p>Les dessins des sprites se rangent dans une <b>planche</b> (<i>sprite sheet</i>) : une image PNG de <b>16 pixels de large</b>, où les dessins de 16 x 16 sont posés les uns sous les autres. Le premier porte le numéro 0, le suivant le numéro 1, et ainsi de suite. Dessinez-la avec n'importe quel logiciel de dessin (Aseprite, LibreSprite, GIMP, Paint…) en respectant deux règles :</p>
-<ul><li><b>15 couleurs au plus</b> pour toute la planche ;</li><li>le <b>transparent</b> (les pixels effacés de l'image) laisse voir ce qui est derrière le sprite.</li></ul>
+<p>Les dessins des sprites se rangent dans une <b>planche</b> (<i>sprite sheet</i>) : une image PNG de <b>16 pixels de large</b>, où les dessins de 16 x 16 sont posés les uns sous les autres. Le premier porte le numéro 0, le suivant le numéro 1, et ainsi de suite. Dessinez-la avec n'importe quel logiciel de dessin (Aseprite, LibreSprite, GIMP, Paint…) en respectant trois règles :</p>
+<ul><li>une <b>seule colonne</b> de dessins, de haut en bas : la largeur de l'image est celle d'un dessin ;</li><li><b>15 couleurs au plus</b> pour toute la planche ;</li><li>le <b>transparent</b> (les pixels effacés de l'image) laisse voir ce qui est derrière le sprite.</li></ul>
 <div class="sheet-row"><img class="sheet" src="images/sheet_x8.png"><div><table class=""><thead><tr><th>N°</th><th>Nom dans le code</th><th>Dessin</th></tr></thead><tbody><tr><td>0</td><td><code>SHIP</code></td><td>vaisseau</td></tr><tr><td>1</td><td><code>STAR</code></td><td>étoile</td></tr><tr><td>2</td><td><code>STAR2</code></td><td>étoile qui scintille</td></tr><tr><td>3</td><td><code>BOMB</code></td><td>bombe</td></tr><tr><td>4</td><td><code>EXPLOSION</code></td><td>explosion</td></tr><tr><td>5</td><td><code>HEART</code></td><td>cœur</td></tr></tbody></table><p>La planche des exemples, agrandie huit fois. Elle est dans <code>04_sprites/sheet.png</code>.</p></div></div>
-<p>Il suffit de la nommer dans <code>project.txt</code> (<code>sprites = sheet.png</code>) : <code>build.py</code> la convertit et la rend disponible sous les noms <code>sheet_chr</code> (les dessins) et <code>sheet_pal</code> (les couleurs).</p>
-<div class="box tip"><div class="box-t">De plus grands sprites</div><p>Pour un héros plus détaillé, la planche peut faire <b>32 ou 64 pixels de large</b>, avec des dessins de 32 x 32 ou de 64 x 64 posés les uns sous les autres. Le programme appelle alors une fois <code>sprite_size(64)</code> (ou <code>sprite_size(32)</code>) après <code>load_sprites</code> : tous les sprites prennent cette taille, et les dessins se numérotent toujours 0, 1, 2… du haut vers le bas.</p></div>
+<p>Il suffit de la nommer dans <code>project.txt</code> (<code>sprites = sheet.png</code>) : <code>build.py</code> la convertit, et <code>init()</code> la charge avec ses couleurs. Dans le programme, <code>sheet</code> (le nom du fichier sans <code>.png</code>) est le numéro de son premier dessin : <code>sheet + 2</code> est son troisième dessin. Ce nom est prêt à l'emploi, il n'y a rien à déclarer.</p>
+<p>Un jeu peut avoir plusieurs planches : <code>sprites = hero.png enemies.png</code>. Leurs dessins se numérotent à la suite, et <code>hero + 1</code> ou <code>enemies + 3</code> les désignent sans avoir à compter. Chaque planche garde ses propres 15 couleurs.</p>
+<div class="box tip"><div class="box-t">De plus grands sprites</div><p>Pour un héros plus détaillé, une planche peut faire <b>32 ou 64 pixels de large</b>, avec des dessins de 32 x 32 ou de 64 x 64 posés les uns sous les autres. Chaque dessin garde la taille de sa planche : un héros de 64 x 64 et des bonus de 16 x 16 se côtoient sans rien changer au programme.</p></div>
 <h2>Afficher et déplacer</h2>
 <div class="listing "><div class="lst-cap"><span>LISTING</span> 04_sprites/main.c</div><pre><span class="ln">  1</span><span class="c-pre">#include "easy.h"</span>
 <span class="ln">  2</span> 
-<span class="ln">  3</span><span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">uint8_t</span> sheet_chr[], sheet_pal[];   <span class="c-com">// built from sheet.png</span>
-<span class="ln">  4</span> 
-<span class="ln">  5</span><span class="c-com">// picture numbers in the sheet</span>
-<span class="ln">  6</span><span class="c-pre">#define SHIP   0</span>
-<span class="ln">  7</span><span class="c-pre">#define STAR   1</span>
-<span class="ln">  8</span><span class="c-pre">#define STAR2  2</span>
-<span class="ln">  9</span> 
-<span class="ln"> 10</span><span class="c-kw">int</span> main(<span class="c-kw">void</span>) {
-<span class="ln"> 11</span>  init();
-<span class="ln"> 12</span>  background(<span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">40</span>);
-<span class="ln"> 13</span>  load_sprites(sheet_chr, sheet_pal, <span class="c-num">8</span>);
-<span class="ln"> 14</span>  print_ink(<span class="c-num">3</span>, <span class="c-num">1</span>, <span class="c-str">"MANETTE:BOUGER  B1:MIROIR  B2:TAILLE"</span>, <span class="c-num">2</span>);
+<span class="ln">  3</span><span class="c-com">// pictures of sheet.png: sheet is the number of its first picture</span>
+<span class="ln">  4</span><span class="c-pre">#define SHIP   (sheet + 0)</span>
+<span class="ln">  5</span><span class="c-pre">#define STAR   (sheet + 1)</span>
+<span class="ln">  6</span><span class="c-pre">#define STAR2  (sheet + 2)</span>
+<span class="ln">  7</span> 
+<span class="ln">  8</span><span class="c-kw">int</span> main(<span class="c-kw">void</span>) {
+<span class="ln">  9</span>  init();                        <span class="c-com">// also loads sheet.png</span>
+<span class="ln"> 10</span>  background(<span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">40</span>);
+<span class="ln"> 11</span>  print_ink(<span class="c-num">3</span>, <span class="c-num">1</span>, <span class="c-str">"MANETTE:BOUGER  B1:MIROIR  B2:TAILLE"</span>, <span class="c-num">2</span>);
+<span class="ln"> 12</span> 
+<span class="ln"> 13</span>  <span class="c-kw">int</span> x = <span class="c-num">152</span>, y = <span class="c-num">120</span>;          <span class="c-com">// ship position</span>
+<span class="ln"> 14</span>  <span class="c-kw">int</span> flipped = <span class="c-num">0</span>, big = <span class="c-num">0</span>;
 <span class="ln"> 15</span> 
-<span class="ln"> 16</span>  <span class="c-kw">int</span> x = <span class="c-num">152</span>, y = <span class="c-num">120</span>;          <span class="c-com">// ship position</span>
-<span class="ln"> 17</span>  <span class="c-kw">int</span> flipped = <span class="c-num">0</span>, big = <span class="c-num">0</span>;
-<span class="ln"> 18</span> 
-<span class="ln"> 19</span>  <span class="c-kw">for</span> (;;) {
-<span class="ln"> 20</span>    wait_frame();
-<span class="ln"> 21</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">LEFT</span>))  x = x - <span class="c-num">2</span>;
-<span class="ln"> 22</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">RIGHT</span>)) x = x + <span class="c-num">2</span>;
-<span class="ln"> 23</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, UP))    y = y - <span class="c-num">2</span>;
-<span class="ln"> 24</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">DOWN</span>))  y = y + <span class="c-num">2</span>;
-<span class="ln"> 25</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, B1)) { flipped = !flipped; flip_sprite(<span class="c-num">0</span>, <span class="c-num">0</span>, flipped); }
-<span class="ln"> 26</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, B2)) { big = !big;         scale_sprite(<span class="c-num">0</span>, big ? <span class="c-num">200</span> : <span class="c-num">100</span>); }
-<span class="ln"> 27</span>    sprite(<span class="c-num">0</span>, x, y, <span class="c-cst">SHIP</span>);
-<span class="ln"> 28</span> 
-<span class="ln"> 29</span>    <span class="c-com">// five twinkling stars: the picture changes every 10 frames</span>
-<span class="ln"> 30</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">5</span>; i++) {
-<span class="ln"> 31</span>      <span class="c-kw">int</span> picture = ((frame_count / <span class="c-num">10</span> + i) % <span class="c-num">2</span>) ? <span class="c-cst">STAR</span> : <span class="c-cst">STAR2</span>;
-<span class="ln"> 32</span>      sprite(<span class="c-num">1</span> + i, <span class="c-num">30</span> + i * <span class="c-num">60</span>, <span class="c-num">50</span>, picture);
-<span class="ln"> 33</span>    }
-<span class="ln"> 34</span>  }
-<span class="ln"> 35</span>}</pre></div>
+<span class="ln"> 16</span>  <span class="c-kw">for</span> (;;) {
+<span class="ln"> 17</span>    wait_frame();
+<span class="ln"> 18</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">LEFT</span>))  x = x - <span class="c-num">2</span>;
+<span class="ln"> 19</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">RIGHT</span>)) x = x + <span class="c-num">2</span>;
+<span class="ln"> 20</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, UP))    y = y - <span class="c-num">2</span>;
+<span class="ln"> 21</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">DOWN</span>))  y = y + <span class="c-num">2</span>;
+<span class="ln"> 22</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, B1)) { flipped = !flipped; flip_sprite(<span class="c-num">0</span>, <span class="c-num">0</span>, flipped); }
+<span class="ln"> 23</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, B2)) { big = !big;         scale_sprite(<span class="c-num">0</span>, big ? <span class="c-num">200</span> : <span class="c-num">100</span>); }
+<span class="ln"> 24</span>    sprite(<span class="c-num">0</span>, x, y, <span class="c-cst">SHIP</span>);
+<span class="ln"> 25</span> 
+<span class="ln"> 26</span>    <span class="c-com">// five twinkling stars: the picture changes every 10 frames</span>
+<span class="ln"> 27</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">5</span>; i++) {
+<span class="ln"> 28</span>      <span class="c-kw">int</span> picture = ((frame_count / <span class="c-num">10</span> + i) % <span class="c-num">2</span>) ? <span class="c-cst">STAR</span> : <span class="c-cst">STAR2</span>;
+<span class="ln"> 29</span>      sprite(<span class="c-num">1</span> + i, <span class="c-num">30</span> + i * <span class="c-num">60</span>, <span class="c-num">50</span>, picture);
+<span class="ln"> 30</span>    }
+<span class="ln"> 31</span>  }
+<span class="ln"> 32</span>}</pre></div>
 <figure class="tv"><div class="bezel"><img src="images/screen_04.png"></div><figcaption>Le vaisseau agrandi deux fois (bouton 2), et les étoiles qui scintillent.</figcaption></figure>
-<table class=""><thead><tr><th>Fonction</th><th>Effet</th></tr></thead><tbody><tr><td><code>load_sprites(chr, pal, 8)</code></td><td>choisit la planche et range ses couleurs dans la palette 8</td></tr><tr><td><code>sprite_size(64)</code></td><td>choisit la taille des sprites : 16 (au départ), 32 ou 64, la largeur de la planche</td></tr><tr><td><code>sprite(n, x, y, picture)</code></td><td>affiche le sprite n (0 à 63) à la position x, y avec le dessin choisi</td></tr><tr><td><code>hide_sprite(n)</code></td><td>fait disparaître le sprite n</td></tr><tr><td><code>flip_sprite(n, h, v)</code></td><td>le retourne horizontalement (h = 1) et/ou verticalement (v = 1)</td></tr><tr><td><code>scale_sprite(n, 200)</code></td><td>l'agrandit (200 = double, 50 = moitié)</td></tr><tr><td><code>collide(x1, y1, x2, y2)</code></td><td>vrai si deux sprites se touchent</td></tr></tbody></table>
+<table class=""><thead><tr><th>Fonction</th><th>Effet</th></tr></thead><tbody><tr><td><code>sprite(n, x, y, picture)</code></td><td>affiche le sprite n (0 à 63) à la position x, y avec le dessin choisi</td></tr><tr><td><code>hide_sprite(n)</code></td><td>fait disparaître le sprite n</td></tr><tr><td><code>flip_sprite(n, h, v)</code></td><td>le retourne horizontalement (h = 1) et/ou verticalement (v = 1)</td></tr><tr><td><code>scale_sprite(n, 200)</code></td><td>l'agrandit (200 = double, 50 = moitié)</td></tr><tr><td><code>collide(a, b)</code></td><td>vrai si les sprites a et b se touchent</td></tr></tbody></table>
 <div class="box tip"><div class="box-t">Animer</div><p>Pour animer un sprite, on change de dessin régulièrement. <code>(frame_count / 10) % 2</code> vaut 0 pendant 10 images, puis 1 pendant 10 images, etc. : de quoi alterner deux dessins six fois par seconde. Avec <code>% 4</code>, on fait tourner quatre dessins.</p></div>
-<div class="box warn"><div class="box-t">Les limites</div><p>On peut afficher jusqu'à <b>64 sprites sur une même ligne</b> de l'écran, et 1280 pixels de sprites en tout sur cette ligne : c'est 80 sprites de 16 x 16 mais seulement <b>20 sprites de 64 x 64</b> côte à côte. Au-delà, les derniers ne sont pas dessinés sur cette ligne : le moniteur du simulateur l'indique en rouge.</p></div>
+<div class="box warn"><div class="box-t">Les limites</div><p>On peut afficher jusqu'à <b>64 sprites sur une même ligne</b> de l'écran, et 1280 pixels de sprites en tout sur cette ligne : c'est 80 sprites de 16 x 16 mais seulement <b>20 sprites de 64 x 64</b> côte à côte. Au-delà, les derniers ne sont pas dessinés sur cette ligne : le moniteur du simulateur l'indique en rouge. Un jeu a au plus <b>8 planches et décors</b> en tout, car chacun prend l'une des 8 palettes de couleurs.</p></div>
 <section class="chap-open c7"><div class="chap-num">7</div><div class="chap-band"></div><h1 id="ch7">Le son</h1><p class="lead">Des bips, des bruits, des mélodies et des échantillons.</p></section>
 <p>La MONOCORE-1 a <b>8 canaux</b> de notes (numérotés de 0 à 7), qui jouent ensemble, et <b>8 voix d'échantillons</b> pour les sons enregistrés.</p>
-<table class=""><thead><tr><th>Fonction</th><th>Effet</th></tr></thead><tbody><tr><td><code>tone(channel, 440, 150)</code></td><td>joue un son carré de 440 hertz (le LA du diapason) au volume 150 sur 255</td></tr><tr><td><code>noise(channel, 120)</code></td><td>un souffle : explosions, vagues, caisse claire</td></tr><tr><td><code>quiet(channel)</code></td><td>fait taire le canal</td></tr><tr><td><code>play(channel, tune, 15, 100)</code></td><td>joue une mélodie en boucle, toute seule</td></tr><tr><td><code>stop(channel)</code></td><td>arrête la mélodie</td></tr><tr><td><code>play_sample(voice, data, count, rate, volume)</code></td><td>joue un son enregistré (fichier WAV)</td></tr></tbody></table>
+<table class=""><thead><tr><th>Fonction</th><th>Effet</th></tr></thead><tbody><tr><td><code>tone(channel, 440, 150)</code></td><td>joue un son carré de 440 hertz (le LA du diapason) au volume 150 sur 255</td></tr><tr><td><code>noise(channel, 120)</code></td><td>un souffle : explosions, vagues, caisse claire</td></tr><tr><td><code>quiet(channel)</code></td><td>fait taire le canal</td></tr><tr><td><code>play(channel, tune, 15, 100)</code></td><td>joue une mélodie en boucle, toute seule</td></tr><tr><td><code>stop(channel)</code></td><td>arrête la mélodie</td></tr><tr><td><code>play_sample(voice, sound, volume)</code></td><td>joue un son enregistré (fichier WAV)</td></tr></tbody></table>
 <div class="listing "><div class="lst-cap"><span>LISTING</span> 05_sound/main.c</div><pre><span class="ln">  1</span><span class="c-pre">#include "easy.h"</span>
 <span class="ln">  2</span> 
 <span class="ln">  3</span><span class="c-com">// "Au clair de la lune", one note per beat</span>
@@ -465,52 +463,43 @@ ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></di
 <table class=""><thead><tr><th>Écriture</th><th>Signification</th></tr></thead><tbody><tr><td><code>C D E F G A B</code></td><td>les notes, dans l'octave 4 (celle du LA à 440 Hz)</td></tr><tr><td><code>C5  G3</code></td><td>un chiffre après la note change d'octave : C5 est le DO aigu suivant</td></tr><tr><td><code>F#  C#5</code></td><td>un # (dièse) monte la note d'un demi-ton</td></tr><tr><td><code>-</code></td><td>prolonge la note précédente d'un temps</td></tr><tr><td><code>.</code></td><td>un temps de silence</td></tr></tbody></table>
 <p>Le troisième nombre de <code>play()</code> règle le tempo : le nombre d'images par temps. 15 images, c'est 4 temps par seconde (240 à la minute) ; 30, deux fois plus lent. Pour jouer plusieurs voix en même temps (une mélodie et une basse), lancez deux mélodies sur deux canaux.</p>
 <h2>Les sons enregistrés</h2>
-<p>Un fichier WAV nommé dans <code>project.txt</code> (<code>sounds = boom.wav</code>) devient trois noms : <code>boom_data</code> (les échantillons), <code>boom_count</code> (leur nombre) et <code>boom_rate</code> (leur fréquence). On le joue avec :</p>
-<div class="listing nonum"><pre><span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">int8_t</span> boom_data[];
-<span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">uint32_t</span> boom_count, boom_rate;
-...
-play_sample(<span class="c-num">0</span>, boom_data, boom_count, boom_rate, <span class="c-num">230</span>);</pre></div>
+<p>Un fichier WAV nommé dans <code>project.txt</code> (<code>sounds = boom.wav</code>) devient le nom <code>boom</code>. On le joue sur la voix 0, au volume 230, avec :</p>
+<div class="listing nonum"><pre>play_sample(<span class="c-num">0</span>, boom, <span class="c-num">230</span>);</pre></div>
 <div class="box tip"><div class="box-t">Bonne pratique</div><p>Gardez des sons courts et en 8 000 à 22 050 Hz : ils occupent moins de place dans la ROM et sonnent très « arcade ». Un son de 16 000 Hz pendant une demi-seconde occupe 8 Ko.</p></div>
 <section class="chap-open c8"><div class="chap-num">8</div><div class="chap-band"></div><h1 id="ch8">Le décor</h1><p class="lead">Un grand paysage en tuiles, qui défile derrière les sprites.</p></section>
 <p>Le décor (<i>map</i>) est une grande image découpée en <b>tuiles de 16 x 16 pixels</b>. Les tuiles identiques ne sont stockées qu'une fois : un ciel uni ou un sol répétitif ne coûtent presque rien. Le décor peut mesurer jusqu'à <b>1024 x 1024 pixels</b> et il boucle : en défilant au-delà du bord droit, on retrouve le bord gauche.</p>
-<ul><li>Dessinez une image dont la largeur et la hauteur sont des multiples de 16, en <b>15 couleurs</b> au plus ;</li><li>nommez-la dans <code>project.txt</code> : <code>maps = landscape.png</code> ;</li><li>le programme reçoit <code>landscape_chr</code>, <code>landscape_pal</code>, <code>landscape_map</code> (la carte des tuiles), <code>landscape_width</code> et <code>landscape_height</code> (largeur et hauteur en tuiles).</li></ul>
+<ul><li>Dessinez une image dont la largeur et la hauteur sont des multiples de 16, en <b>15 couleurs</b> au plus ;</li><li>nommez-la dans <code>project.txt</code> : <code>maps = landscape.png</code> ;</li><li><code>init()</code> l'affiche, avec ses couleurs ; s'il y a plusieurs décors (<code>maps = level1.png level2.png</code>), c'est le premier, et <code>load_map(level2)</code> passe au suivant.</li></ul>
 <div class="listing "><div class="lst-cap"><span>LISTING</span> 06_scroll/main.c</div><pre><span class="ln">  1</span><span class="c-pre">#include "easy.h"</span>
 <span class="ln">  2</span> 
-<span class="ln">  3</span><span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">uint8_t</span> sheet_chr[], sheet_pal[];
-<span class="ln">  4</span><span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">uint8_t</span> landscape_chr[], landscape_pal[], landscape_map[];
-<span class="ln">  5</span><span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">uint32_t</span> landscape_width, landscape_height;     <span class="c-com">// in 16 x 16 tiles</span>
+<span class="ln">  3</span><span class="c-kw">int</span> main(<span class="c-kw">void</span>) {
+<span class="ln">  4</span>  init();                    <span class="c-com">// loads sheet.png and shows the map landscape.png</span>
+<span class="ln">  5</span>  print_ink(<span class="c-num">2</span>, <span class="c-num">1</span>, <span class="c-str">"GAUCHE / DROITE : VITESSE"</span>, <span class="c-num">1</span>);
 <span class="ln">  6</span> 
-<span class="ln">  7</span><span class="c-kw">int</span> main(<span class="c-kw">void</span>) {
-<span class="ln">  8</span>  init();
-<span class="ln">  9</span>  load_sprites(sheet_chr, sheet_pal, <span class="c-num">8</span>);
-<span class="ln"> 10</span>  load_map(landscape_chr, landscape_pal, landscape_map, landscape_width, landscape_height, <span class="c-num">9</span>);
-<span class="ln"> 11</span>  print_ink(<span class="c-num">2</span>, <span class="c-num">1</span>, <span class="c-str">"GAUCHE / DROITE : VITESSE"</span>, <span class="c-num">1</span>);
-<span class="ln"> 12</span> 
-<span class="ln"> 13</span>  <span class="c-kw">int</span> camera = <span class="c-num">0</span>;            <span class="c-com">// screen position in the map, in pixels</span>
-<span class="ln"> 14</span>  <span class="c-kw">int</span> speed = <span class="c-num">1</span>;
-<span class="ln"> 15</span>  <span class="c-kw">int</span> y = <span class="c-num">100</span>;
-<span class="ln"> 16</span> 
-<span class="ln"> 17</span>  <span class="c-kw">for</span> (;;) {
-<span class="ln"> 18</span>    wait_frame();
-<span class="ln"> 19</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">RIGHT</span>) &amp;&amp; speed &lt; <span class="c-num">6</span>)  speed++;
-<span class="ln"> 20</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">LEFT</span>)  &amp;&amp; speed &gt; -<span class="c-num">6</span>) speed--;
-<span class="ln"> 21</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, UP)   &amp;&amp; y &gt; <span class="c-num">20</span>)  y -= <span class="c-num">2</span>;
-<span class="ln"> 22</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">DOWN</span>) &amp;&amp; y &lt; <span class="c-num">160</span>) y += <span class="c-num">2</span>;
-<span class="ln"> 23</span> 
-<span class="ln"> 24</span>    camera = camera + speed;
-<span class="ln"> 25</span>    scroll_map(camera, <span class="c-num">0</span>);                <span class="c-com">// the map is 1024 pixels wide and wraps around by itself</span>
-<span class="ln"> 26</span> 
-<span class="ln"> 27</span>    sprite(<span class="c-num">0</span>, <span class="c-num">152</span>, y, <span class="c-num">0</span>);
-<span class="ln"> 28</span>    print(<span class="c-num">2</span>, <span class="c-num">28</span>, <span class="c-str">"VITESSE :"</span>);
-<span class="ln"> 29</span>    print_num(<span class="c-num">12</span>, <span class="c-num">28</span>, speed, <span class="c-num">2</span>, <span class="c-num">2</span>);
-<span class="ln"> 30</span>  }
-<span class="ln"> 31</span>}</pre></div>
+<span class="ln">  7</span>  <span class="c-kw">int</span> camera = <span class="c-num">0</span>;            <span class="c-com">// screen position in the map, in pixels</span>
+<span class="ln">  8</span>  <span class="c-kw">int</span> speed = <span class="c-num">1</span>;
+<span class="ln">  9</span>  <span class="c-kw">int</span> y = <span class="c-num">100</span>;
+<span class="ln"> 10</span> 
+<span class="ln"> 11</span>  <span class="c-kw">for</span> (;;) {
+<span class="ln"> 12</span>    wait_frame();
+<span class="ln"> 13</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">RIGHT</span>) &amp;&amp; speed &lt; <span class="c-num">6</span>)  speed++;
+<span class="ln"> 14</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">LEFT</span>)  &amp;&amp; speed &gt; -<span class="c-num">6</span>) speed--;
+<span class="ln"> 15</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, UP)   &amp;&amp; y &gt; <span class="c-num">20</span>)  y -= <span class="c-num">2</span>;
+<span class="ln"> 16</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">DOWN</span>) &amp;&amp; y &lt; <span class="c-num">160</span>) y += <span class="c-num">2</span>;
+<span class="ln"> 17</span> 
+<span class="ln"> 18</span>    camera = camera + speed;
+<span class="ln"> 19</span>    scroll_map(camera, <span class="c-num">0</span>);                <span class="c-com">// the map is 1024 pixels wide and wraps around by itself</span>
+<span class="ln"> 20</span> 
+<span class="ln"> 21</span>    sprite(<span class="c-num">0</span>, <span class="c-num">152</span>, y, <span class="c-num">0</span>);
+<span class="ln"> 22</span>    print(<span class="c-num">2</span>, <span class="c-num">28</span>, <span class="c-str">"VITESSE :"</span>);
+<span class="ln"> 23</span>    print_num(<span class="c-num">12</span>, <span class="c-num">28</span>, speed, <span class="c-num">2</span>, <span class="c-num">2</span>);
+<span class="ln"> 24</span>  }
+<span class="ln"> 25</span>}</pre></div>
 <figure class="tv"><div class="bezel"><img src="images/screen_06.png"></div><figcaption>Le paysage de 1024 pixels défile derrière le vaisseau.</figcaption></figure>
 <p><code>scroll_map(x, y)</code> (« faire défiler le décor ») indique quel point du décor apparaît dans le coin en haut à gauche de l'écran. En augmentant <code>x</code> à chaque image, le décor glisse vers la gauche : on a l'impression d'avancer vers la droite.</p>
 <div class="box know"><div class="box-t">Le saviez-vous ?</div><p>Les jeux des années 80 donnaient de la profondeur en faisant défiler plusieurs plans à des vitesses différentes : le lointain lentement, le premier plan vite. La MONOCORE-1 a quatre plans, et peut même faire défiler chaque ligne de l'écran différemment (chapitre 10).</p></div>
 <section class="chap-open c9"><div class="chap-num">9</div><div class="chap-band"></div><h1 id="ch9">Projet : ATTRAPE-ÉTOILES</h1><p class="lead">Un jeu complet : écran titre, score, record, vies, musique et explosions.</p></section>
 <div class="pair"><figure class="tv small"><div class="bezel"><img src="images/screen_07_title.png"></div><figcaption>L'écran titre.</figcaption></figure><figure class="tv small"><div class="bezel"><img src="images/screen_07_game.png"></div><figcaption>Une partie en cours.</figcaption></figure></div>
-<p>Le principe : des étoiles et des bombes tombent du ciel. Déplacez le vaisseau avec LEFT et RIGHT pour attraper les étoiles (10 points chacune) et éviter les bombes (une vie perdue). Plus le score monte, plus tout tombe vite. Le jeu tient en 156 lignes, rangées en <b>fonctions</b> qui ont chacune un rôle.</p>
+<p>Le principe : des étoiles et des bombes tombent du ciel. Déplacez le vaisseau avec LEFT et RIGHT pour attraper les étoiles (10 points chacune) et éviter les bombes (une vie perdue). Plus le score monte, plus tout tombe vite. Le jeu tient en 150 lignes, rangées en <b>fonctions</b> qui ont chacune un rôle.</p>
 <h2>Organisation du programme</h2>
 <table class=""><thead><tr><th>Fonction</th><th>Rôle</th></tr></thead><tbody><tr><td><code>main</code></td><td>prépare la console, puis enchaîne pour toujours : titre, partie, fin de partie</td></tr><tr><td><code>title_screen</code></td><td>écran titre : affiche le titre et les règles, joue la musique, attend START</td></tr><tr><td><code>game</code></td><td>la partie : manette, objets, explosion, score, jusqu'à ce qu'il n'y ait plus de vies</td></tr><tr><td><code>drop_item</code></td><td>« lâcher un objet » : le place en haut de l'écran, au hasard, étoile ou bombe</td></tr><tr><td><code>move_items</code></td><td>fait tomber les objets et teste s'ils touchent le vaisseau</td></tr><tr><td><code>show_score</code></td><td>écrit le score et le record, dessine les cœurs</td></tr><tr><td><code>game_over</code></td><td>affiche PARTIE TERMINEE pendant trois secondes</td></tr></tbody></table>
 <h2>Les structures</h2>
@@ -526,164 +515,158 @@ sounds  = boom.wav</pre></div>
 <div class="listing "><div class="lst-cap"><span>LISTING</span> 07_stars/main.c</div><pre><span class="ln">  1</span><span class="c-com">// ATTRAPE-ETOILES - the complete game of the MONOCORE-1 manual</span>
 <span class="ln">  2</span><span class="c-pre">#include "easy.h"</span>
 <span class="ln">  3</span> 
-<span class="ln">  4</span><span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">uint8_t</span> sheet_chr[], sheet_pal[];
-<span class="ln">  5</span><span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">uint8_t</span> landscape_chr[], landscape_pal[], landscape_map[];
-<span class="ln">  6</span><span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">uint32_t</span> landscape_width, landscape_height;
-<span class="ln">  7</span><span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">int8_t</span> boom_data[];
-<span class="ln">  8</span><span class="c-kw">extern</span> <span class="c-kw">const</span> <span class="c-kw">uint32_t</span> boom_count, boom_rate;
-<span class="ln">  9</span> 
-<span class="ln"> 10</span><span class="c-com">// pictures of the sheet</span>
-<span class="ln"> 11</span><span class="c-pre">#define SHIP      0</span>
-<span class="ln"> 12</span><span class="c-pre">#define STAR      1</span>
-<span class="ln"> 13</span><span class="c-pre">#define STAR2     2</span>
-<span class="ln"> 14</span><span class="c-pre">#define BOMB      3</span>
-<span class="ln"> 15</span><span class="c-pre">#define EXPLOSION 4</span>
-<span class="ln"> 16</span><span class="c-pre">#define HEART     5</span>
+<span class="ln">  4</span><span class="c-com">// pictures of sheet.png</span>
+<span class="ln">  5</span><span class="c-pre">#define SHIP      (sheet + 0)</span>
+<span class="ln">  6</span><span class="c-pre">#define STAR      (sheet + 1)</span>
+<span class="ln">  7</span><span class="c-pre">#define STAR2     (sheet + 2)</span>
+<span class="ln">  8</span><span class="c-pre">#define BOMB      (sheet + 3)</span>
+<span class="ln">  9</span><span class="c-pre">#define EXPLOSION (sheet + 4)</span>
+<span class="ln"> 10</span><span class="c-pre">#define HEART     (sheet + 5)</span>
+<span class="ln"> 11</span> 
+<span class="ln"> 12</span><span class="c-com">// sprites in use</span>
+<span class="ln"> 13</span><span class="c-pre">#define SPR_PLAYER  0</span>
+<span class="ln"> 14</span><span class="c-pre">#define SPR_ITEM    1      // 1 to 6: the falling items</span>
+<span class="ln"> 15</span><span class="c-pre">#define NUM_ITEMS   6</span>
+<span class="ln"> 16</span><span class="c-pre">#define SPR_LIFE    10     // 10 to 12: the hearts</span>
 <span class="ln"> 17</span> 
-<span class="ln"> 18</span><span class="c-com">// sprites in use</span>
-<span class="ln"> 19</span><span class="c-pre">#define SPR_PLAYER  0</span>
-<span class="ln"> 20</span><span class="c-pre">#define SPR_ITEM    1      // 1 to 6: the falling items</span>
-<span class="ln"> 21</span><span class="c-pre">#define NUM_ITEMS   6</span>
-<span class="ln"> 22</span><span class="c-pre">#define SPR_LIFE    10     // 10 to 12: the hearts</span>
-<span class="ln"> 23</span> 
-<span class="ln"> 24</span><span class="c-kw">typedef</span> <span class="c-kw">struct</span> {
-<span class="ln"> 25</span>  <span class="c-kw">int</span> active;
-<span class="ln"> 26</span>  <span class="c-kw">int</span> x, y;              <span class="c-com">// position in pixels</span>
-<span class="ln"> 27</span>  <span class="c-kw">int</span> speed;             <span class="c-com">// pixels per frame</span>
-<span class="ln"> 28</span>  <span class="c-kw">int</span> bomb;              <span class="c-com">// 1 = bomb, 0 = star</span>
-<span class="ln"> 29</span>} item_t;
-<span class="ln"> 30</span> 
-<span class="ln"> 31</span><span class="c-kw">static</span> item_t items[<span class="c-cst">NUM_ITEMS</span>];
-<span class="ln"> 32</span><span class="c-kw">static</span> <span class="c-kw">int</span> player_x, score, best, lives, explosion;
-<span class="ln"> 33</span> 
-<span class="ln"> 34</span><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> *tune =
-<span class="ln"> 35</span>  <span class="c-str">"E G C5 - B A G - A B C5 D5 E5 - - . "</span>
-<span class="ln"> 36</span>  <span class="c-str">"E5 D5 C5 - B A G - F A G E D - - . "</span>;
-<span class="ln"> 37</span> 
-<span class="ln"> 38</span><span class="c-com">// ---------------------------------------------------------------- display</span>
-<span class="ln"> 39</span><span class="c-kw">static</span> <span class="c-kw">void</span> show_score(<span class="c-kw">void</span>) {
-<span class="ln"> 40</span>  print(<span class="c-num">1</span>, <span class="c-num">1</span>, <span class="c-str">"SCORE"</span>);
-<span class="ln"> 41</span>  print_num(<span class="c-num">7</span>, <span class="c-num">1</span>, score, <span class="c-num">6</span>, <span class="c-num">1</span>);
-<span class="ln"> 42</span>  print(<span class="c-num">25</span>, <span class="c-num">1</span>, <span class="c-str">"RECORD"</span>);
-<span class="ln"> 43</span>  print_num(<span class="c-num">32</span>, <span class="c-num">1</span>, best, <span class="c-num">6</span>, <span class="c-num">2</span>);
-<span class="ln"> 44</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">3</span>; i++) {
-<span class="ln"> 45</span>    <span class="c-kw">if</span> (i &lt; lives) sprite(<span class="c-cst">SPR_LIFE</span> + i, <span class="c-num">8</span> + i * <span class="c-num">18</span>, <span class="c-num">214</span>, <span class="c-cst">HEART</span>);
-<span class="ln"> 46</span>    <span class="c-kw">else</span> hide_sprite(<span class="c-cst">SPR_LIFE</span> + i);
-<span class="ln"> 47</span>  }
-<span class="ln"> 48</span>}
-<span class="ln"> 49</span> 
-<span class="ln"> 50</span><span class="c-kw">static</span> <span class="c-kw">void</span> hide_all(<span class="c-kw">void</span>) {
-<span class="ln"> 51</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> n = <span class="c-num">0</span>; n &lt; <span class="c-num">64</span>; n++) hide_sprite(n);
-<span class="ln"> 52</span>}
-<span class="ln"> 53</span> 
-<span class="ln"> 54</span><span class="c-com">// ---------------------------------------------------------------- items</span>
-<span class="ln"> 55</span><span class="c-kw">static</span> <span class="c-kw">void</span> drop_item(item_t *it) {
-<span class="ln"> 56</span>  it-&gt;active = <span class="c-num">1</span>;
-<span class="ln"> 57</span>  it-&gt;x = <span class="c-num">8</span> + random(<span class="c-num">288</span>);
-<span class="ln"> 58</span>  it-&gt;y = -<span class="c-num">16</span> - random(<span class="c-num">80</span>);
-<span class="ln"> 59</span>  it-&gt;speed = <span class="c-num">1</span> + random(<span class="c-num">2</span>) + score / <span class="c-num">300</span>;     <span class="c-com">// faster and faster</span>
-<span class="ln"> 60</span>  <span class="c-kw">if</span> (it-&gt;speed &gt; <span class="c-num">6</span>) it-&gt;speed = <span class="c-num">6</span>;
-<span class="ln"> 61</span>  it-&gt;bomb = random(<span class="c-num">4</span>) == <span class="c-num">0</span>;                   <span class="c-com">// one chance in four</span>
-<span class="ln"> 62</span>}
+<span class="ln"> 18</span><span class="c-kw">typedef</span> <span class="c-kw">struct</span> {
+<span class="ln"> 19</span>  <span class="c-kw">int</span> active;
+<span class="ln"> 20</span>  <span class="c-kw">int</span> x, y;              <span class="c-com">// position in pixels</span>
+<span class="ln"> 21</span>  <span class="c-kw">int</span> speed;             <span class="c-com">// pixels per frame</span>
+<span class="ln"> 22</span>  <span class="c-kw">int</span> bomb;              <span class="c-com">// 1 = bomb, 0 = star</span>
+<span class="ln"> 23</span>} item_t;
+<span class="ln"> 24</span> 
+<span class="ln"> 25</span><span class="c-kw">static</span> item_t items[<span class="c-cst">NUM_ITEMS</span>];
+<span class="ln"> 26</span><span class="c-kw">static</span> <span class="c-kw">int</span> player_x, score, best, lives, explosion;
+<span class="ln"> 27</span> 
+<span class="ln"> 28</span><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">char</span> *tune =
+<span class="ln"> 29</span>  <span class="c-str">"E G C5 - B A G - A B C5 D5 E5 - - . "</span>
+<span class="ln"> 30</span>  <span class="c-str">"E5 D5 C5 - B A G - F A G E D - - . "</span>;
+<span class="ln"> 31</span> 
+<span class="ln"> 32</span><span class="c-com">// ---------------------------------------------------------------- display</span>
+<span class="ln"> 33</span><span class="c-kw">static</span> <span class="c-kw">void</span> show_score(<span class="c-kw">void</span>) {
+<span class="ln"> 34</span>  print(<span class="c-num">1</span>, <span class="c-num">1</span>, <span class="c-str">"SCORE"</span>);
+<span class="ln"> 35</span>  print_num(<span class="c-num">7</span>, <span class="c-num">1</span>, score, <span class="c-num">6</span>, <span class="c-num">1</span>);
+<span class="ln"> 36</span>  print(<span class="c-num">25</span>, <span class="c-num">1</span>, <span class="c-str">"RECORD"</span>);
+<span class="ln"> 37</span>  print_num(<span class="c-num">32</span>, <span class="c-num">1</span>, best, <span class="c-num">6</span>, <span class="c-num">2</span>);
+<span class="ln"> 38</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">3</span>; i++) {
+<span class="ln"> 39</span>    <span class="c-kw">if</span> (i &lt; lives) sprite(<span class="c-cst">SPR_LIFE</span> + i, <span class="c-num">8</span> + i * <span class="c-num">18</span>, <span class="c-num">214</span>, <span class="c-cst">HEART</span>);
+<span class="ln"> 40</span>    <span class="c-kw">else</span> hide_sprite(<span class="c-cst">SPR_LIFE</span> + i);
+<span class="ln"> 41</span>  }
+<span class="ln"> 42</span>}
+<span class="ln"> 43</span> 
+<span class="ln"> 44</span><span class="c-kw">static</span> <span class="c-kw">void</span> hide_all(<span class="c-kw">void</span>) {
+<span class="ln"> 45</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> n = <span class="c-num">0</span>; n &lt; <span class="c-num">64</span>; n++) hide_sprite(n);
+<span class="ln"> 46</span>}
+<span class="ln"> 47</span> 
+<span class="ln"> 48</span><span class="c-com">// ---------------------------------------------------------------- items</span>
+<span class="ln"> 49</span><span class="c-kw">static</span> <span class="c-kw">void</span> drop_item(item_t *it) {
+<span class="ln"> 50</span>  it-&gt;active = <span class="c-num">1</span>;
+<span class="ln"> 51</span>  it-&gt;x = <span class="c-num">8</span> + random(<span class="c-num">288</span>);
+<span class="ln"> 52</span>  it-&gt;y = -<span class="c-num">16</span> - random(<span class="c-num">80</span>);
+<span class="ln"> 53</span>  it-&gt;speed = <span class="c-num">1</span> + random(<span class="c-num">2</span>) + score / <span class="c-num">300</span>;     <span class="c-com">// faster and faster</span>
+<span class="ln"> 54</span>  <span class="c-kw">if</span> (it-&gt;speed &gt; <span class="c-num">6</span>) it-&gt;speed = <span class="c-num">6</span>;
+<span class="ln"> 55</span>  it-&gt;bomb = random(<span class="c-num">4</span>) == <span class="c-num">0</span>;                   <span class="c-com">// one chance in four</span>
+<span class="ln"> 56</span>}
+<span class="ln"> 57</span> 
+<span class="ln"> 58</span><span class="c-kw">static</span> <span class="c-kw">void</span> move_items(<span class="c-kw">void</span>) {
+<span class="ln"> 59</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">NUM_ITEMS</span>; i++) {
+<span class="ln"> 60</span>    item_t *it = &amp;items[i];
+<span class="ln"> 61</span>    it-&gt;y = it-&gt;y + it-&gt;speed;
+<span class="ln"> 62</span>    <span class="c-kw">if</span> (it-&gt;y &gt; <span class="c-num">240</span>) drop_item(it);            <span class="c-com">// out at the bottom: drop it again from the top</span>
 <span class="ln"> 63</span> 
-<span class="ln"> 64</span><span class="c-kw">static</span> <span class="c-kw">void</span> move_items(<span class="c-kw">void</span>) {
-<span class="ln"> 65</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">NUM_ITEMS</span>; i++) {
-<span class="ln"> 66</span>    item_t *it = &amp;items[i];
-<span class="ln"> 67</span>    it-&gt;y = it-&gt;y + it-&gt;speed;
-<span class="ln"> 68</span>    <span class="c-kw">if</span> (it-&gt;y &gt; <span class="c-num">240</span>) drop_item(it);            <span class="c-com">// out at the bottom: drop it again from the top</span>
-<span class="ln"> 69</span> 
-<span class="ln"> 70</span>    <span class="c-kw">if</span> (collide(it-&gt;x, it-&gt;y, player_x, <span class="c-num">196</span>)) {
-<span class="ln"> 71</span>      <span class="c-kw">if</span> (it-&gt;bomb) {
-<span class="ln"> 72</span>        lives = lives - <span class="c-num">1</span>;
-<span class="ln"> 73</span>        explosion = <span class="c-num">30</span>;                        <span class="c-com">// 30 frames of explosion</span>
-<span class="ln"> 74</span>        play_sample(<span class="c-num">0</span>, boom_data, boom_count, boom_rate, <span class="c-num">230</span>);
-<span class="ln"> 75</span>      } <span class="c-kw">else</span> {
-<span class="ln"> 76</span>        score = score + <span class="c-num">10</span>;
-<span class="ln"> 77</span>        tone(<span class="c-num">1</span>, <span class="c-num">1200</span>, <span class="c-num">120</span>);                    <span class="c-com">// a short "ding"</span>
-<span class="ln"> 78</span>      }
-<span class="ln"> 79</span>      drop_item(it);
-<span class="ln"> 80</span>    }
-<span class="ln"> 81</span>    <span class="c-kw">int</span> picture = it-&gt;bomb ? <span class="c-cst">BOMB</span> : (((frame_count / <span class="c-num">8</span> + i) % <span class="c-num">2</span>) ? <span class="c-cst">STAR</span> : <span class="c-cst">STAR2</span>);
-<span class="ln"> 82</span>    sprite(<span class="c-cst">SPR_ITEM</span> + i, it-&gt;x, it-&gt;y, picture);
-<span class="ln"> 83</span>  }
-<span class="ln"> 84</span>}
-<span class="ln"> 85</span> 
-<span class="ln"> 86</span><span class="c-com">// ---------------------------------------------------------------- screens</span>
-<span class="ln"> 87</span><span class="c-kw">static</span> <span class="c-kw">void</span> title_screen(<span class="c-kw">void</span>) {
-<span class="ln"> 88</span>  cls();
-<span class="ln"> 89</span>  hide_all();
-<span class="ln"> 90</span>  print_ink(<span class="c-num">11</span>, <span class="c-num">7</span>, <span class="c-str">"ATTRAPE-ETOILES"</span>, <span class="c-num">1</span>);
-<span class="ln"> 91</span>  print(<span class="c-num">6</span>, <span class="c-num">11</span>, <span class="c-str">"ATTRAPE LES ETOILES : 10 POINTS"</span>);
-<span class="ln"> 92</span>  print(<span class="c-num">6</span>, <span class="c-num">13</span>, <span class="c-str">"EVITE LES BOMBES    : -1 VIE"</span>);
-<span class="ln"> 93</span>  print_ink(<span class="c-num">11</span>, <span class="c-num">27</span>, <span class="c-str">"UN JEU MONOCORE-1"</span>, <span class="c-num">0</span>);
-<span class="ln"> 94</span>  print(<span class="c-num">25</span>, <span class="c-num">1</span>, <span class="c-str">"RECORD"</span>);
-<span class="ln"> 95</span>  print_num(<span class="c-num">32</span>, <span class="c-num">1</span>, best, <span class="c-num">6</span>, <span class="c-num">2</span>);
-<span class="ln"> 96</span>  play(<span class="c-num">2</span>, tune, <span class="c-num">10</span>, <span class="c-num">90</span>);
-<span class="ln"> 97</span> 
-<span class="ln"> 98</span>  <span class="c-kw">for</span> (;;) {
-<span class="ln"> 99</span>    wait_frame();
-<span class="ln">100</span>    <span class="c-kw">if</span> ((frame_count / <span class="c-num">30</span>) % <span class="c-num">2</span> == <span class="c-num">0</span>) print_ink(<span class="c-num">12</span>, <span class="c-num">18</span>, <span class="c-str">"APPUIE SUR START"</span>, <span class="c-num">6</span>);
-<span class="ln">101</span>    <span class="c-kw">else</span>                             print    (<span class="c-num">12</span>, <span class="c-num">18</span>, <span class="c-str">"                "</span>);
-<span class="ln">102</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">4</span>; i++)                <span class="c-com">// four stars dancing under the rules</span>
-<span class="ln">103</span>      sprite(<span class="c-cst">SPR_ITEM</span> + i, <span class="c-num">152</span> + (i - <span class="c-num">2</span>) * <span class="c-num">50</span> + <span class="c-num">25</span>, <span class="c-num">118</span> + ((frame_count / <span class="c-num">3</span> + i * <span class="c-num">3</span>) % <span class="c-num">8</span>), <span class="c-cst">STAR</span>);
-<span class="ln">104</span>    scroll_map(frame_count / <span class="c-num">2</span>, <span class="c-num">0</span>);
-<span class="ln">105</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">START</span>)) <span class="c-kw">break</span>;
-<span class="ln">106</span>  }
-<span class="ln">107</span>  stop(<span class="c-num">2</span>);
-<span class="ln">108</span>}
-<span class="ln">109</span> 
-<span class="ln">110</span><span class="c-kw">static</span> <span class="c-kw">void</span> game(<span class="c-kw">void</span>) {
-<span class="ln">111</span>  cls();
-<span class="ln">112</span>  hide_all();
-<span class="ln">113</span>  score = <span class="c-num">0</span>; lives = <span class="c-num">3</span>; explosion = <span class="c-num">0</span>;
-<span class="ln">114</span>  player_x = <span class="c-num">152</span>;
-<span class="ln">115</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">NUM_ITEMS</span>; i++) drop_item(&amp;items[i]);
-<span class="ln">116</span> 
-<span class="ln">117</span>  <span class="c-kw">while</span> (lives &gt; <span class="c-num">0</span>) {
-<span class="ln">118</span>    wait_frame();
-<span class="ln">119</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">LEFT</span>)  &amp;&amp; player_x &gt; <span class="c-num">4</span>)   player_x -= <span class="c-num">3</span>;
-<span class="ln">120</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">RIGHT</span>) &amp;&amp; player_x &lt; <span class="c-num">300</span>) player_x += <span class="c-num">3</span>;
-<span class="ln">121</span>    <span class="c-kw">if</span> (frame_count % <span class="c-num">8</span> == <span class="c-num">0</span>) quiet(<span class="c-num">1</span>);        <span class="c-com">// ends the "ding"</span>
-<span class="ln">122</span> 
-<span class="ln">123</span>    <span class="c-kw">if</span> (explosion &gt; <span class="c-num">0</span>) {
-<span class="ln">124</span>      explosion--;
-<span class="ln">125</span>      sprite(<span class="c-cst">SPR_PLAYER</span>, player_x, <span class="c-num">196</span>, <span class="c-cst">EXPLOSION</span>);
-<span class="ln">126</span>    } <span class="c-kw">else</span> {
-<span class="ln">127</span>      sprite(<span class="c-cst">SPR_PLAYER</span>, player_x, <span class="c-num">196</span>, <span class="c-cst">SHIP</span>);
-<span class="ln">128</span>      move_items();                            <span class="c-com">// the game pauses during the explosion</span>
-<span class="ln">129</span>    }
-<span class="ln">130</span>    <span class="c-kw">if</span> (score &gt; best) best = score;
-<span class="ln">131</span>    show_score();
-<span class="ln">132</span>    scroll_map(frame_count, <span class="c-num">0</span>);
-<span class="ln">133</span>  }
-<span class="ln">134</span>}
-<span class="ln">135</span> 
-<span class="ln">136</span><span class="c-kw">static</span> <span class="c-kw">void</span> game_over(<span class="c-kw">void</span>) {
-<span class="ln">137</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">NUM_ITEMS</span>; i++) hide_sprite(<span class="c-cst">SPR_ITEM</span> + i);
-<span class="ln">138</span>  print_ink(<span class="c-num">12</span>, <span class="c-num">12</span>, <span class="c-str">"PARTIE TERMINEE"</span>, <span class="c-num">4</span>);
-<span class="ln">139</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> t = <span class="c-num">0</span>; t &lt; <span class="c-num">180</span>; t++) {              <span class="c-com">// 3 seconds, or START</span>
-<span class="ln">140</span>    wait_frame();
-<span class="ln">141</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">START</span>)) <span class="c-kw">break</span>;
-<span class="ln">142</span>  }
-<span class="ln">143</span>}
-<span class="ln">144</span> 
-<span class="ln">145</span><span class="c-kw">int</span> main(<span class="c-kw">void</span>) {
-<span class="ln">146</span>  init();
-<span class="ln">147</span>  background(<span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>);
-<span class="ln">148</span>  load_sprites(sheet_chr, sheet_pal, <span class="c-num">8</span>);
-<span class="ln">149</span>  load_map(landscape_chr, landscape_pal, landscape_map, landscape_width, landscape_height, <span class="c-num">9</span>);
-<span class="ln">150</span>  best = <span class="c-num">500</span>;
-<span class="ln">151</span>  <span class="c-kw">for</span> (;;) {
-<span class="ln">152</span>    title_screen();
-<span class="ln">153</span>    game();
-<span class="ln">154</span>    game_over();
-<span class="ln">155</span>  }
-<span class="ln">156</span>}</pre></div>
+<span class="ln"> 64</span>    <span class="c-kw">int</span> picture = it-&gt;bomb ? <span class="c-cst">BOMB</span> : (((frame_count / <span class="c-num">8</span> + i) % <span class="c-num">2</span>) ? <span class="c-cst">STAR</span> : <span class="c-cst">STAR2</span>);
+<span class="ln"> 65</span>    sprite(<span class="c-cst">SPR_ITEM</span> + i, it-&gt;x, it-&gt;y, picture);
+<span class="ln"> 66</span> 
+<span class="ln"> 67</span>    <span class="c-kw">if</span> (collide(<span class="c-cst">SPR_ITEM</span> + i, <span class="c-cst">SPR_PLAYER</span>)) {
+<span class="ln"> 68</span>      <span class="c-kw">if</span> (it-&gt;bomb) {
+<span class="ln"> 69</span>        lives = lives - <span class="c-num">1</span>;
+<span class="ln"> 70</span>        explosion = <span class="c-num">30</span>;                        <span class="c-com">// 30 frames of explosion</span>
+<span class="ln"> 71</span>        play_sample(<span class="c-num">0</span>, boom, <span class="c-num">230</span>);
+<span class="ln"> 72</span>      } <span class="c-kw">else</span> {
+<span class="ln"> 73</span>        score = score + <span class="c-num">10</span>;
+<span class="ln"> 74</span>        tone(<span class="c-num">1</span>, <span class="c-num">1200</span>, <span class="c-num">120</span>);                    <span class="c-com">// a short "ding"</span>
+<span class="ln"> 75</span>      }
+<span class="ln"> 76</span>      drop_item(it);                           <span class="c-com">// back to the top, out of the screen</span>
+<span class="ln"> 77</span>      hide_sprite(<span class="c-cst">SPR_ITEM</span> + i);               <span class="c-com">// until it is shown there, at the next frame</span>
+<span class="ln"> 78</span>    }
+<span class="ln"> 79</span>  }
+<span class="ln"> 80</span>}
+<span class="ln"> 81</span> 
+<span class="ln"> 82</span><span class="c-com">// ---------------------------------------------------------------- screens</span>
+<span class="ln"> 83</span><span class="c-kw">static</span> <span class="c-kw">void</span> title_screen(<span class="c-kw">void</span>) {
+<span class="ln"> 84</span>  cls();
+<span class="ln"> 85</span>  hide_all();
+<span class="ln"> 86</span>  print_ink(<span class="c-num">11</span>, <span class="c-num">7</span>, <span class="c-str">"ATTRAPE-ETOILES"</span>, <span class="c-num">1</span>);
+<span class="ln"> 87</span>  print(<span class="c-num">6</span>, <span class="c-num">11</span>, <span class="c-str">"ATTRAPE LES ETOILES : 10 POINTS"</span>);
+<span class="ln"> 88</span>  print(<span class="c-num">6</span>, <span class="c-num">13</span>, <span class="c-str">"EVITE LES BOMBES    : -1 VIE"</span>);
+<span class="ln"> 89</span>  print_ink(<span class="c-num">11</span>, <span class="c-num">27</span>, <span class="c-str">"UN JEU MONOCORE-1"</span>, <span class="c-num">0</span>);
+<span class="ln"> 90</span>  print(<span class="c-num">25</span>, <span class="c-num">1</span>, <span class="c-str">"RECORD"</span>);
+<span class="ln"> 91</span>  print_num(<span class="c-num">32</span>, <span class="c-num">1</span>, best, <span class="c-num">6</span>, <span class="c-num">2</span>);
+<span class="ln"> 92</span>  play(<span class="c-num">2</span>, tune, <span class="c-num">10</span>, <span class="c-num">90</span>);
+<span class="ln"> 93</span> 
+<span class="ln"> 94</span>  <span class="c-kw">for</span> (;;) {
+<span class="ln"> 95</span>    wait_frame();
+<span class="ln"> 96</span>    <span class="c-kw">if</span> ((frame_count / <span class="c-num">30</span>) % <span class="c-num">2</span> == <span class="c-num">0</span>) print_ink(<span class="c-num">12</span>, <span class="c-num">18</span>, <span class="c-str">"APPUIE SUR START"</span>, <span class="c-num">6</span>);
+<span class="ln"> 97</span>    <span class="c-kw">else</span>                             print    (<span class="c-num">12</span>, <span class="c-num">18</span>, <span class="c-str">"                "</span>);
+<span class="ln"> 98</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">4</span>; i++)                <span class="c-com">// four stars dancing under the rules</span>
+<span class="ln"> 99</span>      sprite(<span class="c-cst">SPR_ITEM</span> + i, <span class="c-num">152</span> + (i - <span class="c-num">2</span>) * <span class="c-num">50</span> + <span class="c-num">25</span>, <span class="c-num">118</span> + ((frame_count / <span class="c-num">3</span> + i * <span class="c-num">3</span>) % <span class="c-num">8</span>), <span class="c-cst">STAR</span>);
+<span class="ln">100</span>    scroll_map(frame_count / <span class="c-num">2</span>, <span class="c-num">0</span>);
+<span class="ln">101</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">START</span>)) <span class="c-kw">break</span>;
+<span class="ln">102</span>  }
+<span class="ln">103</span>  stop(<span class="c-num">2</span>);
+<span class="ln">104</span>}
+<span class="ln">105</span> 
+<span class="ln">106</span><span class="c-kw">static</span> <span class="c-kw">void</span> game(<span class="c-kw">void</span>) {
+<span class="ln">107</span>  cls();
+<span class="ln">108</span>  hide_all();
+<span class="ln">109</span>  score = <span class="c-num">0</span>; lives = <span class="c-num">3</span>; explosion = <span class="c-num">0</span>;
+<span class="ln">110</span>  player_x = <span class="c-num">152</span>;
+<span class="ln">111</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">NUM_ITEMS</span>; i++) drop_item(&amp;items[i]);
+<span class="ln">112</span> 
+<span class="ln">113</span>  <span class="c-kw">while</span> (lives &gt; <span class="c-num">0</span>) {
+<span class="ln">114</span>    wait_frame();
+<span class="ln">115</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">LEFT</span>)  &amp;&amp; player_x &gt; <span class="c-num">4</span>)   player_x -= <span class="c-num">3</span>;
+<span class="ln">116</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">RIGHT</span>) &amp;&amp; player_x &lt; <span class="c-num">300</span>) player_x += <span class="c-num">3</span>;
+<span class="ln">117</span>    <span class="c-kw">if</span> (frame_count % <span class="c-num">8</span> == <span class="c-num">0</span>) quiet(<span class="c-num">1</span>);        <span class="c-com">// ends the "ding"</span>
+<span class="ln">118</span> 
+<span class="ln">119</span>    <span class="c-kw">if</span> (explosion &gt; <span class="c-num">0</span>) {
+<span class="ln">120</span>      explosion--;
+<span class="ln">121</span>      sprite(<span class="c-cst">SPR_PLAYER</span>, player_x, <span class="c-num">196</span>, <span class="c-cst">EXPLOSION</span>);
+<span class="ln">122</span>    } <span class="c-kw">else</span> {
+<span class="ln">123</span>      sprite(<span class="c-cst">SPR_PLAYER</span>, player_x, <span class="c-num">196</span>, <span class="c-cst">SHIP</span>);
+<span class="ln">124</span>      move_items();                            <span class="c-com">// the game pauses during the explosion</span>
+<span class="ln">125</span>    }
+<span class="ln">126</span>    <span class="c-kw">if</span> (score &gt; best) best = score;
+<span class="ln">127</span>    show_score();
+<span class="ln">128</span>    scroll_map(frame_count, <span class="c-num">0</span>);
+<span class="ln">129</span>  }
+<span class="ln">130</span>}
+<span class="ln">131</span> 
+<span class="ln">132</span><span class="c-kw">static</span> <span class="c-kw">void</span> game_over(<span class="c-kw">void</span>) {
+<span class="ln">133</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-cst">NUM_ITEMS</span>; i++) hide_sprite(<span class="c-cst">SPR_ITEM</span> + i);
+<span class="ln">134</span>  print_ink(<span class="c-num">12</span>, <span class="c-num">12</span>, <span class="c-str">"PARTIE TERMINEE"</span>, <span class="c-num">4</span>);
+<span class="ln">135</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> t = <span class="c-num">0</span>; t &lt; <span class="c-num">180</span>; t++) {              <span class="c-com">// 3 seconds, or START</span>
+<span class="ln">136</span>    wait_frame();
+<span class="ln">137</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">START</span>)) <span class="c-kw">break</span>;
+<span class="ln">138</span>  }
+<span class="ln">139</span>}
+<span class="ln">140</span> 
+<span class="ln">141</span><span class="c-kw">int</span> main(<span class="c-kw">void</span>) {
+<span class="ln">142</span>  init();                                      <span class="c-com">// loads sheet.png and landscape.png</span>
+<span class="ln">143</span>  background(<span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>);
+<span class="ln">144</span>  best = <span class="c-num">500</span>;
+<span class="ln">145</span>  <span class="c-kw">for</span> (;;) {
+<span class="ln">146</span>    title_screen();
+<span class="ln">147</span>    game();
+<span class="ln">148</span>    game_over();
+<span class="ln">149</span>  }
+<span class="ln">150</span>}</pre></div>
 <h2>Pour aller plus loin</h2>
 <p>Le jeu est à vous : modifiez-le ! Quelques idées, de la plus simple à la plus ambitieuse :</p>
 <ol><li>Changez les couleurs, la vitesse, le nombre de points par étoile.</li><li>Ajoutez un objet rare (le cœur, dessin 5) qui rend une vie.</li><li>Faites défiler le décor plus vite quand le score augmente.</li><li>Ajoutez une deuxième voix à la musique (une basse sur le canal 3).</li><li>Mode à plusieurs : jusqu'à quatre vaisseaux, un par manette (<code>held(2, LEFT)</code> pour le joueur 2…).</li><li>Ajoutez le tir : le bouton 1 lance un projectile qui détruit les bombes.</li></ol>
 <section class="chap-open c10"><div class="chap-num">10</div><div class="chap-band"></div><h1 id="ch10">Sous le capot</h1><p class="lead">La bibliothèque easy n'est qu'un raccourci : voici ce que la console sait faire d'autre.</p></section>
-<p>Toutes les fonctions de <code>easy</code> écrivent dans des <b>registres</b> : des adresses mémoire spéciales qui commandent les circuits de la console. <code>monocore.h</code> leur donne des noms. Vous pouvez les utiliser à côté de <code>easy</code>, à condition de respecter son rangement (plans 0 et 1, palettes 0 à 15, sprites 0 à 63) ou de ne pas l'utiliser du tout.</p>
+<p>Toutes les fonctions de <code>easy</code> écrivent dans des <b>registres</b> : des adresses mémoire spéciales qui commandent les circuits de la console. <code>monocore.h</code> leur donne des noms. Vous pouvez les utiliser à côté de <code>easy</code>, à condition de respecter son rangement (plans 0 et 1, palettes 0 à 15 : les 8 encres puis les 8 palettes de couleurs, sprites 0 à 63) ou de ne pas l'utiliser du tout.</p>
 <h2>Changer la taille de l'écran</h2>
 <div class="listing nonum"><pre><span class="c-cst">SCREEN_W</span> = <span class="c-num">256</span>;   <span class="c-com">// from 224 to 384 pixels wide</span>
 <span class="c-cst">SCREEN_H</span> = <span class="c-num">224</span>;   <span class="c-com">// from 192 to 288 lines</span></pre></div>
@@ -1349,11 +1332,11 @@ sources = main.c</pre></div>
 <h2>Pour aller plus loin</h2>
 <ol><li>Changez les dessins du vaisseau et des ennemis, ou les couleurs du ciel.</li><li>Ajoutez un bonus qui donne un tir double pendant quelques secondes.</li><li>Faites apparaître un « boss » : un grand sprite de 64 x 64 (8 x 8 cases) qui encaisse 30 tirs.</li><li>Remplacez les décors calculés par un paysage dessiné, converti avec <code>maps = …</code> dans <code>project.txt</code>.</li><li>Passez l'écran en 384 x 224 avec <code>mc_video_mode</code>, comme une borne d'arcade.</li></ol>
 <section class="chap-open c1"><div class="chap-num">A</div><div class="chap-band"></div><h1 id="chA">La bibliothèque easy</h1><p class="lead">Toutes les fonctions, d'un coup d'oeil, avec la traduction de leur nom.</p></section>
-<table class="ref"><thead><tr><th>Fonction</th><th>Traduction</th><th>Description</th></tr></thead><tbody><tr><td><code>init()</code></td><td>initialiser</td><td>prépare la console : à appeler une fois, au début</td></tr><tr><td><code>wait_frame()</code></td><td>attendre l'image</td><td>attend l'image suivante (1/60 de seconde), lit les manettes, fait avancer les mélodies</td></tr><tr><td><code>frame_count</code></td><td>nombre d'images</td><td>variable : images depuis le démarrage</td></tr><tr><td><code>random(n)</code></td><td>au hasard</td><td>nombre au hasard de 0 à n - 1</td></tr><tr><td><code>background(r, g, b)</code></td><td>fond</td><td>couleur du fond (rouge, vert, bleu de 0 à 255)</td></tr><tr><td><code>ink(n, r, g, b)</code></td><td>encre</td><td>couleur de l'encre de texte n (0 à 7)</td></tr><tr><td><code>load_palette(n, pal)</code></td><td>charger une palette</td><td>range une palette de 16 couleurs (fichier .pal) en palette n</td></tr><tr><td><code>cls()</code></td><td>effacer l'écran</td><td>efface tout le texte (de <i>CLear Screen</i>)</td></tr><tr><td><code>print(col, row, text)</code></td><td>imprimer</td><td>écrit en blanc, colonne <i>col</i>, ligne <i>row</i></td></tr><tr><td><code>print_ink(col, row, text, ink)</code></td><td>imprimer en couleur</td><td>écrit avec l'encre choisie</td></tr><tr><td><code>print_num(col, row, n, digits, ink)</code></td><td>imprimer un nombre</td><td>écrit un nombre sur <i>digits</i> chiffres, complété par des zéros</td></tr><tr><td><code>held(player, button)</code></td><td>tenu</td><td>vrai si le bouton du joueur (1 à 4) est enfoncé</td></tr><tr><td><code>pressed(player, button)</code></td><td>appuyé</td><td>vrai si le bouton du joueur (1 à 4) vient d'être enfoncé</td></tr><tr><td><code>load_sprites(chr, pal, palette)</code></td><td>charger les sprites</td><td>choisit la planche de sprites</td></tr><tr><td><code>sprite_size(size)</code></td><td>taille des sprites</td><td>16, 32 ou 64 : taille de tous les sprites</td></tr><tr><td><code>sprite(n, x, y, picture)</code></td><td>sprite</td><td>affiche le sprite n (0 à 63) avec le dessin <i>picture</i></td></tr><tr><td><code>hide_sprite(n)</code></td><td>cacher</td><td>cache le sprite n</td></tr><tr><td><code>flip_sprite(n, h, v)</code></td><td>retourner</td><td>retourne le sprite n</td></tr><tr><td><code>scale_sprite(n, percent)</code></td><td>mettre à l'échelle</td><td>agrandit ou réduit le sprite n</td></tr><tr><td><code>sprite_palette(n, palette)</code></td><td>palette du sprite</td><td>change la palette du sprite n</td></tr><tr><td><code>collide(x1, y1, x2, y2)</code></td><td>se heurter</td><td>vrai si deux sprites se touchent</td></tr><tr><td><code>load_map(chr, pal, map, w, h, palette)</code></td><td>charger le décor</td><td>installe un décor de w x h tuiles</td></tr><tr><td><code>scroll_map(x, y)</code></td><td>faire défiler</td><td>fait défiler le décor</td></tr><tr><td><code>tone(channel, freq, volume)</code></td><td>note</td><td>son carré sur un canal</td></tr><tr><td><code>noise(channel, volume)</code></td><td>bruit</td><td>bruit sur un canal</td></tr><tr><td><code>quiet(channel)</code></td><td>silence</td><td>fait taire un canal</td></tr><tr><td><code>play(channel, tune, frames, volume)</code></td><td>jouer</td><td>joue une mélodie en boucle</td></tr><tr><td><code>stop(channel)</code></td><td>arrêter</td><td>arrête la mélodie du canal</td></tr><tr><td><code>play_sample(voice, data, count, rate, volume)</code></td><td>jouer un échantillon</td><td>joue un son enregistré</td></tr></tbody></table>
+<table class="ref"><thead><tr><th>Fonction</th><th>Traduction</th><th>Description</th></tr></thead><tbody><tr><td><code>init()</code></td><td>initialiser</td><td>prépare la console : à appeler une fois, au début</td></tr><tr><td><code>wait_frame()</code></td><td>attendre l'image</td><td>attend l'image suivante (1/60 de seconde), lit les manettes, fait avancer les mélodies</td></tr><tr><td><code>frame_count</code></td><td>nombre d'images</td><td>variable : images depuis le démarrage</td></tr><tr><td><code>random(n)</code></td><td>au hasard</td><td>nombre au hasard de 0 à n - 1</td></tr><tr><td><code>background(r, g, b)</code></td><td>fond</td><td>couleur du fond (rouge, vert, bleu de 0 à 255)</td></tr><tr><td><code>ink(n, r, g, b)</code></td><td>encre</td><td>couleur de l'encre de texte n (0 à 7)</td></tr><tr><td><code>load_palette(n, pal)</code></td><td>charger une palette</td><td>range les couleurs d'une image en palette n (0 à 7), par exemple <code>load_palette(3, hero_pal)</code></td></tr><tr><td><code>cls()</code></td><td>effacer l'écran</td><td>efface tout le texte (de <i>CLear Screen</i>)</td></tr><tr><td><code>print(col, row, text)</code></td><td>imprimer</td><td>écrit en blanc, colonne <i>col</i>, ligne <i>row</i></td></tr><tr><td><code>print_ink(col, row, text, ink)</code></td><td>imprimer en couleur</td><td>écrit avec l'encre choisie</td></tr><tr><td><code>print_num(col, row, n, digits, ink)</code></td><td>imprimer un nombre</td><td>écrit un nombre sur <i>digits</i> chiffres, complété par des zéros</td></tr><tr><td><code>held(player, button)</code></td><td>tenu</td><td>vrai si le bouton du joueur (1 à 4) est enfoncé</td></tr><tr><td><code>pressed(player, button)</code></td><td>appuyé</td><td>vrai si le bouton du joueur (1 à 4) vient d'être enfoncé</td></tr><tr><td><code>sprite(n, x, y, picture)</code></td><td>sprite</td><td>affiche le sprite n (0 à 63) avec le dessin <i>picture</i></td></tr><tr><td><code>hide_sprite(n)</code></td><td>cacher</td><td>cache le sprite n</td></tr><tr><td><code>flip_sprite(n, h, v)</code></td><td>retourner</td><td>retourne le sprite n</td></tr><tr><td><code>scale_sprite(n, percent)</code></td><td>mettre à l'échelle</td><td>agrandit ou réduit le sprite n</td></tr><tr><td><code>sprite_palette(n, palette)</code></td><td>palette du sprite</td><td>change la palette du sprite n (-1 : celle de sa planche)</td></tr><tr><td><code>collide(a, b)</code></td><td>se heurter</td><td>vrai si les sprites a et b se touchent</td></tr><tr><td><code>load_map(map)</code></td><td>charger le décor</td><td>remplace le décor affiché par <code>init()</code></td></tr><tr><td><code>scroll_map(x, y)</code></td><td>faire défiler</td><td>fait défiler le décor</td></tr><tr><td><code>tone(channel, freq, volume)</code></td><td>note</td><td>son carré sur un canal</td></tr><tr><td><code>noise(channel, volume)</code></td><td>bruit</td><td>bruit sur un canal</td></tr><tr><td><code>quiet(channel)</code></td><td>silence</td><td>fait taire un canal</td></tr><tr><td><code>play(channel, tune, frames, volume)</code></td><td>jouer</td><td>joue une mélodie en boucle</td></tr><tr><td><code>stop(channel)</code></td><td>arrêter</td><td>arrête la mélodie du canal</td></tr><tr><td><code>play_sample(voice, sound, volume)</code></td><td>jouer un échantillon</td><td>joue un son enregistré</td></tr></tbody></table>
 <p>Boutons : <code>UP</code> (haut), <code>DOWN</code> (bas), <code>LEFT</code> (gauche), <code>RIGHT</code> (droite), <code>B1</code> à <code>B6</code>, <code>START</code>, <code>COIN</code> (pièce). Encres par défaut : 0 blanc, 1 jaune, 2 cyan, 3 vert, 4 rouge, 5 violet, 6 orange, 7 gris.</p>
 <h3>Le fichier project.txt</h3>
-<table class="ref"><thead><tr><th>Réglage</th><th>Contenu</th><th>Noms créés pour le programme</th></tr></thead><tbody><tr><td><code>name</code></td><td>nom du fichier produit (<code>build/name.mnc</code>)</td><td></td></tr><tr><td><code>title</code></td><td>titre inscrit dans la ROM</td><td></td></tr><tr><td><code>sources</code></td><td>fichiers C du programme</td><td></td></tr><tr><td><code>sprites</code></td><td>planches de sprites (PNG de 16, 32 ou 64 pixels de large)</td><td><code>x_chr</code> <code>x_pal</code></td></tr><tr><td><code>maps</code></td><td>décors (PNG, tuiles de 16 x 16)</td><td><code>x_chr</code> <code>x_pal</code> <code>x_map</code> <code>x_width</code> <code>x_height</code></td></tr><tr><td><code>sounds</code></td><td>sons (WAV)</td><td><code>x_data</code> <code>x_count</code> <code>x_rate</code></td></tr><tr><td><code>origin</code></td><td>origine inscrite dans la ROM (facultatif)</td><td></td></tr><tr><td><code>rotation</code></td><td>orientation de l'écran au démarrage : 0 à 3 quarts de tour (facultatif)</td><td></td></tr><tr><td><code>dip</code></td><td>DIP switches par défaut, par exemple <code>0x01</code> (facultatif)</td><td></td></tr></tbody></table>
-<p><code>x</code> est le nom du fichier sans son extension : <code>sheet.png</code> donne <code>sheet_chr</code> et <code>sheet_pal</code>.</p>
+<table class="ref"><thead><tr><th>Réglage</th><th>Contenu</th><th>Noms créés pour le programme</th></tr></thead><tbody><tr><td><code>name</code></td><td>nom du fichier produit (<code>build/name.mnc</code>)</td><td></td></tr><tr><td><code>title</code></td><td>titre inscrit dans la ROM</td><td></td></tr><tr><td><code>sources</code></td><td>fichiers C du programme</td><td></td></tr><tr><td><code>sprites</code></td><td>planches de sprites (PNG de 16, 32 ou 64 pixels de large)</td><td><code>x</code> : numéro de son premier dessin</td></tr><tr><td><code>maps</code></td><td>décors (PNG, tuiles de 16 x 16)</td><td><code>x</code> : le décor, pour <code>load_map</code></td></tr><tr><td><code>sounds</code></td><td>sons (WAV)</td><td><code>x</code> : le son, pour <code>play_sample</code></td></tr><tr><td><code>origin</code></td><td>origine inscrite dans la ROM (facultatif)</td><td></td></tr><tr><td><code>rotation</code></td><td>orientation de l'écran au démarrage : 0 à 3 quarts de tour (facultatif)</td><td></td></tr><tr><td><code>dip</code></td><td>DIP switches par défaut, par exemple <code>0x01</code> (facultatif)</td><td></td></tr></tbody></table>
+<p><code>x</code> est le nom du fichier sans son extension : <code>sheet.png</code> donne <code>sheet</code>. Les planches puis les décors reçoivent chacun une palette de couleurs, dans l'ordre de <code>project.txt</code> (0, 1, 2…). Les données brutes existent aussi sous les noms <code>x_chr</code>, <code>x_pal</code>, <code>x_map</code>, <code>x_data</code>… (utiles avec <code>load_palette</code> ou le SDK <b>mc</b>).</p>
 <section class="chap-open c2"><div class="chap-num">B</div><div class="chap-band"></div><h1 id="chB">Carte mémoire et registres</h1><p class="lead">Pour programmer la console directement (monocore.h).</p></section>
 <table class="ref"><thead><tr><th>Adresse</th><th>Taille</th><th>Contenu</th></tr></thead><tbody><tr><td><code>0x0000_0000</code></td><td>32 Mo max</td><td>ROM : programme, dessins, sons (lecture seule)</td></tr><tr><td><code>0x1000_0000</code></td><td>128 Ko</td><td>mémoire de travail : variables, pile</td></tr><tr><td><code>0x1800_0000</code></td><td>32 Ko</td><td>mémoire sauvegardée (scores, réglages)</td></tr><tr><td><code>0x2000_0000</code></td><td>4 Ko</td><td>registres vidéo</td></tr><tr><td><code>0x2001_0000</code></td><td>8 Ko</td><td>palette : 4096 couleurs RGB555</td></tr><tr><td><code>0x2002_0000</code></td><td>8 Ko</td><td>table des 512 sprites, 16 octets chacun</td></tr><tr><td><code>0x2004_0000</code></td><td>64 Ko</td><td>cartes des 4 plans, 16 Ko chacune</td></tr><tr><td><code>0x2008_0000</code></td><td>8 Ko</td><td>défilement par ligne des 4 plans</td></tr><tr><td><code>0x200C_0000</code></td><td>128 Ko</td><td>CHR RAM : dessins modifiables</td></tr><tr><td><code>0x3000_0000</code></td><td>4 Ko</td><td>registres son</td></tr><tr><td><code>0x4000_0000</code></td><td>4 Ko</td><td>manettes, interruptions, timers, DMA</td></tr></tbody></table>
 <h3>Vidéo</h3>
@@ -1365,7 +1348,7 @@ sources = main.c</pre></div>
 <section class="chap-open c3"><div class="chap-num">C</div><div class="chap-band"></div><h1 id="chC">Limites et dépannage</h1><p class="lead">Ce que la console ne peut pas faire, et que faire quand rien ne marche.</p></section>
 <table class=""><thead><tr><th>Limite</th><th>Valeur</th></tr></thead><tbody><tr><td>Sprites par ligne</td><td>64, et 1280 pixels de sprites</td></tr><tr><td>Couleurs</td><td>15 par planche ou par décor (4 bits par pixel), 255 en mode 8 bits</td></tr><tr><td>Décor</td><td>1024 x 1024 pixels (64 x 64 tuiles de 16)</td></tr><tr><td>Mémoire de travail</td><td>128 Ko pour les variables et la pile</td></tr><tr><td>ROM</td><td>32 Mo</td></tr><tr><td>Son</td><td>8 voix d'échantillons + 8 canaux de notes</td></tr></tbody></table>
 <h3>Messages et problèmes fréquents</h3>
-<table class=""><thead><tr><th>Symptôme</th><th>Cause probable et remède</th></tr></thead><tbody><tr><td><code>error: expected ';'</code></td><td>il manque un point-virgule à la fin de la ligne indiquée (ou de la précédente)</td></tr><tr><td><code>undefined symbol: sheet_chr</code></td><td>l'image n'est pas déclarée dans <code>project.txt</code>, ou porte un autre nom</td></tr><tr><td><code>ERROR: tool not found: clang</code></td><td>LLVM n'est pas installé ou pas dans le chemin (chapitre 2)</td></tr><tr><td><code>ERROR: no project.txt file</code></td><td>la commande n'est pas lancée dans le dossier du programme</td></tr><tr><td>écran noir</td><td><code>init()</code> oublié, ou le programme n'appelle jamais <code>wait_frame()</code></td></tr><tr><td>sprite invisible</td><td>planche non chargée, sprite hors de l'écran, ou plus de 64 sprites sur la ligne</td></tr><tr><td>couleurs bizarres</td><td>plus de 15 couleurs dans l'image : réduisez la palette</td></tr><tr><td>le jeu ralentit</td><td>trop de calculs par image : regardez la charge dans le moniteur</td></tr><tr><td>rien sur le MiSTer</td><td>barrette SDRAM absente, ou essayer l'option « Lecture SDRAM : Retardée »</td></tr></tbody></table>
+<table class=""><thead><tr><th>Symptôme</th><th>Cause probable et remède</th></tr></thead><tbody><tr><td><code>error: expected ';'</code></td><td>il manque un point-virgule à la fin de la ligne indiquée (ou de la précédente)</td></tr><tr><td><code>use of undeclared identifier 'sheet'</code></td><td>l'image n'est pas nommée dans <code>project.txt</code>, ou porte un autre nom</td></tr><tr><td><code>ERROR: … 8 at most</code></td><td>plus de 8 planches et décors : regroupez des dessins dans une même planche</td></tr><tr><td><code>ERROR: tool not found: clang</code></td><td>LLVM n'est pas installé ou pas dans le chemin (chapitre 2)</td></tr><tr><td><code>ERROR: no project.txt file</code></td><td>la commande n'est pas lancée dans le dossier du programme</td></tr><tr><td>écran noir</td><td><code>init()</code> oublié, ou le programme n'appelle jamais <code>wait_frame()</code></td></tr><tr><td>sprite invisible</td><td>numéro de dessin au-delà du dernier, sprite hors de l'écran, ou plus de 64 sprites sur la ligne</td></tr><tr><td>couleurs bizarres</td><td>plus de 15 couleurs dans l'image : réduisez la palette</td></tr><tr><td>le jeu ralentit</td><td>trop de calculs par image : regardez la charge dans le moniteur</td></tr><tr><td>rien sur le MiSTer</td><td>barrette SDRAM absente, ou essayer l'option « Lecture SDRAM : Retardée »</td></tr></tbody></table>
 <section class="chap-open c4"><div class="chap-num">D</div><div class="chap-band"></div><h1 id="chD">Le SDK mc</h1><p class="lead">Toutes les fonctions du SDK bas niveau, d'un coup d'oeil (mc.h).</p></section>
 <table class="ref"><thead><tr><th>Fonction</th><th>Description</th></tr></thead><tbody><tr><td><code>mc_init()</code></td><td>prépare la console : à appeler une fois, au début</td></tr><tr><td><code>mc_frame()</code></td><td>attend l'image suivante, envoie les sprites, lit les manettes, fait avancer les mélodies</td></tr><tr><td><code>mc_frames</code></td><td>variable : images depuis le démarrage</td></tr><tr><td><code>mc_cycles() / mc_micros()</code></td><td>temps écoulé, en cycles du processeur ou en microsecondes</td></tr><tr><td><code>mc_on_vblank(f)</code></td><td>appelle <i>f</i> au début de chaque pause verticale</td></tr><tr><td><code>mc_on_timer(t, hz, f)</code></td><td>appelle <i>f</i> <i>hz</i> fois par seconde (timer 0 ou 1)</td></tr><tr><td><code>mc_raster_add(ligne, f)</code></td><td>effet raster : <i>f</i> s'applique à partir de cette ligne (64 au plus)</td></tr><tr><td><code>mc_raster_line / mc_raster_clear()</code></td><td>ligne de l'effet en cours ; efface tous les effets</td></tr><tr><td><code>mc_video_mode(w, h)</code></td><td>taille de l'écran, de 224 à 384 x 192 à 288</td></tr><tr><td><code>mc_display(flags)</code></td><td>allume l'affichage, les plans et les sprites (<code>DISP_ON | DISP_LAYER(n) | DISP_SPRITES</code>)</td></tr><tr><td><code>mc_color(i, rgb) / MC_RGB(r, g, b)</code></td><td>change la couleur <i>i</i> (0 à 4095)</td></tr><tr><td><code>mc_palette(p, couleurs, n)</code></td><td>charge <i>n</i> couleurs à partir de la palette <i>p</i></td></tr><tr><td><code>mc_background(i)</code></td><td>choisit la couleur de fond</td></tr><tr><td><code>mc_layer(n, dessins, flags, w, h, prio)</code></td><td>règle le plan <i>n</i> : tuiles 8 ou 16, 4 ou 8 bits, taille de carte, priorité</td></tr><tr><td><code>mc_layer_scroll(n, x, y)</code></td><td>fait défiler le plan <i>n</i></td></tr><tr><td><code>mc_layer_linescroll(n, on) / mc_linescroll(n)</code></td><td>défilement ligne par ligne et sa table</td></tr><tr><td><code>mc_tile / mc_tilemap_fill / mc_tilemap_load</code></td><td>écrit une case, remplit ou charge la carte d'un plan</td></tr><tr><td><code>MC_TILE(tuile, palette, flags)</code></td><td>une case de carte, avec <code>T_HFLIP</code>, <code>T_VFLIP</code>, <code>T_PRIO</code></td></tr><tr><td><code>mc_chr_upload(décalage, source, octets)</code></td><td>copie des dessins dans la CHR RAM</td></tr><tr><td><code>MC_CHR(décalage)</code></td><td>adresse de dessins dans la CHR RAM, pour un plan ou les sprites</td></tr><tr><td><code>mc_sprite_sheet(dessins)</code></td><td>choisit la planche des sprites (ROM ou CHR RAM)</td></tr><tr><td><code>mc_sprite(n, x, y, case, w, h, pal, prio)</code></td><td>affiche le sprite <i>n</i> (0 à 511), taille en cases de 8 pixels</td></tr><tr><td><code>mc_sprite_zoom / mc_sprite_flip / mc_sprite_8bpp</code></td><td>agrandit, retourne, passe en 256 couleurs</td></tr><tr><td><code>mc_sprite_hide / mc_sprites_hide_all</code></td><td>cache un sprite, ou tous</td></tr><tr><td><code>mc_sprites_used(n)</code></td><td>nombre d'entrées parcourues par la console</td></tr><tr><td><code>mc_text_layer(n, prio) / mc_text / mc_text_clear</code></td><td>texte avec la police du SDK sur le plan <i>n</i></td></tr><tr><td><code>mc_psg(c, forme, hz, rapport, vol_g, vol_d)</code></td><td>note sur le canal <i>c</i> (<code>PSG_SQUARE</code>, <code>PSG_TRIANGLE</code>, <code>PSG_SAW</code>, <code>PSG_NOISE</code>)</td></tr><tr><td><code>mc_psg_volume / mc_psg_freq16</code></td><td>volume, fréquence en 1/16 de hertz</td></tr><tr><td><code>mc_pcm_play(v, données, n, format, hz, boucle, vol_g, vol_d)</code></td><td>joue un échantillon sur la voix <i>v</i></td></tr><tr><td><code>mc_pcm_stop / mc_pcm_pos / mc_master_volume</code></td><td>arrête une voix, sa position, volume général</td></tr><tr><td><code>mc_tune(c, notes, images, volume) / mc_tune_stop</code></td><td>mélodie en boucle, même écriture que <code>play</code> d'easy</td></tr><tr><td><code>mc_pad(j) / mc_pad_pressed(j) / mc_pad_released(j)</code></td><td>boutons tenus, enfoncés ou relâchés à cette image (joueur 1 à 4)</td></tr><tr><td><code>mc_sys() / mc_dip()</code></td><td>boutons système, DIP switches</td></tr><tr><td><code>mc_hw_version()</code></td><td>version du matériel : 2 et plus pour les joueurs 3 et 4, l'analogique et le clavier</td></tr><tr><td><code>mc_stick_x(j, s) / mc_stick_y(j, s)</code></td><td>stick <i>s</i> (0 gauche, 1 droit) du joueur <i>j</i>, de −127 à +127</td></tr><tr><td><code>mc_paddle(j) / mc_spinner(j) / mc_spinner_delta(j)</code></td><td>paddle (0 à 255), position du spinner, son déplacement depuis l'image précédente</td></tr><tr><td><code>mc_key(k) / mc_key_pressed(k) / mc_key_released(k)</code></td><td>touche <code>KEY_xxx</code> tenue, enfoncée ou relâchée à cette image</td></tr><tr><td><code>mc_key_event()</code></td><td>événement clavier suivant (0x200 appui, 0x100 touche étendue, + code), −1 s'il n'y en a plus</td></tr><tr><td><code>malloc / calloc / realloc / free</code></td><td>mémoire du tas ; <code>mc_heap_free()</code> donne ce qui reste</td></tr><tr><td><code>MC_NVRAM</code></td><td>32 Ko de mémoire sauvegardée</td></tr><tr><td><code>mc_copy / mc_fill</code></td><td>copie ou remplissage par DMA</td></tr><tr><td><code>fix16, FIX(x), fix_mul, fix_div</code></td><td>nombres à virgule fixe (16 bits après la virgule)</td></tr><tr><td><code>mc_sin / mc_cos / mc_atan2 / mc_isqrt</code></td><td>trigonométrie (1024 pas par tour) et racine carrée</td></tr><tr><td><code>mc_rand() / mc_srand(n)</code></td><td>nombres au hasard</td></tr><tr><td><code>mc_debug / printf / puts</code></td><td>écriture sur la console de debug du simulateur</td></tr></tbody></table>
 <h3>Le fichier project.txt</h3>
