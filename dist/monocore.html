@@ -1216,7 +1216,7 @@ v-&gt;ctrl = 1;                            // lance la voix
 <li><strong>Compiler en RV32IM</strong> (<code>-march=rv32im -mabi=ilp32</code>), sans extension C (instructions compressées) ni F (flottants). Pour des calculs fractionnaires, utilise la virgule fixe.</li>
 </ol>
 <h2>7. Aller plus loin : le SDK bas niveau « mc »</h2>
-<p>Ce guide accède au matériel par ses registres, et le manuel du programmeur utilise la bibliothèque <code>easy</code>, volontairement simple (un plan de texte, une carte, 64 sprites de 16 × 16). Entre les deux, le SDK <strong>mc</strong> donne accès à toute la console en C, sans assembleur, pour les jeux complexes et les portages. Il suffit d'ajouter une ligne dans <code>project.txt</code> :</p>
+<p>Ce guide accède au matériel par ses registres, et le manuel du programmeur utilise la bibliothèque <code>easy</code>, volontairement simple (un plan de texte, une carte, 64 sprites de 16 × 16, 32 × 32 ou 64 × 64). Entre les deux, le SDK <strong>mc</strong> donne accès à toute la console en C, sans assembleur, pour les jeux complexes et les portages. Il suffit d'ajouter une ligne dans <code>project.txt</code> :</p>
 <pre><code>library = mc
 </code></pre>
 <p>puis d'inclure <code>mc.h</code>. On obtient alors :</p>
