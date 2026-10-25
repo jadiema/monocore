@@ -1293,6 +1293,7 @@ void m68k_stop(m68k_t *c) { while (c->ipl <= (c->srh & 7)) wfi(); }
 int main(void) {
   __asm__ volatile("mv %0, sp" : "=r"(boot_sp));
   save_load();                                     // the settings and records kept
+  neo_skip_eye = 1;                                // no NEOGEO eye catcher (16 s): this game runs on the MONOCORE
   game_boot();
   return 0;
 }
