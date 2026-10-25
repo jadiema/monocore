@@ -1,4 +1,4 @@
-# AUBE : écran d'accueil de la MONOCORE-1, épuré, façon PlayStation, avec une musique orchestrale
+# AUBE : écran d'accueil de la MONOCORE-1 (monolithe au coucher du soleil), façon PlayStation, avec une musique orchestrale
 name    = aube
 title   = MONOCORE-1
 library = mc
