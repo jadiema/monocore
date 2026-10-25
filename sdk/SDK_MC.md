@@ -28,6 +28,9 @@ Les tableaux sont des `const uint8_t[]` (`const int8_t[]` pour les sons), les no
 La nouvelle clé `data = fichier.bin …` embarque des fichiers bruts dans la ROM (niveaux,
 musiques, données d'un jeu porté) : symboles `fichier_file` (données) et `fichier_size` (taille).
 
+La clé `modules = …` ajoute des modules facultatifs du SDK. Le premier est `mtrack`, le lecteur
+des morceaux du tracker MONOTRACKER (`#include "mtrack.h"`, documentation : `MTRACK.md`).
+
 ## Squelette
 
     #include "mc.h"
@@ -55,12 +58,13 @@ musiques, données d'un jeu porté) : symboles `fichier_file` (données) et `fic
 | Sprites | `mc_sprite`, `mc_sprite_zoom`, `mc_sprite_flip`, `mc_sprite_8bpp`, `mc_sprite_hide`, `mc_sprites_used` | 512 sprites de 8 × 8 à 256 × 256, table fantôme `mc_spr[]` en WRAM |
 | Texte | `mc_text_layer`, `mc_text`, `mc_text_clear` | police du SDK, pour les menus et le débogage |
 | Son | `mc_pcm_play`, `mc_pcm_stop`, `mc_pcm_pos`, `mc_psg`, `mc_psg_freq16`, `mc_psg_volume`, `mc_master_volume`, `mc_tune` | 8 voies PCM (8/16 bits, ADPCM) et 8 voies PSG |
+| Musique (module `mtrack`) | `mt_init`, `mt_play`, `mt_stop`, `mt_sfx`, `mt_reserve`, `mt_level`… | morceaux de MONOTRACKER : enveloppes, vibrato, arpèges et effets sur les 16 canaux (`MTRACK.md`) |
 | Entrées | `mc_pad`, `mc_pad_pressed`, `mc_pad_released`, `mc_sys`, `mc_dip`, `mc_hw_version` | 4 manettes (joueurs 1 à 4) |
 | Analogique | `mc_stick_x`, `mc_stick_y`, `mc_paddle`, `mc_spinner`, `mc_spinner_delta` | sticks gauche et droit de −127 à +127, paddle 0-255, spinner en position 16 bits |
 | Clavier | `mc_key`, `mc_key_pressed`, `mc_key_released`, `mc_key_event` | codes PS/2 `KEY_xxx` de `monocore.h`, état des 256 touches et file de 16 événements |
 | Mémoire | `malloc`, `calloc`, `realloc`, `free`, `mc_heap_free`, `mc_copy`, `mc_fill`, `MC_NVRAM` | tas d'environ 100 Ko entre les variables et la pile (16 Ko) |
 | Maths | `fix16`, `fix_mul`, `fix_div`, `mc_sin`, `mc_cos`, `mc_atan2`, `mc_isqrt`, `mc_rand` | virgule fixe 16.16, angles sur 1024 pas |
-| Débogage | `mc_debug`, `printf`, `puts`, `assert` | sortie sur `DEBUG_OUT`, affichée par le simulateur |
+| Débogage | `mc_debug`, `printf`, `puts`, `assert` | sortie sur `DEBUG_OUT`, affichée par le simulateur ; `printf` accepte `%d %u %x %s %c %p`, la largeur, `0`, `-`, `+` et `%.Ns` |
 
 ## Règles matérielles à connaître pour un portage
 
@@ -105,10 +109,13 @@ affiche tout ce que la console reçoit).
 | `examples/boot` | l'écran d'accueil de la console (`boot.rom`) : barres copper par défilement ligne par ligne, logo en un seul sprite de 256 × 40, ciel raster, texte défilant en sprites zoomés |
 | `examples/horizon` | course en fausse 3D (style OutRun) : une texture de route de 120 lignes, choisie (`dy`) et décalée (`dx`) ligne par ligne pour la largeur, les bandes et les virages ; objets zoomés selon leur distance et triés avec `qsort` |
 | `examples/nebula` | shoot'em up complet ; tous les graphismes sont produits au démarrage dans la CHR RAM (sprites en « ASCII art », décors procéduraux découpés en tuiles avec partage des tuiles identiques), parallaxe, sol en perspective, 233 sprites, tirs visés avec `mc_atan2` |
+| `examples/tracker` | MONOTRACKER, tracker de musique au clavier : 16 pistes, page d'édition des sons, sauvegarde en NVRAM, motifs rangés dans la CHR RAM |
+| `examples/test_mtrack` | le module `mtrack` comme dans un jeu : un morceau, deux bruitages, pause |
 | `examples/virusmeadow` | pong-casse-briques coopératif à 4 joueurs : écran d'accueil en image 8 bpp (`maps8`) avec fondu par la palette, prairie procédurale, virus sur un plan de tuiles, joueurs console pour les places libres, manettes, sticks, spinners et paddles |
 
 ## Fichiers
 
 - `mc.h`, `mc.c` : le SDK ;
 - `libc.c` et `libc/` : la petite bibliothèque C standard ;
-- `build.py` : clés `library = mc` et `data = …` ajoutées ; les projets existants (easy) ne changent pas.
+- `mtrack.h`, `mtrack.c`, `MTRACK.md` : le module de musique (`modules = mtrack`) ;
+- `build.py` : clés `library = mc`, `data = …` et `modules = …` ajoutées ; les projets existants (easy) ne changent pas.

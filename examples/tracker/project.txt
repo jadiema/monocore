@@ -1,0 +1,7 @@
+# MONOTRACKER: music tracker for MONOCORE-1, played with the keyboard (16 tracks: 8 PSG, 8 PCM)
+name    = monotracker
+title   = MONOTRACKER
+library = mc
+modules = mtrack
+sources = main.c
+data    = mtbank.bin demo.mts

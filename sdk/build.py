@@ -18,6 +18,7 @@ project.txt (one setting per line, # starts a comment):
     maps8   = title.png             256-colour maps (8 bpp, 16 x 16 tiles)
     data    = level1.dat music.bin  raw files, embedded as is   -> level1_file, level1_size
     library = mc                    "easy" (default) or "mc", the low-level SDK (mc.h, libc)
+    modules = mtrack                extra SDK modules (mc only): mtrack = music player (mtrack.h)
 
 The SDK font is always included. The names above are declared in build/assets.h, which every
 C file of the program includes by itself. With easy, init() loads the sprite sheets and the first
@@ -58,6 +59,7 @@ OBJCOPY = tool('llvm-objcopy', 'llvm-objcopy-18', 'llvm-objcopy-17', 'llvm-objco
 ARCH = ['--target=riscv32', '-march=rv32im', '-mabi=ilp32', '-mno-relax']
 LIBRARY = conf.get('library', 'easy')
 if LIBRARY not in ('easy', 'mc'): fail('library = easy ou mc')
+if conf.get('modules') and LIBRARY != 'mc': fail('modules = ... needs library = mc')
 CFLAGS = ARCH + ['-O2', '-ffreestanding', '-fno-builtin', '-nostdlib', '-Wall', '-I' + SDK]
 if LIBRARY == 'mc': CFLAGS += ['-I' + os.path.join(SDK, 'libc')]
 PCFLAGS = CFLAGS + conf.get('cflags', '').split()   # the C files of the program get the extra options
@@ -171,6 +173,9 @@ if LIBRARY == 'easy':
 else:
     cc(os.path.join(SDK, 'mc.c'), 'build/mc.o', CFLAGS)
     cc(os.path.join(SDK, 'libc.c'), 'build/libc.o', CFLAGS)
+    for m in conf.get('modules', '').split():
+        if not os.path.exists(os.path.join(SDK, m + '.c')): fail('SDK module %s not found' % m)
+        cc(os.path.join(SDK, m + '.c'), 'build/sdk_%s.o' % m, CFLAGS)
 cc('build/data.S', 'build/data.o', ARCH)
 for s in sources:
     cc(s, 'build/%s.o' % ident(s), PCFLAGS)

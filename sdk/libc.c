@@ -154,9 +154,10 @@ int vsnprintf(char *buf, size_t size, const char *f, va_list ap) {
   for (; *f; f++) {
     if (*f != '%') { out(buf, size, &pos, *f); continue; }
     f++;
-    int zero = 0, left = 0, width = 0, lng = 0;
-    for (;; f++) { if (*f == '0') zero = 1; else if (*f == '-') left = 1; else break; }
+    int zero = 0, left = 0, width = 0, lng = 0, plus = 0, prec = -1;
+    for (;; f++) { if (*f == '0') zero = 1; else if (*f == '-') left = 1; else if (*f == '+') plus = 1; else break; }
     while (isdigit(*f)) width = width * 10 + (*f++ - '0');
+    if (*f == '.') { f++; prec = 0; while (isdigit(*f)) prec = prec * 10 + (*f++ - '0'); }
     while (*f == 'l') { lng++; f++; }
     char tmp[24]; const char *s = tmp; int len = 0, neg = 0;
     switch (*f) {
@@ -174,14 +175,17 @@ int vsnprintf(char *buf, size_t size, const char *f, va_list ap) {
       if (*f == 'p') { tmp[len++] = 'x'; tmp[len++] = '0'; }
       break; }
     case 'c': tmp[len++] = (char)va_arg(ap, int); break;
-    case 's': s = va_arg(ap, const char *); if (!s) s = "(null)"; len = (int)strlen(s); break;
+    case 's': s = va_arg(ap, const char *); if (!s) s = "(null)";
+      while (s[len] && (prec < 0 || len < prec)) len++;     // %.Ns: at most N characters
+      break;
     case '%': tmp[len++] = '%'; break;
     default: tmp[len++] = '?'; break;
     }
     int rev = *f != 's';
-    int total = len + neg;
+    char sign = neg ? '-' : (plus && (*f == 'd' || *f == 'i')) ? '+' : 0;
+    int total = len + (sign != 0);
     if (!left && !zero) for (int i = total; i < width; i++) out(buf, size, &pos, ' ');
-    if (neg) out(buf, size, &pos, '-');
+    if (sign) out(buf, size, &pos, sign);
     if (!left && zero) for (int i = total; i < width; i++) out(buf, size, &pos, '0');
     for (int i = 0; i < len; i++) out(buf, size, &pos, rev ? s[len - 1 - i] : s[i]);
     if (left) for (int i = total; i < width; i++) out(buf, size, &pos, ' ');

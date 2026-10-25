@@ -18,11 +18,14 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 | `examples/aube/` | AUBE, l'écran d'accueil actuel (`boot.rom`) : animation de palette et musique orchestrale synthétisée |
 | `examples/aigle/` | portage de L'Aigle d'Or (MO5, 1985) : BASIC traduit à la main, code 6809 traduit automatiquement (`tools/recomp6809.py`) ; données tirées de sa propre copie |
 | `examples/pbobble2/` | portage de Puzzle Bobble 2 / Bust-A-Move Again (Neo Geo, Taito 1995) : code 68000 traduit par `tools/recomp68k`, runtime Neo Geo, couche MONOCORE ; jouable, muet pour l'instant ; données tirées de sa propre copie |
+| `examples/tracker/` | MONOTRACKER, un tracker de musique qui se joue au clavier : 16 pistes (8 PSG, 8 PCM), édition des sons, morceaux en NVRAM, exportés pour les jeux (`sdk/MTRACK.md`) |
+| `examples/test_mtrack/` | le lecteur de musique `mtrack` dans un jeu : morceau et bruitages |
 | `examples/test_inputs/` | affiche toutes les entrées (manettes, sticks, paddles, spinners, clavier) |
 | `examples/test_sdk/` | test du SDK `mc` (raster, timers, `malloc`, `printf`) |
 | `tools/run.js` | exécution sans écran : captures et enregistrement du son, pour les tests automatiques |
 | `tools/isatest/` | auto-test du jeu d'instructions (même source compilée en natif et en RV32IM) |
 | `tools/recomp68k/` | traducteur statique 68000 → C → RV32IM, validé contre Musashi par un banc différentiel, voir son `LISEZMOI.md` |
+| `tools/mtrack/` | outils du tracker : banque d'échantillons (`make_bank.py`), morceau de démo (`make_demo.py`), export des morceaux depuis le `.sav` (`sav2song.py`) |
 | `tools/cart/` | `cart_split.py` : découpe une ROM en images pour une ou deux Flash SPI W25Q64 (cartouche sur le port USER) |
 | `rtl/` | le core FPGA en Verilog (CPU, mémoires, E/S, DMA, rendu vidéo, son) et ses bancs de test Verilator |
 | `quartus_trial/` | essai de compilation du core seul dans Quartus (ressources, fréquence maximale), voir son `LISEZMOI.md` |

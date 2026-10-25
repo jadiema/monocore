@@ -1,0 +1,7 @@
+# Test of the mtrack module (music player of MONOTRACKER) as a game uses it: a song, sound effects
+name    = test_mtrack
+title   = TEST MTRACK
+library = mc
+modules = mtrack
+sources = main.c
+data    = ../tracker/mtbank.bin ../tracker/demo.mts

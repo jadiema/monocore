@@ -7,6 +7,7 @@
 !examples/test_inputs/build/inputs.mnc
 !examples/aube/build/aube.mnc
 !examples/virusmeadow/build/virusmeadow.mnc
+!examples/tracker/build/monotracker.mnc
 *.o
 *.elf
 __pycache__/
