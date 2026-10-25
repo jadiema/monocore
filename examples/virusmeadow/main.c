@@ -69,6 +69,7 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, always added by buil
 #define PAL_FOG     38
 #define PAL_CROW    39
 #define PAL_VMUT    40                     // 40-43: virus cells immune to J1-J4 (MUTANT mode)
+#define PAL_INTRO   44                     // 44-45: the two texts of the start-up sequence
 #define BG_ENTRY    4095
 
 #define S_BALL     0
@@ -354,15 +355,19 @@ static void virus_colours(uint32_t t) {          // pulsing virus, every frame
       set_rgb(PAL_VIRUS, s * 4 + i + 1, clampi(c[s][i][0] + add, 0, 255), clampi(c[s][i][1] + add / 2, 0, 255),
               clampi(c[s][i][2] + add, 0, 255));
     }
-  // MUTANT mode: the same cells, with the rim and the nucleus in the colour of the player whose
-  // puck cannot harm them
+  // MUTANT mode: the cell takes the exact colour of the paddle (and puck) that cannot harm it -
+  // body in the paddle colour, its light and dark bevels - and keeps a virus nucleus, whose shape
+  // and darkness tell the strength
+  static const uint8_t nucleus[3][3] = {{235, 120, 245}, {170, 30, 190}, {80, 0, 100}};
   for (int p = 0; p < 4; p++) {
-    for (int i = 1; i < 16; i++) PALETTE[(PAL_VMUT + p) * 16 + i] = PALETTE[PAL_VIRUS * 16 + i];
     const uint8_t *q = player_rgb[p];
     for (int st = 0; st < 3; st++) {
-      int dim = 150 - st * 35;                   // darker rim on stronger cells
-      set_rgb(PAL_VMUT + p, st * 4 + 1, q[0] * dim / 256, q[1] * dim / 256, q[2] * dim / 256);
-      set_rgb(PAL_VMUT + p, st * 4 + 3, clampi(q[0] + 30 + k, 0, 255), clampi(q[1] + 30 + k, 0, 255), clampi(q[2] + 30 + k, 0, 255));
+      set_rgb(PAL_VMUT + p, st * 4 + 4, (q[0] + 255) / 2, (q[1] + 255) / 2, (q[2] + 255) / 2);   // light bevel
+      set_rgb(PAL_VMUT + p, st * 4 + 2, q[0], q[1], q[2]);                                       // body
+      set_rgb(PAL_VMUT + p, st * 4 + 1, q[0] * 2 / 5, q[1] * 2 / 5, q[2] * 2 / 5);               // dark bevel
+      int g = st == 0 ? k / 2 : k;                                                               // pulsing nucleus
+      set_rgb(PAL_VMUT + p, st * 4 + 3, clampi(nucleus[st][0] + g - 16, 0, 255), clampi(nucleus[st][1] + g / 2 - 8, 0, 255),
+              clampi(nucleus[st][2] + g - 16, 0, 255));
     }
   }
 }
@@ -1114,20 +1119,72 @@ static void game_over(int why) {
   panel_clear();
 }
 
+// ---------------------------------------------------------------- start-up sequence
+// 1. "LA PRAIRIE DU VIRUS POUSSE..." (at least 3 s, while the graphics are made),
+// 2. cross-fade to "UN SEUL ESPOIR POUR LIMITER LA MALADIE" (text on layer 2, for the overlap),
+// 3. then the title picture, when the music starts.
+static void intro_ink(int pal, int r, int g, int b, int k) {    // font colours of pal, faded (k = 0..256)
+  for (int i = 0; i < 16; i++) PALETTE[pal * 16 + i] = PALETTE[i];
+  set_rgb(pal, font_white, r * k / 256, g * k / 256, b * k / 256);
+  for (int i = 1; i < 16; i++) if (i != font_white) set_rgb(pal, i, 0, 0, 0);
+}
+static void intro_wait(int frames, void (*step)(int)) { for (int f = 0; f < frames; f++) { mc_frame(); if (step) step(f); } }
+static int intro_frames;
+static void ink1_in(int f) { intro_ink(PAL_INTRO, 150, 200, 120, (f + 1) * 256 / 50); }
+static void dots(int f) {
+  static const char *const d[4] = {"   ", ".  ", ".. ", "..."};
+  text(34, 15, d[((intro_frames + f) / 20) & 3], PAL_INTRO);
+}
+static void crossfade(int f) {
+  int k = (f + 1) * 256 / 90;
+  intro_ink(PAL_INTRO, 150, 200, 120, 256 - k);
+  intro_ink(PAL_INTRO + 1, 225, 215, 195, k);
+  set_rgb(PAL_INTRO + 1, font_white, 225 * k / 256, 215 * k / 256, 195 * k / 256);
+}
+static void ink2_out(int f) { intro_ink(PAL_INTRO + 1, 225, 215, 195, 256 - (f + 1) * 256 / 60); }
+
+static void intro_start(void) {
+  mc_color(BG_ENTRY, 0);
+  intro_ink(PAL_INTRO, 0, 0, 0, 0);
+  text(8, 15, "LA PRAIRIE DU VIRUS POUSSE", PAL_INTRO);
+  mc_display(DISP_ON | DISP_LAYER(0));
+  intro_wait(50, ink1_in);
+}
+static void intro_end(void) {
+  uint32_t shown = mc_frames;
+  int left = 200 - (int)shown;                   // the first screen stays at least 3 s
+  intro_frames = (int)shown;
+  intro_wait(left > 30 ? left : 30, dots);
+  // the second text on layer 2 (the virus layer, still empty), so both texts can overlap
+  mc_layer(2, font_chr, MC_TILE8 | MC_4BPP, 64, 64, 3);
+  mc_tilemap_fill(2, 0);
+  mc_layer_scroll(2, 0, 0);
+  intro_ink(PAL_INTRO + 1, 0, 0, 0, 0);
+  mc_text(2, 15, 14, "UN SEUL ESPOIR", PAL_INTRO + 1);
+  mc_text(2, 11, 17, "POUR LIMITER LA MALADIE", PAL_INTRO + 1);
+  mc_display(DISP_ON | DISP_LAYER(0) | DISP_LAYER(2));
+  intro_wait(90, crossfade);
+  text_clear();
+  intro_wait(200, NULL);
+  intro_wait(60, ink2_out);
+  intro_wait(20, NULL);
+  make_virus_tiles();                            // layer 2 back to the virus
+  mc_layer_scroll(2, (-AX) & 511, (-AY) & 511);
+  set_mood(0, false);                            // background colour of the meadow
+}
+
 int main(void) {
   mc_init();
   mc_video_mode(SCR_W, SCR_H);
   mc_text_layer(0, 3);
   make_palettes();
   mc_background(BG_ENTRY);
-  text_center(16, "LA PRAIRIE POUSSE...", PAL_HUD + 3);
-  mc_display(DISP_ON | DISP_LAYER(0));
+  intro_start();
   make_sprites();
-  make_virus_tiles();
   make_panel_tiles();
   make_atmosphere();
   build_meadow();
-  mc_layer_scroll(2, (-AX) & 511, (-AY) & 511);
+  intro_end();
   mc_sprites_hide_all();
   mc_sprites_used(S_USED);
   for (int s = 0; s < 4; s++) seat[s].prev_paddle = -1;

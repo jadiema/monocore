@@ -14,13 +14,20 @@ niveau de résistance à chaque coup et font rebondir le palet.
 ## Mode MUTANT
 
 À l'écran de sélection, un joueur inscrit change de mode avec le bouton 2 ou gauche / droite.
-En mode MUTANT, chaque cellule du virus résiste à une couleur : son contour et son noyau prennent la
-couleur d'un joueur, et le palet de cette couleur (celle du dernier joueur qui l'a touché) rebondit
-dessus sans l'abîmer. Les colonies naissent en quatre plaques de couleur ; une nouvelle cellule
+En mode MUTANT, chaque cellule du virus résiste à une couleur : elle prend exactement la couleur
+d'une raquette (seul son noyau reste celui du virus et montre sa résistance), et le palet de cette
+couleur (celle du dernier joueur qui l'a touché) rebondit dessus sans l'abîmer. Les colonies naissent en quatre plaques de couleur ; une nouvelle cellule
 garde l'immunité de celle qui l'a produite, sauf mutation (une fois sur dix). Il faut donc se
 passer le palet pour attaquer chaque plaque avec la bonne couleur. Chaque mode a son record.
 
 ![VIRUS MEADOW : écran d'accueil et partie](apercu.png)
+
+## Démarrage
+
+« LA PRAIRIE DU VIRUS POUSSE... » (au moins 3 s, le temps de produire les graphismes), puis un
+fondu enchaîné vers « UN SEUL ESPOIR POUR LIMITER LA MALADIE » (le second texte est écrit sur le
+plan 2, encore vide, pour que les deux textes se superposent), puis l'écran d'accueil, où la
+musique démarre.
 
 ## Ambiance
 
