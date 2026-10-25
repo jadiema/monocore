@@ -4,3 +4,4 @@ title   = VIRUS MEADOW
 library = mc
 sources = main.c
 maps8   = title.png
+data    = music_l.raw music_r.raw

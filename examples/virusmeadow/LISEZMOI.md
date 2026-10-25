@@ -13,10 +13,25 @@ niveau de résistance à chaque coup et font rebondir le palet.
 
 ![VIRUS MEADOW : écran d'accueil et partie](apercu.png)
 
+## Ambiance
+
+Le nom vient de *Virus Meadow*, de And Also The Trees (1986) : la campagne anglaise, grise et
+humide, vue par le post-punk. Le jeu en reprend l'atmosphère, sans rien emprunter à la chanson :
+
+- la lumière baisse de niveau en niveau : après-midi couvert, crépuscule, nuit au clair de lune
+  (puis le cycle recommence), avec un fondu pendant l'annonce du niveau ; seul le virus reste vif ;
+- des bancs de brume dérivent sur la prairie (sprites tramés, qui laissent voir le jeu au travers) ;
+- de temps en temps, un vol de corbeaux traverse le ciel, avec un croassement lointain ;
+- la musique est une boucle originale de 48 s (`make_music.py`) : guitare claire en arpèges qui
+  sonnent, mélodie jouée en trémolo, basse mélodique, toms roulants, orgue en bourdon et vent, le
+  tout dans une grande réverbération. Elle est rendue deux fois et la seconde passe est gardée,
+  pour que la boucle n'ait pas de raccord.
+
 ## Compiler et jouer
 
 ```sh
 cd examples/virusmeadow
+python3 make_music.py               # -> music_l.raw, music_r.raw (numpy, scipy)
 python3 ../../sdk/build.py .        # -> build/virusmeadow.mnc
 ```
 
@@ -37,6 +52,9 @@ l'écran d'accueil, une démonstration à quatre joueurs console se lance. Le re
 | Encarts sombres derrière le texte, sur un plan dédié | `panel` | `mc_layer` (plan 3) |
 | Quatre joueurs, entrées numériques et analogiques | `control_human` | `mc_pad`, `mc_stick_x/y`, `mc_spinner_delta`, `mc_paddle` |
 | Joueurs console | `control_ai` | — |
+| Lumière par niveau (fondu entre deux palettes) | `meadow_light`, `set_mood` | `mc_color` |
+| Brume en tramage ordonné, corbeaux | `make_atmosphere`, `atmosphere` | `mc_sprite`, `mc_sprite_flip` |
+| Musique en boucle sur deux voix PCM 16 bits | `music_play` | `mc_pcm_play` |
 
 L'image d'accueil (`title.png`) est tirée d'une jaquette générée par IA, recomposée en 368 × 272 et
 réduite à 255 couleurs.

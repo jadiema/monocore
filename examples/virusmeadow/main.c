@@ -32,6 +32,9 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, always added by buil
 #define PAD_IN    4                        // paddle distance from the arena edge
 #define PAD_MIN   (POST << 8)
 #define PAD_MAX   ((AW - POST - PAD_LEN) << 8)
+#ifndef START_LEVEL
+#define START_LEVEL 1                    // first level (test builds: cflags = -DSTART_LEVEL=n)
+#endif
 #define AI_ERR    12                       // aiming error of the console players, pixels
 #define BALL_R    3                        // ball box: [x - 3, x + 3)
 #define FP        8                        // 8.8 fixed point
@@ -43,6 +46,8 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, always added by buil
 #define CHR_FONT   0x2000
 #define CHR_PANEL  0x3000
 #define CHR_BG     0x4000
+#define CHR_FOG    0x10000                 // 2 mist pictures of 128 x 64 (16 x 8 cells each)
+#define CHR_CROW   0x12000                 // crow, 2 frames of 16 x 8
 #define BG_TILES   1500
 #define CHR(off)   MC_CHR(off)
 
@@ -61,6 +66,8 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, always added by buil
 #define PAL_FX      25
 #define PAL_LETTER  26                     // 26-36
 #define PAL_PANEL   37
+#define PAL_FOG     38
+#define PAL_CROW    39
 #define BG_ENTRY    4095
 
 #define S_BALL     0
@@ -68,7 +75,11 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, always added by buil
 #define S_PAD      2                       // 2-5
 #define S_FX       8
 #define N_FX       64
-#define S_USED     (S_FX + N_FX)
+#define S_CROW     (S_FX + N_FX)              // crows, then mist (behind everything else)
+#define N_CROW     5
+#define S_FOG      (S_CROW + N_CROW)
+#define N_FOG      4
+#define S_USED     (S_FOG + N_FOG)
 
 // ---------------------------------------------------------------- small helpers
 static uint32_t hash2(int x, int y) {
@@ -278,13 +289,38 @@ static void ramp(int pal, int r, int g, int b) {        // 1 dark .. 4 highlight
   set_rgb(pal, 5, (r + 3 * 255) / 4, (g + 3 * 255) / 4, (b + 3 * 255) / 4);
 }
 
+// ---------------------------------------------------------------- light over the meadow
+// Three moods, one per level in turn: grey overcast afternoon, dusk, moonlit night.
+// Colours of PAL_BG (1-15), then the background entry, the mist (2 colours) and the crows.
+#define MOODS 3
+#define MOOD_COLOURS 19
+static const uint8_t mood_rgb[MOODS][MOOD_COLOURS][3] = {
+  {{40, 70, 45}, {58, 90, 58}, {78, 108, 70}, {104, 128, 86}, {196, 196, 186}, {186, 170, 96},
+   {124, 138, 170}, {45, 38, 32}, {66, 56, 46}, {80, 84, 92}, {126, 129, 136}, {104, 86, 62},
+   {156, 58, 46}, {190, 186, 170}, {58, 74, 64}, {16, 20, 20}, {170, 178, 180}, {130, 138, 142}, {22, 22, 26}},
+  {{38, 50, 45}, {56, 64, 56}, {74, 78, 62}, {98, 92, 72}, {196, 166, 152}, {190, 142, 80},
+   {112, 102, 152}, {40, 30, 32}, {60, 46, 44}, {76, 68, 82}, {122, 106, 116}, {98, 72, 56},
+   {156, 52, 52}, {184, 162, 150}, {62, 54, 64}, {18, 14, 22}, {176, 150, 160}, {130, 108, 128}, {16, 12, 18}},
+  {{20, 32, 40}, {28, 44, 52}, {38, 56, 62}, {56, 76, 84}, {152, 168, 192}, {122, 128, 112},
+   {92, 106, 152}, {22, 22, 30}, {32, 32, 42}, {52, 58, 72}, {90, 98, 114}, {62, 58, 62},
+   {112, 40, 52}, {132, 138, 152}, {36, 44, 58}, {6, 8, 14}, {120, 140, 170}, {82, 98, 128}, {8, 8, 12}}};
+static int mood_now = 0;
+
+static int mix8(int a, int b, int k) { return a + (b - a) * k / 256; }
+// sets the colours between mood a and mood b (k = 0..256)
+static void meadow_light(int a, int b, int k) {
+  for (int i = 0; i < MOOD_COLOURS; i++) {
+    int r = mix8(mood_rgb[a][i][0], mood_rgb[b][i][0], k), g = mix8(mood_rgb[a][i][1], mood_rgb[b][i][1], k);
+    int bl = mix8(mood_rgb[a][i][2], mood_rgb[b][i][2], k);
+    if (i < 15) set_rgb(PAL_BG, i + 1, r, g, bl);
+    else if (i == 15) mc_color(BG_ENTRY, MC_RGB(r, g, bl));
+    else if (i < 18) set_rgb(PAL_FOG, i - 15, r, g, bl);
+    else set_rgb(PAL_CROW, 1, r, g, bl);
+  }
+}
+
 static void make_palettes(void) {
-  static const uint8_t bg[16][3] = {
-    {0, 0, 0}, {34, 92, 40}, {52, 124, 48}, {78, 156, 60}, {130, 200, 84}, {245, 245, 235},
-    {250, 210, 60}, {130, 170, 255}, {58, 40, 28}, {92, 66, 42}, {92, 94, 106}, {150, 152, 164},
-    {150, 110, 60}, {230, 60, 40}, {240, 225, 200}, {70, 110, 80}};
-  for (int i = 1; i < 16; i++) set_rgb(PAL_BG, i, bg[i][0], bg[i][1], bg[i][2]);
-  mc_color(BG_ENTRY, MC_RGB(14, 24, 18));
+  meadow_light(0, 0, 256);
   for (int p = 0; p < 4; p++) ramp(PAL_PLAYER + p, player_rgb[p][0], player_rgb[p][1], player_rgb[p][2]);
   ramp(PAL_NEUTRAL, 200, 200, 210);
   set_rgb(PAL_FX, 1, 255, 230, 255); set_rgb(PAL_FX, 2, 220, 80, 230);
@@ -306,7 +342,7 @@ static void make_palettes(void) {
 }
 
 static void virus_colours(uint32_t t) {          // pulsing virus, every frame
-  int k = (mc_sin((int)t * 12) + 65536) >> 12;   // 0..32
+  int k = (mc_sin((int)t * 6) + 65536) >> 12;    // 0..32, a slow breathing
   static const int16_t c[3][4][3] = {
     {{170, 90, 200}, {230, 160, 240}, {255, 215, 255}, {255, 255, 255}},
     {{120, 30, 150}, {180, 60, 200}, {235, 110, 240}, {255, 220, 255}},
@@ -324,31 +360,31 @@ static void text_center(int row, const char *s, int pal) { text((45 - (int)strle
 static void text_clear(void) { mc_text_clear(0); }
 
 // ---------------------------------------------------------------- sound
-static int sfx_pad, sfx_pad_f, sfx_break, sfx_hit, sfx_hit_f, sfx_alarm, sfx_miss, sfx_grow;
+static int sfx_caw, sfx_pad, sfx_pad_f, sfx_break, sfx_hit, sfx_hit_f, sfx_alarm, sfx_miss, sfx_grow;
 
 static void sfx_update(void) {
-  if (sfx_pad > 0) { sfx_pad--; mc_psg(2, PSG_SQUARE, (uint32_t)sfx_pad_f, 64, sfx_pad * 14, sfx_pad * 14); }
-  if (sfx_break > 0) { sfx_break -= 10; if (sfx_break < 0) sfx_break = 0; mc_psg(3, PSG_NOISE, 5000, 0, sfx_break, sfx_break); }
-  if (sfx_hit > 0) { sfx_hit--; mc_psg(4, PSG_TRIANGLE, (uint32_t)sfx_hit_f, 0, sfx_hit * 22, sfx_hit * 22); }
+  if (sfx_pad > 0) { sfx_pad--; mc_psg(2, PSG_TRIANGLE, (uint32_t)sfx_pad_f, 0, sfx_pad * 12, sfx_pad * 12); }
+  if (sfx_break > 0) { sfx_break -= 10; if (sfx_break < 0) sfx_break = 0; mc_psg(3, PSG_NOISE, 3000, 0, sfx_break / 2, sfx_break / 2); }
+  if (sfx_hit > 0) { sfx_hit--; mc_psg(4, PSG_TRIANGLE, (uint32_t)sfx_hit_f, 0, sfx_hit * 14, sfx_hit * 14); }
   if (sfx_miss > 0) { sfx_miss--; mc_psg(5, PSG_SAW, (uint32_t)(120 + sfx_miss * 6), 0, sfx_miss * 2, sfx_miss * 2); }
-  else if (sfx_alarm > 0) { sfx_alarm--; int on = (sfx_alarm / 8) & 1; mc_psg(5, PSG_SQUARE, on ? 1320 : 990, 128, 30, 30); if (!sfx_alarm) mc_psg_volume(5, 0, 0); }
+  else if (sfx_alarm > 0) { sfx_alarm--; int on = (sfx_alarm / 8) & 1; mc_psg(5, PSG_TRIANGLE, on ? 880 : 660, 0, 40, 40); if (!sfx_alarm) mc_psg_volume(5, 0, 0); }
   else mc_psg_volume(5, 0, 0);
+  if (sfx_caw > 0) {                             // a distant caw: two falling saw-tooth cries
+    sfx_caw--; int k = sfx_caw % 12;
+    if (k > 3) mc_psg(7, PSG_SAW, (uint32_t)(520 + k * 25), 0, k * 2, k * 3); else mc_psg_volume(7, 0, 0);
+  }
   if (sfx_grow > 0) { sfx_grow--; mc_psg(6, PSG_TRIANGLE, (uint32_t)(90 + sfx_grow * 10), 0, sfx_grow * 6, sfx_grow * 6); }
 }
-static void sfx_silence(void) { for (int c = 2; c < 8; c++) mc_psg_volume(c, 0, 0); sfx_pad = sfx_break = sfx_hit = sfx_alarm = sfx_miss = sfx_grow = 0; }
+static void sfx_silence(void) { for (int c = 2; c < 8; c++) mc_psg_volume(c, 0, 0); sfx_pad = sfx_break = sfx_hit = sfx_alarm = sfx_miss = sfx_grow = sfx_caw = 0; }
 
-static const char *tune_lead =
-  "E5 - G5 - A5 - G5 E5 - D5 - C5 - D5 - E5 - - - G4 - A4 - C5 - D5 - E5 - D5 - - - "
-  "E5 - G5 - A5 - C6 B5 - A5 - G5 - E5 - G5 - - - A5 G5 E5 D5 C5 - D5 - C5 - - - . . ";
-static const char *tune_bass =
-  "C3 - G3 - C3 - G3 - A2 - E3 - A2 - E3 - F2 - C3 - F2 - C3 - G2 - D3 - G2 - B2 - "
-  "C3 - G3 - C3 - G3 - A2 - E3 - A2 - E3 - F2 - C3 - G2 - D3 - C3 - G3 - C3 - . - ";
-static const char *tune_title =
-  "A4 - C5 - E5 - A5 - G5 - E5 - D5 - E5 - C5 - - - . . . . F4 - A4 - C5 - F5 - E5 - C5 - B4 - G4 - A4 - - - . . . . ";
-
-static void music_game(void) { mc_tune(0, tune_lead, 7, 26); mc_tune(1, tune_bass, 7, 40); }
-static void music_title(void) { mc_tune(0, tune_title, 9, 30); mc_tune(1, tune_bass, 9, 34); }
-static void music_off(void) { mc_tune_stop(0); mc_tune_stop(1); }
+// the music: a 48 s stereo loop on PCM voices 0 (left) and 1 (right), see make_music.py
+static bool music_on;
+static void music_play(void) {
+  if (music_on) return;
+  mc_pcm_play(0, music_l_file, music_l_size / 2, PCM_S16, 22050, 0, 210, 0);
+  mc_pcm_play(1, music_r_file, music_r_size / 2, PCM_S16, 22050, 0, 0, 210);
+  music_on = true;
+}
 
 // ---------------------------------------------------------------- particles
 typedef struct { int x, y, vx, vy, life; } particle_t;
@@ -373,6 +409,96 @@ static void update_fx(void) {
     int z = 0x60 + p->life * 10;
     mc_sprite(S_FX + i, PX(p->x) - 4, PX(p->y) - 4, CELL_SPARK, 1, 1, PAL_FX, 4);
     mc_sprite_zoom(S_FX + i, z, z);
+  }
+}
+
+// ---------------------------------------------------------------- mist and crows
+static const char *const art_crow[2][8] = {
+  {"................", ".11..........11.", "..11........11..", "...111....111...",
+   ".....111111.....", "......1111......", ".......11.......", "................"},
+  {"................", "................", "......1111......", "....11111111....",
+   "..111..11..111..", ".11..........11.", "1..............1", "................"}};
+
+static void make_atmosphere(void) {
+  static uint8_t fog[16 * 8 * 32];
+  static const uint8_t bayer[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
+  for (int v = 0; v < 2; v++) {                  // two banks of mist, ordered dithering for a see-through look
+    memset(fog, 0, sizeof fog);
+    for (int y = 0; y < 64; y++)
+      for (int x = 0; x < 128; x++) {
+        int dx = (x - 64) * 256 / 64, dy = (y - 32) * 256 / 32;
+        int w = (mc_sin(x * 12 + v * 300) + mc_sin(x * 5 + y * 9 + v * 77)) >> 10;    // soft ragged edge
+        int d = (65536 - dx * dx - dy * dy) / 256 + w;                                  // 0..256
+        int level = d <= 0 ? 0 : d * 7 / 256;                                           // at most 7 / 16
+        if (bayer[y & 3][x & 3] < level) put4(fog, 16, x, y, bayer[y & 3][x & 3] < level / 2 ? 1 : 2);
+      }
+    mc_chr_upload(CHR_FOG + v * sizeof fog, fog, sizeof fog);
+  }
+  static uint8_t crow[2 * 2 * 32];
+  memset(crow, 0, sizeof crow);
+  for (int f = 0; f < 2; f++)
+    for (int y = 0; y < 8; y++)
+      for (int x = 0; x < 16; x++)
+        put4(crow + f * 64, 2, x, y, art_crow[f][y][x] == '1');
+  mc_chr_upload(CHR_CROW, crow, sizeof crow);
+}
+
+typedef struct { int x, y, vx; } drift_t;
+static drift_t mist[N_FOG], crows[N_CROW];
+static int crow_timer = 900, crow_dir, atmo_on;
+static int light_from, light_k = 256;
+
+static void atmosphere_start(void) {
+  for (int i = 0; i < N_FOG; i++) {
+    mist[i].x = (rnd(SCR_W + 128) - 128) << FP; mist[i].y = rnd(SCR_H - 40) << FP;
+    mist[i].vx = 40 + rnd(40);                   // 0.15 to 0.3 px per frame
+  }
+  for (int i = 0; i < N_CROW; i++) { crows[i].vx = 0; mc_sprite_hide(S_CROW + i); }
+  atmo_on = 1;
+}
+static void atmosphere_stop(void) {
+  for (int i = 0; i < N_FOG; i++) mc_sprite_hide(S_FOG + i);
+  for (int i = 0; i < N_CROW; i++) mc_sprite_hide(S_CROW + i);
+  atmo_on = 0;
+}
+static void set_mood(int mood, bool slow) {
+  light_from = slow ? mood_now : mood; mood_now = mood; light_k = slow ? 0 : 256;
+  meadow_light(light_from, mood_now, light_k);
+}
+
+static void atmosphere(uint32_t t) {
+  if (light_k < 256) { light_k += 3; if (light_k > 256) light_k = 256; meadow_light(light_from, mood_now, light_k); }
+  if (!atmo_on) return;
+  for (int i = 0; i < N_FOG; i++) {              // banks of mist drifting over the meadow
+    drift_t *m = &mist[i];
+    m->x += m->vx;
+    if (PX(m->x) > SCR_W) { m->x = -128 * 256; m->y = rnd(SCR_H - 40) << FP; m->vx = 40 + rnd(40); }
+    int y = PX(m->y) + (mc_sin((int)t + i * 256) * 6 >> 16);
+    mc_sprite(S_FOG + i, PX(m->x), y, CHR_FOG / 32 + (i & 1) * 128, 16, 8, PAL_FOG, 4);
+    mc_sprite_zoom(S_FOG + i, 0x100, 0x100);
+    mc_sprite_flip(S_FOG + i, i & 2, false);
+  }
+  if (--crow_timer <= 0) {                       // now and then, a few crows cross the sky
+    crow_timer = 1800 + rnd(1800);
+    crow_dir = rnd(2) ? 1 : -1;
+    int n = 3 + rnd(N_CROW - 2), y0 = 20 + rnd(SCR_H - 80);
+    for (int i = 0; i < N_CROW; i++) {
+      crows[i].vx = i < n ? crow_dir * (300 + rnd(60)) : 0;
+      crows[i].x = (crow_dir > 0 ? -20 - i * 14 - rnd(10) : SCR_W + 4 + i * 14 + rnd(10)) << FP;
+      crows[i].y = (y0 + (i & 1 ? i * 7 : -i * 5) + rnd(6)) << FP;
+    }
+    sfx_caw = 24;
+  }
+  for (int i = 0; i < N_CROW; i++) {
+    drift_t *c = &crows[i];
+    if (!c->vx) { mc_sprite_hide(S_CROW + i); continue; }
+    c->x += c->vx; c->y += mc_sin((int)t * 6 + i * 200) >> 15;
+    int x = PX(c->x);
+    if (x < -40 || x > SCR_W + 40) { c->vx = 0; mc_sprite_hide(S_CROW + i); continue; }
+    int frame = ((t + i * 3) / 7) & 1;
+    mc_sprite(S_CROW + i, x, PX(c->y), CHR_CROW / 32 + frame * 2, 2, 1, PAL_CROW, 4);
+    mc_sprite_zoom(S_CROW + i, 0x100, 0x100);
+    mc_sprite_flip(S_CROW + i, c->vx < 0, false);
   }
 }
 
@@ -680,8 +806,9 @@ static void load_best(void) {
 
 // ---------------------------------------------------------------- fence colours
 static void fence_colours(uint32_t t) {
-  if (alarm && (t & 8)) { set_rgb(PAL_BG, TAPE_A, 255, 40, 40); set_rgb(PAL_BG, TAPE_B, 255, 240, 60); }
-  else { set_rgb(PAL_BG, TAPE_A, 230, 60, 40); set_rgb(PAL_BG, TAPE_B, 240, 225, 200); }
+  const uint8_t *a = mood_rgb[mood_now][TAPE_A - 1], *b = mood_rgb[mood_now][TAPE_B - 1];
+  if (alarm && (t & 8)) { set_rgb(PAL_BG, TAPE_A, 255, 40, 40); set_rgb(PAL_BG, TAPE_B, 255, 230, 120); }
+  else { set_rgb(PAL_BG, TAPE_A, a[0], a[1], a[2]); set_rgb(PAL_BG, TAPE_B, b[0], b[1], b[2]); }
 }
 
 // ---------------------------------------------------------------- screens
@@ -727,10 +854,10 @@ static void show_meadow(void) {
 }
 
 static int title_screen(void) {                  // player who pressed START (1-4), 0 = demo
-  text_clear(); panel_clear(); hide_play_sprites(); fx_clear();
+  text_clear(); panel_clear(); hide_play_sprites(); fx_clear(); atmosphere_stop();
   alarm = 0;
   show_title_picture();
-  music_title();
+  music_play();
   char line[48];
   int p = 0;
   for (uint32_t t = 0; t < 1500 && !p; t++) {
@@ -787,7 +914,7 @@ static void banner(const char *a, const char *b, int pal, int frames) {
   text_center(15, a, pal);
   if (b) text_center(17, b, 0);
   for (int t = 0; t < frames; t++) {
-    mc_frame(); virus_colours(mc_frames); fence_colours(mc_frames); update_fx(); sfx_update(); hud(mc_frames);
+    mc_frame(); virus_colours(mc_frames); fence_colours(mc_frames); atmosphere(mc_frames); update_fx(); sfx_update(); hud(mc_frames);
     if (demo && (demo_exit = start_pressed())) break;
   }
   panel_clear();
@@ -795,6 +922,7 @@ static void banner(const char *a, const char *b, int pal, int frames) {
 }
 
 static void start_level(void) {
+  set_mood((level - 1) % MOODS, level > 1);
   virus_seed(level);
   grow_period = clampi(96 - level * 8, 20, 96);
   grow_timer = grow_period * 3;                  // a short respite at the start of a level
@@ -872,8 +1000,8 @@ static int play_frame(uint32_t t) {
 }
 
 static int game(void) {                          // 2 (fence), 3 (no puck) or 4 (demo ended)
-  team_score = 0; level = 1; pucks = 3; paused = 0; demo_exit = 0;
-  text_clear(); panel_clear(); music_game();
+  team_score = 0; level = START_LEVEL; pucks = 3; paused = 0; demo_exit = 0;
+  text_clear(); panel_clear(); music_play(); atmosphere_start();
   for (;;) {
     start_level();
     char line[32];
@@ -887,6 +1015,7 @@ static int game(void) {                          // 2 (fence), 3 (no puck) or 4 
       mc_frame();
       virus_colours(mc_frames); fence_colours(mc_frames);
       r = play_frame(t);
+      atmosphere(mc_frames);
       update_fx(); sfx_update(); hud(t);
       if (!demo && team_score > best) best = team_score;
       if (r) break;
@@ -906,13 +1035,13 @@ static int game(void) {                          // 2 (fence), 3 (no puck) or 4 
 }
 
 static void game_over(int why) {
-  sfx_silence(); music_off();
+  sfx_silence();
   alarm = why == 2;
   mc_sprite_hide(S_BALL); mc_sprite_hide(S_RING);
   if (why == 4) { alarm = 0; return; }
   if (why == 2)                                  // the virus floods the meadow
     for (int t = 0; t < 90; t++) {
-      mc_frame(); virus_colours(mc_frames); fence_colours(mc_frames);
+      mc_frame(); virus_colours(mc_frames); fence_colours(mc_frames); atmosphere(mc_frames);
       for (int k = 0; k < 4; k++) virus_grow();
       if (t % 4 == 0) sfx_break = 120;
       update_fx(); sfx_update(); hud(mc_frames);
@@ -928,7 +1057,7 @@ static void game_over(int why) {
   snprintf(line, sizeof line, "MEILLEUR JOUEUR : J%d", mvp + 1); text_center(17, line, PAL_HUD + mvp);
   if (record) text_center(19, "NOUVEAU RECORD !", PAL_HUD + 6);
   for (int t = 0; t < (demo ? 240 : 600); t++) {
-    mc_frame(); virus_colours(mc_frames); fence_colours(mc_frames);
+    mc_frame(); virus_colours(mc_frames); fence_colours(mc_frames); atmosphere(mc_frames);
     update_fx(); sfx_update();
     int p = start_pressed();
     if (p && (demo || t > 90)) { if (demo) demo_exit = p; break; }
@@ -948,6 +1077,7 @@ int main(void) {
   make_sprites();
   make_virus_tiles();
   make_panel_tiles();
+  make_atmosphere();
   build_meadow();
   mc_layer_scroll(2, (-AX) & 511, (-AY) & 511);
   mc_sprites_hide_all();
