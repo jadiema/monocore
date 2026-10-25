@@ -8,6 +8,10 @@ Un seul palet, qui prend la couleur du dernier joueur qui l'a touché, casse les
 - le palet sort : un palet perdu, le virus fait une poussée, le joueur qui l'a raté sert à nouveau ;
 - toutes les briques détruites : niveau suivant (plus de colonies, croissance plus rapide).
 
+Le palet laisse une traînée de comète de sa couleur. L'intérieur des cellules est vivant : une
+spore qui rampe dans les jeunes cellules, un anneau qui tourne autour d'un œil qui cligne dans les
+cellules moyennes, un noyau hérissé qui bat comme un cœur dans les plus résistantes.
+
 Les jeunes cellules (rose pâle) sont cassées au passage ; les plus anciennes (violettes) perdent un
 niveau de résistance à chaque coup et font rebondir le palet.
 
@@ -65,6 +69,8 @@ l'écran d'accueil, une démonstration à quatre joueurs console se lance (dans 
 | Écran d'accueil en image 8 bpp (256 couleurs, tuiles 16 × 16), fondu par la palette | `show_title_picture`, `title_colours` | clé `maps8`, `mc_layer`, `MC_8BPP` |
 | Prairie procédurale en tuiles 8 × 8 avec partage des tuiles identiques, carte gardée pour revenir de l'écran d'accueil | `build_meadow`, `show_meadow` | `mc_chr_upload`, `mc_tilemap_load` |
 | Virus sur un plan de tuiles, palette pulsante | `infect`, `heal`, `virus_colours` | `mc_tile`, `mc_color` |
+| Cellules animées : les 12 tuiles du virus redessinées 10 fois par seconde en CHR RAM, sans toucher à la carte | `virus_brick`, `virus_animate` | `mc_chr_upload` |
+| Traînée de comète : 8 sprites réduits sur les dernières positions du palet | `draw_puck` | `mc_sprite_zoom` |
 | Encarts sombres derrière le texte, sur un plan dédié | `panel` | `mc_layer` (plan 3) |
 | Quatre joueurs, entrées numériques et analogiques | `control_human` | `mc_pad`, `mc_stick_x/y`, `mc_spinner_delta`, `mc_paddle` |
 | Joueurs console | `control_ai` | — |

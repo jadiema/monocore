@@ -56,6 +56,7 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, always added by buil
 #define CELL_BALL  10
 #define CELL_SPARK 11
 #define CELL_RING  12                      // serve ring, 2 x 2 cells
+#define CELL_TRAIL 16                      // 16 bright, 17 dim: the puck's comet tail
 #define CELL_FONT  (CHR_FONT / 32)
 
 #define PAL_HUD     1                      // 1-4 players, 5 virus, 6 gold, 7 grey
@@ -75,7 +76,9 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, always added by buil
 #define S_BALL     0
 #define S_RING     1
 #define S_PAD      2                       // 2-5
-#define S_FX       8
+#define S_TRAIL    6                       // 6-13: comet tail, behind the puck and the paddles
+#define N_TRAIL    8
+#define S_FX       (S_TRAIL + N_TRAIL)
 #define N_FX       64
 #define S_CROW     (S_FX + N_FX)              // crows, then mist (behind everything else)
 #define N_CROW     5
@@ -114,6 +117,9 @@ static const char *const art_ball[8] = {
   "........", "..1111..", ".155331.", ".153331.", ".133331.", ".133321.", "..1111..", "........"};
 static const char *const art_spark[8] = {
   "........", "........", "...21...", "..2112..", "..2112..", "...12...", "........", "........"};
+static const char *const art_trail[2][8] = {
+  {"........", "...33...", "..3443..", ".344443.", ".344443.", "..3443..", "...33...", "........"},
+  {"........", "...22...", "..2332..", ".233332.", ".233332.", "..2332..", "...22...", "........"}};
 static const char *const art_ring[16] = {
   "................", ".....555555.....", "...55......55...", "..5..........5..",
   ".5............5.", ".5............5.", "5..............5", "5..............5",
@@ -121,7 +127,7 @@ static const char *const art_ring[16] = {
   "..5..........5..", "...55......55...", ".....555555.....", "................"};
 
 static void make_sprites(void) {
-  static uint8_t sheet[16 * 32];
+  static uint8_t sheet[18 * 32];
   memset(sheet, 0, sizeof sheet);
   for (int y = 0; y < PAD_LEN; y++)
     for (int x = 0; x < 8; x++) {
@@ -134,6 +140,10 @@ static void make_sprites(void) {
       put4(sheet + CELL_BALL * 32, 1, x, y, a == '.' ? 0 : a - '0');
       put4(sheet + CELL_SPARK * 32, 1, x, y, s == '.' ? 0 : s - '0');
     }
+  for (int k = 0; k < 2; k++)
+    for (int y = 0; y < 8; y++)
+      for (int x = 0; x < 8; x++)
+        put4(sheet + (CELL_TRAIL + k) * 32, 1, x, y, art_trail[k][y][x] == '.' ? 0 : art_trail[k][y][x] - '0');
   for (int y = 0; y < 16; y++)
     for (int x = 0; x < 16; x++)
       put4(sheet + CELL_RING * 32, 2, x, y, art_ring[y][x] == '.' ? 0 : 5);
@@ -143,29 +153,77 @@ static void make_sprites(void) {
 }
 
 // ---------------------------------------------------------------- virus tiles
-// bricks of 7 x 7 pixels (the eighth row and column let the grass show between them):
-// 'a' bevel light, 'b' body, 'c' bevel dark, 'd' nucleus; two variants per strength (1, 2, 3)
-static const char *const art_virus[6][8] = {
-  {"aaaaaab.", "abbbbbc.", "abbdbbc.", "abdddbc.", "abbdbbc.", "abbbbbc.", "bcccccc.", "........"},
-  {"aaaaaab.", "abbbbbc.", "abbbdbc.", "abbddbc.", "abbbbbc.", "abdbbbc.", "bcccccc.", "........"},
-  {"aaaaaab.", "abbbbbc.", "abdddbc.", "abdbdbc.", "abdddbc.", "abbbbbc.", "bcccccc.", "........"},
-  {"aaaaaab.", "abdbdbc.", "abbdbbc.", "abdbdbc.", "abbbbbc.", "abbdbbc.", "bcccccc.", "........"},
-  {"aaaaaab.", "adbbbdc.", "abdddbc.", "abdadbc.", "abdddbc.", "adbbbdc.", "bcccccc.", "........"},
-  {"aaaaaab.", "abdddbc.", "addadbc.", "adaaadc.", "addadbc.", "abdddbc.", "bcccccc.", "........"}};
+// bricks of 7 x 7 pixels (the eighth row and column let the grass show between them), drawn with
+// the colours of a strength s (1-3): bevel light, body, bevel dark, nucleus. The inside of the
+// bricks is alive: the tiles are redrawn every few frames (virus_animate) and sent to CHR RAM, so
+// every cell on the map moves at once without touching the map. Four variants per strength, out
+// of phase, so that neighbouring cells do not beat together.
+//   strength 1: a spore crawling round the cell; 2: a ring turning around a blinking eye;
+//   3: a spiky nucleus beating like a heart.
+#define V_LIGHT 4
+#define V_BODY  2
+#define V_DARK  1
+#define V_NUC   3
+#define VIRUS_TILES (1 + 3 * 4)
+
+static void virus_brick(uint8_t *tile, int s, int g, int ph) {   // g = animation step, ph = variant
+  int base = (s - 1) * 4;
+  uint8_t px[8][8];
+  memset(px, 0, sizeof px);
+  for (int y = 0; y < 7; y++)
+    for (int x = 0; x < 7; x++) {
+      int c = V_BODY;
+      if (y == 0 && x < 6) c = V_LIGHT;
+      else if (x == 0 && y < 6) c = V_LIGHT;
+      else if (y == 6 || x == 6) c = (y == 6 && x == 0) || (x == 6 && y == 0) ? V_BODY : V_DARK;
+      px[y][x] = (uint8_t)c;
+    }
+  #define IN(x, y, c) (px[(y) + 1][(x) + 1] = (uint8_t)(c))   // inside: 5 x 5, x and y 0-4
+  if (s == 1) {                                  // a 2 x 2 spore crawling round, a speck behind it
+    static const int8_t path[8][2] = {{1, 1}, {2, 1}, {3, 1}, {3, 2}, {3, 3}, {2, 3}, {1, 3}, {1, 2}};
+    int k = (g / 2 + ph * 2) & 7;
+    int x = path[k][0], y = path[k][1], bx = path[(k + 6) & 7][0], by = path[(k + 6) & 7][1];
+    IN(bx, by, V_NUC);
+    IN(x - 1 < 0 ? 0 : x - 1, y - 1 < 0 ? 0 : y - 1, V_NUC); IN(x, y - 1 < 0 ? 0 : y - 1, V_NUC);
+    IN(x - 1 < 0 ? 0 : x - 1, y, V_NUC); IN(x, y, V_NUC);
+  } else if (s == 2) {                           // a ring of five dots turning, the eye blinks
+    static const int8_t loop[12][2] = {{1, 0}, {2, 0}, {3, 0}, {4, 1}, {4, 2}, {4, 3}, {3, 4}, {2, 4}, {1, 4}, {0, 3}, {0, 2}, {0, 1}};
+    for (int i = 0; i < 12; i++) if ((i + g + ph * 3) % 12 < 5) IN(loop[i][0], loop[i][1], V_NUC);
+    int blink = (g + ph * 5) % 16;
+    IN(2, 2, blink < 2 ? V_BODY : V_NUC);
+    if (blink >= 2) { IN(1, 2, V_NUC); IN(3, 2, V_NUC); IN(2, 1, blink < 8 ? V_LIGHT : V_NUC); }
+  } else {                                       // a heart: big, bigger, star, spikes
+    int beat = (g + ph * 2) % 8;
+    IN(0, 0, V_NUC); IN(4, 0, V_NUC); IN(0, 4, V_NUC); IN(4, 4, V_NUC);   // spikes in the corners
+    if (beat == 0 || beat == 2) {                // full nucleus, glinting
+      for (int y = 1; y <= 3; y++) for (int x = 1; x <= 3; x++) IN(x, y, V_NUC);
+      IN(2, 2, V_LIGHT);
+      if (beat == 0) { IN(2, 0, V_NUC); IN(2, 4, V_NUC); IN(0, 2, V_NUC); IN(4, 2, V_NUC); }
+    } else if (beat == 1) {                      // swollen
+      for (int y = 0; y <= 4; y++) for (int x = 0; x <= 4; x++) if (abs(x - 2) + abs(y - 2) <= 2) IN(x, y, V_NUC);
+      IN(2, 2, V_LIGHT); IN(1, 2, V_LIGHT);
+    } else {                                     // resting: a small dark core
+      IN(1, 2, V_NUC); IN(2, 1, V_NUC); IN(3, 2, V_NUC); IN(2, 3, V_NUC); IN(2, 2, V_NUC);
+      if (beat & 1) { IN(1, 1, V_NUC); IN(3, 3, V_NUC); } else { IN(3, 1, V_NUC); IN(1, 3, V_NUC); }
+    }
+  }
+  #undef IN
+  memset(tile, 0, 32);
+  for (int y = 0; y < 8; y++)
+    for (int x = 0; x < 8; x++)
+      if (px[y][x]) put4(tile, 1, x, y, base + px[y][x]);
+}
+
+static void virus_animate(uint32_t g) {          // redraws the 12 bricks for animation step g
+  static uint8_t t[VIRUS_TILES][32];
+  memset(t[0], 0, 32);
+  for (int s = 1; s <= 3; s++)
+    for (int v = 0; v < 4; v++) virus_brick(t[(s - 1) * 4 + 1 + v], s, (int)g, v);
+  mc_chr_upload(CHR_VIRUS, t, sizeof t);
+}
 
 static void make_virus_tiles(void) {
-  static const int8_t code_colour[4] = {4, 2, 1, 3};   // a b c d -> glint body rim nucleus
-  static uint8_t t[7][32];
-  memset(t, 0, sizeof t);
-  for (int k = 0; k < 6; k++) {
-    int base = (k / 2) * 4;
-    for (int y = 0; y < 8; y++)
-      for (int x = 0; x < 8; x++) {
-        char c = art_virus[k][y][x];
-        put4(t[k + 1], 1, x, y, c == '.' ? 0 : base + code_colour[c - 'a']);
-      }
-  }
-  mc_chr_upload(CHR_VIRUS, t, sizeof t);
+  virus_animate(0);
   mc_layer(2, CHR(CHR_VIRUS), MC_TILE8 | MC_4BPP, 64, 64, 1);
   mc_tilemap_fill(2, 0);
 }
@@ -343,7 +401,9 @@ static void make_palettes(void) {
   }
 }
 
+static void virus_animate(uint32_t g);
 static void virus_colours(uint32_t t) {          // pulsing virus, every frame
+  if (t % 6 == 0) virus_animate(t / 6);          // the inside of the cells moves (10 steps a second)
   int k = (mc_sin((int)t * 6) + 65536) >> 12;    // 0..32, a slow breathing
   static const int16_t c[3][4][3] = {
     {{170, 90, 200}, {230, 160, 240}, {255, 215, 255}, {255, 255, 255}},
@@ -533,7 +593,7 @@ static void virus_tile(int x, int y) {
   if (!s) { mc_tile(2, x, y, 0); return; }
   uint32_t h = hash2(x * 7 + s, y * 13);
   int pal = immune[y][x] < 4 ? PAL_VMUT + immune[y][x] : PAL_VIRUS;
-  mc_tile(2, x, y, MC_TILE((s - 1) * 2 + 1 + (int)((h >> 4) & 1), pal, 0));
+  mc_tile(2, x, y, MC_TILE((s - 1) * 4 + 1 + (int)((h >> 4) & 3), pal, 0));
 }
 static bool in_field(int x, int y) { return x >= F_MIN && x <= F_MAX && y >= F_MIN && y <= F_MAX; }
 static bool on_edge(int x, int y) { return x == F_MIN || x == F_MAX || y == F_MIN || y == F_MAX; }
@@ -789,14 +849,46 @@ static int move_puck(void) {
   return -1;
 }
 
+// comet tail: the last positions of the puck (screen pixels), one per frame
+#define TRAIL_LEN 16
+static int16_t trail_x[TRAIL_LEN], trail_y[TRAIL_LEN];
+static int trail_head, trail_fill;
+
+static void trail_reset(void) {
+  trail_fill = 0;
+  for (int i = 0; i < N_TRAIL; i++) mc_sprite_hide(S_TRAIL + i);
+}
+static void puck_hide(void) {
+  mc_sprite_hide(S_BALL); mc_sprite_hide(S_RING);
+  trail_reset();
+}
+
 static void draw_puck(uint32_t t) {
   int pal = owner >= 0 ? PAL_PLAYER + owner : PAL_NEUTRAL;
-  mc_sprite(S_BALL, AX + PX(bx) - 4, AY + PX(by) - 4, CELL_BALL, 1, 1, pal, 5);
+  int cx = AX + PX(bx), cy = AY + PX(by);
+  mc_sprite(S_BALL, cx - 4, cy - 4, CELL_BALL, 1, 1, pal, 5);
   mc_sprite_zoom(S_BALL, 0x100, 0x100);
-  if (serving >= 0 && (t & 16)) {                // pulsing ring around a puck waiting to be served
-    mc_sprite(S_RING, AX + PX(bx) - 8, AY + PX(by) - 8, CELL_RING, 2, 2, PAL_PLAYER + serving, 5);
-    mc_sprite_zoom(S_RING, 0x100, 0x100);
-  } else mc_sprite_hide(S_RING);
+  if (serving >= 0) {                            // no tail while the puck is held
+    trail_reset();
+    if (t & 16) {                                // pulsing ring around a puck waiting to be served
+      mc_sprite(S_RING, cx - 8, cy - 8, CELL_RING, 2, 2, PAL_PLAYER + serving, 5);
+      mc_sprite_zoom(S_RING, 0x100, 0x100);
+    } else mc_sprite_hide(S_RING);
+    return;
+  }
+  mc_sprite_hide(S_RING);
+  trail_head = (trail_head + 1) % TRAIL_LEN;
+  trail_x[trail_head] = (int16_t)cx; trail_y[trail_head] = (int16_t)cy;
+  if (trail_fill < TRAIL_LEN) trail_fill++;
+  for (int i = 0; i < N_TRAIL; i++) {            // older and older positions, smaller and darker
+    int age = 1 + i;
+    if (age >= trail_fill) { mc_sprite_hide(S_TRAIL + i); continue; }
+    int k = (trail_head - age + TRAIL_LEN) % TRAIL_LEN;
+    int z = 0xE8 - i * 0x18;                     // 0.9 down to 0.25
+    int half = 4 * z / 256;
+    mc_sprite(S_TRAIL + i, trail_x[k] - half, trail_y[k] - half, i < 4 ? CELL_TRAIL : CELL_TRAIL + 1, 1, 1, pal, 4);
+    mc_sprite_zoom(S_TRAIL + i, z, z);
+  }
 }
 
 // ---------------------------------------------------------------- HUD
@@ -856,7 +948,7 @@ static int demo;                                 // attract mode: four console p
 static int demo_exit;                            // player who pressed START during the demo
 
 static void hide_play_sprites(void) {
-  mc_sprite_hide(S_BALL); mc_sprite_hide(S_RING);
+  puck_hide();
   for (int s = 0; s < 4; s++) mc_sprite_hide(S_PAD + s);
 }
 
@@ -1029,7 +1121,7 @@ static int play_frame(uint32_t t) {
       if (pucks <= 0) return 3;
       bspeed = 576 + level * 24;
       serve_from(out);
-      mc_sprite_hide(S_BALL); mc_sprite_hide(S_RING);
+      puck_hide();
       banner("PALET PERDU !", NULL, PAL_HUD + out, 50);
       if (demo_exit) return 4;
     }
@@ -1079,7 +1171,7 @@ static int game(void) {                          // 2 (fence), 3 (no puck) or 4 
     team_score += bonus;
     if (!demo && team_score > best) best = team_score;
     snprintf(line, sizeof line, "BONUS %d", bonus);
-    mc_sprite_hide(S_BALL); mc_sprite_hide(S_RING);
+    puck_hide();
     banner("PRAIRIE SAUVEE !", line, PAL_HUD + 3, 150);
     if (demo_exit) return 4;
     level++;
@@ -1090,7 +1182,7 @@ static int game(void) {                          // 2 (fence), 3 (no puck) or 4 
 static void game_over(int why) {
   sfx_silence();
   alarm = why == 2;
-  mc_sprite_hide(S_BALL); mc_sprite_hide(S_RING);
+  puck_hide();
   if (why == 4) { alarm = 0; return; }
   if (why == 2)                                  // the virus floods the meadow
     for (int t = 0; t < 90; t++) {
