@@ -68,6 +68,7 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, always added by buil
 #define PAL_PANEL   37
 #define PAL_FOG     38
 #define PAL_CROW    39
+#define PAL_VMUT    40                     // 40-43: virus cells immune to J1-J4 (MUTANT mode)
 #define BG_ENTRY    4095
 
 #define S_BALL     0
@@ -353,6 +354,17 @@ static void virus_colours(uint32_t t) {          // pulsing virus, every frame
       set_rgb(PAL_VIRUS, s * 4 + i + 1, clampi(c[s][i][0] + add, 0, 255), clampi(c[s][i][1] + add / 2, 0, 255),
               clampi(c[s][i][2] + add, 0, 255));
     }
+  // MUTANT mode: the same cells, with the rim and the nucleus in the colour of the player whose
+  // puck cannot harm them
+  for (int p = 0; p < 4; p++) {
+    for (int i = 1; i < 16; i++) PALETTE[(PAL_VMUT + p) * 16 + i] = PALETTE[PAL_VIRUS * 16 + i];
+    const uint8_t *q = player_rgb[p];
+    for (int st = 0; st < 3; st++) {
+      int dim = 150 - st * 35;                   // darker rim on stronger cells
+      set_rgb(PAL_VMUT + p, st * 4 + 1, q[0] * dim / 256, q[1] * dim / 256, q[2] * dim / 256);
+      set_rgb(PAL_VMUT + p, st * 4 + 3, clampi(q[0] + 30 + k, 0, 255), clampi(q[1] + 30 + k, 0, 255), clampi(q[2] + 30 + k, 0, 255));
+    }
+  }
 }
 
 static void text(int col, int row, const char *s, int pal) { mc_text(0, col, row, s, pal); }
@@ -504,6 +516,9 @@ static void atmosphere(uint32_t t) {
 
 // ---------------------------------------------------------------- the virus
 static uint8_t grid[GRID][GRID];                 // strength 0-3
+static uint8_t immune[GRID][GRID];               // MUTANT mode: seat (0-3) whose puck cannot harm it, 4 = none
+static int game_mode;                            // 0 CLASSIQUE, 1 MUTANT (cells resist one colour)
+static int new_immune = 4;                       // immunity given by infect() to a new cell
 static int16_t vlist[F_CELLS];                   // infected cells (y * GRID + x)
 static int16_t vindex[GRID * GRID];
 static int vcount;
@@ -512,7 +527,8 @@ static void virus_tile(int x, int y) {
   int s = grid[y][x];
   if (!s) { mc_tile(2, x, y, 0); return; }
   uint32_t h = hash2(x * 7 + s, y * 13);
-  mc_tile(2, x, y, MC_TILE((s - 1) * 2 + 1 + (int)((h >> 4) & 1), PAL_VIRUS, 0));
+  int pal = immune[y][x] < 4 ? PAL_VMUT + immune[y][x] : PAL_VIRUS;
+  mc_tile(2, x, y, MC_TILE((s - 1) * 2 + 1 + (int)((h >> 4) & 1), pal, 0));
 }
 static bool in_field(int x, int y) { return x >= F_MIN && x <= F_MAX && y >= F_MIN && y <= F_MAX; }
 static bool on_edge(int x, int y) { return x == F_MIN || x == F_MAX || y == F_MIN || y == F_MAX; }
@@ -522,7 +538,10 @@ static void virus_clear(void) {
   mc_tilemap_fill(2, 0);
 }
 static void infect(int x, int y, int s) {
-  if (!grid[y][x]) { vindex[y * GRID + x] = (int16_t)vcount; vlist[vcount++] = (int16_t)(y * GRID + x); }
+  if (!grid[y][x]) {
+    vindex[y * GRID + x] = (int16_t)vcount; vlist[vcount++] = (int16_t)(y * GRID + x);
+    immune[y][x] = (uint8_t)(game_mode ? new_immune : 4);
+  }
   grid[y][x] = (uint8_t)s;
   virus_tile(x, y);
 }
@@ -543,6 +562,7 @@ static int virus_grow(void) {
     const int8_t *d = dir4[rnd(4)];
     int nx = x + d[0], ny = y + d[1];
     if (!in_field(nx, ny) || grid[ny][nx]) continue;
+    new_immune = rnd(10) ? immune[y][x] : rnd(4);  // a new cell keeps its parent's immunity, or mutates
     infect(nx, ny, 1);
     return on_edge(nx, ny) ? 2 : 1;
   }
@@ -573,6 +593,8 @@ static void virus_seed(int level) {              // the colonies of a level
     int cx, cy;
     if (colonies == 1) { cx = 15 + rnd(2); cy = 15 + rnd(2); }
     else { int a = k * 1024 / colonies + rnd(80) + (colonies == 2 ? 128 : 0); cx = 16 + (mc_cos(a) * 6 >> 16); cy = 16 + (mc_sin(a) * 6 >> 16); }
+    int turn = rnd(1024);
+    new_immune = rnd(4);
     infect(cx, cy, 3);
     int target = vcount + size / colonies;
     for (int guard = 0; vcount < target && guard < 4000; guard++) {   // grow this colony only
@@ -583,6 +605,7 @@ static void virus_seed(int level) {              // the colonies of a level
       int dist = abs(nx - 16) > abs(ny - 16) ? abs(nx - 16) : abs(ny - 16);
       if (!in_field(nx, ny) || grid[ny][nx] || dist > 8) continue;
       int dc = abs(nx - cx) + abs(ny - cy);
+      new_immune = rnd(8) ? ((mc_atan2(ny - cy, nx - cx) + turn) >> 8) & 3 : rnd(4);   // four patches
       infect(nx, ny, dc < 2 ? 3 : dc < 4 + level / 2 ? 2 : 1);
     }
   }
@@ -699,6 +722,11 @@ static bool hits_virus(void) {
       if (!in_field(x, y) || !grid[y][x]) continue;
       int s = grid[y][x];
       int sx = AX + x * 8 + 4, sy = AY + y * 8 + 4;
+      if (immune[y][x] < 4 && immune[y][x] == owner) {   // MUTANT: this colour cannot harm it
+        spark(sx, sy, 200);
+        sfx_pad = 4; sfx_pad_f = 1250;
+        return true;
+      }
       if (s == 1) {
         heal(x, y);
         for (int k = 0; k < 7; k++) spark(sx, sy, 500);
@@ -785,6 +813,7 @@ static void hud(uint32_t t) {
   text(39, 4, "EQUIPE", PAL_HUD + 5);
   snprintf(line, sizeof line, "%06d", team_score % 1000000); text(39, 5, line, PAL_HUD + 5);
   text(39, 7, alarm && (t & 16) ? "ALERTE" : "      ", PAL_HUD);
+  text(0, 22, game_mode ? "MUTANT" : "      ", PAL_HUD + 4);
   text(0, 25, "NIVEAU", PAL_HUD + 6);
   snprintf(line, sizeof line, "  %02d", level); text(0, 26, line, PAL_HUD + 5);
   text(0, 28, "PALETS", PAL_HUD + 6);
@@ -794,15 +823,21 @@ static void hud(uint32_t t) {
 }
 
 // ---------------------------------------------------------------- record (NVRAM)
+static int records[2];                          // best team score of each mode
 static void save_best(void) {
-  memcpy((void *)MC_NVRAM, "VRMD", 4);
-  for (int i = 0; i < 4; i++) MC_NVRAM[4 + i] = (uint8_t)(best >> (8 * i));
+  records[game_mode] = best;
+  memcpy((void *)MC_NVRAM, "VRM2", 4);
+  for (int m = 0; m < 2; m++)
+    for (int i = 0; i < 4; i++) MC_NVRAM[4 + m * 4 + i] = (uint8_t)(records[m] >> (8 * i));
 }
+static int nv_word(int at) { return MC_NVRAM[at] | (MC_NVRAM[at + 1] << 8) | (MC_NVRAM[at + 2] << 16) | (MC_NVRAM[at + 3] << 24); }
 static void load_best(void) {
-  best = 2000;
-  if (!memcmp((const void *)MC_NVRAM, "VRMD", 4))
-    best = MC_NVRAM[4] | (MC_NVRAM[5] << 8) | (MC_NVRAM[6] << 16) | (MC_NVRAM[7] << 24);
+  records[0] = records[1] = 2000;
+  if (!memcmp((const void *)MC_NVRAM, "VRMD", 4)) records[0] = nv_word(4);   // first version: one record
+  if (!memcmp((const void *)MC_NVRAM, "VRM2", 4)) { records[0] = nv_word(4); records[1] = nv_word(8); }
+  best = records[game_mode];
 }
+static void set_mode(int m) { records[game_mode] = best; game_mode = m; best = records[m]; }
 
 // ---------------------------------------------------------------- fence colours
 static void fence_colours(uint32_t t) {
@@ -864,8 +899,10 @@ static int title_screen(void) {                  // player who pressed START (1-
     mc_frame();
     title_colours(t < 64 ? (int)t * 4 : 256);    // fade in over one second
     if (t == 64) {
-      panel(7, 29, 37, 32);
-      snprintf(line, sizeof line, "RECORD %06d", best); text_center(31, line, PAL_HUD + 5);
+      panel(5, 29, 39, 32);
+      records[game_mode] = best;
+      snprintf(line, sizeof line, "CLASSIQUE %06d", records[0]); text(6, 31, line, PAL_HUD + 5);
+      snprintf(line, sizeof line, "MUTANT %06d", records[1]); text(25, 31, line, PAL_HUD + 4);
     }
     if (t >= 64) text_center(30, (t / 30) % 2 ? "                           " : "J1 A J4 : APPUYEZ SUR START", 0);
     p = start_pressed();
@@ -876,32 +913,43 @@ static int title_screen(void) {                  // player who pressed START (1-
   return p;
 }
 
-static void lobby(int first) {                   // a few seconds for the others to join
+static void lobby(int first) {                   // a few seconds for the others to join, and the mode
   for (int s = 0; s < 4; s++) { seat[s].human = (s + 1 == first); seat[s].score = 0; }
   text_clear(); panel_clear(); virus_clear();
   panel(4, 3, 40, 31);
-  int countdown = 300;
+  int countdown = 360;
   char line[48];
   text_center(5, "V I R U S   M E A D O W", PAL_HUD + 4);
   text_center(7, "QUI JOUE ?  START POUR REJOINDRE", 0);
-  text_center(24, "J1 GAUCHE, J4 DROITE : HAUT / BAS", 0);
-  text_center(25, "J2 HAUT, J3 BAS : GAUCHE / DROITE", 0);
-  text_center(26, "BOUTON 1 : SERVIR    START : PAUSE", 0);
-  text_center(28, "LES PLACES LIBRES SONT JOUEES", PAL_HUD + 6);
-  text_center(29, "PAR LA CONSOLE", PAL_HUD + 6);
+  text_center(26, "J1 GAUCHE, J4 DROITE : HAUT / BAS", 0);
+  text_center(27, "J2 HAUT, J3 BAS : GAUCHE / DROITE", 0);
+  text_center(28, "BOUTON 1 : SERVIR    START : PAUSE", 0);
+  text_center(30, "PLACES LIBRES : LA CONSOLE JOUE", PAL_HUD + 6);
   for (uint32_t t = 0; countdown > 0; t++) {
     mc_frame();
     virus_colours(t); fence_colours(t);
     countdown--;
     for (int s = 0; s < 4; s++) {
-      if (mc_pad_pressed(s + 1) & IN_START) {
+      uint32_t pr = mc_pad_pressed(s + 1);
+      if (pr & IN_START) {
         if (!seat[s].human) { seat[s].human = true; seat[s].flash = 30; if (countdown < 150) countdown = 150; sfx_pad = 8; sfx_pad_f = 660 + s * 110; }
         else if (countdown > 30) countdown = 30;   // START again: go now
       }
+      if (seat[s].human && (pr & (IN_B(2) | IN_LEFT | IN_RIGHT))) {   // change the mode
+        set_mode(!game_mode); sfx_pad = 8; sfx_pad_f = game_mode ? 990 : 660;
+        if (countdown < 180) countdown = 180;
+      }
       snprintf(line, sizeof line, "J%d   %-6s   %-7s", s + 1, seat_name[s], seat[s].human ? "PRET !" : "CONSOLE");
-      text(11, 10 + s * 3, line, PAL_HUD + s);
+      text(11, 10 + s * 2, line, PAL_HUD + s);
     }
-    snprintf(line, sizeof line, "DEPART DANS %d", countdown / 60 + 1); text_center(22, line, PAL_HUD + 5);
+    text(5, 19, "                                   ", 0);
+    snprintf(line, sizeof line, "MODE :  < %s >", game_mode ? "MUTANT" : "CLASSIQUE");
+    text_center(19, line, game_mode ? PAL_HUD + 4 : PAL_HUD + 5);
+    text(5, 21, "                                   ", 0);
+    text_center(21, game_mode ? "CELLULES RESISTANTES A UNE COULEUR" : "CHANGER : BOUTON 2 OU GAUCHE/DROITE", game_mode ? 0 : PAL_HUD + 6);
+    text(5, 22, "                                   ", 0);
+    if (game_mode) text_center(22, "PASSEZ-VOUS LE PALET !", 0);
+    snprintf(line, sizeof line, "DEPART DANS %d", countdown / 60 + 1); text_center(24, line, PAL_HUD + 5);
     sfx_update();
   }
   text_clear(); panel_clear();
@@ -1093,7 +1141,7 @@ int main(void) {
       demo = 0; lobby(first); first = 0;
       game_over(game());
     } else {                                     // nobody pressed START: demonstration
-      demo = 1;
+      demo = 1; set_mode(!game_mode);
       for (int s = 0; s < 4; s++) { seat[s].human = false; seat[s].score = 0; }
       game_over(game());
       first = demo_exit; demo = 0; demo_exit = 0;

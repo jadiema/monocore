@@ -11,6 +11,15 @@ Un seul palet, qui prend la couleur du dernier joueur qui l'a touché, casse les
 Les jeunes cellules (rose pâle) sont cassées au passage ; les plus anciennes (violettes) perdent un
 niveau de résistance à chaque coup et font rebondir le palet.
 
+## Mode MUTANT
+
+À l'écran de sélection, un joueur inscrit change de mode avec le bouton 2 ou gauche / droite.
+En mode MUTANT, chaque cellule du virus résiste à une couleur : son contour et son noyau prennent la
+couleur d'un joueur, et le palet de cette couleur (celle du dernier joueur qui l'a touché) rebondit
+dessus sans l'abîmer. Les colonies naissent en quatre plaques de couleur ; une nouvelle cellule
+garde l'immunité de celle qui l'a produite, sauf mutation (une fois sur dix). Il faut donc se
+passer le palet pour attaquer chaque plaque avec la bonne couleur. Chaque mode a son record.
+
 ![VIRUS MEADOW : écran d'accueil et partie](apercu.png)
 
 ## Ambiance
@@ -40,7 +49,7 @@ Une version déjà compilée est fournie dans `build/virusmeadow.mnc`.
 START sur n'importe quelle manette : rejoindre (à l'écran de sélection ou en pleine partie), puis
 pause. Les places libres sont jouées par la console. J1 et J4 : haut / bas ; J2 et J3 : gauche /
 droite (croix, stick gauche, spinner ou paddle). Bouton 1 : servir. Sans action pendant 25 s sur
-l'écran d'accueil, une démonstration à quatre joueurs console se lance. Le record est gardé en NVRAM.
+l'écran d'accueil, une démonstration à quatre joueurs console se lance (dans un mode, puis dans l'autre). Les records (un par mode) sont gardés en NVRAM.
 
 ## Ce que l'exemple montre
 
