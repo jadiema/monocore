@@ -868,7 +868,7 @@ static void draw_song(void) {
   snprintf(line, sizeof line, "LIBRE %u", (unsigned)nv_free(-1));
   print(33, 22, line, C_GREEN);
   print(0, 26, "CTRL+S SAUVER  CTRL+L CHARGER  CTRL+D EFFACER", C_GREY);
-  print(0, 27, "CTRL+N NOUVEAU  CTRL+R DEMO  TAB: CADRE", C_GREY);
+  print(0, 27, "CTRL+E NOUVEAU  CTRL+R DEMO  TAB: CADRE", C_GREY);
   draw_message(song_pane == 0 ? "G/D: MOTIF  INSER/SUPPR  ENTREE: EDITER" :
                song_pane == 1 ? song_help[song_field] : "ENTREE OU CTRL+L CHARGE, CTRL+S SAUVE ICI");
 }
@@ -892,7 +892,8 @@ static void song_key(int k) {
     return;
   }
   if (c == 'D') { if (slot_size(slot_sel) && confirm('D', "EFFACER L'EMPLACEMENT")) { nv_delete(slot_sel); if (song_slot == slot_sel) song_slot = -1; message("EMPLACEMENT EFFACE"); } return; }
-  if (c == 'N') { if (!dirty || confirm('N', "MODIFICATIONS PERDUES")) { song_new(); message("NOUVEAU MORCEAU"); } return; }
+  // new song: Ctrl+E (Ctrl+N would open a window in the simulator's browser)
+  if (c == 'E') { if (!dirty || confirm('E', "MODIFICATIONS PERDUES")) { song_new(); message("NOUVEAU MORCEAU"); } return; }
   if (c == 'R') { if (!dirty || confirm('R', "MODIFICATIONS PERDUES")) { song_load(demo_file, demo_size); song_slot = -1; message("DEMO CHARGEE"); } return; }
   if (k == KEY_TAB) { song_pane = (song_pane + (shift() ? 2 : 1)) % 3; return; }
   if (song_pane == 0) {
@@ -949,7 +950,7 @@ static const char *const help_text[] = {
   "MAJ+ENTREE       JOUE LE MOTIF EN BOUCLE",
   "ECHAP            ARRETE TOUT",
   "F5 F6  F7 F8     OCTAVE -/+   PAS -/+",
-  "F11 F12          INSTRUMENT -/+",
+  "F11 F12 (PAVE -/+) INSTRUMENT -/+",
   "*MOTIFS",
   "ESPACE           MODE EDITION (BANDE ROUGE)",
   "PIANO            RANGEE DU BAS ET RANGEE DU HAUT",
@@ -995,8 +996,8 @@ static void global_key(int k) {
     case KEY_F6: if (octave < 7) octave++; return;
     case KEY_F7: if (step > 0) step--; return;
     case KEY_F8: if (step < 16) step++; return;
-    case KEY_F11: case KEY_F12: {
-      int d = k == KEY_F11 ? -1 : 1;
+    case KEY_F11: case KEY_F12: case KEY_KPMINUS: case KEY_KPPLUS: {
+      int d = k == KEY_F11 || k == KEY_KPMINUS ? -1 : 1;
       if (page == PG_INS) { ins_sel = clampi(ins_sel + d, 1, MT_INSTRUMENTS - 1); graphs_dirty = 1; ins_field = 0; }
       else if (mt_track_type(cur_track) == MT_TYPE_PSG) ins_psg = clampi(ins_psg + d, 1, MT_INSTRUMENTS - 1);
       else ins_pcm = clampi(ins_pcm + d, 1, MT_INSTRUMENTS - 1);

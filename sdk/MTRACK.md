@@ -156,3 +156,7 @@ compacts les uns à la suite des autres (alignés sur 4 octets).
 
 Sur MiSTer, la sauvegarde du tracker est `saves/MONOCORE/monotracker.sav` (nom de la ROM) ; elle
 est écrite sur la carte SD quand on ouvre l'OSD après un Ctrl+S dans le tracker.
+
+Dans le simulateur, le tracker est une ROM intégrée : le bouton **Morceaux .mts** sous l'écran
+télécharge directement les morceaux sauvés (les mêmes fichiers que `sav2song.py`), et
+**Exporter .sav** / **Importer .sav…** échangent la NVRAM avec la MiSTer.

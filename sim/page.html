@@ -94,6 +94,13 @@ canvas#screen { image-rendering: pixelated; image-rendering: crisp-edges; max-wi
 .romname { font: 500 13px var(--f-mono); color: var(--silk-dim); min-width: 0; overflow-wrap: anywhere; }
 .romname b { color: var(--silk); font-weight: 500; }
 .drop-hint { margin: 10px 0 0; font-size: 13px; color: var(--silk-dim); }
+.nvbar { margin-top: 10px; }
+.nvbar .btn { padding: 5px 10px; font-size: 12px; }
+.nvlabel { font: 500 13px var(--f-mono); color: var(--silk-dim); }
+#songTools { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#songTools[hidden] { display: none; }
+#songList { display: inline-flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--silk-dim); }
+#songList a.btn { text-decoration: none; text-transform: none; }
 body.dragging .bezel { outline: 2px dashed var(--pad); outline-offset: 6px; }
 
 /* keys */
@@ -208,11 +215,22 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
               <option value="aube" data-i18n="optAube">AUBE (démarrage)</option>
               <option value="test" data-i18n="optTest">ROM de test</option>
               <option value="hello" data-i18n="optHello">Exemple « Bonjour »</option>
+              <option value="tracker" data-i18n="optTracker">MONOTRACKER (musique, clavier)</option>
             </select>
             <label class="btn primary" for="romFile" data-i18n="loadRom">Charger une ROM…</label>
             <input type="file" id="romFile" accept=".mnc,.bin" hidden>
           </div>
           <p class="drop-hint"><span data-i18n-html="dropHint">Tu peux aussi glisser un fichier <code>.mnc</code> sur l'écran.</span> <span class="romname" id="romName"></span></p>
+          <div class="transport nvbar">
+            <span class="nvlabel" data-i18n="nvram">NVRAM de la ROM</span>
+            <button class="btn" id="nvExportBtn" data-i18n="nvExport" data-i18n-title="nvExportTitle" title="Enregistre la NVRAM dans un fichier .sav, le même que celui de la MiSTer (saves/MONOCORE)">Exporter .sav</button>
+            <label class="btn" for="nvFile" data-i18n="nvImport" data-i18n-title="nvImportTitle" title="Remplace la NVRAM par un fichier .sav (par exemple celui de la MiSTer) et redémarre la ROM">Importer .sav…</label>
+            <input type="file" id="nvFile" accept=".sav,.bin" hidden>
+            <span id="songTools" hidden>
+              <button class="btn" id="songsBtn" data-i18n="nvSongs" data-i18n-title="nvSongsTitle" title="Les morceaux de MONOTRACKER, en fichiers .mts pour les jeux (data = …, module mtrack)">Morceaux .mts</button>
+              <span id="songList"></span>
+            </span>
+          </div>
 
           <div class="keys">
             <section>
@@ -348,6 +366,20 @@ __CORE_JS__
     fullscreen: ['Plein écran', 'Full screen'],
     romSel: ['ROM intégrée', 'Built-in ROM'],
     optAube: ['AUBE (démarrage)', 'AUBE (boot)'], optTest: ['ROM de test', 'Test ROM'], optHello: ['Exemple « Bonjour »', '“Hello” example'],
+    optTracker: ['MONOTRACKER (musique, clavier)', 'MONOTRACKER (music, keyboard)'],
+    nvram: ['NVRAM de la ROM', 'ROM NVRAM'], nvExport: ['Exporter .sav', 'Export .sav'], nvImport: ['Importer .sav…', 'Import .sav…'],
+    nvExportTitle: ['Enregistre la NVRAM dans un fichier .sav, le même que celui de la MiSTer (saves/MONOCORE)',
+                    'Saves the NVRAM to a .sav file, the same as the MiSTer one (saves/MONOCORE)'],
+    nvImportTitle: ['Remplace la NVRAM par un fichier .sav (par exemple celui de la MiSTer) et redémarre la ROM',
+                    'Replaces the NVRAM with a .sav file (for instance the MiSTer one) and restarts the ROM'],
+    nvSongs: ['Morceaux .mts', '.mts songs'],
+    nvSongsTitle: ['Les morceaux de MONOTRACKER, en fichiers .mts pour les jeux (data = …, module mtrack)',
+                   'The MONOTRACKER songs, as .mts files for the games (data = …, mtrack module)'],
+    nvNoSongs: ['aucun morceau sauvé (Ctrl+S dans le tracker)', 'no song saved (Ctrl+S in the tracker)'],
+    nvImported: ['NVRAM importée, ROM redémarrée', 'NVRAM imported, ROM restarted'],
+    nvBad: ['fichier .sav refusé : 32 Ko attendus', '.sav file rejected: 32 KB expected'],
+    trackerKbd: ['MONOTRACKER se joue au clavier : « clavier de la console » activé (F9 pour le couper). F4 dans le tracker : l\'aide.',
+                 'MONOTRACKER is played with the keyboard: “console keyboard” is on (F9 turns it off). F4 in the tracker: help.'],
     loadRom: ['Charger une ROM…', 'Load a ROM…'],
     dropHint: ['Tu peux aussi glisser un fichier <code>.mnc</code> sur l\'écran.', 'You can also drop a <code>.mnc</code> file on the screen.'],
     p1: ['Joueur 1', 'Player 1'], p2: ['Joueur 2', 'Player 2'], p3: ['Joueur 3', 'Player 3'], p4: ['Joueur 4 (pavé num.)', 'Player 4 (keypad)'],
@@ -471,7 +503,72 @@ __CORE_JS__
     syncDips(true);
     setPill('runPill', 'ok', running ? 'running' : 'ready');
     peakWin.length = 0;
+    // MONOTRACKER needs the console keyboard: switched on for it, and off again after it
+    const tracker = m.header.title === 'MONOTRACKER';
+    if (tracker && !$('kbdMode').checked) { setKbd(true); autoKbd = true; log(t('trackerKbd') + '\n'); }
+    else if (!tracker && autoKbd) { setKbd(false); autoKbd = false; }
+    $('songList').textContent = '';
+    $('songTools').hidden = !tracker && !hasSongs();
   }
+  let autoKbd = false;
+  function setKbd(on) { $('kbdMode').checked = on; $('kbdMode').dispatchEvent(new Event('change')); }
+
+  // ---------------------------------------------------------------- NVRAM files
+  function download(bytes, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  }
+  function savName() {   // the MiSTer names the save after the ROM file
+    const base = /\.mnc$/i.test(romKey) ? romKey.replace(/\.mnc$/i, '') : romKey === 'tracker' ? 'monotracker' : (m.header.title || romKey);
+    return base.toLowerCase().replace(/[^a-z0-9_.-]+/g, '_') + '.sav';
+  }
+  // songs of MONOTRACKER in the NVRAM: "MTNV", then 8 x {offset, size} from byte 16 (sdk/MTRACK.md)
+  function trackerSongs() {
+    if (!m) return [];
+    const n = m.nvram, dv = new DataView(n.buffer, n.byteOffset, n.byteLength);
+    if (String.fromCharCode(n[0], n[1], n[2], n[3]) !== 'MTNV') return [];
+    const out = [];
+    for (let k = 0; k < 8; k++) {
+      const off = dv.getUint32(16 + 8 * k, true), size = dv.getUint32(20 + 8 * k, true);
+      if (!size || off + size > n.length || String.fromCharCode(n[off], n[off + 1], n[off + 2], n[off + 3]) !== 'MTS1') continue;
+      let name = '';
+      for (let i = 0; i < 16 && n[off + 20 + i]; i++) name += String.fromCharCode(n[off + 20 + i]);
+      out.push({ slot: k + 1, name: name.trim() || 'morceau', bytes: n.slice(off, off + size) });
+    }
+    return out;
+  }
+  function hasSongs() { return trackerSongs().length > 0; }
+  $('nvExportBtn').addEventListener('click', () => { if (m) { saveNv(); download(m.nvram.slice(), savName()); } });
+  $('nvFile').addEventListener('change', (e) => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f || !m) return;
+    const r = new FileReader();
+    r.onload = () => {
+      const b = new Uint8Array(r.result);
+      if (b.length < m.nvram.length) { log(t('nvBad') + '\n', 'err'); return; }
+      m.nvram.set(b.subarray(0, m.nvram.length)); m.nvDirty = true; saveNv();
+      const dip = m.dip; m.reset(); m.dip = dip;
+      log('— ' + t('nvImported') + ' (' + f.name + ')\n');
+      $('songList').textContent = '';
+      if (hasSongs()) $('songTools').hidden = false;
+    };
+    r.readAsArrayBuffer(f);
+  });
+  $('songsBtn').addEventListener('click', () => {
+    const list = $('songList'), songs = trackerSongs();
+    list.textContent = '';
+    if (!songs.length) { list.textContent = t('nvNoSongs'); return; }
+    for (const s of songs) {   // one link per song: each click is a download the browser accepts
+      const a = document.createElement('a');
+      a.className = 'btn';
+      a.href = URL.createObjectURL(new Blob([s.bytes], { type: 'application/octet-stream' }));
+      a.download = s.name.toLowerCase().replace(/[^a-z0-9_-]+/g, '_') + '.mts';
+      a.textContent = s.slot + ' · ' + s.name;
+      list.appendChild(a);
+    }
+  });
 
   // ---------------------------------------------------------------- video
   const canvas = $('screen'), ctx = canvas.getContext('2d');

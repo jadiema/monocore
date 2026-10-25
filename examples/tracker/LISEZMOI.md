@@ -11,8 +11,14 @@ pour les jeux, qui les jouent avec le module `mtrack` du SDK (voir `sdk/MTRACK.m
     python3 ../../tools/mtrack/make_demo.py      # demo.mts (déjà fourni)
     python3 ../../sdk/build.py .                 # -> build/monotracker.mnc
 
-Sur MiSTer : `monotracker.mnc` dans `games/MONOCORE`, et un clavier branché. Dans le simulateur,
-la case « clavier de la console » (F9) envoie le clavier du PC à la console.
+Sur MiSTer : `monotracker.mnc` dans `games/MONOCORE`, et un clavier branché.
+
+Dans le simulateur (`dist/monocore.html`), MONOTRACKER est dans la liste des ROM intégrées ; le
+« clavier de la console » s'active tout seul quand on le choisit (F9 le coupe). Sous l'écran,
+**Morceaux .mts** télécharge les morceaux sauvés, **Exporter .sav** / **Importer .sav…** échangent
+la NVRAM avec la MiSTer : on peut composer dans le navigateur et finir sur la borne, ou l'inverse.
+Les raccourcis du tracker évitent ceux que le navigateur ne laisse pas à la page (Ctrl+N, Ctrl+T,
+Ctrl+W).
 
 ## Pages
 
@@ -31,7 +37,7 @@ la case « clavier de la console » (F9) envoie le clavier du PC à la console.
 | Espace | mode édition (bande rouge) ; sans lui, le piano ne fait que jouer |
 | rangée du bas (W S X D C…) et du haut (A é Z " E…) | piano sur deux octaves ; « & » : note coupée `===` |
 | 0-9, A-F | instrument, volume, effet (les chiffres d'une colonne se suivent, puis le curseur descend) |
-| F5/F6, F7/F8, F11/F12 | octave, pas d'avancement, instrument courant |
+| F5/F6, F7/F8, F11/F12 (ou pavé −/+) | octave, pas d'avancement, instrument courant |
 | Suppr, Inser, Retour arrière | efface la case, insère une ligne, retire une ligne |
 | Ctrl+flèches | position précédente/suivante, motif de la position −/+ |
 | Ctrl+C/X/V, Alt+C/X/V | copie/coupe/colle la piste, le motif entier |
@@ -41,9 +47,13 @@ la case « clavier de la console » (F9) envoie le clavier du PC à la console.
 Le piano dépend de la *position* des touches, donc il est le même sur tous les claviers ; les
 lettres (noms, chiffres hexadécimaux, raccourcis Ctrl) suivent la disposition choisie en F3.
 
+Sur la page du morceau : Ctrl+S sauve, Ctrl+L charge, Ctrl+D efface un emplacement, Ctrl+E
+commence un nouveau morceau, Ctrl+R recharge la démo (chacun demande une confirmation s'il ferait
+perdre des modifications).
+
 Sur la page des sons, le piano joue l'instrument affiché en polyphonie ; flèches haut/bas pour
 choisir un réglage, gauche/droite pour le changer (Maj : par 10), Page préc./suiv. pour changer
-d'instrument, Entrée sur NOM pour l'écrire. Un nouveau morceau (Ctrl+N en F3) reprend les
+d'instrument, Entrée sur NOM pour l'écrire. Un nouveau morceau (Ctrl+E en F3) reprend les
 instruments du morceau de démonstration, qui sont définis dans `tools/mtrack/make_demo.py`.
 
 ## Mémoire

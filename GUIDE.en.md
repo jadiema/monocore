@@ -113,6 +113,8 @@ v->ctrl = 1;                            // starts the voice
 
 For music, the simplest is to clock a sequencer with timer 0 (for example at 240 Hz) and to drive the PSG and PCM channels from `irq_handler`, as the test ROM does.
 
+Simpler still: compose with **MONOTRACKER**, the console's tracker. Pick it in the simulator's list of built-in ROMs: the “console keyboard” turns on by itself and <kbd>F4</kbd> shows the help. Saved songs (<kbd>Ctrl</kbd>+<kbd>S</kbd>) stay in the browser's NVRAM; the **.mts songs** button below the screen downloads them, ready for a game written with the `mc` SDK (`modules = mtrack`, see `sdk/MTRACK.md`). **Export .sav** and **Import .sav…** move the NVRAM from the simulator to the MiSTer (`saves/MONOCORE`) and back.
+
 ## 6. Rules for staying compatible with the FPGA
 
 1. **Synchronise on interrupts** (VBLANK, LINE, timers), never on a number of cycles. The simulator estimates CPU time; the real processor, with its caches, will not count exactly the same.

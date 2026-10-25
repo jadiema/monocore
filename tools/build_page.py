@@ -14,6 +14,7 @@ roms = {
     'aube': base64.b64encode(open(os.path.join(ROOT, 'examples/aube/build/aube.mnc'), 'rb').read()).decode(),
     'test': base64.b64encode(open(os.path.join(ROOT, 'rom/build/testrom.mnc'), 'rb').read()).decode(),
     'hello': base64.b64encode(open(os.path.join(ROOT, 'examples/hello/build/hello.mnc'), 'rb').read()).decode(),
+    'tracker': base64.b64encode(open(os.path.join(ROOT, 'examples/tracker/build/monotracker.mnc'), 'rb').read()).decode(),
 }
 page = open(os.path.join(ROOT, 'sim/page.html'), encoding='utf-8').read()
 core = open(os.path.join(ROOT, 'sim/core.js'), encoding='utf-8').read()
