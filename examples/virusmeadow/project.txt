@@ -1,0 +1,6 @@
+# VIRUS MEADOW: 4-player cooperative pong/breakout for MONOCORE-1 (all graphics generated at start-up)
+name    = virusmeadow
+title   = VIRUS MEADOW
+library = mc
+sources = main.c
+maps8   = title.png
