@@ -122,7 +122,7 @@ typedef struct {
 #define DMA_LEN     REG32(IO_BASE + 0x48)
 #define DMA_CTRL    REG32(IO_BASE + 0x4C)
 #define DEBUG_OUT   REG32(IO_BASE + 0x60)
-#define HW_VERSION  REG32(IO_BASE + 0x70)   // 2: pads 3-4, analog inputs, keyboard (1 before); 3: mouse
+#define HW_VERSION  REG32(IO_BASE + 0x70)   // 2: pads 3-4, analog inputs, keyboard (1 before); 3: mouse; 4: MIDI
 #define IN_P3       REG32(IO_BASE + 0x80)
 #define IN_P4       REG32(IO_BASE + 0x84)
 #define ANALOG_P(n) REG32(IO_BASE + 0x90 + 4 * (n))   // n = 0..3: left X, left Y, right X, right Y (int8)
@@ -131,6 +131,7 @@ typedef struct {
 #define KEY_EVENT   REG32(IO_BASE + 0xD0)   // read: bit 31 valid, 9 down, 8 extended, 7-0 PS/2 code; write: next
 #define MOUSE_XY    REG32(IO_BASE + 0xD4)   // mouse position counters: X (15:0), Y (31:16, positive downwards)
 #define MOUSE_BTN   REG32(IO_BASE + 0xD8)   // bit 0 left, 1 right, 2 middle; 15-8 wheel counter; 31 mouse seen
+#define MIDI_IN     REG32(IO_BASE + 0xDC)   // read: bit 31 byte waiting, 30 bytes lost, 22-16 count, 7-0 oldest byte; write: next
 #define MOUSE_LEFT   (1u << 0)
 #define MOUSE_RIGHT  (1u << 1)
 #define MOUSE_MIDDLE (1u << 2)

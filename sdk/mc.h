@@ -110,7 +110,7 @@ uint32_t mc_pad_pressed(int player);        // buttons that went down since the 
 uint32_t mc_pad_released(int player);
 uint32_t mc_sys(void);                      // IN_SYS
 uint32_t mc_dip(void);                      // DIP switches
-int  mc_hw_version(void);                   // 2 or more: pads 3-4, analog inputs and keyboard; 3: mouse
+int  mc_hw_version(void);                   // 2 or more: pads 3-4, analog inputs and keyboard; 3: mouse; 4: MIDI
 // analog inputs (0 on hardware version 1): stick 0 = left, 1 = right; -127 to +127, +Y = down
 int  mc_stick_x(int player, int stick);
 int  mc_stick_y(int player, int stick);
@@ -134,6 +134,21 @@ uint32_t mc_mouse_released(void);
 int  mc_mouse_wheel(void);                  // wheel notches since the previous frame (+ = turned away from you)
 void mc_mouse_set(int x, int y);            // places the pointer
 void mc_mouse_speed(int num, int den);      // pixels per mouse count, num/den (1/1 at start)
+// MIDI in (hardware version 4): a USB MIDI keyboard (MidiLink on MiSTer, Web MIDI in the simulator)
+// mc_midi_event: next complete message, status << 16 | data1 << 8 | data2, or -1; a note on with a
+// velocity of 0 comes as a note off; system messages (clock, sysex...) are left out
+int  mc_midi_event(void);
+#define MIDI_STATUS(e)  (((e) >> 16) & 0xF0)    // MIDI_NOTE_OFF, MIDI_NOTE_ON, MIDI_CC, MIDI_PITCH...
+#define MIDI_CHANNEL(e) (((e) >> 16) & 0x0F)    // 0-15
+#define MIDI_DATA1(e)   (((e) >> 8) & 0x7F)     // note or controller number
+#define MIDI_DATA2(e)   ((e) & 0x7F)            // velocity or value
+#define MIDI_NOTE_OFF   0x80
+#define MIDI_NOTE_ON    0x90
+#define MIDI_AFTERTOUCH 0xA0
+#define MIDI_CC         0xB0
+#define MIDI_PROGRAM    0xC0
+#define MIDI_PRESSURE   0xD0
+#define MIDI_PITCH      0xE0                    // DATA1 low 7 bits, DATA2 high 7 bits (8192 = centre)
 
 // ================================================================ memory
 // WRAM 128 KB: .data, .bss, heap (malloc), then the stack (MC_STACK bytes at the top).

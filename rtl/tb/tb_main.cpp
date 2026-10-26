@@ -4,7 +4,7 @@
 //            a1=<hex> .. a4=<hex> (ANALOG_Pn), d1=<hex> .. d4=<hex> (PADDLE_Pn),
 //            kd=<hex> ku=<hex> (key down / up, PS/2 code, 0x1xx = extended),
 //            ms=<dx>,<dy>,<buttons>,<wheel> (one mouse packet, decimal; dy positive downwards,
-//            buttons: bit 0 left, 1 right, 2 middle),
+//            buttons: bit 0 left, 1 right, 2 middle), mi=hh,hh,... (MIDI bytes, hexadecimal),
 //            dump=<name> (video/sound memories at the end of that frame, same layout as run.js)
 // The SDRAM is modelled behind the ROM port: first beat 4 cycles after the request is accepted,
 // then one 32-bit beat per cycle (16-bit SDRAM at 100 MHz, core at 50 MHz).
@@ -74,6 +74,7 @@ int main(int argc, char **argv) {
     std::deque<uint32_t> keys;   // pending key events: bit 9 down, bit 8 extended, code
     struct Mouse { int dx, dy, b, w; };
     std::deque<Mouse> mice;      // pending mouse packets
+    std::deque<uint8_t> midi;    // pending MIDI bytes
     auto apply = [&](int f) {
         auto r = events.equal_range(f);
         for (auto it = r.first; it != r.second; ++it) {
@@ -87,6 +88,10 @@ int main(int argc, char **argv) {
             else if (a.size() > 3 && a[0] == 'd' && a[1] >= '1' && a[1] <= '4' && a[2] == '=') pd[a[1] - '1'] = v;
             else if (a.rfind("kd=", 0) == 0) keys.push_back(0x200 | (v & 0x1FF));
             else if (a.rfind("ku=", 0) == 0) keys.push_back(v & 0x1FF);
+            else if (a.rfind("mi=", 0) == 0) {
+                std::stringstream ms(a.substr(3)); std::string b;
+                while (std::getline(ms, b, ',')) midi.push_back((uint8_t)strtoul(b.c_str(), 0, 16));
+            }
             else if (a.rfind("ms=", 0) == 0) {
                 Mouse ms = {0, 0, 0, 0};
                 sscanf(a.c_str() + 3, "%d,%d,%d,%d", &ms.dx, &ms.dy, &ms.b, &ms.w);
@@ -169,6 +174,8 @@ int main(int argc, char **argv) {
             top->kb_stb = 1; top->kb_down = (k >> 9) & 1; top->kb_ext = (k >> 8) & 1; top->kb_code = k & 0xFF;
         }
         top->ms_stb = 0;
+        top->midi_stb = 0;
+        if (!midi.empty() && (cycle & 1023) == 4) { top->midi_stb = 1; top->midi_byte = midi.front(); midi.pop_front(); }
         if (!mice.empty() && (cycle & 15) == 8) {   // as hps_io: PS/2 moves, Y positive upwards
             Mouse ms = mice.front(); mice.pop_front();
             auto clip = [](int v) { return v < -256 ? -256 : v > 255 ? 255 : v; };

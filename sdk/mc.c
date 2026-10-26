@@ -349,6 +349,29 @@ uint32_t mc_mouse_released(void) { return ~ms_btn_now & ms_btn_prev; }
 int  mc_mouse_wheel(void) { return ms_wheel; }
 void mc_mouse_set(int x, int y) { ms_x = x; ms_y = y; ms_rx = ms_ry = 0; }
 void mc_mouse_speed(int num, int den) { ms_num = num > 0 ? num : 1; ms_den = den > 0 ? den : 1; ms_rx = ms_ry = 0; }
+// MIDI: bytes of MIDI_IN gathered into messages (running status; system messages left out)
+static uint8_t midi_status, midi_d[2], midi_n, midi_sysex;
+int mc_midi_event(void) {
+  if (hw_version < 4) return -1;
+  for (;;) {
+    uint32_t r = MIDI_IN;
+    if (!(r & 0x80000000u)) return -1;
+    MIDI_IN = 0;
+    uint8_t b = (uint8_t)r;
+    if (b >= 0xF8) continue;                                  // real time: clock, start, active sensing...
+    if (b == 0xF0) { midi_sysex = 1; midi_status = 0; continue; }
+    if (b >= 0xF1) { midi_sysex = 0; midi_status = 0; continue; }   // other system messages: dropped
+    if (b & 0x80) { midi_sysex = 0; midi_status = b; midi_n = 0; continue; }
+    if (midi_sysex || !midi_status) continue;
+    midi_d[midi_n++] = b;
+    int need = (midi_status & 0xF0) == 0xC0 || (midi_status & 0xF0) == 0xD0 ? 1 : 2;
+    if (midi_n < need) continue;
+    midi_n = 0;                                                // running status: the next data reuse it
+    uint8_t st = midi_status;
+    if ((st & 0xF0) == MIDI_NOTE_ON && need == 2 && midi_d[1] == 0) st = (uint8_t)(MIDI_NOTE_OFF | (st & 0x0F));
+    return (int)((uint32_t)st << 16 | (uint32_t)midi_d[0] << 8 | (need == 2 ? midi_d[1] : 0));
+  }
+}
 uint32_t mc_sys(void) { return IN_SYS; }
 uint32_t mc_dip(void) { return DIPSW; }
 

@@ -62,6 +62,7 @@ des morceaux du tracker MONOTRACKER (`#include "mtrack.h"`, documentation : `MTR
 | Entrées | `mc_pad`, `mc_pad_pressed`, `mc_pad_released`, `mc_sys`, `mc_dip`, `mc_hw_version` | 4 manettes (joueurs 1 à 4) |
 | Analogique | `mc_stick_x`, `mc_stick_y`, `mc_paddle`, `mc_spinner`, `mc_spinner_delta` | sticks gauche et droit de −127 à +127, paddle 0-255, spinner en position 16 bits |
 | Clavier | `mc_key`, `mc_key_pressed`, `mc_key_released`, `mc_key_event` | codes PS/2 `KEY_xxx` de `monocore.h`, état des 256 touches et file de 16 événements |
+| MIDI | `mc_midi_event`, `MIDI_STATUS`, `MIDI_DATA1`, `MIDI_DATA2` | messages d'un clavier MIDI USB (matériel version 4) |
 | Souris | `mc_mouse_present`, `mc_mouse_x`, `mc_mouse_y`, `mc_mouse_buttons`, `mc_mouse_pressed`, `mc_mouse_wheel`, `mc_mouse_dx`, `mc_mouse_speed`, `mc_mouse_set` | pointeur gardé dans l'écran par `mc_frame()`, boutons `MOUSE_LEFT/RIGHT/MIDDLE`, molette (matériel version 3) |
 | Mémoire | `malloc`, `calloc`, `realloc`, `free`, `mc_heap_free`, `mc_copy`, `mc_fill`, `MC_NVRAM` | tas d'environ 100 Ko entre les variables et la pile (16 Ko) |
 | Maths | `fix16`, `fix_mul`, `fix_div`, `mc_sin`, `mc_cos`, `mc_atan2`, `mc_isqrt`, `mc_rand` | virgule fixe 16.16, angles sur 1024 pas |
@@ -100,6 +101,20 @@ le jeu affiche le sien, par exemple avec un sprite (`examples/tracker`).
 Dans le simulateur, la case « souris de la console » fait suivre au pointeur du jeu celui du
 navigateur sur l'écran (un pas = un pixel de la console) ; `tools/run.js` accepte
 `ms=dx,dy,boutons,molette`.
+
+## Clavier MIDI
+
+L'entrée MIDI existe à partir de la version 4 du matériel (`mc_hw_version() >= 4`). Sur MiSTer, un
+clavier MIDI USB branché sur la carte passe par MidiLink : dans le menu du core, réglez le mode UART
+sur MIDI (connexion USB). Dans le simulateur, la case « clavier MIDI » (Chrome, Edge) envoie à la
+console les messages d'un clavier branché sur le PC ; `tools/run.js` accepte `mi=90,3C,64` (octets
+en hexadécimal).
+
+`mc_midi_event()` rend le message complet suivant, ou −1 : `MIDI_STATUS(e)` (`MIDI_NOTE_ON`,
+`MIDI_NOTE_OFF`, `MIDI_CC`, `MIDI_PITCH`…), `MIDI_CHANNEL(e)`, `MIDI_DATA1(e)` (note ou numéro de
+contrôleur) et `MIDI_DATA2(e)` (vélocité ou valeur). Le statut implicite (running status) est géré ;
+une note jouée avec une vélocité nulle arrive comme une note relâchée ; l'horloge, le sysex et les
+autres messages système sont écartés. Le do du milieu est la note 60.
 
 ## Manettes 3 et 4, analogique et clavier
 

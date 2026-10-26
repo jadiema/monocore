@@ -276,6 +276,7 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
                 <dt data-i18n="pads">Manettes</dt><dd data-i18n="padsDd">jusqu'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris</dd>
                 <dt data-i18n="kbd">Clavier</dt><dd><label><input type="checkbox" id="kbdMode"> <span data-i18n="kbdLabel">clavier de la console</span></label> <span data-i18n-html="kbdDd">(<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 à 4</span></dd>
                 <dt data-i18n="mouse">Souris</dt><dd><label><input type="checkbox" id="mouseMode"> <span data-i18n="mouseLabel">souris de la console</span></label> <span data-i18n-html="mouseDd">: la souris pilote le pointeur du jeu sur l'écran (boutons et molette compris)</span></dd>
+                <dt>MIDI</dt><dd><label><input type="checkbox" id="midiMode"> <span data-i18n="midiLabel">clavier MIDI</span></label> <span data-i18n-html="midiDd">: un clavier MIDI USB branché sur le PC (Chrome, Edge) envoie ses notes à la console</span> <span id="midiState"></span></dd>
                 <dt data-i18n="layout">Disposition</dt><dd data-i18n="layoutDd">les lettres sont celles marquées sur ton clavier (QWERTY, AZERTY…) ; les chiffres sont ceux de la rangée du haut, sans Majuscule</dd>
               </dl>
             </section>
@@ -398,6 +399,13 @@ __CORE_JS__
     padsDd: ['jusqu\'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris', 'up to 4 USB or Bluetooth pads: players 1 to 4, analog sticks included'],
     kbd: ['Clavier', 'Keyboard'], kbdLabel: ['clavier de la console', 'console keyboard'],
     mouse: ['Souris', 'Mouse'], mouseLabel: ['souris de la console', 'console mouse'],
+    midiLabel: ['clavier MIDI', 'MIDI keyboard'],
+    midiDd: [': un clavier MIDI USB branché sur le PC (Chrome, Edge) envoie ses notes à la console',
+             ': a USB MIDI keyboard plugged into the PC (Chrome, Edge) sends its notes to the console'],
+    midiNone: ['ce navigateur ne donne pas accès au MIDI (essayez Chrome ou Edge)', 'this browser gives no access to MIDI (try Chrome or Edge)'],
+    midiDenied: ['accès au MIDI refusé', 'MIDI access denied'],
+    midiNoDevice: ['aucun clavier MIDI trouvé : branchez-le, il sera pris dès son arrivée', 'no MIDI keyboard found: plug it in, it will be used as soon as it appears'],
+    midiDevices: ['MIDI', 'MIDI'],
     mouseDd: [': la souris pilote le pointeur du jeu sur l\'écran (boutons et molette compris)',
               ': the mouse drives the game\'s pointer on the screen (buttons and wheel included)'],
     kbdDd: ['(<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 à 4', '(<kbd>F9</kbd>): the keys go to the game instead of players 1 to 4'],
@@ -518,6 +526,38 @@ __CORE_JS__
     $('songTools').hidden = !tracker && !hasSongs();
   }
   let autoKbd = false, autoMouse = false;
+
+  // ---------------------------------------------------------------- MIDI keyboard (Web MIDI)
+  // The bytes of every MIDI input go to the console's MIDI_IN register, as MidiLink sends them to the
+  // core on the MiSTer; the SDK (mc_midi_event) gathers them into messages.
+  let midiAccess = null;
+  function midiBind() {
+    const names = [];
+    midiAccess.inputs.forEach((inp) => {
+      names.push(inp.name);
+      inp.onmidimessage = (e) => { if (m && $('midiMode').checked) for (const b of e.data) m.midiByte(b); };
+    });
+    $('midiState').textContent = names.length ? '(' + names.join(', ') + ')' : '';
+    return names;
+  }
+  async function midiStart() {
+    if (!navigator.requestMIDIAccess) { log(t('midiNone') + '\n', 'err'); $('midiMode').checked = false; return; }
+    try {
+      if (!midiAccess) {
+        midiAccess = await navigator.requestMIDIAccess({ sysex: false });
+        midiAccess.onstatechange = () => { const n = midiBind(); if (n.length) log('— ' + t('midiDevices') + sep() + n.join(', ') + '\n'); };
+      }
+      const n = midiBind();
+      log('— ' + (n.length ? t('midiDevices') + sep() + n.join(', ') : t('midiNoDevice')) + '\n');
+      try { localStorage.setItem('monocore-midi', '1'); } catch (e) { /* no storage */ }
+    } catch (e) { log(t('midiDenied') + sep() + e.message + '\n', 'err'); $('midiMode').checked = false; }
+  }
+  $('midiMode').addEventListener('change', () => {
+    $('midiMode').blur();
+    if ($('midiMode').checked) midiStart();
+    else { $('midiState').textContent = ''; try { localStorage.removeItem('monocore-midi'); } catch (e) { /* no storage */ } }
+  });
+  try { if (localStorage.getItem('monocore-midi') === '1' && navigator.requestMIDIAccess) { $('midiMode').checked = true; midiStart(); } } catch (e) { /* no storage */ }
 
   // ---------------------------------------------------------------- console mouse
   // The pointer of the game follows the one of the page over the screen: each frame sends, as mouse

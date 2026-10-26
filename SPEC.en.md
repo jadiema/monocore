@@ -1,6 +1,6 @@
 # MONOCORE-1 — virtual console specification
 
-Version 0.5 — October 2026 (4 pads, analog inputs, keyboard and mouse; single 50 MHz clock)
+Version 0.6 — October 2026 (4 pads, analog inputs, keyboard, mouse and MIDI input; single 50 MHz clock)
 
 *English translation of `SPEC.md`; the French text is the reference.*
 
@@ -214,7 +214,7 @@ Each side of the output is `⌊sum × MASTER_VOL × 77 / 65 536⌋`, clamped to 
 | 0x48 | `DMA_LEN` | length in bytes |
 | 0x4C | `DMA_CTRL` | write bit 0 start, bit 1 fill mode; read bit 0 busy |
 | 0x60 | `DEBUG_OUT` | each byte written = one character on the debug console (absent from the final FPGA) |
-| 0x70 | `HW_VERSION` | hardware version: 2 since players 3 and 4, analog and keyboard were added (1 before), 3 since the mouse was added |
+| 0x70 | `HW_VERSION` | hardware version: 2 since players 3 and 4, analog and keyboard were added (1 before), 3 since the mouse was added, 4 since the MIDI input was added |
 | 0x80 | `IN_P3` | player 3, same format as `IN_P1` |
 | 0x84 | `IN_P4` | player 4 |
 | 0x90 + 4n | `ANALOG_Pn` | pad n (0-3 = players 1-4): left stick X (bits 7–0) and Y (15–8), right stick X (23–16) and Y (31–24), signed from −127 to +127, 0 at rest; positive Y is down |
@@ -223,8 +223,9 @@ Each side of the output is `⌊sum × MASTER_VOL × 77 / 65 536⌋`, clamped to 
 | 0xD0 | `KEY_EVENT` | read: oldest unread keyboard event, bit 31 valid, bit 9 press (0 = release), bit 8 extended, bits 7–0 PS/2 code; write (any value): removes that event. Queue of 16 events; once full, new ones are lost |
 | 0xD4 | `MOUSE_XY` | mouse: 16-bit position counters, X (bits 15–0, positive to the right) and Y (bits 31–16, positive downwards), accumulating the moves received (each between −256 and +255 per PS/2 packet) and wrapping to 0 on overflow; software gets the move by difference |
 | 0xD8 | `MOUSE_BTN` | bit 0 left button, 1 right, 2 middle (1 = pressed); bits 15–8: wheel counter (8 bits, accumulates the signed notches, positive when turned away from the user, as in Linux); bit 31: at least one packet received since reset (a mouse is plugged in) |
+| 0xDC | `MIDI_IN` | MIDI input: read: bit 31 a byte is waiting, bit 30 bytes were lost (queue full) since the last write, bits 22–16 number of bytes waiting, bits 7–0 the oldest one; write (any value): removes that byte. Queue of 64 bytes, received as they are (raw MIDI messages, clock and sysex included) |
 
-Players 3 and 4, analog and keyboard come from the MiSTer framework: pads 3 and 4 from `hps_io`, analog sticks, paddles and spinners of pads 1 to 4, the board's USB keyboard (PS/2 codes). A ROM that wants to use them checks that `HW_VERSION` ≥ 2. The mouse (USB, or the board's PS/2 mouse) also comes from `hps_io` (`ps2_mouse`); a ROM that wants it checks that `HW_VERSION` ≥ 3. Reading these registers has no side effect: only writing to `KEY_EVENT` advances the queue.
+Players 3 and 4, analog and keyboard come from the MiSTer framework: pads 3 and 4 from `hps_io`, analog sticks, paddles and spinners of pads 1 to 4, the board's USB keyboard (PS/2 codes). A ROM that wants to use them checks that `HW_VERSION` ≥ 2. The mouse (USB, or the board's PS/2 mouse) also comes from `hps_io` (`ps2_mouse`); a ROM that wants it checks that `HW_VERSION` ≥ 3. The MIDI input receives the framework's serial line (UART, 31,250 bauds, 8 bits, 1 stop bit): on MiSTer, MidiLink sends a USB MIDI keyboard to it when the core's menu is set to *UART: MIDI*; a ROM that wants it checks that `HW_VERSION` ≥ 4. Reading these registers has no side effect: only writing to `KEY_EVENT` advances the queue.
 
 VBLANK fires at the start of line `SCREEN_H`, LINE at the start of line `LINE_CMP`. The CPU interrupt line is `(IRQ_STATUS & IRQ_ENABLE) != 0`.
 

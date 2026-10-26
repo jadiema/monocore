@@ -39,6 +39,8 @@ module mc_core (
 	input  wire [8:0]  ms_dy,
 	input  wire [2:0]  ms_btn,
 	input  wire [7:0]  ms_wheel,
+	input  wire        midi_stb,        // MIDI: one pulse per byte received
+	input  wire [7:0]  midi_byte,
 	// the NVRAM's second port: its copy to and from the SD card (mister/mc_nvsave.sv)
 	input  wire        nv_b_en,
 	input  wire [3:0]  nv_b_we,
@@ -346,6 +348,7 @@ module mc_core (
 		.in_analog(in_analog), .in_paddle(in_paddle),
 		.kb_stb(kb_stb), .kb_down(kb_down), .kb_ext(kb_ext), .kb_code(kb_code),
 		.ms_stb(ms_stb), .ms_dx(ms_dx), .ms_dy(ms_dy), .ms_btn(ms_btn), .ms_wheel(ms_wheel),
+		.midi_stb(midi_stb), .midi_byte(midi_byte),
 		.vblank_pulse(vblank_pulse), .line_pulse(line_pulse), .dma_done(dma_done), .irq(cpu_irq),
 		.dma_start(dma_start), .dma_fill(dma_fill), .dma_src(dma_src), .dma_dst(dma_dst), .dma_len(dma_len),
 		.dma_busy(dma_busy), .dbg_valid(dbg_valid), .dbg_char(dbg_char));

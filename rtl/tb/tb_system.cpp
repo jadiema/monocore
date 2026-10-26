@@ -6,7 +6,7 @@
 //   also p3= p4=, a1=..a4= (ANALOG_Pn: right stick 31:16, left 15:0), d1=..d4= (paddle), s1=..s4= (spinner
 //   movement, signed 8 bits), kd= / ku= (key down / up through ps2_key, one event per frame),
 //   ms=dx,dy,buttons,wheel (one mouse packet through ps2_mouse as hps_io builds it, one per frame;
-//   decimal, dy positive downwards)
+//   decimal, dy positive downwards), mi=hh,hh,... (MIDI bytes in hexadecimal, sent on uart_rxd at 31250 bauds)
 //   cart=1 / cart=0 (cartridge plugged / removed), cartload (OSD "Lire la cartouche").
 //   The cartridge holds the file named by $CART: two SPI Flash chips of 8 MB ($CART_CHIP_BITS to change it),
 //   modelled below (Read Data 0x03 and Fast Read Dual Output 0x3B). $CART_SPEED = 0-2, $CART_SINGLE = 1.
@@ -205,6 +205,8 @@ int main(int argc, char **argv) {
     top->user_in = 0x7F;
     struct Mouse { int dx, dy, b, w; };
     std::deque<Mouse> mice;
+    std::deque<uint8_t> midi;      // bytes waiting for the serial line
+    int midi_bit = -1, midi_cnt = 0; uint8_t midi_cur = 0;
     auto apply = [&](int f) {
         if (!mice.empty()) {                       // PS/2 packet: buttons, signs, X, Y (upwards), toggle
             Mouse ms = mice.front(); mice.pop_front();
@@ -244,6 +246,10 @@ int main(int argc, char **argv) {
             else if (a == "cartload") cart_load_cycles = 1;
             else if (a.rfind("kd=", 0) == 0) keys.push_back(0x200 | (strtoul(a.c_str() + 3, 0, 16) & 0x1FF));
             else if (a.rfind("ku=", 0) == 0) keys.push_back(strtoul(a.c_str() + 3, 0, 16) & 0x1FF);
+            else if (a.rfind("mi=", 0) == 0) {
+                std::stringstream ms(a.substr(3)); std::string b;
+                while (std::getline(ms, b, ',')) midi.push_back((uint8_t)strtoul(b.c_str(), 0, 16));
+            }
             else if (a.rfind("ms=", 0) == 0) {
                 Mouse ms = {0, 0, 0, 0};
                 sscanf(a.c_str() + 3, "%d,%d,%d,%d", &ms.dx, &ms.dy, &ms.b, &ms.w);
@@ -295,6 +301,13 @@ int main(int argc, char **argv) {
         bool slow_edge = (k & 1) == 0;
         top->clk2 = 1;
         top->clk = slow_edge ? 1 : 0;
+        if (slow_edge) {                           // serial MIDI: 1600 cycles of clk per bit, 8N1
+            if (midi_bit < 0 && !midi.empty()) { midi_cur = midi.front(); midi.pop_front(); midi_bit = 0; midi_cnt = 0; }
+            if (midi_bit >= 0) {
+                top->uart_rxd = midi_bit == 0 ? 0 : midi_bit <= 8 ? (midi_cur >> (midi_bit - 1)) & 1 : 1;
+                if (++midi_cnt == 1600) { midi_cnt = 0; if (++midi_bit == 11) midi_bit = -1; }   // stop bit + 1 idle bit
+            } else top->uart_rxd = 1;
+        }
         top->sd_dq_i = sd.sample(k);
         top->eval();
         sd.edge(k, top->sd_nras, top->sd_ncas, top->sd_nwe, top->sd_a, top->sd_ba, top->sd_dq_o, top->sd_dq_oe,

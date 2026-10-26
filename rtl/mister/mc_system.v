@@ -35,6 +35,8 @@ module mc_system #(
 	// wheel is turned towards the user (checked on the DE10-Nano): negated for MOUSE_BTN (+ = away)
 	input  wire [24:0] ps2_mouse,
 	input  wire [15:0] ps2_mouse_ext,
+	// MIDI in: the UART line of the framework (MidiLink, "UART mode: MIDI"), 31250 bauds, 8N1, idle high
+	input  wire        uart_rxd,
 	// cartridge on the USER port (see mc_cart.v): 0 CLK, 1 DI, 2 /CS0, 3 detection (grounded by
 	// the cartridge), 4 DO, 5 /CS1, 6 unused. Open drain: user_out = 1 releases the line.
 	input  wire [6:0]  user_in,
@@ -218,6 +220,32 @@ module mc_system #(
 	reg ms_tog;
 	always @(posedge clk) ms_tog <= ps2_mouse[24];
 	wire ms_stb = ps2_mouse[24] != ms_tog && running;
+	// MIDI receiver: 50 MHz / 31250 = 1600 cycles per bit, sampled in the middle of each bit
+	reg [2:0]  rx_sync = 3'b111;
+	reg [10:0] rx_cnt;
+	reg [3:0]  rx_bit;
+	reg [7:0]  rx_sh, midi_byte;
+	reg        rx_busy, midi_stb;
+	always @(posedge clk) begin
+		rx_sync <= {rx_sync[1:0], uart_rxd};
+		midi_stb <= 1'b0;
+		if (!rx_busy) begin
+			if (!rx_sync[2]) begin rx_busy <= 1'b1; rx_cnt <= 11'd799; rx_bit <= 4'd0; end   // start bit: to its middle
+		end else if (rx_cnt != 11'd0) rx_cnt <= rx_cnt - 11'd1;
+		else begin
+			rx_cnt <= 11'd1599;
+			if (rx_bit == 4'd0) begin
+				if (rx_sync[2]) rx_busy <= 1'b0;             // not a start bit after all
+				rx_bit <= 4'd1;
+			end else if (rx_bit <= 4'd8) begin
+				rx_sh <= {rx_sync[2], rx_sh[7:1]};           // LSB first
+				rx_bit <= rx_bit + 4'd1;
+			end else begin                                // stop bit
+				rx_busy <= 1'b0;
+				if (rx_sync[2] && running) begin midi_byte <= rx_sh; midi_stb <= 1'b1; end
+			end
+		end
+	end
 
 	mc_core core (
 		.clk(clk), .rst_n(core_rst_n),
@@ -229,6 +257,7 @@ module mc_system #(
 		.kb_stb(kb_stb), .kb_down(ps2_key[9]), .kb_ext(ps2_key[8]), .kb_code(ps2_key[7:0]),
 		.ms_stb(ms_stb), .ms_dx({ps2_mouse[4], ps2_mouse[15:8]}), .ms_dy({ps2_mouse[5], ps2_mouse[23:16]}),
 		.ms_btn({ps2_mouse[2], ps2_mouse[1], ps2_mouse[0]}), .ms_wheel(8'd0 - ps2_mouse_ext[7:0]),
+		.midi_stb(midi_stb), .midi_byte(midi_byte),
 		.nv_b_en(nv_b_en), .nv_b_we(nv_b_we), .nv_b_addr(nv_b_addr), .nv_b_wdata(nv_b_wdata), .nv_b_rdata(nv_b_rdata),
 		.nv_written(nv_written),
 		.dbg_valid(dbg_valid), .dbg_char(dbg_char),

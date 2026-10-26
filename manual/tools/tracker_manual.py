@@ -130,8 +130,8 @@ COVER = '''<section class="cover">
  <div class="cover-title">MONO<span>TRACKER</span></div>
  <div class="cover-sub">MANUEL DE L'UTILISATEUR</div>
  <div class="cover-shot"><img src="images/tracker_motifs.png"></div>
- <div class="cover-bottom">Composez au clavier et à la souris · Créez vos sons · Mettez la musique dans vos jeux</div>
- <div class="cover-ed">ÉDITION 1 · OCTOBRE 2026</div>
+ <div class="cover-bottom">Composez au clavier, à la souris ou au clavier MIDI · Créez vos sons · Mettez la musique dans vos jeux</div>
+ <div class="cover-ed">ÉDITION 2 · OCTOBRE 2026</div>
 </section>'''
 
 A('@@TOC@@')
@@ -144,7 +144,7 @@ box('know', 'Ce que veut dire « tracker »', p("Un tracker lit ses motifs comme
 box('tip', 'Comment lire ce manuel', ul([
   "Le chapitre 1 présente l'outil et le chapitre 2 vous fait écrire un premier morceau en quelques minutes : commencez par eux.",
   "Les chapitres 3 à 7 décrivent l'écran, les motifs, les effets, les sons et l'organisation du morceau.",
-  "Le chapitre 8 explique la sauvegarde et les échanges entre la MiSTer et le simulateur ; le chapitre 9 met la musique dans un jeu.",
+  "Le chapitre 8 explique la sauvegarde et les échanges entre la MiSTer et le simulateur, le chapitre 9 le clavier MIDI, le chapitre 10 met la musique dans un jeu.",
   "Les annexes rassemblent toutes les touches et tous les gestes de la souris : gardez-les sous la main."])) +
 box('know', 'Les nombres en hexadécimal', p("Comme dans tous les trackers, les numéros d'instrument, les volumes et les effets s'écrivent en <b>hexadécimal</b> : on compte de 0 à 9, puis A, B, C, D, E, F, puis 10. Ainsi <code>0A</code> vaut 10, <code>10</code> vaut 16, <code>1F</code> vaut 31 et <code>40</code> vaut 64. Les touches A à F du clavier servent de chiffres dans ces colonnes.")) +
 '</section>')
@@ -160,12 +160,12 @@ A(table(['Élément', 'Capacités'], [
   ['Échantillons', "21 sons originaux fournis avec le tracker (batterie, basse, piano, cordes, cuivres, chœur…)"],
   ['Tempo', "32 à 255 BPM, 1 à 31 ticks par ligne ; 16 effets jouables à chaque ligne"],
   ['Sauvegarde', "8 emplacements dans la mémoire sauvegardée de 32 Ko, écrite sur la carte SD de la MiSTer"],
-  ['Commande', "clavier (indispensable) et souris ; disposition AZERTY ou QWERTY au choix"]], 'specs'))
+  ['Commande', "clavier (indispensable), souris, et clavier MIDI USB en option ; disposition AZERTY ou QWERTY au choix"]], 'specs'))
 A(h2('Où le lancer'))
 A(table(['Machine', 'Comment'], [
   ['MiSTer', "copiez " + c('monotracker.mnc') + " dans " + c('games/MONOCORE') + ", branchez un clavier USB (et une souris), puis chargez la ROM depuis le menu du core MONOCORE"],
   ['Simulateur', "ouvrez " + c('dist/monocore.html') + " et choisissez <b>MONOTRACKER</b> dans la liste des ROM intégrées : le clavier et la souris de la console s'activent tout seuls"],
-  ['Version du core', "le clavier demande le core en version 2, la souris en version 3 ; avec un core plus ancien, le bandeau l'indique (<i>CORE SANS SOURIS</i>) et tout reste utilisable au clavier"]]))
+  ['Version du core', "le clavier demande le core en version 2, la souris en version 3, le clavier MIDI en version 4 ; avec un core plus ancien, le bandeau l'indique (<i>CORE SANS SOURIS</i>) et tout reste utilisable au clavier"]]))
 
 # ---------------------------------------------------------------- 2
 A(chapter(2, "Un premier morceau", "Quatre notes, une batterie, une sauvegarde : le tour complet en dix minutes.", 2))
@@ -335,6 +335,7 @@ A(table(['Réglage', 'Rôle'], [
   ['BPM', "le tempo, de 32 à 255 : à 125 BPM, la console joue 50 ticks par seconde"],
   ['VITESSE', "les ticks par ligne, de 1 à 31 ; à 6, une ligne dure une double croche et quatre lignes un temps"],
   ['VOLUME', "le volume général, de 0 à 64"],
+  ['VELOCITE', "OUI : avec un clavier MIDI, la force de frappe s'écrit dans la colonne du volume (chapitre 9)"],
   ['REPRISE', "la position rejouée après la dernière"],
   ['CLAVIER', "AZERTY ou QWERTY : la disposition utilisée pour les lettres (noms, chiffres A à F, raccourcis). Le piano, lui, dépend de la position des touches et ne change pas."]]))
 A(box('know', 'Le calcul du tempo', p("Une ligne dure <i>vitesse × 2,5 / BPM</i> secondes. À 132 BPM et vitesse 6, comme la démo : 6 × 2,5 / 132 = 0,114 s par ligne, soit 132 temps par minute si un temps fait quatre lignes. Les effets " + c('Fxx') + " changent la vitesse et le BPM pendant le morceau.")))
@@ -359,7 +360,32 @@ A(table(['Bouton', 'Effet'], [
   ['Morceaux .mts', "liste les morceaux sauvés ; un clic télécharge le fichier " + c('.mts') + " d'un morceau, prêt pour un jeu"]]))
 
 # ---------------------------------------------------------------- 9
-A(chapter(9, "La musique dans vos jeux", "Le lecteur de MONOTRACKER est une bibliothèque du SDK mc.", 9))
+A(chapter(9, "Le clavier MIDI", "Jouer et écrire sur un vrai clavier, régler les sons aux potentiomètres.", 9))
+A(p("Un clavier MIDI USB, comme un Novation Launchkey, remplace avantageusement le piano des touches de lettres : il a de vraies touches, toute l'étendue des octaves, la force de frappe et des potentiomètres. MONOTRACKER le prend dès qu'il reçoit une première note ; le bandeau affiche alors <i>CLAVIER MIDI BRANCHÉ</i>."))
+A(h2('Le brancher'))
+A(table(['Machine', 'Comment'], [
+  ['MiSTer', "branchez le clavier sur un port USB de la MiSTer. Dans le menu du core MONOCORE (" + k('F12') + "), réglez le <b>mode UART</b> sur <b>MIDI</b>, connexion <b>USB</b> : MidiLink, le service MIDI de la MiSTer, transmet alors le clavier au core. Il faut le core en version 4."],
+  ['Simulateur', "branchez le clavier sur le PC et cochez <b>clavier MIDI</b> sous l'écran, dans l'encadré « Système et manettes ». Le navigateur demande l'autorisation la première fois ; le nom du clavier s'affiche à côté de la case. Chrome et Edge le permettent, Firefox et Safari non. La case reste cochée d'une visite à l'autre."]]))
+A(h2('Jouer et écrire'))
+A(table(['Page', 'Ce que font les touches du clavier MIDI'], [
+  ['Motifs', "jouent la note sur la piste du curseur, avec l'instrument courant ; en mode édition, l'écrivent et descendent du pas, comme le piano des lettres. La force de frappe donne le volume de la case."],
+  ['Sons', "jouent l'instrument affiché, à plusieurs voix : on essaie un son en jouant des accords."],
+  ['Morceau', "jouent la note sur la piste du curseur, pour essayer une mélodie."]]))
+A(p("Le do du milieu du clavier MIDI (note 60) est le " + c('C-4') + " du tracker ; toutes les octaves de " + c('C-0') + " à " + c('B-7') + " sont accessibles, sans passer par le compteur OCT. Le réglage <b>VELOCITE</b> de la page du morceau décide si la force de frappe s'écrit dans la colonne du volume : à NON, les notes s'écrivent sans volume, et la piste garde le sien."))
+A(h2('Les potentiomètres'))
+A(p("Sur la page des sons, les huit potentiomètres du clavier règlent huit réglages de l'instrument affiché, que l'on entend changer en jouant. Le bandeau indique chaque fois le réglage et sa nouvelle valeur."))
+A(table(['Bouton', 'CC', 'Réglage', 'Étendue'], [
+  ['1', 'CC 21', 'ATTAQUE', '0 à 64 ticks'],
+  ['2', 'CC 22', 'DÉCLIN', '0 à 64 ticks'],
+  ['3', 'CC 23', 'MAINTIEN', '0 à 64'],
+  ['4', 'CC 24', 'RELÂCHE', '0 à 64 ticks'],
+  ['5', 'CC 25', 'VOLUME', '0 à 64'],
+  ['6', 'CC 26', 'VIB VITESSE', '0 à 32'],
+  ['7', 'CC 27', 'VIB AMPLEUR', '0 à 32'],
+  ['8', 'CC 28', 'RAPPORT (PSG) ou PANORAMIQUE (PCM)', '1 à 255, ou de gauche à droite']], 'ref'))
+A(box('know', 'Si les potentiomètres ne font rien', p("MONOTRACKER attend les contrôleurs 21 à 28, ceux que les claviers Launchkey envoient d'origine. Si votre clavier en envoie d'autres, réglez-le pour que ses potentiomètres envoient ces numéros ; l'outil de configuration du fabricant le permet en général.")))
+
+A(chapter(10, "La musique dans vos jeux", "Le lecteur de MONOTRACKER est une bibliothèque du SDK mc.", 9))
 A(p("Un jeu écrit avec le SDK bas niveau <b>mc</b> joue les morceaux du tracker avec le module <b>mtrack</b>. Il lui faut deux fichiers : la banque d'échantillons " + c('mtbank.bin') + ", fournie avec le tracker, et le morceau " + c('.mts') + ", exporté depuis le simulateur ou depuis le " + c('.sav') + "."))
 A(shell('''python3 tools/mtrack/sav2song.py monotracker.sav            # liste les 8 emplacements
 python3 tools/mtrack/sav2song.py monotracker.sav 1 -o theme.mts   # emplacement 1 -> theme.mts''', 'exporter un morceau'))
@@ -382,7 +408,7 @@ A(table(['Fonction', 'Rôle'], [
 A(p("La référence complète, avec le format des fichiers, est dans " + c('sdk/MTRACK.md') + "."))
 
 # ---------------------------------------------------------------- appendices
-A(chapter('A', "Toutes les touches", "Le clavier de MONOTRACKER, page par page.", 10))
+A(chapter('A', "Toutes les touches", "Le clavier de MONOTRACKER, page par page.", 11))
 A(h3('Partout'))
 A(table(['Touches', 'Effet'], [
   [k('F1') + ' ' + k('F2') + ' ' + k('F3') + ' ' + k('F4'), "motifs, sons, morceau, aide"],
@@ -423,7 +449,7 @@ A(table(['Touches', 'Effet'], [
   [k('Ctrl', 'S') + ' ' + k('Ctrl', 'L') + ' ' + k('Ctrl', 'D'), "sauver, charger, effacer l'emplacement"],
   [k('Ctrl', 'E') + ' ' + k('Ctrl', 'R'), "nouveau morceau, recharger la démo"]], 'ref'))
 
-A(chapter('B', "La souris", "Tous les gestes, zone par zone.", 11))
+A(chapter('B', "La souris", "Tous les gestes, zone par zone.", 12))
 A(table(['Où', 'Clic', 'Clic droit', 'Molette'], [
   ['flèches ▲▼ des compteurs', "+1 / −1 (" + k('Maj') + " : ×10) ; maintenu, répète", "sens inverse", "sur la valeur : +/−"],
   ['boutons', "action", '', ''],
@@ -438,7 +464,7 @@ A(table(['Où', 'Clic', 'Clic droit', 'Molette'], [
   ['page d\'aide', "la referme", '', '']], 'ref'))
 A(p("Le pointeur avance d'un pixel par pas de la souris. Sur la MiSTer, la souris USB de la carte est prise en charge par le core à partir de la version 3 du matériel ; dans le simulateur, le pointeur du tracker suit celui du navigateur sur l'écran."))
 
-A('<section class="colophon">' + p("MONOTRACKER · Manuel de l'utilisateur · édition 1, octobre 2026.") +
+A('<section class="colophon">' + p("MONOTRACKER · Manuel de l'utilisateur · édition 2, octobre 2026.") +
   p("Titres en Press Start 2P (Cody Boisclair), texte en Archivo (Omnibus-Type), listings en IBM Plex Mono : polices sous licence SIL Open Font License.") +
   p("Les images d'écran ont été prises dans le simulateur avec " + c('manual/tools/tracker_shots.py') + ". Ce manuel se régénère avec " + c('python3 manual/tools/tracker_manual.py') + ".") + '</section>')
 
@@ -452,7 +478,7 @@ body = '\n'.join(parts).replace('@@TOC@@', '\n'.join(toc))
 EXTRA_CSS = '''
 kbd { font: 600 8pt 'IBM Plex Mono', monospace; display: inline-block; padding: 0 1.4mm; border: 1px solid #2c2a25; border-bottom-width: 2px;
   border-radius: 1.2mm; background: #fbf6e8; white-space: nowrap; line-height: 1.35; }
-.c10 .chap-num { background: var(--blue); } .c11 .chap-num { background: var(--red); }
+.c10 .chap-num { background: var(--blue); } .c11 .chap-num { background: var(--red); } .c12 .chap-num { background: var(--orange); }
 .cover-title { font-size: 34pt; }
 '''
 CSS = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'manual.css'), encoding='utf-8').read() + EXTRA_CSS

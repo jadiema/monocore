@@ -82,6 +82,17 @@ choisir un réglage, gauche/droite pour le changer (Maj : par 10), Page préc./s
 INSTR pour changer d'instrument, Entrée sur NOM pour l'écrire. Un nouveau morceau (Ctrl+E en F3) reprend les
 instruments du morceau de démonstration, qui sont définis dans `tools/mtrack/make_demo.py`.
 
+## Clavier MIDI
+
+Un clavier MIDI USB (Novation Launchkey par exemple) joue et écrit les notes comme le piano du
+clavier : la force de frappe donne le volume de la case (réglage VELOCITE de la page du morceau).
+Sur la page des sons, les notes jouent l'instrument à plusieurs voix et les huit potentiomètres
+(CC 21 à 28) règlent l'attaque, le déclin, le maintien, le relâché, le volume, la vitesse et
+l'ampleur du vibrato, et le rapport cyclique (le panoramique pour un son PCM).
+
+Sur MiSTer, il faut le core en version 4 et le menu du core réglé sur *UART : MIDI*, connexion USB
+(MidiLink). Dans le simulateur, cochez « clavier MIDI » sous l'écran (Chrome ou Edge).
+
 ## Mémoire
 
 Les 24 motifs (4 Ko chacun) sont rangés dans la CHR RAM, la police, les pièces des panneaux, le

@@ -348,6 +348,7 @@ static void show_graph(int g, int x0, int y0) {
 
 // ================================================================ keyboard
 static int layout;                     // 0 AZERTY, 1 QWERTY (kept in the NVRAM)
+static int velo_off;                   // 1: the MIDI velocity does not write the volume (NVRAM)
 static uint32_t kdown[16];             // 512 bits: keys down, from the events
 static int8_t jam_track[512];          // track sounding for each piano key, -1 none
 static int rep_key, rep_timer;
@@ -445,7 +446,7 @@ static void nv_check(void) {
     for (int k = 0; k < NV_SLOTS; k++)
       if (slot_size(k) && (slot_off(k) + slot_size(k) > MC_NVRAM_SIZE ||
                            mt_song_check((const void *)(NVRAM_BASE + slot_off(k)), slot_size(k)))) { nv32w(16 + 8 * k, 0); nv32w(20 + 8 * k, 0); }
-    layout = NV[4] & 1;
+    layout = NV[4] & 1; velo_off = NV[6] & 1;
     return;
   }
   for (uint32_t i = 0; i < NV_DATA; i++) NV[i] = 0;
@@ -554,9 +555,11 @@ static void play(int mode) {
   mt_play_source(&s, mode == 2 ? 0 : cur_ord, mode == 2 ? cur_row : 0, mode == 2);
   play_mode = mode; play_frames = 0;
 }
-static void jam(int key, int track, int note, int inst) {
+static void jam_vol(int key, int track, int note, int inst, int vol);
+static void jam(int key, int track, int note, int inst) { jam_vol(key, track, note, inst, 64); }
+static void jam_vol(int key, int track, int note, int inst, int vol) {
   if (note < 1 || note > 96 || inst < 1 || ins[inst].type != mt_track_type(track)) return;
-  mt_note(track, note, &ins[inst], s_master);
+  mt_note(track, note, &ins[inst], s_master * vol / 64);
   jam_track[key & 511] = (int8_t)track;
 }
 static int free_track(int type) {               // polyphony on the instrument page
@@ -1013,12 +1016,13 @@ static void instrument_key(int k) {
 }
 
 // ================================================================ song page
-enum { SF_NAME, SF_BPM, SF_SPEED, SF_MASTER, SF_RESTART, SF_LAYOUT, SF_COUNT };
-static const char *const song_labels[SF_COUNT] = { "NOM", "BPM", "VITESSE", "VOLUME", "REPRISE", "CLAVIER" };
+enum { SF_NAME, SF_BPM, SF_SPEED, SF_MASTER, SF_RESTART, SF_LAYOUT, SF_VELO, SF_COUNT };
+static const char *const song_labels[SF_COUNT] = { "NOM", "BPM", "VITESSE", "VOLUME", "REPRISE", "CLAVIER", "VELOCITE" };
 static const char *const song_help[SF_COUNT] = {
   "ENTREE POUR ECRIRE LE NOM DU MORCEAU", "TEMPO: 125 BPM = 50 TICKS PAR SECONDE",
   "TICKS PAR LIGNE (6 = UNE DOUBLE CROCHE)", "VOLUME GENERAL DU MORCEAU (0-64)",
-  "POSITION REJOUEE APRES LA DERNIERE", "DISPOSITION DU CLAVIER (POUR LES LETTRES)" };
+  "POSITION REJOUEE APRES LA DERNIERE", "DISPOSITION DU CLAVIER (POUR LES LETTRES)",
+  "CLAVIER MIDI: LA FORCE DE FRAPPE ECRIT LE VOLUME" };
 
 enum { SB_SAVE, SB_LOAD, SB_DELETE, SB_NEW, SB_DEMO, SB_COUNT };
 static const char *const songbtn_labels[SB_COUNT] = { "SAUVER", "CHARGER", "EFFACER", "NOUVEAU", "DEMO" };
@@ -1057,6 +1061,7 @@ static void draw_song(void) {
       case SF_MASTER: snprintf(line, sizeof line, "%d", s_master); break;
       case SF_RESTART: snprintf(line, sizeof line, "%02X", restart); break;
       case SF_LAYOUT: snprintf(line, sizeof line, "%s", layout ? "QWERTY" : "AZERTY"); break;
+      case SF_VELO: snprintf(line, sizeof line, "%s", velo_off ? "NON" : "OUI"); break;
     }
     print(f == SF_NAME ? 14 : 23, f == SF_NAME ? y + 1 : y, line, C_YELLOW);
     zone(14, y, 30, f == SF_NAME ? y + 1 : y, Z_SETTING, f);
@@ -1159,6 +1164,7 @@ static void song_key(int k) {
         case SF_MASTER: s_master = clampi(s_master + d, 0, 64); mt_master(s_master); break;
         case SF_RESTART: restart = clampi(restart + (d > 0 ? 1 : -1), 0, n_orders - 1); break;
         case SF_LAYOUT: layout = !layout; NV[4] = (uint8_t)layout; return;
+        case SF_VELO: velo_off = !velo_off; NV[6] = (uint8_t)((NV[6] & ~1) | velo_off); return;
       }
       if (song_field == SF_BPM || song_field == SF_SPEED) mt_set_tempo(s_speed, s_bpm);
       dirty = 1;
@@ -1271,6 +1277,7 @@ static void setting_change(int f, int d) {
     case SF_MASTER: s_master = clampi(s_master + d, 0, 64); mt_master(s_master); break;
     case SF_RESTART: restart = clampi(restart + (d > 0 ? 1 : -1), 0, n_orders - 1); break;
     case SF_LAYOUT: layout = !layout; NV[4] = (uint8_t)layout; return;
+    case SF_VELO: velo_off = !velo_off; NV[6] = (uint8_t)((NV[6] & ~1) | velo_off); return;
     default: return;
   }
   dirty = 1;
@@ -1284,7 +1291,7 @@ static void solo(int t) {
 // a click (button 1 left, 2 right) or a repeat while it is held (rep = true)
 static bool zone_repeats(const zone_t *z) {
   return (z->id == Z_SPIN && z->arg % 4 < 2) || (z->id == Z_PARAM && (z->arg & 0x100)) ||
-         z->id == Z_ORDPAT || (z->id == Z_SETTING && z->arg != SF_NAME && z->arg != SF_LAYOUT);
+         z->id == Z_ORDPAT || (z->id == Z_SETTING && z->arg != SF_NAME && z->arg != SF_LAYOUT && z->arg != SF_VELO);
 }
 static void mouse_click(const zone_t *z, int btn, int cx) {
   int big = shift() ? 10 : 1, d = btn == 2 ? -big : big;
@@ -1409,11 +1416,75 @@ static void key_up(int k) {
   }
 }
 
+// ================================================================ MIDI keyboard
+// Notes play and write like the piano of the computer keyboard (the velocity gives the volume);
+// the eight knobs (CC 21 to 28, as a Novation Launchkey sends them) set eight settings of the sound
+// shown on the sound page.
+static int8_t midi_track[128];                   // track sounding for each MIDI note, -1 none
+static int midi_seen;
+static const uint8_t knob_param[8] = { 8, 9, 10, 11, 6, 12, 13, 3 };   // attack, decay, sustain, release, volume, vib x2, duty
+static const uint8_t knob_max[8] = { 64, 64, 64, 64, 64, 32, 32, 255 };
+static void midi_note_on(int mn, int vel) {
+  int n = clampi(mn - 11, 1, 96), vol = (vel * 64 + 63) / 127;
+  if (page == PG_INS) {
+    mt_instrument_t *in = &ins[ins_sel];
+    if (ins_empty(in)) return;
+    int t = free_track(in->type);
+    jam_vol(0, t, n, ins_sel, vol); jam_track[0] = -1;
+    midi_track[mn] = (int8_t)t;
+    return;
+  }
+  int t = cur_track, in = mt_track_type(t) == MT_TYPE_PSG ? ins_psg : ins_pcm;
+  jam_vol(0, t, n, in, vol); jam_track[0] = -1;
+  midi_track[mn] = (int8_t)t;
+  if (page == PG_PAT && edit_mode) {
+    uint32_t c = get_cell(cur_row, t) & ~0x7FFFFu;           // keeps the effect
+    c |= (uint32_t)n | ((uint32_t)in << 7);
+    if (!velo_off) c |= (uint32_t)(vol + 1) << 12;
+    else c |= get_cell(cur_row, t) & (0x7Fu << 12);
+    set_cell(cur_row, t, c); advance();
+  }
+}
+static void midi_note_off(int mn) {
+  int t = midi_track[mn];
+  if (t < 0) return;
+  midi_track[mn] = -1;
+  for (int i = 0; i < 128; i++) if (midi_track[i] == t) return;   // another key still holds the track
+  for (int k = 0; k < 512; k++) if (jam_track[k] == t) return;
+  mt_note_off(t);
+}
+static void midi_cc(int cc, int v) {
+  if (cc < 21 || cc > 28 || page != PG_INS) return;
+  mt_instrument_t *in = &ins[ins_sel];
+  int pi = knob_param[cc - 21];
+  if (pi == 3 && in->type == MT_TYPE_PCM) pi = 7;            // PCM: panning instead of the duty
+  const param_t *p = &params[pi];
+  int max = pi == 7 ? 255 : knob_max[cc - 21], lo = pi == 3 ? 1 : 0;
+  ((uint8_t *)in)[p->off] = (uint8_t)(lo + (max - lo) * v / 127);
+  const uint8_t *l; int n = plist(&l);
+  for (int i = 0; i < n; i++) if (l[i] == pi) ins_field = i;
+  dirty = 1; graphs_dirty = 1;
+  char s[24]; param_value(in, pi, s, sizeof s);
+  snprintf(line, sizeof line, "BOUTON %d: %s %s", cc - 20, p->label, s);
+  message(line);
+}
+static void midi_poll(void) {
+  int e;
+  while ((e = mc_midi_event()) >= 0) {
+    if (!midi_seen) { midi_seen = 1; message("CLAVIER MIDI BRANCHE"); }
+    int st = MIDI_STATUS(e);
+    if (st == MIDI_NOTE_ON) midi_note_on(MIDI_DATA1(e), MIDI_DATA2(e));
+    else if (st == MIDI_NOTE_OFF) midi_note_off(MIDI_DATA1(e));
+    else if (st == MIDI_CC) midi_cc(MIDI_DATA1(e), MIDI_DATA2(e));
+  }
+}
+
 int main(void) {
   mc_init();
   video_init();
   mt_init(mtbank_file);
   for (int i = 0; i < 512; i++) jam_track[i] = -1;
+  for (int i = 0; i < 128; i++) midi_track[i] = -1;
   nv_check();
   int last = NV[5];
   if (last < NV_SLOTS && slot_size(last) && song_load((const void *)(NVRAM_BASE + slot_off(last)), slot_size(last))) song_slot = last;
@@ -1436,6 +1507,7 @@ int main(void) {
         key_up(k);
       }
     }
+    midi_poll();
     if (rep_key) {
       if (!mc_key(rep_key)) rep_key = 0;
       else if (--rep_timer == 0) { rep_timer = 3; global_key(rep_key); }

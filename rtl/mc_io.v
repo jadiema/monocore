@@ -1,4 +1,4 @@
-// MONOCORE-1 I/O block (0x4000_0000): inputs (4 pads, analog sticks, paddles and spinners, keyboard, mouse),
+// MONOCORE-1 I/O block (0x4000_0000): inputs (4 pads, analog sticks, paddles and spinners, keyboard, mouse, MIDI),
 // interrupt controller, timers, cycle counter, DMA registers and the debug output. Slave protocol: see mc_rom_cache.v.
 module mc_io (
 	input  wire        clk,
@@ -32,6 +32,9 @@ module mc_io (
 	input  wire [8:0]  ms_dy,
 	input  wire [2:0]  ms_btn,          // left, right, middle
 	input  wire [7:0]  ms_wheel,        // signed wheel move of the packet
+	// MIDI: one pulse per byte received (31250 bauds, see mc_system.v)
+	input  wire        midi_stb,
+	input  wire [7:0]  midi_byte,
 	// interrupt sources and CPU interrupt line
 	input  wire        vblank_pulse,
 	input  wire        line_pulse,
@@ -73,6 +76,27 @@ module mc_io (
 		end
 	end
 	wire [9:0] kq_head = kq[kq_rd];
+
+	// MIDI: a queue of 64 received bytes; reading 0xDC gives the oldest one, writing 0xDC removes it
+	reg [7:0] mq [0:63];
+	reg [5:0] mq_rd, mq_wr;
+	reg [6:0] mq_n;
+	reg       mq_lost;                  // a byte was lost (queue full) since the last read of the flag
+	wire      wr_midi = wr && waddr[11:2] == 10'h037;   // 0xDC
+	wire      mq_push = midi_stb && mq_n != 7'd64;
+	wire      mq_pop  = wr_midi && mq_n != 7'd0;
+	always @(posedge clk or negedge rst_n) begin
+		if (!rst_n) begin
+			mq_rd <= 6'd0; mq_wr <= 6'd0; mq_n <= 7'd0; mq_lost <= 1'b0;
+		end else begin
+			if (mq_push) begin mq[mq_wr] <= midi_byte; mq_wr <= mq_wr + 6'd1; end
+			if (mq_pop) mq_rd <= mq_rd + 6'd1;
+			mq_n <= mq_n + {6'd0, mq_push} - {6'd0, mq_pop};
+			if (midi_stb && mq_n == 7'd64) mq_lost <= 1'b1;
+			else if (wr_midi) mq_lost <= 1'b0;
+		end
+	end
+	wire [7:0] mq_head = mq[mq_rd];
 
 	// mouse: position counters (16 bits, Y positive downwards), wheel counter, buttons
 	reg [15:0] ms_x, ms_y;
@@ -176,6 +200,7 @@ module mc_io (
 		10'h034: rdata <= {kq_n != 5'd0, 21'd0, kq_head};  // 0xD0
 		10'h035: rdata <= {ms_y, ms_x};                    // 0xD4
 		10'h036: rdata <= {ms_seen, 15'd0, ms_wh, 5'd0, ms_b};   // 0xD8
+		10'h037: rdata <= {mq_n != 7'd0, mq_lost, 7'd0, mq_n, 8'd0, mq_head};   // 0xDC
 		10'h002: rdata <= {29'd0, in_sys};
 		10'h003: rdata <= dip;
 		10'h004: rdata <= {27'd0, irq_status};
@@ -189,7 +214,7 @@ module mc_io (
 		10'h010: rdata <= dma_src;
 		10'h011: rdata <= dma_dst;
 		10'h012: rdata <= dma_len;
-		10'h01C: rdata <= 32'h00000003;   // 0x70: hardware version 3 (2: pads 3-4, analog, keyboard; 3: mouse)
+		10'h01C: rdata <= 32'h00000004;   // 0x70: hardware version 4 (2: pads 3-4, analog, keyboard; 3: mouse; 4: MIDI)
 		default: rdata <= 32'd0;
 		endcase
 	end

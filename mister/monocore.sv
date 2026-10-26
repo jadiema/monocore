@@ -2,7 +2,7 @@
 //  MONOCORE-1 for MiSTer: the virtual console core inside the MiSTer framework (Template_MiSTer).
 //
 //  This file connects rtl/mister/mc_system.v (core, SDRAM controller, ROM loader, scan-out) to the
-//  framework: hps_io (OSD menu, ROM loading, 4 joysticks with analog sticks, paddles, spinners, keyboard, mouse), the PLL (50 MHz system, 100 MHz SDRAM),
+//  framework: hps_io (OSD menu, ROM loading, 4 joysticks with analog sticks, paddles, spinners, keyboard, mouse, MIDI through the UART), the PLL (50 MHz system, 100 MHz SDRAM),
 //  the SDRAM pins, video and audio.
 //
 //  ROM loading: any file chosen in the OSD ("Charger une ROM", .MNC) is copied to the SDRAM, then the
@@ -18,7 +18,8 @@ module emu
 ///////// Default values for ports not used in this core /////////
 
 assign ADC_BUS  = 'Z;
-assign {UART_RTS, UART_TXD, UART_DTR} = 0;
+assign {UART_RTS, UART_DTR} = 0;
+assign UART_TXD = 1'b1;                    // MIDI out unused: the line stays idle (high)
 assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = '0;
 
@@ -42,7 +43,7 @@ assign VIDEO_ARY = (!ar) ? 12'd3 : 12'd0;
 
 `include "build_id.v"
 localparam CONF_STR = {
-	"MONOCORE;;",
+	"MONOCORE;UART31250,MIDI;",   // UART menu: MIDI in through MidiLink (USB MIDI keyboards)
 	"-;",
 	"FS1,MNC,Charger une ROM;",
 	"-;",
@@ -221,6 +222,7 @@ mc_system system
 	.ps2_key(ps2_key),
 	.ps2_mouse(ps2_mouse),
 	.ps2_mouse_ext(ps2_mouse_ext),
+	.uart_rxd(UART_RXD),
 	.user_in(USER_IN),
 	.user_out(USER_OUT),
 	.cart_load(status[4]),
