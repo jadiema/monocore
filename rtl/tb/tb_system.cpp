@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
             int x = clip(ms.dx) & 0x1FF, y = clip(-ms.dy) & 0x1FF;
             uint32_t st = (ms.b & 7) | 8 | ((x >> 8) << 4) | ((y >> 8) << 5);
             top->ps2_mouse = ((~top->ps2_mouse) & 0x1000000) | ((y & 0xFF) << 16) | ((x & 0xFF) << 8) | st;
-            top->ps2_mouse_ext = ms.w & 0xFF;
+            top->ps2_mouse_ext = (-ms.w) & 0xFF;     // hps_io: positive towards the user
         }
         if (!keys.empty()) {                       // one key event per frame, as ps2_key holds one
             uint32_t k = keys.front(); keys.pop_front();

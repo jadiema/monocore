@@ -31,7 +31,8 @@ module mc_system #(
 	// keyboard (hps_io ps2_key): [10] toggles at each event, [9] pressed, [8] extended, [7:0] code
 	input  wire [10:0] ps2_key,
 	// mouse (hps_io ps2_mouse): [24] toggles at each packet, [23:16] Y, [15:8] X, [5] Y sign, [4] X sign,
-	// [2:0] middle, right, left buttons; ps2_mouse_ext[7:0]: wheel move of the packet
+	// [2:0] middle, right, left buttons; ps2_mouse_ext[7:0]: wheel move of the packet, positive when the
+	// wheel is turned towards the user (checked on the DE10-Nano): negated for MOUSE_BTN (+ = away)
 	input  wire [24:0] ps2_mouse,
 	input  wire [15:0] ps2_mouse_ext,
 	// cartridge on the USER port (see mc_cart.v): 0 CLK, 1 DI, 2 /CS0, 3 detection (grounded by
@@ -227,7 +228,7 @@ module mc_system #(
 		.in_analog(analog), .in_paddle(paddles),
 		.kb_stb(kb_stb), .kb_down(ps2_key[9]), .kb_ext(ps2_key[8]), .kb_code(ps2_key[7:0]),
 		.ms_stb(ms_stb), .ms_dx({ps2_mouse[4], ps2_mouse[15:8]}), .ms_dy({ps2_mouse[5], ps2_mouse[23:16]}),
-		.ms_btn({ps2_mouse[2], ps2_mouse[1], ps2_mouse[0]}), .ms_wheel(ps2_mouse_ext[7:0]),
+		.ms_btn({ps2_mouse[2], ps2_mouse[1], ps2_mouse[0]}), .ms_wheel(8'd0 - ps2_mouse_ext[7:0]),
 		.nv_b_en(nv_b_en), .nv_b_we(nv_b_we), .nv_b_addr(nv_b_addr), .nv_b_wdata(nv_b_wdata), .nv_b_rdata(nv_b_rdata),
 		.nv_written(nv_written),
 		.dbg_valid(dbg_valid), .dbg_char(dbg_char),
