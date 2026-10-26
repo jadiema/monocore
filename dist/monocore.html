@@ -3254,6 +3254,8 @@ int main(void) {
     midiDd: [': un clavier MIDI USB branché sur le PC (Chrome, Edge) envoie ses notes à la console',
              ': a USB MIDI keyboard plugged into the PC (Chrome, Edge) sends its notes to the console'],
     midiNone: ['ce navigateur ne donne pas accès au MIDI (essayez Chrome ou Edge)', 'this browser gives no access to MIDI (try Chrome or Edge)'],
+    midiLocal: ['Firefox ne donne le MIDI qu\'aux pages servies par un serveur, pas à un fichier ouvert directement. Dans le dossier de la page, lancez « python3 -m http.server 8000 », puis ouvrez http://localhost:8000/monocore.html : Firefox demandera alors l\'autorisation. Chrome et Edge, eux, l\'acceptent depuis un fichier.',
+                'Firefox gives MIDI only to pages served by a server, not to a file opened directly. In the folder of the page, run “python3 -m http.server 8000”, then open http://localhost:8000/monocore.html: Firefox will then ask for permission. Chrome and Edge accept it from a file.'],
     midiDenied: ['accès au MIDI refusé', 'MIDI access denied'],
     midiNoDevice: ['aucun clavier MIDI trouvé : branchez-le, il sera pris dès son arrivée', 'no MIDI keyboard found: plug it in, it will be used as soon as it appears'],
     midiDevices: ['MIDI', 'MIDI'],
@@ -3392,7 +3394,11 @@ int main(void) {
     return names;
   }
   async function midiStart() {
-    if (!navigator.requestMIDIAccess) { log(t('midiNone') + '\n', 'err'); $('midiMode').checked = false; return; }
+    if (!navigator.requestMIDIAccess) {
+      // Firefox only exposes Web MIDI in secure contexts it can grant (a server: localhost or https)
+      const firefoxFile = /firefox/i.test(navigator.userAgent) && location.protocol === 'file:';
+      log(t(firefoxFile ? 'midiLocal' : 'midiNone') + '\n', 'err'); $('midiMode').checked = false; return;
+    }
     try {
       if (!midiAccess) {
         midiAccess = await navigator.requestMIDIAccess({ sysex: false });
