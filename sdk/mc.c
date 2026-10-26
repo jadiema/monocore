@@ -127,6 +127,27 @@ void mc_init(void) {
   irq_global_enable();
 }
 
+// mouse: the counters of MOUSE_XY become a pointer kept inside the screen
+static uint32_t ms_raw, ms_btn_now, ms_btn_prev;
+static int ms_x, ms_y, ms_dx, ms_dy, ms_wheel, ms_num = 1, ms_den = 1, ms_rx, ms_ry;
+static uint8_t ms_wraw, ms_started;
+static void mouse_step(void) {
+  uint32_t xy = MOUSE_XY, b = MOUSE_BTN;
+  if (!ms_started) { ms_raw = xy; ms_wraw = (uint8_t)(b >> 8); ms_started = 1; }   // moves from before the start
+  ms_dx = (int16_t)(uint16_t)(xy - ms_raw);
+  ms_dy = (int16_t)(uint16_t)((xy >> 16) - (ms_raw >> 16));
+  ms_raw = xy;
+  ms_wheel = (int8_t)(uint8_t)((uint8_t)(b >> 8) - ms_wraw); ms_wraw = (uint8_t)(b >> 8);
+  ms_btn_prev = ms_btn_now; ms_btn_now = b & 7u;
+  ms_rx += ms_dx * ms_num; ms_ry += ms_dy * ms_num;      // num/den pixels per count, remainder kept
+  int mx = ms_rx / ms_den, my = ms_ry / ms_den;
+  ms_rx -= mx * ms_den; ms_ry -= my * ms_den;
+  ms_x += mx; ms_y += my;
+  int w = mc_screen_w(), h = mc_screen_h();
+  if (ms_x < 0) ms_x = 0; if (ms_x > w - 1) ms_x = w - 1;
+  if (ms_y < 0) ms_y = 0; if (ms_y > h - 1) ms_y = h - 1;
+}
+
 void mc_frame(void) {
   uint32_t f = mc_frames;
   while (mc_frames == f) wfi();
@@ -141,6 +162,7 @@ void mc_frame(void) {
     }
     for (int k = 0; k < 8; k++) { key_prev[k] = key_now[k]; key_now[k] = KEY_STATE(k); }
   }
+  if (hw_version >= 3) mouse_step();
   tunes_step();
 }
 
@@ -316,6 +338,17 @@ int mc_key_event(void) {
   KEY_EVENT = 0;
   return (int)(e & 0x3FF);
 }
+bool mc_mouse_present(void) { return hw_version >= 3 && (MOUSE_BTN & 0x80000000u); }
+int  mc_mouse_x(void) { return ms_x; }
+int  mc_mouse_y(void) { return ms_y; }
+int  mc_mouse_dx(void) { return ms_dx; }
+int  mc_mouse_dy(void) { return ms_dy; }
+uint32_t mc_mouse_buttons(void) { return ms_btn_now; }
+uint32_t mc_mouse_pressed(void) { return ms_btn_now & ~ms_btn_prev; }
+uint32_t mc_mouse_released(void) { return ~ms_btn_now & ms_btn_prev; }
+int  mc_mouse_wheel(void) { return ms_wheel; }
+void mc_mouse_set(int x, int y) { ms_x = x; ms_y = y; ms_rx = ms_ry = 0; }
+void mc_mouse_speed(int num, int den) { ms_num = num > 0 ? num : 1; ms_den = den > 0 ? den : 1; ms_rx = ms_ry = 0; }
 uint32_t mc_sys(void) { return IN_SYS; }
 uint32_t mc_dip(void) { return DIPSW; }
 

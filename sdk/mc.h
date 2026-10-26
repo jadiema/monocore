@@ -110,7 +110,7 @@ uint32_t mc_pad_pressed(int player);        // buttons that went down since the 
 uint32_t mc_pad_released(int player);
 uint32_t mc_sys(void);                      // IN_SYS
 uint32_t mc_dip(void);                      // DIP switches
-int  mc_hw_version(void);                   // 2 or more: pads 3-4, analog inputs and keyboard exist
+int  mc_hw_version(void);                   // 2 or more: pads 3-4, analog inputs and keyboard; 3: mouse
 // analog inputs (0 on hardware version 1): stick 0 = left, 1 = right; -127 to +127, +Y = down
 int  mc_stick_x(int player, int stick);
 int  mc_stick_y(int player, int stick);
@@ -122,6 +122,18 @@ bool mc_key(int key);                       // down now (state read by mc_frame)
 bool mc_key_pressed(int key);               // went down since the previous frame
 bool mc_key_released(int key);
 int  mc_key_event(void);                    // next event: 0x200 if down, 0x100 if extended, + code; -1 = none
+// mouse (hardware version 3): mc_frame() moves a pointer kept inside the screen
+bool mc_mouse_present(void);                // a mouse has sent at least one packet
+int  mc_mouse_x(void);                      // pointer, in pixels of the screen
+int  mc_mouse_y(void);
+int  mc_mouse_dx(void);                     // raw move since the previous frame (mouse counts)
+int  mc_mouse_dy(void);                     // positive downwards
+uint32_t mc_mouse_buttons(void);            // MOUSE_LEFT, MOUSE_RIGHT, MOUSE_MIDDLE held now
+uint32_t mc_mouse_pressed(void);            // went down since the previous frame
+uint32_t mc_mouse_released(void);
+int  mc_mouse_wheel(void);                  // wheel notches since the previous frame (+ = turned away from you)
+void mc_mouse_set(int x, int y);            // places the pointer
+void mc_mouse_speed(int num, int den);      // pixels per mouse count, num/den (1/1 at start)
 
 // ================================================================ memory
 // WRAM 128 KB: .data, .bss, heap (malloc), then the stack (MC_STACK bytes at the top).

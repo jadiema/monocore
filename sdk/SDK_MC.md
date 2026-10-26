@@ -62,6 +62,7 @@ des morceaux du tracker MONOTRACKER (`#include "mtrack.h"`, documentation : `MTR
 | Entrées | `mc_pad`, `mc_pad_pressed`, `mc_pad_released`, `mc_sys`, `mc_dip`, `mc_hw_version` | 4 manettes (joueurs 1 à 4) |
 | Analogique | `mc_stick_x`, `mc_stick_y`, `mc_paddle`, `mc_spinner`, `mc_spinner_delta` | sticks gauche et droit de −127 à +127, paddle 0-255, spinner en position 16 bits |
 | Clavier | `mc_key`, `mc_key_pressed`, `mc_key_released`, `mc_key_event` | codes PS/2 `KEY_xxx` de `monocore.h`, état des 256 touches et file de 16 événements |
+| Souris | `mc_mouse_present`, `mc_mouse_x`, `mc_mouse_y`, `mc_mouse_buttons`, `mc_mouse_pressed`, `mc_mouse_wheel`, `mc_mouse_dx`, `mc_mouse_speed`, `mc_mouse_set` | pointeur gardé dans l'écran par `mc_frame()`, boutons `MOUSE_LEFT/RIGHT/MIDDLE`, molette (matériel version 3) |
 | Mémoire | `malloc`, `calloc`, `realloc`, `free`, `mc_heap_free`, `mc_copy`, `mc_fill`, `MC_NVRAM` | tas d'environ 100 Ko entre les variables et la pile (16 Ko) |
 | Maths | `fix16`, `fix_mul`, `fix_div`, `mc_sin`, `mc_cos`, `mc_atan2`, `mc_isqrt`, `mc_rand` | virgule fixe 16.16, angles sur 1024 pas |
 | Débogage | `mc_debug`, `printf`, `puts`, `assert` | sortie sur `DEBUG_OUT`, affichée par le simulateur ; `printf` accepte `%d %u %x %s %c %p`, la largeur, `0`, `-`, `+` et `%.Ns` |
@@ -82,7 +83,23 @@ des morceaux du tracker MONOTRACKER (`#include "mtrack.h"`, documentation : `MTR
   quelques dizaines d'octets (ROM → CHR RAM, palettes, cartes).
 - **Virgule flottante** : le processeur (RV32IM) n'a pas d'unité flottante. Le compilateur émule
   `float`, mais lentement ; pour un portage, convertissez les calculs en `fix16`.
-- **NVRAM** : 32 Ko, pas encore sauvegardés sur la carte SD par le core.
+- **NVRAM** : 32 Ko, sauvegardés par le core dans `saves/MONOCORE/<rom>.sav` (à l'ouverture de l'OSD).
+
+## Souris
+
+La souris existe à partir de la version 3 du matériel (`mc_hw_version() >= 3`). Elle vient du
+framework MiSTer (souris USB de la carte, `ps2_mouse` de `hps_io`) ; le core en tient deux
+registres, des compteurs de position et l'état des boutons et de la molette (SPEC, `MOUSE_XY` et
+`MOUSE_BTN`). `mc_frame()` en tire un pointeur gardé dans l'écran : `mc_mouse_x()` et
+`mc_mouse_y()` en pixels, à raison d'un pixel par pas de la souris au départ (`mc_mouse_speed(n, d)`
+pour n/d pixels par pas, `mc_mouse_set` pour le placer). `mc_mouse_pressed()` donne les boutons
+enfoncés depuis l'image précédente, `mc_mouse_wheel()` les crans de molette (positifs vers l'avant).
+`mc_mouse_present()` reste faux tant que la souris n'a rien envoyé. Le pointeur n'est pas dessiné :
+le jeu affiche le sien, par exemple avec un sprite (`examples/tracker`).
+
+Dans le simulateur, la case « souris de la console » fait suivre au pointeur du jeu celui du
+navigateur sur l'écran (un pas = un pixel de la console) ; `tools/run.js` accepte
+`ms=dx,dy,boutons,molette`.
 
 ## Manettes 3 et 4, analogique et clavier
 
@@ -105,11 +122,11 @@ affiche tout ce que la console reçoit).
 | Dossier | Contenu |
 |---|---|
 | `examples/test_sdk` | test minimal : raster, timers, `malloc`, `printf` |
-| `examples/test_inputs` | affiche les 4 manettes, leurs sticks, paddles et spinners, et les événements du clavier |
+| `examples/test_inputs` | affiche les 4 manettes, leurs sticks, paddles et spinners, les événements du clavier et la souris |
 | `examples/boot` | l'écran d'accueil de la console (`boot.rom`) : barres copper par défilement ligne par ligne, logo en un seul sprite de 256 × 40, ciel raster, texte défilant en sprites zoomés |
 | `examples/horizon` | course en fausse 3D (style OutRun) : une texture de route de 120 lignes, choisie (`dy`) et décalée (`dx`) ligne par ligne pour la largeur, les bandes et les virages ; objets zoomés selon leur distance et triés avec `qsort` |
 | `examples/nebula` | shoot'em up complet ; tous les graphismes sont produits au démarrage dans la CHR RAM (sprites en « ASCII art », décors procéduraux découpés en tuiles avec partage des tuiles identiques), parallaxe, sol en perspective, 233 sprites, tirs visés avec `mc_atan2` |
-| `examples/tracker` | MONOTRACKER, tracker de musique au clavier : 16 pistes, page d'édition des sons, sauvegarde en NVRAM, motifs rangés dans la CHR RAM |
+| `examples/tracker` | MONOTRACKER, tracker de musique au clavier et à la souris, interface à panneaux façon trackers Amiga : 16 pistes, page d'édition des sons, sauvegarde en NVRAM, motifs rangés dans la CHR RAM |
 | `examples/test_mtrack` | le module `mtrack` comme dans un jeu : un morceau, deux bruitages, pause |
 | `examples/virusmeadow` | pong-casse-briques coopératif à 4 joueurs : écran d'accueil en image 8 bpp (`maps8`) avec fondu par la palette, prairie procédurale, virus sur un plan de tuiles, joueurs console pour les places libres, manettes, sticks, spinners et paddles |
 

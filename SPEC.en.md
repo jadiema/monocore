@@ -1,6 +1,6 @@
 # MONOCORE-1 — virtual console specification
 
-Version 0.4 — October 2026 (4 pads, analog inputs and keyboard; single 50 MHz clock)
+Version 0.5 — October 2026 (4 pads, analog inputs, keyboard and mouse; single 50 MHz clock)
 
 *English translation of `SPEC.md`; the French text is the reference.*
 
@@ -214,15 +214,17 @@ Each side of the output is `⌊sum × MASTER_VOL × 77 / 65 536⌋`, clamped to 
 | 0x48 | `DMA_LEN` | length in bytes |
 | 0x4C | `DMA_CTRL` | write bit 0 start, bit 1 fill mode; read bit 0 busy |
 | 0x60 | `DEBUG_OUT` | each byte written = one character on the debug console (absent from the final FPGA) |
-| 0x70 | `HW_VERSION` | hardware version: 2 since players 3 and 4, analog and keyboard were added (1 before) |
+| 0x70 | `HW_VERSION` | hardware version: 2 since players 3 and 4, analog and keyboard were added (1 before), 3 since the mouse was added |
 | 0x80 | `IN_P3` | player 3, same format as `IN_P1` |
 | 0x84 | `IN_P4` | player 4 |
 | 0x90 + 4n | `ANALOG_Pn` | pad n (0-3 = players 1-4): left stick X (bits 7–0) and Y (15–8), right stick X (23–16) and Y (31–24), signed from −127 to +127, 0 at rest; positive Y is down |
 | 0xA0 + 4n | `PADDLE_Pn` | paddle from 0 to 255 (bits 7–0); bits 31–16: spinner position, a 16-bit counter that accumulates its movements |
 | 0xB0 + 4k | `KEY_STATE0`–`KEY_STATE7` | keyboard: 256 bits, 1 = key down; the key with PS/2 code (set 2) *c* is bit *i* = c (bit 7 of *c* at 0), + 128 for an extended code (E0 prefix); code 0x83 (F7) takes the free slot i = 0x02 |
 | 0xD0 | `KEY_EVENT` | read: oldest unread keyboard event, bit 31 valid, bit 9 press (0 = release), bit 8 extended, bits 7–0 PS/2 code; write (any value): removes that event. Queue of 16 events; once full, new ones are lost |
+| 0xD4 | `MOUSE_XY` | mouse: 16-bit position counters, X (bits 15–0, positive to the right) and Y (bits 31–16, positive downwards), accumulating the moves received (each between −256 and +255 per PS/2 packet) and wrapping to 0 on overflow; software gets the move by difference |
+| 0xD8 | `MOUSE_BTN` | bit 0 left button, 1 right, 2 middle (1 = pressed); bits 15–8: wheel counter (8 bits, accumulates the signed notches, positive when turned away from the user, as in Linux); bit 31: at least one packet received since reset (a mouse is plugged in) |
 
-Players 3 and 4, analog and keyboard come from the MiSTer framework: pads 3 and 4 from `hps_io`, analog sticks, paddles and spinners of pads 1 to 4, the board's USB keyboard (PS/2 codes). A ROM that wants to use them checks that `HW_VERSION` ≥ 2. Reading these registers has no side effect: only writing to `KEY_EVENT` advances the queue.
+Players 3 and 4, analog and keyboard come from the MiSTer framework: pads 3 and 4 from `hps_io`, analog sticks, paddles and spinners of pads 1 to 4, the board's USB keyboard (PS/2 codes). A ROM that wants to use them checks that `HW_VERSION` ≥ 2. The mouse (USB, or the board's PS/2 mouse) also comes from `hps_io` (`ps2_mouse`); a ROM that wants it checks that `HW_VERSION` ≥ 3. Reading these registers has no side effect: only writing to `KEY_EVENT` advances the queue.
 
 VBLANK fires at the start of line `SCREEN_H`, LINE at the start of line `LINE_CMP`. The CPU interrupt line is `(IRQ_STATUS & IRQ_ENABLE) != 0`.
 

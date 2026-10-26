@@ -275,6 +275,7 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
                 <dt>Tilt</dt><dd><kbd data-code="KeyT">T</kbd></dd>
                 <dt data-i18n="pads">Manettes</dt><dd data-i18n="padsDd">jusqu'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris</dd>
                 <dt data-i18n="kbd">Clavier</dt><dd><label><input type="checkbox" id="kbdMode"> <span data-i18n="kbdLabel">clavier de la console</span></label> <span data-i18n-html="kbdDd">(<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 à 4</span></dd>
+                <dt data-i18n="mouse">Souris</dt><dd><label><input type="checkbox" id="mouseMode"> <span data-i18n="mouseLabel">souris de la console</span></label> <span data-i18n-html="mouseDd">: la souris pilote le pointeur du jeu sur l'écran (boutons et molette compris)</span></dd>
                 <dt data-i18n="layout">Disposition</dt><dd data-i18n="layoutDd">les lettres sont celles marquées sur ton clavier (QWERTY, AZERTY…) ; les chiffres sont ceux de la rangée du haut, sans Majuscule</dd>
               </dl>
             </section>
@@ -378,8 +379,8 @@ __CORE_JS__
     nvNoSongs: ['aucun morceau sauvé (Ctrl+S dans le tracker)', 'no song saved (Ctrl+S in the tracker)'],
     nvImported: ['NVRAM importée, ROM redémarrée', 'NVRAM imported, ROM restarted'],
     nvBad: ['fichier .sav refusé : 32 Ko attendus', '.sav file rejected: 32 KB expected'],
-    trackerKbd: ['MONOTRACKER se joue au clavier : « clavier de la console » activé (F9 pour le couper). F4 dans le tracker : l\'aide.',
-                 'MONOTRACKER is played with the keyboard: “console keyboard” is on (F9 turns it off). F4 in the tracker: help.'],
+    trackerKbd: ['MONOTRACKER se joue au clavier et à la souris : « clavier de la console » et « souris de la console » activés (F9 coupe le clavier). F4 dans le tracker : l\'aide.',
+                 'MONOTRACKER is played with the keyboard and the mouse: “console keyboard” and “console mouse” are on (F9 turns the keyboard off). F4 in the tracker: help.'],
     loadRom: ['Charger une ROM…', 'Load a ROM…'],
     dropHint: ['Tu peux aussi glisser un fichier <code>.mnc</code> sur l\'écran.', 'You can also drop a <code>.mnc</code> file on the screen.'],
     p1: ['Joueur 1', 'Player 1'], p2: ['Joueur 2', 'Player 2'], p3: ['Joueur 3', 'Player 3'], p4: ['Joueur 4 (pavé num.)', 'Player 4 (keypad)'],
@@ -396,6 +397,9 @@ __CORE_JS__
     pads: ['Manettes', 'Pads'],
     padsDd: ['jusqu\'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris', 'up to 4 USB or Bluetooth pads: players 1 to 4, analog sticks included'],
     kbd: ['Clavier', 'Keyboard'], kbdLabel: ['clavier de la console', 'console keyboard'],
+    mouse: ['Souris', 'Mouse'], mouseLabel: ['souris de la console', 'console mouse'],
+    mouseDd: [': la souris pilote le pointeur du jeu sur l\'écran (boutons et molette compris)',
+              ': the mouse drives the game\'s pointer on the screen (buttons and wheel included)'],
     kbdDd: ['(<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 à 4', '(<kbd>F9</kbd>): the keys go to the game instead of players 1 to 4'],
     layout: ['Disposition', 'Layout'],
     layoutDd: ['les lettres sont celles marquées sur ton clavier (QWERTY, AZERTY…) ; les chiffres sont ceux de la rangée du haut, sans Majuscule',
@@ -507,10 +511,58 @@ __CORE_JS__
     const tracker = m.header.title === 'MONOTRACKER';
     if (tracker && !$('kbdMode').checked) { setKbd(true); autoKbd = true; log(t('trackerKbd') + '\n'); }
     else if (!tracker && autoKbd) { setKbd(false); autoKbd = false; }
+    if (tracker && !$('mouseMode').checked) { $('mouseMode').checked = true; autoMouse = true; }
+    else if (!tracker && autoMouse) { $('mouseMode').checked = false; autoMouse = false; }
+    mouseHome = true;
     $('songList').textContent = '';
     $('songTools').hidden = !tracker && !hasSongs();
   }
-  let autoKbd = false;
+  let autoKbd = false, autoMouse = false;
+
+  // ---------------------------------------------------------------- console mouse
+  // The pointer of the game follows the one of the page over the screen: each frame sends, as mouse
+  // packets, the move from the last position sent, in pixels of the console (1 count = 1 pixel, the
+  // speed of the SDK at start). Entering the screen first pushes the game's pointer into the top left
+  // corner for one frame, so that both pointers then stay together.
+  let mouseHome = true, mouseTarget = null, mouseSent = { x: 0, y: 0 }, mouseButtons = 0, mouseWheel = 0, mouseDirty = false;
+  function mouseOn() { return $('mouseMode').checked && m; }
+  function mousePos(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: Math.floor((e.clientX - r.left) / r.width * canvas.width), y: Math.floor((e.clientY - r.top) / r.height * canvas.height) };
+  }
+  function mouseStep() {   // before each frame
+    if (!mouseOn()) return;
+    if (mouseHome) {
+      for (let i = 0; i < 16; i++) m.mouseEvent(-255, -255, mouseButtons, 0);
+      mouseHome = false; mouseSent = { x: 0, y: 0 };
+      return;
+    }
+    let dx = mouseTarget ? mouseTarget.x - mouseSent.x : 0, dy = mouseTarget ? mouseTarget.y - mouseSent.y : 0;
+    if (!dx && !dy && !mouseWheel && !mouseDirty) return;
+    if (mouseTarget) mouseSent = { x: mouseTarget.x, y: mouseTarget.y };
+    do {                                    // packets of at most 255 counts, as a PS/2 mouse sends them
+      const px = Math.max(-255, Math.min(255, dx)), py = Math.max(-255, Math.min(255, dy));
+      const pw = Math.max(-127, Math.min(127, mouseWheel));
+      m.mouseEvent(px, py, mouseButtons, pw);
+      dx -= px; dy -= py; mouseWheel -= pw;
+    } while (dx || dy || mouseWheel);
+    mouseDirty = false;
+  }
+  function bindMouse() {   // called once the screen canvas exists
+    $('mouseMode').addEventListener('change', () => { mouseHome = true; mouseButtons = 0; $('mouseMode').blur(); canvas.style.cursor = ''; });
+    canvas.addEventListener('pointerenter', (e) => { if (mouseOn()) { mouseHome = true; mouseTarget = mousePos(e); canvas.style.cursor = 'none'; } });
+    canvas.addEventListener('pointerleave', () => { canvas.style.cursor = ''; });
+    canvas.addEventListener('pointermove', (e) => { if (mouseOn()) { mouseTarget = mousePos(e); canvas.style.cursor = 'none'; } });
+    const BTN = [1, 4, 2];                    // page buttons 0 left, 1 middle, 2 right -> bits 0, 2, 1
+    canvas.addEventListener('pointerdown', (e) => {
+      if (!mouseOn() || !running) return;
+      e.preventDefault(); canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+      mouseTarget = mousePos(e); mouseButtons |= BTN[e.button] || 0; mouseDirty = true;
+    });
+    canvas.addEventListener('pointerup', (e) => { if (mouseOn()) { mouseButtons &= ~(BTN[e.button] || 0); mouseDirty = true; } });
+    canvas.addEventListener('contextmenu', (e) => { if (mouseOn()) e.preventDefault(); });
+    canvas.addEventListener('wheel', (e) => { if (mouseOn() && running) { e.preventDefault(); mouseWheel -= Math.sign(e.deltaY); } }, { passive: false });   // + = wheel turned away from the user (Linux, MiSTer)
+  }
   function setKbd(on) { $('kbdMode').checked = on; $('kbdMode').dispatchEvent(new Event('change')); }
 
   // ---------------------------------------------------------------- NVRAM files
@@ -572,6 +624,7 @@ __CORE_JS__
 
   // ---------------------------------------------------------------- video
   const canvas = $('screen'), ctx = canvas.getContext('2d');
+  bindMouse();
   const off = document.createElement('canvas'), octx = off.getContext('2d');
   let img = null, squarePixels = false, wide = false;
   function draw() {
@@ -787,6 +840,7 @@ __CORE_JS__
     m.inputs[2] = keyState[2];
     m.inputs[3] = keyState[3] | pads[2]; m.inputs[4] = keyState[4] | pads[3];
     for (let i = 0; i < 4; i++) m.analog[i] = analog[i];
+    mouseStep();
     const n = m.runFrame();
     pushAudio(n);
     frameStats();

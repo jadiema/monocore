@@ -3,6 +3,8 @@
 //   actions: p1=<hex> p2=<hex> p3=<hex> p4=<hex> sys=<hex> (inputs from the start of that frame),
 //            a1=<hex> .. a4=<hex> (ANALOG_Pn), d1=<hex> .. d4=<hex> (PADDLE_Pn),
 //            kd=<hex> ku=<hex> (key down / up, PS/2 code, 0x1xx = extended),
+//            ms=<dx>,<dy>,<buttons>,<wheel> (one mouse packet, decimal; dy positive downwards,
+//            buttons: bit 0 left, 1 right, 2 middle),
 //            dump=<name> (video/sound memories at the end of that frame, same layout as run.js)
 // The SDRAM is modelled behind the ROM port: first beat 4 cycles after the request is accepted,
 // then one 32-bit beat per cycle (16-bit SDRAM at 100 MHz, core at 50 MHz).
@@ -70,6 +72,8 @@ int main(int argc, char **argv) {
 
     uint32_t p1 = 0, p2 = 0, p3 = 0, p4 = 0, sys = 0, an[4] = {0, 0, 0, 0}, pd[4] = {0, 0, 0, 0};
     std::deque<uint32_t> keys;   // pending key events: bit 9 down, bit 8 extended, code
+    struct Mouse { int dx, dy, b, w; };
+    std::deque<Mouse> mice;      // pending mouse packets
     auto apply = [&](int f) {
         auto r = events.equal_range(f);
         for (auto it = r.first; it != r.second; ++it) {
@@ -83,6 +87,11 @@ int main(int argc, char **argv) {
             else if (a.size() > 3 && a[0] == 'd' && a[1] >= '1' && a[1] <= '4' && a[2] == '=') pd[a[1] - '1'] = v;
             else if (a.rfind("kd=", 0) == 0) keys.push_back(0x200 | (v & 0x1FF));
             else if (a.rfind("ku=", 0) == 0) keys.push_back(v & 0x1FF);
+            else if (a.rfind("ms=", 0) == 0) {
+                Mouse ms = {0, 0, 0, 0};
+                sscanf(a.c_str() + 3, "%d,%d,%d,%d", &ms.dx, &ms.dy, &ms.b, &ms.w);
+                mice.push_back(ms);
+            }
             else if (a.rfind("sys=", 0) == 0) sys = strtoul(a.c_str() + 4, 0, 16);
         }
         top->in_p1 = p1; top->in_p2 = p2; top->in_p3 = p3; top->in_p4 = p4; top->in_sys = sys;
@@ -158,6 +167,13 @@ int main(int argc, char **argv) {
         if (!keys.empty() && (cycle & 15) == 0) {
             uint32_t k = keys.front(); keys.pop_front();
             top->kb_stb = 1; top->kb_down = (k >> 9) & 1; top->kb_ext = (k >> 8) & 1; top->kb_code = k & 0xFF;
+        }
+        top->ms_stb = 0;
+        if (!mice.empty() && (cycle & 15) == 8) {   // as hps_io: PS/2 moves, Y positive upwards
+            Mouse ms = mice.front(); mice.pop_front();
+            auto clip = [](int v) { return v < -256 ? -256 : v > 255 ? 255 : v; };
+            top->ms_stb = 1; top->ms_dx = clip(ms.dx) & 0x1FF; top->ms_dy = clip(-ms.dy) & 0x1FF;
+            top->ms_btn = ms.b & 7; top->ms_wheel = ms.w & 0xFF;
         }
         top->rom_ack = 0; top->rom_valid = 0;
         if (!sd_busy && top->rom_req) {

@@ -34,6 +34,11 @@ module mc_core (
 	input  wire        kb_down,
 	input  wire        kb_ext,
 	input  wire [7:0]  kb_code,
+	input  wire        ms_stb,          // mouse: see mc_io.v
+	input  wire [8:0]  ms_dx,
+	input  wire [8:0]  ms_dy,
+	input  wire [2:0]  ms_btn,
+	input  wire [7:0]  ms_wheel,
 	// the NVRAM's second port: its copy to and from the SD card (mister/mc_nvsave.sv)
 	input  wire        nv_b_en,
 	input  wire [3:0]  nv_b_we,
@@ -340,6 +345,7 @@ module mc_core (
 		.in_p1(in_p1), .in_p2(in_p2), .in_p3(in_p3), .in_p4(in_p4), .in_sys(in_sys), .dip(dip),
 		.in_analog(in_analog), .in_paddle(in_paddle),
 		.kb_stb(kb_stb), .kb_down(kb_down), .kb_ext(kb_ext), .kb_code(kb_code),
+		.ms_stb(ms_stb), .ms_dx(ms_dx), .ms_dy(ms_dy), .ms_btn(ms_btn), .ms_wheel(ms_wheel),
 		.vblank_pulse(vblank_pulse), .line_pulse(line_pulse), .dma_done(dma_done), .irq(cpu_irq),
 		.dma_start(dma_start), .dma_fill(dma_fill), .dma_src(dma_src), .dma_dst(dma_dst), .dma_len(dma_len),
 		.dma_busy(dma_busy), .dbg_valid(dbg_valid), .dbg_char(dbg_char));

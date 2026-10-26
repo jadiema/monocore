@@ -4,7 +4,9 @@
 //
 // usage: Vmc_system rom.mnc outdir [script]     (script syntax of tools/run.js: frame:p1=hex, frame:shot=name)
 //   also p3= p4=, a1=..a4= (ANALOG_Pn: right stick 31:16, left 15:0), d1=..d4= (paddle), s1=..s4= (spinner
-//   movement, signed 8 bits), kd= / ku= (key down / up through ps2_key, one event per frame)
+//   movement, signed 8 bits), kd= / ku= (key down / up through ps2_key, one event per frame),
+//   ms=dx,dy,buttons,wheel (one mouse packet through ps2_mouse as hps_io builds it, one per frame;
+//   decimal, dy positive downwards)
 //   cart=1 / cart=0 (cartridge plugged / removed), cartload (OSD "Lire la cartouche").
 //   The cartridge holds the file named by $CART: two SPI Flash chips of 8 MB ($CART_CHIP_BITS to change it),
 //   modelled below (Read Data 0x03 and Fast Read Dual Output 0x3B). $CART_SPEED = 0-2, $CART_SINGLE = 1.
@@ -201,7 +203,17 @@ int main(int argc, char **argv) {
     top->cart_speed = getenv("CART_SPEED") ? atoi(getenv("CART_SPEED")) : 0;
     top->cart_single = getenv("CART_SINGLE") ? 1 : 0;
     top->user_in = 0x7F;
+    struct Mouse { int dx, dy, b, w; };
+    std::deque<Mouse> mice;
     auto apply = [&](int f) {
+        if (!mice.empty()) {                       // PS/2 packet: buttons, signs, X, Y (upwards), toggle
+            Mouse ms = mice.front(); mice.pop_front();
+            auto clip = [](int v) { return v < -256 ? -256 : v > 255 ? 255 : v; };
+            int x = clip(ms.dx) & 0x1FF, y = clip(-ms.dy) & 0x1FF;
+            uint32_t st = (ms.b & 7) | 8 | ((x >> 8) << 4) | ((y >> 8) << 5);
+            top->ps2_mouse = ((~top->ps2_mouse) & 0x1000000) | ((y & 0xFF) << 16) | ((x & 0xFF) << 8) | st;
+            top->ps2_mouse_ext = ms.w & 0xFF;
+        }
         if (!keys.empty()) {                       // one key event per frame, as ps2_key holds one
             uint32_t k = keys.front(); keys.pop_front();
             top->ps2_key = ((~top->ps2_key) & 0x400) | (k & 0x3FF);
@@ -232,6 +244,11 @@ int main(int argc, char **argv) {
             else if (a == "cartload") cart_load_cycles = 1;
             else if (a.rfind("kd=", 0) == 0) keys.push_back(0x200 | (strtoul(a.c_str() + 3, 0, 16) & 0x1FF));
             else if (a.rfind("ku=", 0) == 0) keys.push_back(strtoul(a.c_str() + 3, 0, 16) & 0x1FF);
+            else if (a.rfind("ms=", 0) == 0) {
+                Mouse ms = {0, 0, 0, 0};
+                sscanf(a.c_str() + 3, "%d,%d,%d,%d", &ms.dx, &ms.dy, &ms.b, &ms.w);
+                mice.push_back(ms);
+            }
         }
     };
     // picture from the video output

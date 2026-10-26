@@ -41,5 +41,13 @@ int main(void) {
     for (int k = 0; k < 0x200 && n < 34; k++)
       if (((k & 0xFF) < 0x80 && k != 0x02) || k == 0x83) if (mc_key(k)) n += snprintf(line + n, sizeof line - n, " %03X", k);
     mc_text(0, 1, 22, line, 0);
+    // mouse (hardware version 3): pointer, buttons, wheel total (+ = turned away from you)
+    static int wheel_total;
+    wheel_total += mc_mouse_wheel();
+    snprintf(line, sizeof line, "SOURIS %s %3d,%3d B%c%c%c MOL %+d", mc_mouse_present() ? "OUI" : "NON",
+             mc_mouse_x(), mc_mouse_y(), mc_mouse_buttons() & MOUSE_LEFT ? 'G' : '.',
+             mc_mouse_buttons() & MOUSE_MIDDLE ? 'M' : '.', mc_mouse_buttons() & MOUSE_RIGHT ? 'D' : '.', wheel_total);
+    mc_text(0, 1, 24, line, 0);
+    if (mc_mouse_present()) mc_text(0, mc_mouse_x() / 8, mc_mouse_y() / 8, "+", 0);
   }
 }

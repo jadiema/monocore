@@ -2,7 +2,7 @@
 //  MONOCORE-1 for MiSTer: the virtual console core inside the MiSTer framework (Template_MiSTer).
 //
 //  This file connects rtl/mister/mc_system.v (core, SDRAM controller, ROM loader, scan-out) to the
-//  framework: hps_io (OSD menu, ROM loading, 4 joysticks with analog sticks, paddles, spinners, keyboard), the PLL (50 MHz system, 100 MHz SDRAM),
+//  framework: hps_io (OSD menu, ROM loading, 4 joysticks with analog sticks, paddles, spinners, keyboard, mouse), the PLL (50 MHz system, 100 MHz SDRAM),
 //  the SDRAM pins, video and audio.
 //
 //  ROM loading: any file chosen in the OSD ("Charger une ROM", .MNC) is copied to the SDRAM, then the
@@ -75,6 +75,8 @@ wire  [15:0] joy_l_0, joy_l_1, joy_l_2, joy_l_3, joy_r_0, joy_r_1, joy_r_2, joy_
 wire   [7:0] paddle_0, paddle_1, paddle_2, paddle_3;
 wire   [8:0] spinner_0, spinner_1, spinner_2, spinner_3;
 wire  [10:0] ps2_key;
+wire  [24:0] ps2_mouse;
+wire  [15:0] ps2_mouse_ext;
 wire         ioctl_download, ioctl_wr, ioctl_wait;
 wire  [26:0] ioctl_addr;
 wire  [15:0] ioctl_dout;
@@ -128,6 +130,8 @@ hps_io #(.CONF_STR(CONF_STR), .WIDE(1)) hps_io
 	.paddle_0(paddle_0), .paddle_1(paddle_1), .paddle_2(paddle_2), .paddle_3(paddle_3),
 	.spinner_0(spinner_0), .spinner_1(spinner_1), .spinner_2(spinner_2), .spinner_3(spinner_3),
 	.ps2_key(ps2_key),
+	.ps2_mouse(ps2_mouse),
+	.ps2_mouse_ext(ps2_mouse_ext),
 
 	.ioctl_download(ioctl_download),
 	.ioctl_index(ioctl_index),
@@ -215,6 +219,8 @@ mc_system system
 	.paddle({paddle_3, paddle_2, paddle_1, paddle_0}),
 	.spinner({spinner_3, spinner_2, spinner_1, spinner_0}),
 	.ps2_key(ps2_key),
+	.ps2_mouse(ps2_mouse),
+	.ps2_mouse_ext(ps2_mouse_ext),
 	.user_in(USER_IN),
 	.user_out(USER_OUT),
 	.cart_load(status[4]),

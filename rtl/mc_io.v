@@ -1,4 +1,4 @@
-// MONOCORE-1 I/O block (0x4000_0000): inputs (4 pads, analog sticks, paddles and spinners, keyboard),
+// MONOCORE-1 I/O block (0x4000_0000): inputs (4 pads, analog sticks, paddles and spinners, keyboard, mouse),
 // interrupt controller, timers, cycle counter, DMA registers and the debug output. Slave protocol: see mc_rom_cache.v.
 module mc_io (
 	input  wire        clk,
@@ -26,6 +26,12 @@ module mc_io (
 	input  wire        kb_down,
 	input  wire        kb_ext,
 	input  wire [7:0]  kb_code,
+	// mouse: one pulse per PS/2 packet; 9-bit signed moves (Y positive upwards, as PS/2 sends it)
+	input  wire        ms_stb,
+	input  wire [8:0]  ms_dx,
+	input  wire [8:0]  ms_dy,
+	input  wire [2:0]  ms_btn,          // left, right, middle
+	input  wire [7:0]  ms_wheel,        // signed wheel move of the packet
 	// interrupt sources and CPU interrupt line
 	input  wire        vblank_pulse,
 	input  wire        line_pulse,
@@ -67,6 +73,23 @@ module mc_io (
 		end
 	end
 	wire [9:0] kq_head = kq[kq_rd];
+
+	// mouse: position counters (16 bits, Y positive downwards), wheel counter, buttons
+	reg [15:0] ms_x, ms_y;
+	reg [7:0]  ms_wh;
+	reg [2:0]  ms_b;
+	reg        ms_seen;
+	always @(posedge clk or negedge rst_n) begin
+		if (!rst_n) begin
+			ms_x <= 16'd0; ms_y <= 16'd0; ms_wh <= 8'd0; ms_b <= 3'd0; ms_seen <= 1'b0;
+		end else if (ms_stb) begin
+			ms_x <= ms_x + {{7{ms_dx[8]}}, ms_dx};
+			ms_y <= ms_y - {{7{ms_dy[8]}}, ms_dy};
+			ms_wh <= ms_wh + ms_wheel;
+			ms_b <= ms_btn;
+			ms_seen <= 1'b1;
+		end
+	end
 
 	wire [31:0] bm = {{8{be[3]}}, {8{be[2]}}, {8{be[1]}}, {8{be[0]}}};
 	function [31:0] merge(input [31:0] old);
@@ -151,6 +174,8 @@ module mc_io (
 		10'h032: rdata <= key_state[223:192];
 		10'h033: rdata <= key_state[255:224];
 		10'h034: rdata <= {kq_n != 5'd0, 21'd0, kq_head};  // 0xD0
+		10'h035: rdata <= {ms_y, ms_x};                    // 0xD4
+		10'h036: rdata <= {ms_seen, 15'd0, ms_wh, 5'd0, ms_b};   // 0xD8
 		10'h002: rdata <= {29'd0, in_sys};
 		10'h003: rdata <= dip;
 		10'h004: rdata <= {27'd0, irq_status};
@@ -164,7 +189,7 @@ module mc_io (
 		10'h010: rdata <= dma_src;
 		10'h011: rdata <= dma_dst;
 		10'h012: rdata <= dma_len;
-		10'h01C: rdata <= 32'h00000002;   // 0x70: hardware version 2 (pads 3-4, analog, keyboard)
+		10'h01C: rdata <= 32'h00000003;   // 0x70: hardware version 3 (2: pads 3-4, analog, keyboard; 3: mouse)
 		default: rdata <= 32'd0;
 		endcase
 	end

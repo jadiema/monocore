@@ -113,6 +113,7 @@
       this.paddle = [0, 0, 0, 0];             // PADDLE_P1-4
       this.keyState = new Uint32Array(8);     // KEY_STATE0-7
       this.keyQueue = [];                     // KEY_EVENT queue (16 events at most)
+      this.mouse = { x: 0, y: 0, wheel: 0, buttons: 0, seen: false };   // MOUSE_XY, MOUSE_BTN
       this.dip = this.header.dip >>> 0;
       this.irqStatus = 0; this.irqEnable = 0;
       this.timers = [{ reload: 0, on: false, count: 0 }, { reload: 0, on: false, count: 0 }];
@@ -289,7 +290,9 @@
         case 0x44: return this.dma.dst;
         case 0x48: return this.dma.len;
         case 0x4C: return 0;
-        case 0x70: return 0x00000002; // hardware version 2 (pads 3-4, analog, keyboard)
+        case 0x70: return 0x00000003; // hardware version 3 (2: pads 3-4, analog, keyboard; 3: mouse)
+        case 0xD4: return ((this.mouse.y & 0xFFFF) << 16) | (this.mouse.x & 0xFFFF);
+        case 0xD8: return ((this.mouse.seen ? 0x80000000 : 0) | ((this.mouse.wheel & 0xFF) << 8) | (this.mouse.buttons & 7)) | 0;
         case 0x80: return this.inputs[3];
         case 0x84: return this.inputs[4];
         case 0xD0: return this.keyQueue.length ? (0x80000000 | this.keyQueue[0]) | 0 : 0;
@@ -301,6 +304,15 @@
     }
 
     // a key of the keyboard goes down or up: code = PS/2 set 2 code, ext = E0 prefix
+    // one mouse packet: moves in counts (dy positive downwards), buttons bit 0 left, 1 right, 2 middle
+    mouseEvent(dx, dy, buttons, wheel) {
+      // 9-bit PS/2 moves: X from -256 to 255, Y sent upwards from -256 to 255 (so -255 to 256 downwards)
+      const c = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(v)));
+      const m = this.mouse;
+      m.x = (m.x + c(dx, -256, 255)) & 0xFFFF; m.y = (m.y + c(dy, -255, 256)) & 0xFFFF;
+      m.wheel = (m.wheel + Math.max(-128, Math.min(127, wheel | 0))) & 0xFF;
+      m.buttons = buttons & 7; m.seen = true;
+    }
     keyEvent(code, ext, down) {
       code &= 0xff;
       const i = code === 0x83 ? 0x02 : ((ext ? 0x80 : 0) | (code & 0x7f));
