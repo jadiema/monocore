@@ -57,7 +57,7 @@ Les actions `p1=`, `p2=` et `sys=` règlent les entrées (bits de `IN_P1`, en he
 
 ## Sur le MiSTer
 
-Copie le core (`mister/output_files/MONOCORE.rbf`, renommé `MONOCORE_aaaammjj.rbf`) dans `_Console`, et les ROMs `.mnc` dans `games/MONOCORE`. Un fichier `games/MONOCORE/boot.rom` est chargé automatiquement au lancement du core : c'est là que va l'écran d'accueil (`examples/boot`). Détails dans `mister/LISEZMOI.md`.
+Copie le core (`mister/output_files/MONOCORE.rbf`, renommé `MONOCORE_aaaammjj.rbf`, ou le core déjà compilé de `releases/`) dans `_Console`, et les ROMs `.mnc` dans `games/MONOCORE`. Un fichier `games/MONOCORE/boot.rom` est chargé automatiquement au lancement du core : c'est là que va l'écran d'accueil (`examples/boot`). Détails dans `mister/LISEZMOI.md`.
 
 ## Ce qui reste à faire
 
