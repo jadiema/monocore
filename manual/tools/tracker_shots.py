@@ -7,7 +7,7 @@ import os, subprocess, tempfile
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-ROM = os.path.join(ROOT, 'examples/tracker/build/monotracker.mnc')
+ROM = os.path.join(ROOT, 'examples/monotracker/build/monotracker.mnc')
 IMG = os.path.join(ROOT, 'manual/images')
 KEY = dict(F1=0x05, F2=0x06, F3=0x04, F4=0x0C, ENTER=0x5A, TAB=0x0D, F12=0x07, CTRL=0x14, S=0x1B, E=0x24,
            SPACE=0x29, Z=0x1A, C=0x21, B=0x32, COMMA=0x41, X=0x22, V=0x2A, DOWN=0x172)

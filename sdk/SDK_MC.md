@@ -96,7 +96,7 @@ registres, des compteurs de position et l'état des boutons et de la molette (SP
 pour n/d pixels par pas, `mc_mouse_set` pour le placer). `mc_mouse_pressed()` donne les boutons
 enfoncés depuis l'image précédente, `mc_mouse_wheel()` les crans de molette (positifs vers l'avant).
 `mc_mouse_present()` reste faux tant que la souris n'a rien envoyé. Le pointeur n'est pas dessiné :
-le jeu affiche le sien, par exemple avec un sprite (`examples/tracker`).
+le jeu affiche le sien, par exemple avec un sprite (`examples/monotracker`).
 
 Dans le simulateur, la case « souris de la console » fait suivre au pointeur du jeu celui du
 navigateur sur l'écran (un pas = un pixel de la console) ; `tools/run.js` accepte
@@ -142,7 +142,7 @@ affiche tout ce que la console reçoit).
 | `examples/boot` | l'écran d'accueil de la console (`boot.rom`) : barres copper par défilement ligne par ligne, logo en un seul sprite de 256 × 40, ciel raster, texte défilant en sprites zoomés |
 | `examples/horizon` | course en fausse 3D (style OutRun) : une texture de route de 120 lignes, choisie (`dy`) et décalée (`dx`) ligne par ligne pour la largeur, les bandes et les virages ; objets zoomés selon leur distance et triés avec `qsort` |
 | `examples/nebula` | shoot'em up complet ; tous les graphismes sont produits au démarrage dans la CHR RAM (sprites en « ASCII art », décors procéduraux découpés en tuiles avec partage des tuiles identiques), parallaxe, sol en perspective, 233 sprites, tirs visés avec `mc_atan2` |
-| `examples/tracker` | MONOTRACKER, tracker de musique au clavier et à la souris, interface à panneaux façon trackers Amiga : 16 pistes, page d'édition des sons, sauvegarde en NVRAM, motifs rangés dans la CHR RAM |
+| `examples/monotracker` | MONOTRACKER, tracker de musique au clavier et à la souris, interface à panneaux façon trackers Amiga : 16 pistes, page d'édition des sons, sauvegarde en NVRAM, motifs rangés dans la CHR RAM |
 | `examples/cascade` | CASCADE, jeu de rythme au clavier MIDI : un morceau de MONOTRACKER parcouru, ses notes défilant dans une couche de tuiles en anneau, synchronisées sur `mtrack` |
 | `examples/defender` | PIANO DEFENDER, shoot'em up au clavier MIDI : vélocité, accords, molette de modulation, tirs joués avec un instrument défini dans le programme (`mt_note`) |
 | `examples/test_mtrack` | le module `mtrack` comme dans un jeu : un morceau, deux bruitages, pause |

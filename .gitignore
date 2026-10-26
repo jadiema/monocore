@@ -7,7 +7,7 @@
 !examples/test_inputs/build/inputs.mnc
 !examples/aube/build/aube.mnc
 !examples/virusmeadow/build/virusmeadow.mnc
-!examples/tracker/build/monotracker.mnc
+!examples/monotracker/build/monotracker.mnc
 !examples/cascade/build/cascade.mnc
 !examples/defender/build/defender.mnc
 *.o

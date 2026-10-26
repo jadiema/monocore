@@ -1,6 +1,6 @@
 # Module « mtrack » : la musique de MONOTRACKER dans les jeux
 
-`mtrack` est le lecteur de musique du tracker **MONOTRACKER** (`examples/tracker`). Le tracker
+`mtrack` est le lecteur de musique du tracker **MONOTRACKER** (`examples/monotracker`). Le tracker
 l'utilise pour jouer ce qu'on compose, et les jeux l'utilisent pour jouer les morceaux exportés :
 c'est le même code, donc un morceau sonne dans le jeu exactement comme dans le tracker.
 
@@ -24,7 +24,7 @@ Dans `project.txt` :
 
     library = mc
     modules = mtrack
-    data    = ../tracker/mtbank.bin monmorceau.mts
+    data    = ../monotracker/mtbank.bin monmorceau.mts
 
 Dans le programme :
 
@@ -152,8 +152,8 @@ compacts les uns à la suite des autres (alignés sur 4 octets).
     python3 sav2song.py monotracker.sav 2 -o theme.h    # ou un tableau C
     python3 sav2song.py theme.mts --dump                # le morceau en texte
     python3 sav2song.py monotracker.sav 2 --tenues      # les notes tenues qui débordent d'une position à l'autre
-    python3 make_bank.py                                # régénère examples/tracker/mtbank.bin
-    python3 make_demo.py                                # régénère examples/tracker/demo.mts
+    python3 make_bank.py                                # régénère examples/monotracker/mtbank.bin
+    python3 make_demo.py                                # régénère examples/monotracker/demo.mts
 
 Sur MiSTer, la sauvegarde du tracker est `saves/MONOCORE/monotracker.sav` (nom de la ROM) ; elle
 est écrite sur la carte SD quand on ouvre l'OSD après un Ctrl+S dans le tracker.

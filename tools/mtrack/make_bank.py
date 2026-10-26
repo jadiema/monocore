@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PCM sample bank of MONOTRACKER (mtbank.bin): original sounds, all synthesised here.
 
-usage: python3 make_bank.py [output]          (default: examples/tracker/mtbank.bin)
+usage: python3 make_bank.py [output]          (default: examples/monotracker/mtbank.bin)
 
 Drums, basses, keys, strings, brass, choir... in 16-bit mono. The sustained sounds have a
 seamless loop: their loop holds a whole number of periods of every partial, so the trackers'
@@ -135,7 +135,7 @@ SAMPLES = [
 ROOTS = {'BASSE': C2, 'CUIVRES': C4, 'CORDES': C4, 'ORGUE': C4, 'CHOEUR': C4, 'FLUTE': C4 + 12, 'NAPPE': C4}
 
 def main():
-    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), '../../examples/tracker/mtbank.bin')
+    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), '../../examples/monotracker/mtbank.bin')
     entries, blobs = [], b''
     base = 8 + 32 * len(SAMPLES)
     for name, fn, root in SAMPLES:

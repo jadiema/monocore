@@ -357,7 +357,7 @@ A(listing('''name    = monjeu
 library = mc
 modules = mtrack
 sources = main.c
-data    = ../tracker/mtbank.bin theme.mts''', 'project.txt', lang='text'))
+data    = ../monotracker/mtbank.bin theme.mts''', 'project.txt', lang='text'))
 A(p("Le programme prépare le lecteur avec la banque, lance le morceau, et peut jouer des bruitages avec les instruments du morceau. Voici l'exemple complet " + c('examples/test_mtrack') + " :"))
 src = open(os.path.join(REPO, 'examples/test_mtrack/main.c'), encoding='utf-8').read()
 A(listing(src, 'examples/test_mtrack/main.c'))

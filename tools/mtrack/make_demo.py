@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Demo song of MONOTRACKER (examples/tracker/demo.mts) and its set of instruments.
+"""Demo song of MONOTRACKER (examples/monotracker/demo.mts) and its set of instruments.
 
 The instruments of this song are also those of a new song in the tracker (it copies them from
 demo.mts), so this file is the one place where the default instruments are defined.
@@ -104,7 +104,7 @@ def drums(p, I, style):
         if style != 'b': p[b + 14][10] = cell(note('C-4'), I['HH OUVERT/P'], 40)
 
 def main():
-    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), '../../examples/tracker/demo.mts')
+    out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), '../../examples/monotracker/demo.mts')
     s = Song('DEMO MONOCORE')
     s.bpm, s.speed, s.master = 132, 6, 48
     I = instruments(s)

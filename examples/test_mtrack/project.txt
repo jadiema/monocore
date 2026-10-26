@@ -4,4 +4,4 @@ title   = TEST MTRACK
 library = mc
 modules = mtrack
 sources = main.c
-data    = ../tracker/mtbank.bin ../tracker/demo.mts
+data    = ../monotracker/mtbank.bin ../monotracker/demo.mts

@@ -4,4 +4,4 @@ title   = PIANO DEFENDER
 library = mc
 modules = mtrack
 sources = main.c
-data    = ../tracker/mtbank.bin groove.mts
+data    = ../monotracker/mtbank.bin groove.mts

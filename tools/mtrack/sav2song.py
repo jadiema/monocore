@@ -39,7 +39,7 @@ def held_notes(s):
     positions, then the jump back to the restart position."""
     out, held = [], {}
     loops = set()                      # samples of the bank that loop: only they can hold a PCM note
-    bank = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../examples/tracker/mtbank.bin')
+    bank = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../examples/monotracker/mtbank.bin')
     if os.path.exists(bank):
         bd = open(bank, 'rb').read()
         for k in range(struct.unpack_from('<I', bd, 4)[0]):

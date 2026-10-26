@@ -4,4 +4,4 @@ title   = CASCADE
 library = mc
 modules = mtrack
 sources = main.c
-data    = ../tracker/mtbank.bin ../tracker/demo.mts au_clair.mts frere_jacques.mts ode_joie.mts
+data    = ../monotracker/mtbank.bin ../monotracker/demo.mts au_clair.mts frere_jacques.mts ode_joie.mts

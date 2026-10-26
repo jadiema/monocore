@@ -14,7 +14,7 @@ roms = {
     'aube': base64.b64encode(open(os.path.join(ROOT, 'examples/aube/build/aube.mnc'), 'rb').read()).decode(),
     'test': base64.b64encode(open(os.path.join(ROOT, 'rom/build/testrom.mnc'), 'rb').read()).decode(),
     'hello': base64.b64encode(open(os.path.join(ROOT, 'examples/hello/build/hello.mnc'), 'rb').read()).decode(),
-    'tracker': base64.b64encode(open(os.path.join(ROOT, 'examples/tracker/build/monotracker.mnc'), 'rb').read()).decode(),
+    'tracker': base64.b64encode(open(os.path.join(ROOT, 'examples/monotracker/build/monotracker.mnc'), 'rb').read()).decode(),
     'cascade': base64.b64encode(open(os.path.join(ROOT, 'examples/cascade/build/cascade.mnc'), 'rb').read()).decode(),
     'defender': base64.b64encode(open(os.path.join(ROOT, 'examples/defender/build/defender.mnc'), 'rb').read()).decode(),
 }

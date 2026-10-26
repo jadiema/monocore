@@ -269,7 +269,7 @@ python3 tools/mtrack/sav2song.py monotracker.sav 1 -o theme.mts   # emplacement 
 <span class="ln">  2</span>library = mc
 <span class="ln">  3</span>modules = mtrack
 <span class="ln">  4</span>sources = main.c
-<span class="ln">  5</span>data    = ../tracker/mtbank.bin theme.mts</pre></div>
+<span class="ln">  5</span>data    = ../monotracker/mtbank.bin theme.mts</pre></div>
 <p>Le programme prépare le lecteur avec la banque, lance le morceau, et peut jouer des bruitages avec les instruments du morceau. Voici l'exemple complet <code>examples/test_mtrack</code> :</p>
 <div class="listing "><div class="lst-cap"><span>LISTING</span> examples/test_mtrack/main.c</div><pre><span class="ln">  1</span><span class="c-com">// The mtrack module as a game uses it: the demo song of MONOTRACKER plays, button 1 plays a</span>
 <span class="ln">  2</span><span class="c-com">// sound effect on PSG channel 8 (reserved: the song leaves it alone), button 2 a PCM effect on</span>

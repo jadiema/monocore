@@ -1,12 +1,12 @@
 // MONOCORE-1 "mtrack": the music player of MONOTRACKER, as a library for games.
 //
-// Plays the songs made with the MONOTRACKER ROM (examples/tracker) on the 16 sound channels of
+// Plays the songs made with the MONOTRACKER ROM (examples/monotracker) on the 16 sound channels of
 // the console: tracks 0-7 drive the PSG channels 0-7, tracks 8-15 the PCM voices 0-7. The
 // sound hardware has no envelope, vibrato or slide: all of that is computed here, once per tick,
 // from a timer interrupt (50 Hz at 125 BPM, as in the classic trackers).
 //
 // In a game (library = mc, modules = mtrack in project.txt):
-//     data = ../tracker/mtbank.bin mysong.mts      // PCM sample bank and the exported song
+//     data = ../monotracker/mtbank.bin mysong.mts      // PCM sample bank and the exported song
 //     mt_init(mtbank_file);
 //     mt_play(mysong_file, 0);                     // starts the song (timer 1 by default)
 //     mt_sfx(MT_PSG(7), 60, 3, 64);                // a sound effect on track 7, instrument 3

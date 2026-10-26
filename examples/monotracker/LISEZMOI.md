@@ -113,7 +113,7 @@ Pour trouver les nappes qui se superposent : `sav2song.py monotracker.sav 1 --te
 qui sonnent encore au début d'une position, sur une piste qui n'y joue rien (ils continuent par-dessus la
 section suivante). Une note coupée `===` à la ligne 00 de cette position les arrête.
 
-puis `modules = mtrack` et `data = ../tracker/mtbank.bin theme.mts` dans le `project.txt` du jeu.
+puis `modules = mtrack` et `data = ../monotracker/mtbank.bin theme.mts` dans le `project.txt` du jeu.
 Exemple : `examples/test_mtrack`.
 
 ## Limites actuelles
