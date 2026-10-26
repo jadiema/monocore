@@ -299,6 +299,7 @@ A(table(['Réglage', 'Rôle'], [
   ['VELOCITE', "OUI : avec un clavier MIDI, la force de frappe s'écrit dans la colonne du volume (chapitre 9)"],
   ['REPRISE', "la position rejouée après la dernière"],
   ['CLAVIER', "AZERTY ou QWERTY : la disposition utilisée pour les lettres (noms, chiffres A à F, raccourcis). Le piano, lui, dépend de la position des touches et ne change pas."]]))
+A(box('warn', 'Les nappes qui débordent', p("Un son tenu (nappe, cordes, orgue, lead) continue tant que sa piste ne reçoit ni nouvelle note ni note coupée, même d'un motif à l'autre. Si la section suivante ne joue rien sur cette piste, l'accord précédent reste par-dessus ses nouveaux accords et ça frotte. Mettez une note coupée " + c('===') + " à la ligne 00 du motif suivant, sur chaque piste concernée. Sur PC, " + c('sav2song.py monotracker.sav 1 --tenues') + " liste ces notes qui débordent.")))
 A(box('know', 'Le calcul du tempo', p("Une ligne dure <i>vitesse × 2,5 / BPM</i> secondes. À 132 BPM et vitesse 6, comme la démo : 6 × 2,5 / 132 = 0,114 s par ligne, soit 132 temps par minute si un temps fait quatre lignes. Les effets " + c('Fxx') + " changent la vitesse et le BPM pendant le morceau.")))
 
 # ---------------------------------------------------------------- 8

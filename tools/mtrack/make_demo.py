@@ -120,6 +120,7 @@ def main():
     drums(p, I, 'a'); bass(p, 11, I['BASSE/P']); arpeggio(p, 1, I['ARPEGE'])
     melody(p, 0, I['LEAD'], MEL_A)
     p[0][10] = cell(note('C-4'), I['CRASH/P'], 40)
+    for t in (2, 12, 13, 14): p[0][t] = cell(NOTE_OFF)    # the pads of the intro and of theme B stop here
     for r in range(2, 64, 4): p[r][3] = cell(note('C-4'), I['CHAPEAU'])
     # 2: theme B - strings, claps, saw lead an octave under the lead
     p = s.pattern(2)
@@ -130,6 +131,7 @@ def main():
     # 3: break - brass stabs, toms, snare roll and orchestra hits
     p = s.pattern(3)
     bass(p, 11, I['BASSE/P'])
+    for t in (0, 1, 2): p[0][t] = cell(NOTE_OFF)          # the leads and the arpeggio stop for the break
     chords(p, I['CUIVRES/P'], stabs=(0, 3, 6, 10), vol=48)
     for bar in range(4):
         p[bar * 16][8] = cell(note('C-4'), I['KICK/P'])

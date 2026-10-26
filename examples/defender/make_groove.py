@@ -8,7 +8,7 @@ are taken from the C major scale, which is the scale of this progression.
 import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '../../tools/mtrack'))
-from mtsong import Song, cell, note
+from mtsong import Song, cell, note, NOTE_OFF
 from make_demo import instruments
 
 s = Song('DEFENDER GROOVE')
@@ -27,6 +27,8 @@ for p in range(2):
             pat[r0 + st][9] = cell(note('C-4'), I['SNARE/P'] if p == 0 else I['CLAP/P'], 30)
         for st in range(0, 16, 2):
             pat[r0 + st][10] = cell(note('C-4'), I['HH FERME/P'], 26 if st % 4 else 34)
+        if p == 0 and bar == 0:
+            for k in range(3): pat[0][12 + k] = cell(NOTE_OFF)        # the pad of part 2 stops when the loop starts again
         if p == 1:
             for k, n in enumerate(chord): pat[r0][12 + k] = cell(note(n), I['NAPPE/P'], 26)
 s.orders = [0, 0, 1, 1]

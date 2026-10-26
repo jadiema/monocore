@@ -109,6 +109,10 @@ compact typique fait de 1 à 6 Ko : la NVRAM de 32 Ko en garde plusieurs.
 
     python3 ../../tools/mtrack/sav2song.py monotracker.sav 1 -o ../monjeu/theme.mts
 
+Pour trouver les nappes qui se superposent : `sav2song.py monotracker.sav 1 --tenues` liste les sons tenus
+qui sonnent encore au début d'une position, sur une piste qui n'y joue rien (ils continuent par-dessus la
+section suivante). Une note coupée `===` à la ligne 00 de cette position les arrête.
+
 puis `modules = mtrack` et `data = ../tracker/mtbank.bin theme.mts` dans le `project.txt` du jeu.
 Exemple : `examples/test_mtrack`.
 
