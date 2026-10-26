@@ -45,7 +45,7 @@ cd examples/nebula && python3 ../../sdk/build.py .   # exemple mc -> build/nebul
 python3 tools/build_page.py # simulateur autonome -> dist/monocore.html
 ```
 
-Il faut clang, ld.lld et llvm-objcopy (LLVM), Python 3 avec Pillow et Markdown, et make. Ouvre `dist/monocore.html` dans un navigateur, ou glisse un `.mnc` dessus.
+Il faut clang, ld.lld et llvm-objcopy (LLVM), Python 3 avec Pillow et Markdown, et make. Ouvre `dist/monocore.html` dans un navigateur, ou glisse un `.mnc` dessus ; `dist/simulateur.bat` (Windows) ou `dist/simulateur.py` l'ouvrent par un petit serveur local, ce qu'il faut à Firefox pour le clavier MIDI.
 
 ## Tester sans navigateur
 

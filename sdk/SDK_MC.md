@@ -107,8 +107,8 @@ navigateur sur l'écran (un pas = un pixel de la console) ; `tools/run.js` accep
 L'entrée MIDI existe à partir de la version 4 du matériel (`mc_hw_version() >= 4`). Sur MiSTer, un
 clavier MIDI USB branché sur la carte passe par MidiLink : dans le menu du core, réglez le mode UART
 sur MIDI (connexion USB). Dans le simulateur, la case « clavier MIDI » envoie à la console les
-messages d'un clavier branché sur le PC (Chrome, Edge ; Firefox si la page est servie par
-`python3 -m http.server`, à l'adresse `http://localhost:8000/monocore.html`) ; `tools/run.js` accepte `mi=90,3C,64` (octets
+messages d'un clavier branché sur le PC (Chrome, Edge ; Firefox si la page est ouverte par
+`dist/simulateur.bat` ou `dist/simulateur.py`, qui la servent en local) ; `tools/run.js` accepte `mi=90,3C,64` (octets
 en hexadécimal).
 
 `mc_midi_event()` rend le message complet suivant, ou −1 : `MIDI_STATUS(e)` (`MIDI_NOTE_ON`,

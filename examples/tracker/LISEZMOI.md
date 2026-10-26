@@ -92,8 +92,8 @@ l'ampleur du vibrato, et le rapport cyclique (le panoramique pour un son PCM).
 
 Sur MiSTer, il faut le core en version 4 et le menu du core réglé sur *UART : MIDI*, connexion USB
 (MidiLink). Dans le simulateur, cochez « clavier MIDI » sous l'écran : Chrome et Edge l'acceptent depuis le
-fichier ; Firefox seulement si la page est servie, par exemple avec `python3 -m http.server 8000` dans
-`dist/` puis l'adresse `http://localhost:8000/monocore.html`.
+fichier ; Firefox seulement si la page est servie : lancez-la par `dist/simulateur.bat` (Windows) ou
+`dist/simulateur.py`, qui l'ouvrent par `http://localhost`.
 
 ## Mémoire
 
