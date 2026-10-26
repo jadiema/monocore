@@ -8,6 +8,7 @@
 !examples/aube/build/aube.mnc
 !examples/virusmeadow/build/virusmeadow.mnc
 !examples/tracker/build/monotracker.mnc
+!examples/cascade/build/cascade.mnc
 *.o
 *.elf
 __pycache__/

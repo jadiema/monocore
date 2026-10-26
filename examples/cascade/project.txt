@@ -1,0 +1,7 @@
+# CASCADE: the falling notes game, played on a MIDI keyboard (or the computer keyboard)
+name    = cascade
+title   = CASCADE
+library = mc
+modules = mtrack
+sources = main.c
+data    = ../tracker/mtbank.bin ../tracker/demo.mts au_clair.mts frere_jacques.mts ode_joie.mts

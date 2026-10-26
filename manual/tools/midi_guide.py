@@ -132,9 +132,8 @@ A(table(['Élément', 'Rôle'], [
   [c('MIDI_STATUS(e)'), c('MIDI_NOTE_ON') + ', ' + c('MIDI_NOTE_OFF') + ', ' + c('MIDI_CC') + ', ' + c('MIDI_PITCH') + ', ' + c('MIDI_PROGRAM') + '…'],
   [c('MIDI_CHANNEL(e)'), "canal MIDI, de 0 à 15"],
   [c('MIDI_DATA1(e)') + ' / ' + c('MIDI_DATA2(e)'), "note ou numéro de contrôleur / vélocité ou valeur"],
-  [c('mc_hw_version()'), "4 ou plus : l'entrée MIDI existe"],
-  [c('MIDI_IN'), "le registre (0x4000_00DC) : une file de 64 octets reçus tels quels ; détails dans " + c('SPEC.md')]], 'ref'))
-A(p("Pour tester sans clavier, " + c('tools/run.js') + " accepte des octets MIDI en hexadécimal, par exemple " + c('60:mi=90,3C,64') + " pour jouer le do du milieu à l'image 60. Le module " + c('mtrack') + " permet ensuite de jouer ces notes avec les instruments d'un morceau de MONOTRACKER, comme le fait le tracker."))
+  [c('MIDI_IN'), "le registre (0x4000_00DC), une file de 64 octets ; il existe si " + c('mc_hw_version()') + " vaut 4 ou plus (" + c('SPEC.md') + ")"]], 'ref'))
+A(p("Exemple complet : CASCADE (" + c('examples/cascade') + "), le jeu des notes qui tombent. Pour tester sans clavier, " + c('tools/run.js') + " accepte des octets MIDI en hexadécimal, par exemple " + c('60:mi=90,3C,64') + " pour jouer le do du milieu à l'image 60. Le module " + c('mtrack') + " permet ensuite de jouer ces notes avec les instruments d'un morceau de MONOTRACKER, comme le fait le tracker."))
 
 
 build(parts, COVER, OUT_PDF, OUT_HTML, 'MONOCORE-1 - Guide MIDI', 'MONOCORE-1 · GUIDE MIDI', 'Brancher un clavier MIDI sur la MONOCORE-1')
