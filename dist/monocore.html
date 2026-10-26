@@ -3259,6 +3259,8 @@ int main(void) {
     midiDenied: ['accès au MIDI refusé', 'MIDI access denied'],
     midiNoDevice: ['aucun clavier MIDI trouvé : branchez-le, il sera pris dès son arrivée', 'no MIDI keyboard found: plug it in, it will be used as soon as it appears'],
     midiDevices: ['MIDI', 'MIDI'],
+    midiFirst: ['première note MIDI reçue', 'first MIDI note received'],
+    midiOff: ['la console est éteinte : mettez-la sous tension', 'the console is off: power it on'],
     mouseDd: [': la souris pilote le pointeur du jeu sur l\'écran (boutons et molette compris)',
               ': the mouse drives the game\'s pointer on the screen (buttons and wheel included)'],
     kbdDd: ['(<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 à 4', '(<kbd>F9</kbd>): the keys go to the game instead of players 1 to 4'],
@@ -3384,14 +3386,31 @@ int main(void) {
   // The bytes of every MIDI input go to the console's MIDI_IN register, as MidiLink sends them to the
   // core on the MiSTer; the SDK (mc_midi_event) gathers them into messages.
   let midiAccess = null;
+  // what arrives is shown next to the box (the last message received), and the first note in the console
+  let midiNames = [], midiCount = 0, midiLast = '', midiShown = 0, midiNoted = false;
+  function midiShow() {
+    $('midiState').textContent = midiNames.length
+      ? '(' + midiNames.join(', ') + (midiCount ? ' · ' + midiCount + ' · ' + midiLast : '') + ')' : '';
+  }
   function midiBind() {
-    const names = [];
+    midiNames = [];
     midiAccess.inputs.forEach((inp) => {
-      names.push(inp.name);
-      inp.onmidimessage = (e) => { if (m && $('midiMode').checked) for (const b of e.data) m.midiByte(b); };
+      midiNames.push(inp.name);
+      inp.onmidimessage = (e) => {
+        const d = e.data;
+        if (!d.length || d[0] >= 0xF8) return;               // clock, active sensing: not counted
+        midiCount++;
+        midiLast = Array.from(d.slice(0, 3), (b) => b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
+        if (performance.now() - midiShown > 100) { midiShown = performance.now(); midiShow(); }
+        if (!midiNoted && (d[0] & 0xF0) === 0x90) {
+          midiNoted = true;
+          log('— ' + t('midiFirst') + sep() + midiLast + ' (' + inp.name + ')' + (m && running ? '' : ' — ' + t('midiOff')) + '\n');
+        }
+        if (m && $('midiMode').checked) for (const b of d) m.midiByte(b);
+      };
     });
-    $('midiState').textContent = names.length ? '(' + names.join(', ') + ')' : '';
-    return names;
+    midiShow();
+    return midiNames;
   }
   async function midiStart() {
     if (!navigator.requestMIDIAccess) {
