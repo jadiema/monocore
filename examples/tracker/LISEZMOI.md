@@ -84,6 +84,8 @@ instruments du morceau de démonstration, qui sont définis dans `tools/mtrack/m
 
 ## Clavier MIDI
 
+Le branchement pas à pas, sur la MiSTer et dans le simulateur, est dans `manual/MONOCORE-1_Guide_MIDI.pdf`.
+
 Un clavier MIDI USB (Novation Launchkey par exemple) joue et écrit les notes comme le piano du
 clavier : la force de frappe donne le volume de la case (réglage VELOCITE de la page du morceau).
 Sur la page des sons, les notes jouent l'instrument à plusieurs voix et les huit potentiomètres

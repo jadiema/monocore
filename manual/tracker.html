@@ -1,4 +1,4 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>MONOTRACKER — Manuel de l'utilisateur</title>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>MONOTRACKER - Manuel de l'utilisateur</title>
 <style>@font-face { font-family: 'Press Start 2P'; src: url('fonts/press-start-2p-latin-400-normal.woff2'); }
 @font-face { font-family: 'Archivo'; font-weight: 400; src: url('fonts/archivo-latin-400-normal.woff2'); }
 @font-face { font-family: 'Archivo'; font-weight: 400; font-style: italic; src: url('fonts/archivo-latin-400-italic.woff2'); }
@@ -258,6 +258,7 @@ kbd { font: 600 8pt 'IBM Plex Mono', monospace; display: inline-block; padding: 
 <h2>Les potentiomètres</h2>
 <p>Sur la page des sons, les huit potentiomètres du clavier règlent huit réglages de l'instrument affiché, que l'on entend changer en jouant. Le bandeau indique chaque fois le réglage et sa nouvelle valeur.</p>
 <table class="ref"><thead><tr><th>Bouton</th><th>CC</th><th>Réglage</th><th>Étendue</th></tr></thead><tbody><tr><td>1</td><td>CC 21</td><td>ATTAQUE</td><td>0 à 64 ticks</td></tr><tr><td>2</td><td>CC 22</td><td>DÉCLIN</td><td>0 à 64 ticks</td></tr><tr><td>3</td><td>CC 23</td><td>MAINTIEN</td><td>0 à 64</td></tr><tr><td>4</td><td>CC 24</td><td>RELÂCHE</td><td>0 à 64 ticks</td></tr><tr><td>5</td><td>CC 25</td><td>VOLUME</td><td>0 à 64</td></tr><tr><td>6</td><td>CC 26</td><td>VIB VITESSE</td><td>0 à 32</td></tr><tr><td>7</td><td>CC 27</td><td>VIB AMPLEUR</td><td>0 à 32</td></tr><tr><td>8</td><td>CC 28</td><td>RAPPORT (PSG) ou PANORAMIQUE (PCM)</td><td>1 à 255, ou de gauche à droite</td></tr></tbody></table>
+<p>Le branchement pas à pas et les vérifications en cas de problème sont dans le guide <code>manual/MONOCORE-1_Guide_MIDI.pdf</code>.</p>
 <div class="box know"><div class="box-t">Si les potentiomètres ne font rien</div><p>MONOTRACKER attend les contrôleurs 21 à 28, ceux que les claviers Launchkey envoient d'origine. Si votre clavier en envoie d'autres, réglez-le pour que ses potentiomètres envoient ces numéros ; l'outil de configuration du fabricant le permet en général.</p></div>
 <section class="chap-open c9"><div class="chap-num">10</div><div class="chap-band"></div><h1 id="ch10">La musique dans vos jeux</h1><p class="lead">Le lecteur de MONOTRACKER est une bibliothèque du SDK mc.</p></section>
 <p>Un jeu écrit avec le SDK bas niveau <b>mc</b> joue les morceaux du tracker avec le module <b>mtrack</b>. Il lui faut deux fichiers : la banque d'échantillons <code>mtbank.bin</code>, fournie avec le tracker, et le morceau <code>.mts</code>, exporté depuis le simulateur ou depuis le <code>.sav</code>.</p>

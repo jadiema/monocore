@@ -1,0 +1,198 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>MONOCORE-1 - Guide MIDI</title>
+<style>@font-face { font-family: 'Press Start 2P'; src: url('fonts/press-start-2p-latin-400-normal.woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 400; src: url('fonts/archivo-latin-400-normal.woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 400; font-style: italic; src: url('fonts/archivo-latin-400-italic.woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 600; src: url('fonts/archivo-latin-600-normal.woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 700; src: url('fonts/archivo-latin-700-normal.woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 800; src: url('fonts/archivo-latin-800-normal.woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-weight: 400; src: url('fonts/ibm-plex-mono-latin-400-normal.woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-weight: 600; src: url('fonts/ibm-plex-mono-latin-600-normal.woff2'); }
+@font-face { font-family: 'VT323'; src: url('fonts/vt323-latin-400-normal.woff2'); }
+
+:root {
+  --paper: #ffffff;
+  --ink: #1d1b18;
+  --dim: #5d574c;
+  --rule: #d8ceb6;
+  --red: #e23b2e; --orange: #f28c1b; --yellow: #f2c81b; --green: #3aa655; --blue: #2f6fd6;
+  --code-bg: #fdfbf4; --bar: #e3f0dc;
+}
+@page { size: A4; margin: 16mm 0 16mm 0; }
+body.cover-page { }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); color: var(--ink); }
+body { font: 10.2pt/1.5 'Archivo', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+section, p, ul, ol, table, .listing, .terminal, figure, .box, h2, h3 { margin-left: 20mm; margin-right: 20mm; }
+p { margin-top: 0; margin-bottom: 2.6mm; text-align: justify; hyphens: auto; orphans: 3; widows: 3; }
+section p, section ul, section table, section h2, section .box, section .listing { margin-left: 0; margin-right: 0; }
+ul, ol { padding-left: 6mm; margin-top: 0; margin-bottom: 3mm; }
+li { margin-bottom: 1mm; }
+b { font-weight: 700; }
+code { font: 8.6pt 'IBM Plex Mono', monospace; background: #ece3cc; padding: 0 1.2mm; border-radius: 1px; white-space: nowrap; }
+h2 { font: 11pt 'Press Start 2P', monospace; line-height: 1.5; margin-top: 7mm; margin-bottom: 3mm; color: var(--ink); break-after: avoid; }
+h2::before { content: ''; display: inline-block; width: 4mm; height: 4mm; margin-right: 2.5mm; vertical-align: -0.5mm;
+  background: linear-gradient(90deg, var(--red) 0 20%, var(--orange) 20% 40%, var(--yellow) 40% 60%, var(--green) 60% 80%, var(--blue) 80%); }
+h3 { font: 700 11pt 'Archivo', sans-serif; text-transform: uppercase; letter-spacing: .08em; margin-top: 5mm; margin-bottom: 2mm; break-after: avoid; }
+.page-break { break-after: page; }
+
+/* ---------------- cover */
+.cover { margin: 0; height: 297mm; width: 210mm; background: #121016; color: #f5efdf; position: relative; overflow: hidden; break-after: page; }
+.cover-stripes { position: absolute; left: -40mm; top: 150mm; width: 320mm; transform: rotate(-24deg); }
+.cover-stripes i { display: block; height: 9mm; margin-bottom: 2.2mm; }
+.cover-stripes i:nth-child(1) { background: var(--red); } .cover-stripes i:nth-child(2) { background: var(--orange); }
+.cover-stripes i:nth-child(3) { background: var(--yellow); } .cover-stripes i:nth-child(4) { background: var(--green); }
+.cover-stripes i:nth-child(5) { background: var(--blue); }
+.cover-top { position: absolute; top: 18mm; left: 18mm; font: 600 9pt 'Archivo'; letter-spacing: .3em; color: #b9b2a2; }
+.cover-title { position: absolute; top: 34mm; left: 16mm; font: 40pt 'Press Start 2P'; letter-spacing: -1px; color: #fff; text-shadow: 4px 4px 0 var(--red), 8px 8px 0 var(--blue); }
+.cover-title span { color: var(--yellow); }
+.cover-sub { position: absolute; top: 62mm; left: 18mm; font: 13pt 'Press Start 2P'; color: var(--yellow); }
+.cover-shot { position: absolute; top: 86mm; right: 18mm; width: 120mm; padding: 6mm; background: #2b2a30; border-radius: 9mm;
+  box-shadow: inset 0 0 0 2px #3c3b42, 0 0 0 3px #0a0a0c; }
+.cover-shot img { display: block; width: 100%; border-radius: 4mm; image-rendering: pixelated; }
+.cover-bottom { position: absolute; bottom: 30mm; left: 18mm; right: 18mm; font: 700 12pt 'Archivo'; color: #fff; }
+.cover-ed { position: absolute; bottom: 18mm; left: 18mm; font: 8pt 'Press Start 2P'; color: #b9b2a2; }
+
+/* ---------------- table of contents, foreword */
+.toc-page { break-after: page; padding-top: 8mm; }
+.toc-page h2 { font-size: 16pt; margin-bottom: 8mm; }
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 0 0 3.2mm 0; }
+.toc a { display: flex; align-items: baseline; color: var(--ink); text-decoration: none; }
+.toc .tn { font: 10pt 'Press Start 2P'; width: 12mm; color: var(--red); }
+.toc .tt { font: 600 12pt 'Archivo'; }
+.toc .tp { flex: 1; border-bottom: 1.5px dotted #9b927e; margin: 0 2mm; transform: translateY(-1mm); }
+.toc .pg { font: 10pt 'Press Start 2P'; }
+.foreword { break-after: page; padding-top: 6mm; }
+
+/* ---------------- chapter opener */
+.chap-open { break-before: page; position: relative; padding-top: 4mm; margin-bottom: 8mm; }
+.chap-num { display: inline-block; font: 34pt 'Press Start 2P'; padding: 5mm 6mm 4mm; color: #fff; }
+.chap-band { height: 3mm; margin: 3mm 0 5mm; background: linear-gradient(90deg, var(--red) 0 20%, var(--orange) 20% 40%, var(--yellow) 40% 60%, var(--green) 60% 80%, var(--blue) 80%); }
+.chap-open h1 { font: 17pt/1.45 'Press Start 2P'; margin: 0 0 4mm; }
+.lead { font: italic 12pt 'Archivo'; color: var(--dim); }
+.c1 .chap-num { background: var(--red); } .c2 .chap-num { background: var(--orange); } .c3 .chap-num { background: #d9a900; }
+.c4 .chap-num { background: var(--green); } .c5 .chap-num { background: var(--blue); } .c6 .chap-num { background: var(--red); }
+.c7 .chap-num { background: var(--orange); } .c8 .chap-num { background: #d9a900; } .c9 .chap-num { background: var(--green); }
+.c10 .chap-num { background: var(--blue); } .c11 .chap-num { background: var(--red); } .c12 .chap-num { background: var(--orange); }
+
+/* ---------------- listings */
+.listing { border: 1.5px solid #2c2a25; background: var(--code-bg); margin-top: 2mm; margin-bottom: 4mm; box-shadow: 3px 3px 0 #2c2a25; }
+.listing pre { margin: 0; padding: 2.4mm 3mm; font: 8.3pt/13.2px 'IBM Plex Mono', monospace; white-space: pre-wrap;
+  background: repeating-linear-gradient(180deg, var(--bar) 0 39.6px, transparent 39.6px 79.2px); background-origin: content-box; }
+.listing .ln { color: #a39a85; display: inline-block; width: 7mm; user-select: none; }
+.lst-cap { font: 7pt 'Press Start 2P'; padding: 2mm 3mm; background: #2c2a25; color: #f5efdf; }
+.lst-cap span { color: var(--yellow); margin-right: 2mm; }
+.listing.nonum pre { background: none; }
+.c-com { color: #7a7465; font-style: italic; }
+.c-str { color: #b5371f; }
+.c-kw { color: #1f4fae; font-weight: 600; }
+.c-num { color: #8a3fb0; }
+.c-pre { color: #2f7d3a; }
+.c-cst { color: #8a5a00; }
+.terminal { background: #0f1a12; border-radius: 3mm; margin-top: 2mm; margin-bottom: 4mm; box-shadow: inset 0 0 6mm rgba(0,0,0,.6); break-inside: avoid; }
+.terminal pre { margin: 0; padding: 3mm 4mm; font: 13pt/1.15 'VT323', monospace; color: #7dff8a; white-space: pre-wrap; text-shadow: 0 0 2px rgba(125,255,138,.6); }
+.lst-cap.sh { background: #1d3022; border-radius: 3mm 3mm 0 0; }
+
+/* ---------------- screens and figures */
+figure { margin-top: 3mm; margin-bottom: 5mm; break-inside: avoid; text-align: center; }
+.tv .bezel { display: inline-block; padding: 5mm; background: #2b2a30; border-radius: 7mm; box-shadow: inset 0 0 0 2px #3c3b42, 3px 3px 0 #1a191d; }
+.tv img { display: block; width: 112mm; border-radius: 3mm; image-rendering: pixelated; }
+.tv.small img { width: 70mm; }
+figcaption { font: italic 9pt 'Archivo'; color: var(--dim); margin-top: 2mm; }
+.fig svg { width: 150mm; height: auto; }
+.pair { display: flex; justify-content: center; gap: 4mm; margin: 0 20mm; }
+.pair figure { margin-left: 0; margin-right: 0; }
+.sheet-row { display: flex; gap: 8mm; align-items: flex-start; margin: 2mm 20mm 4mm; break-inside: avoid; }
+.sheet-row img.sheet { height: 92mm; image-rendering: pixelated; border: 1.5px solid #2c2a25; }
+.sheet-row table, .sheet-row p { margin-left: 0; margin-right: 0; }
+
+/* ---------------- boxes */
+.box { border: 1.5px solid #2c2a25; padding: 3mm 4mm 1mm; margin-top: 3mm; margin-bottom: 5mm; background: #fbf6e8; break-inside: avoid; position: relative; }
+.box-t { font: 7.5pt 'Press Start 2P'; display: inline-block; padding: 1.4mm 2mm; margin: -6.2mm 0 2.5mm -1mm; color: #fff; }
+.box.tip .box-t { background: #d9a900; } .box.tip { box-shadow: 3px 3px 0 #d9a900; }
+.box.warn .box-t { background: var(--red); } .box.warn { box-shadow: 3px 3px 0 var(--red); }
+.box.know .box-t { background: var(--blue); } .box.know { box-shadow: 3px 3px 0 var(--blue); }
+.box p, .box ul, .box .listing { margin-left: 0; margin-right: 0; }
+
+/* ---------------- tables */
+table { border-collapse: collapse; width: calc(100% - 40mm); margin-top: 2mm; margin-bottom: 5mm; font-size: 9.4pt; break-inside: auto; }
+.box table, .sheet-row table { width: 100%; }
+th { font: 7pt 'Press Start 2P'; text-align: left; background: #2c2a25; color: #f5efdf; padding: 2mm 2.5mm; }
+td { padding: 1.5mm 2.5mm; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tr { break-inside: avoid; }
+tbody tr:nth-child(even) td { background: rgba(0,0,0,.035); }
+table.specs td:first-child { font-weight: 700; white-space: nowrap; width: 28mm; }
+table.ref td:first-child { white-space: nowrap; }
+table.ref code { font-size: 8pt; }
+.colophon { margin-top: 14mm; font-size: 8.5pt; color: var(--dim); border-top: 1px solid var(--rule); padding-top: 3mm; }
+.mark { font-size: 2px; color: #ffffff; position: absolute; left: 0; top: 0; }
+
+body.cover-page { background: #121016; }
+@media print { body.cover-page { margin: 0; } }
+table.notes th, table.notes td { text-align: center; }
+
+kbd { font: 600 8pt 'IBM Plex Mono', monospace; display: inline-block; padding: 0 1.4mm; border: 1px solid #2c2a25; border-bottom-width: 2px;
+  border-radius: 1.2mm; background: #fbf6e8; white-space: nowrap; line-height: 1.35; }
+.c10 .chap-num { background: var(--blue); } .c11 .chap-num { background: var(--red); } .c12 .chap-num { background: var(--orange); }
+.cover-title { font-size: 34pt; }
+</style></head><body><section class="cover">
+ <div class="cover-stripes"><i></i><i></i><i></i><i></i><i></i></div>
+ <div class="cover-top">MONOCORE-1 · ENTRÉE MIDI · MATÉRIEL VERSION 4</div>
+ <div class="cover-title">GUIDE<span> MIDI</span></div>
+ <div class="cover-sub">BRANCHER UN CLAVIER MIDI SUR LA CONSOLE</div>
+ <div class="cover-shot"><img src="images/midi_tracker.png"></div>
+ <div class="cover-bottom">Sur la MiSTer avec MidiLink · Dans le simulateur avec Web MIDI · Dans vos propres ROM</div>
+ <div class="cover-ed">ÉDITION 1 · OCTOBRE 2026</div>
+</section><section class="toc-page"><h2>Sommaire</h2><ol class="toc">
+<li><a href="#ch1"><span class="tn">1</span><span class="tt">Sur la MiSTer</span><span class="tp"></span><span class="pg">3</span></a></li>
+<li><a href="#ch2"><span class="tn">2</span><span class="tt">Dans le simulateur</span><span class="tp"></span><span class="pg">5</span></a></li>
+<li><a href="#ch3"><span class="tn">3</span><span class="tt">Si rien ne se passe</span><span class="tp"></span><span class="pg">6</span></a></li>
+<li><a href="#ch4"><span class="tn">4</span><span class="tt">Le MIDI dans vos ROM</span><span class="tp"></span><span class="pg">7</span></a></li>
+</ol></section>
+<section class="foreword"><h2>En bref</h2><p>Depuis la version 4 de son matériel, la MONOCORE-1 a une <b>entrée MIDI</b>. Un clavier MIDI USB, comme un Novation Launchkey, peut ainsi jouer et écrire de la musique dans <b>MONOTRACKER</b>, et toute ROM peut lire ses notes. Ce guide explique comment le brancher, sur la MiSTer comme dans le simulateur, et quoi vérifier si rien ne se passe.</p><table class=""><thead><tr><th>Il vous faut</th><th>Détail</th></tr></thead><tbody><tr><td>Le core MONOCORE en version 4</td><td><code>releases/MONOCORE_20261026c_midi.rbf</code> ou plus récent, copié dans <code>_Console</code></td></tr><tr><td>Un clavier MIDI USB</td><td>un clavier « class compliant », qui fonctionne sans pilote : c'est le cas de la plupart, dont les Launchkey</td></tr><tr><td>Une MiSTer à jour</td><td>avec MidiLink, le service MIDI de la MiSTer, installé par l'updater habituel ; rien à acheter</td></tr><tr><td>Une ROM qui lit le MIDI</td><td>MONOTRACKER à jour (<code>monotracker.mnc</code>), ou votre propre ROM (chapitre 4)</td></tr></tbody></table><div class="box know"><div class="box-t">Le chemin des notes</div><p>Sur la MiSTer, le clavier se branche en USB sur la carte. Linux le reconnaît, MidiLink lit ses notes et les envoie au core par sa liaison série, à 31 250 bauds comme une prise MIDI classique. Le core les range dans le registre <code>MIDI_IN</code>. Dans le simulateur, c'est le navigateur qui lit le clavier (Web MIDI) et remplit ce même registre.</p></div></section>
+<section class="chap-open c1"><div class="chap-num">1</div><div class="chap-band"></div><h1 id="ch1">Sur la MiSTer</h1><p class="lead">Brancher le clavier, régler le menu du core, vérifier.</p></section>
+<figure class="fig"><svg viewBox="0 0 740 74" xmlns="http://www.w3.org/2000/svg" font-family="Archivo" style="width:165mm"><defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2c2a25"/></marker></defs><text x="0" y="36" font-size="12" font-weight="700" fill="#1d1b18">MiSTer</text><rect x="92" y="10" width="104" height="44" rx="5" fill="#fbf6e8" stroke="#e23b2e" stroke-width="2.5"/><text x="144" y="29" font-size="11" font-weight="700" text-anchor="middle" fill="#1d1b18">Clavier MIDI</text><text x="144" y="44" font-size="8.5" text-anchor="middle" fill="#5d574c">USB</text><line x1="199" y1="32" x2="215" y2="32" stroke="#2c2a25" stroke-width="2" marker-end="url(#ar)"/><rect x="220" y="10" width="104" height="44" rx="5" fill="#fbf6e8" stroke="#f28c1b" stroke-width="2.5"/><text x="272" y="29" font-size="11" font-weight="700" text-anchor="middle" fill="#1d1b18">Linux</text><text x="272" y="44" font-size="8.5" text-anchor="middle" fill="#5d574c">pilote ALSA</text><line x1="327" y1="32" x2="343" y2="32" stroke="#2c2a25" stroke-width="2" marker-end="url(#ar)"/><rect x="348" y="10" width="104" height="44" rx="5" fill="#fbf6e8" stroke="#f2c81b" stroke-width="2.5"/><text x="400" y="29" font-size="11" font-weight="700" text-anchor="middle" fill="#1d1b18">MidiLink</text><text x="400" y="44" font-size="8.5" text-anchor="middle" fill="#5d574c">mode USB</text><line x1="455" y1="32" x2="471" y2="32" stroke="#2c2a25" stroke-width="2" marker-end="url(#ar)"/><rect x="476" y="10" width="104" height="44" rx="5" fill="#fbf6e8" stroke="#3aa655" stroke-width="2.5"/><text x="528" y="29" font-size="11" font-weight="700" text-anchor="middle" fill="#1d1b18">Core</text><text x="528" y="44" font-size="8.5" text-anchor="middle" fill="#5d574c">UART 31 250 bauds</text><line x1="583" y1="32" x2="599" y2="32" stroke="#2c2a25" stroke-width="2" marker-end="url(#ar)"/><rect x="604" y="10" width="104" height="44" rx="5" fill="#fbf6e8" stroke="#2f6fd6" stroke-width="2.5"/><text x="656" y="29" font-size="11" font-weight="700" text-anchor="middle" fill="#1d1b18">ROM</text><text x="656" y="44" font-size="8.5" text-anchor="middle" fill="#5d574c">registre MIDI_IN</text></svg><figcaption>Sur la MiSTer, les notes passent du clavier USB à la ROM par Linux, MidiLink et la liaison série du core.</figcaption></figure>
+<h2>Les étapes</h2>
+<ol><li>Copiez le core version 4, <code>MONOCORE_20261026c_midi.rbf</code>, dans <code>_Console</code> sur la carte SD, et le <code>monotracker.mnc</code> à jour dans <code>games/MONOCORE</code>.</li><li>Branchez le clavier MIDI sur un port USB <b>de la MiSTer</b> (directement ou par le hub de la carte), et attendez que ses voyants s'allument.</li><li>Lancez le core MONOCORE depuis le menu de la MiSTer.</li><li>Ouvrez le menu du core avec <kbd>F12</kbd>, puis passez à la page générale de la MiSTer avec la flèche <kbd>→</kbd> (ou <kbd>←</kbd>) : c'est celle des réglages communs à tous les cores.</li><li>Choisissez <b>UART Mode</b>, réglez <b>Connection</b> sur <b>MIDI</b>, puis <b>MidiLink</b> sur <b>USB</b>. Enregistrez si le menu le propose.</li><li>Refermez le menu, lancez MONOTRACKER et jouez une note : le bandeau du tracker affiche <i>CLAVIER MIDI BRANCHE</i>, et la note sonne.</li></ol>
+<figure class="tv"><div class="bezel"><img src="images/midi_tracker.png"></div><figcaption>MONOTRACKER reçoit le clavier : le bandeau l'annonce, et les trois notes jouées en mode édition se sont écrites avec leur volume.</figcaption></figure>
+<h2>Les choix de MidiLink</h2>
+<table class=""><thead><tr><th>Choix</th><th>À quoi il sert</th><th>Pour un clavier ?</th></tr></thead><tbody><tr><td>USB</td><td>échange les notes avec un appareil MIDI branché en USB sur la MiSTer</td><td><b>oui</b></td></tr><tr><td>Local</td><td>fait jouer la musique par un synthétiseur logiciel de la MiSTer (MUNT, FluidSynth)</td><td>non</td></tr><tr><td>UDP</td><td>envoie et reçoit le MIDI par le réseau, vers un autre ordinateur</td><td>non</td></tr></tbody></table>
+<div class="box warn"><div class="box-t">Le choix USB n'apparaît pas</div><p>La MiSTer ne propose <b>USB</b> que si elle a reconnu un appareil MIDI. Si vous ne voyez que <i>Local</i> et <i>UDP</i>, elle ne voit pas encore le clavier : branchez-le sur la MiSTer (pas sur le PC), attendez quelques secondes et rouvrez le menu ; sinon, redémarrez la MiSTer avec le clavier déjà branché. Le chapitre 3 donne les vérifications suivantes.</p></div>
+<p>Le réglage UART est gardé par la MiSTer pour le core MONOCORE : il n'y a pas à le refaire à chaque fois, tant que le clavier est branché.</p>
+<section class="chap-open c2"><div class="chap-num">2</div><div class="chap-band"></div><h1 id="ch2">Dans le simulateur</h1><p class="lead">Le même clavier, branché sur le PC.</p></section>
+<figure class="fig"><svg viewBox="0 0 740 74" xmlns="http://www.w3.org/2000/svg" font-family="Archivo" style="width:165mm"><defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2c2a25"/></marker></defs><text x="0" y="36" font-size="12" font-weight="700" fill="#1d1b18">PC</text><rect x="92" y="10" width="104" height="44" rx="5" fill="#fbf6e8" stroke="#e23b2e" stroke-width="2.5"/><text x="144" y="29" font-size="11" font-weight="700" text-anchor="middle" fill="#1d1b18">Clavier MIDI</text><text x="144" y="44" font-size="8.5" text-anchor="middle" fill="#5d574c">USB</text><line x1="199" y1="32" x2="215" y2="32" stroke="#2c2a25" stroke-width="2" marker-end="url(#ar)"/><rect x="220" y="10" width="104" height="44" rx="5" fill="#fbf6e8" stroke="#f28c1b" stroke-width="2.5"/><text x="272" y="29" font-size="11" font-weight="700" text-anchor="middle" fill="#1d1b18">Navigateur</text><text x="272" y="44" font-size="8.5" text-anchor="middle" fill="#5d574c">Web MIDI</text><line x1="327" y1="32" x2="343" y2="32" stroke="#2c2a25" stroke-width="2" marker-end="url(#ar)"/><rect x="348" y="10" width="104" height="44" rx="5" fill="#fbf6e8" stroke="#f2c81b" stroke-width="2.5"/><text x="400" y="29" font-size="11" font-weight="700" text-anchor="middle" fill="#1d1b18">Simulateur</text><text x="400" y="44" font-size="8.5" text-anchor="middle" fill="#5d574c">monocore.html</text><line x1="455" y1="32" x2="471" y2="32" stroke="#2c2a25" stroke-width="2" marker-end="url(#ar)"/><rect x="476" y="10" width="104" height="44" rx="5" fill="#fbf6e8" stroke="#3aa655" stroke-width="2.5"/><text x="528" y="29" font-size="11" font-weight="700" text-anchor="middle" fill="#1d1b18">ROM</text><text x="528" y="44" font-size="8.5" text-anchor="middle" fill="#5d574c">registre MIDI_IN</text></svg><figcaption>Dans le simulateur, c'est le navigateur qui lit le clavier et le transmet à la console simulée.</figcaption></figure>
+<h2>Avec Chrome ou Edge</h2>
+<ol><li>Branchez le clavier sur le PC et ouvrez le simulateur (<code>dist/monocore.html</code>).</li><li>Choisissez MONOTRACKER dans la liste des ROM intégrées et cliquez sur <b>Mettre sous tension</b>.</li><li>Sous l'écran, dans l'encadré « Système et manettes », cochez <b>clavier MIDI</b>. Le navigateur demande l'autorisation la première fois.</li><li>Le nom du clavier s'affiche à côté de la case. Quand vous jouez, un compteur et le dernier message reçu s'y ajoutent, et la console de débogage note la première note reçue.</li></ol>
+<figure class="fig"><img src="images/midi_page.png" style="width:135mm;border:1px solid #2c2a25"><figcaption>La case « clavier MIDI » cochée : les deux ports du Launchkey, le nombre de messages reçus et le dernier (90 43 64 : un sol joué).</figcaption></figure>
+<h2>Avec Firefox</h2>
+<p>Firefox ne donne pas le MIDI à une page ouverte directement depuis un fichier : la case affiche alors une explication dans la console de débogage. Ouvrez plutôt le simulateur par <code>dist/simulateur.bat</code> (Windows, double-clic) ou <code>dist/simulateur.py</code> : ils servent la page en local, à une adresse <code>http://localhost:…</code>, et l'ouvrent dans le navigateur. Firefox demande alors l'autorisation, et le clavier fonctionne. Il faut Python, déjà nécessaire pour construire les ROM.</p>
+<p>Si le simulateur est publié en ligne (GitHub Pages), il suffit d'ouvrir son adresse : Chrome et Edge demandent l'autorisation, Firefox propose d'installer en un clic une petite extension de permission qu'il fabrique lui-même. Safari ne donne pas accès au MIDI.</p>
+<p>Une fois cochée, la case <b>clavier MIDI</b> le reste d'une visite à l'autre dans le même navigateur : il suffit ensuite de brancher le clavier et d'allumer la console.</p>
+<section class="chap-open c3"><div class="chap-num">3</div><div class="chap-band"></div><h1 id="ch3">Si rien ne se passe</h1><p class="lead">Trouver l'étape qui bloque.</p></section>
+<h2>Sur la MiSTer</h2>
+<table class=""><thead><tr><th>Ce que vous voyez</th><th>La cause probable</th><th>Que faire</th></tr></thead><tbody><tr><td>pas de réglage <b>UART Mode</b> dans le menu</td><td>c'est un ancien core (version 3 ou moins), qui ne déclare pas d'UART</td><td>chargez <code>MONOCORE_20261026c_midi.rbf</code> ou plus récent</td></tr><tr><td>seulement <i>Local</i> et <i>UDP</i>, pas <i>USB</i></td><td>la MiSTer ne voit pas le clavier</td><td>branchez-le sur la MiSTer, rouvrez le menu ; sinon redémarrez avec le clavier branché, puis vérifiez en SSH (ci-dessous)</td></tr><tr><td><i>USB</i> choisi, mais le tracker ne réagit pas</td><td>une ancienne ROM, sans le MIDI</td><td>copiez le <code>monotracker.mnc</code> à jour dans <code>games/MONOCORE</code></td></tr></tbody></table>
+<p>Pour voir ce que Linux reconnaît, connectez-vous en SSH (<code>root</code>, mot de passe <code>1</code>) : tapez <code>ls /dev/midi*</code> puis <code>cat /proc/asound/cards</code> : un clavier reconnu apparaît comme une carte son et un <code>/dev/midi</code>.</p>
+<h2>Dans le simulateur</h2>
+<table class=""><thead><tr><th>Ce que vous voyez</th><th>La cause probable</th><th>Que faire</th></tr></thead><tbody><tr><td>un message sur l'accès au MIDI dans la console de débogage</td><td>Safari, ou Firefox avec la page ouverte depuis un fichier</td><td>prenez Chrome ou Edge ; sous Firefox, lancez la page par <code>simulateur.bat</code> ou <code>simulateur.py</code></td></tr><tr><td>pas de nom de clavier à côté de la case</td><td>le navigateur ne voit pas le clavier</td><td>débranchez-le, rebranchez-le, rechargez la page</td></tr><tr><td>le nom s'affiche, mais le compteur reste vide quand on joue</td><td>le clavier envoie sur un autre port, ou est dans un mode spécial (DAW)</td><td>remettez le clavier dans son mode normal</td></tr><tr><td>le compteur avance, mais le tracker ne réagit pas</td><td>la console est éteinte, ou la ROM est ancienne</td><td>cliquez sur <b>Mettre sous tension</b> ; prenez MONOTRACKER dans la liste des ROM intégrées</td></tr></tbody></table>
+<section class="chap-open c4"><div class="chap-num">4</div><div class="chap-band"></div><h1 id="ch4">Le MIDI dans vos ROM</h1><p class="lead">Lire les notes d'un clavier avec le SDK mc.</p></section>
+<p>Une ROM écrite avec le SDK bas niveau <b>mc</b> lit le clavier MIDI avec <code>mc_midi_event()</code>. La fonction rend le message complet suivant, ou −1 s'il n'y en a pas ; on l'appelle en boucle à chaque image. Elle gère le statut implicite (running status), donne une note jouée à vélocité nulle comme une note relâchée, et écarte l'horloge, le sysex et les autres messages système.</p>
+<div class="listing "><div class="lst-cap"><span>LISTING</span> lire le clavier MIDI</div><pre><span class="ln">  1</span><span class="c-pre">#include "mc.h"</span>
+<span class="ln">  2</span> 
+<span class="ln">  3</span><span class="c-kw">int</span> main(<span class="c-kw">void</span>) {
+<span class="ln">  4</span>  mc_init();
+<span class="ln">  5</span>  <span class="c-kw">for</span> (;;) {
+<span class="ln">  6</span>    mc_frame();
+<span class="ln">  7</span>    <span class="c-kw">int</span> e;
+<span class="ln">  8</span>    <span class="c-kw">while</span> ((e = mc_midi_event()) &gt;= <span class="c-num">0</span>) {
+<span class="ln">  9</span>      <span class="c-kw">int</span> note = <span class="c-cst">MIDI_DATA1</span>(e), velocity = <span class="c-cst">MIDI_DATA2</span>(e);
+<span class="ln"> 10</span>      switch (<span class="c-cst">MIDI_STATUS</span>(e)) {
+<span class="ln"> 11</span>        case <span class="c-cst">MIDI_NOTE_ON</span>:  /* note <span class="c-num">60</span> = do du milieu, velocity <span class="c-num">1</span>-<span class="c-num">127</span> */ <span class="c-kw">break</span>;
+<span class="ln"> 12</span>        case <span class="c-cst">MIDI_NOTE_OFF</span>: /* touche relâchée */ <span class="c-kw">break</span>;
+<span class="ln"> 13</span>        case <span class="c-cst">MIDI_CC</span>:       /* potentiomètre : note = numéro, velocity = valeur <span class="c-num">0</span>-<span class="c-num">127</span> */ <span class="c-kw">break</span>;
+<span class="ln"> 14</span>      }
+<span class="ln"> 15</span>    }
+<span class="ln"> 16</span>  }
+<span class="ln"> 17</span>}</pre></div>
+<table class="ref"><thead><tr><th>Élément</th><th>Rôle</th></tr></thead><tbody><tr><td><code>mc_midi_event()</code></td><td>message suivant : statut, puis deux octets de données ; −1 s'il n'y a rien</td></tr><tr><td><code>MIDI_STATUS(e)</code></td><td><code>MIDI_NOTE_ON</code>, <code>MIDI_NOTE_OFF</code>, <code>MIDI_CC</code>, <code>MIDI_PITCH</code>, <code>MIDI_PROGRAM</code>…</td></tr><tr><td><code>MIDI_CHANNEL(e)</code></td><td>canal MIDI, de 0 à 15</td></tr><tr><td><code>MIDI_DATA1(e)</code> / <code>MIDI_DATA2(e)</code></td><td>note ou numéro de contrôleur / vélocité ou valeur</td></tr><tr><td><code>mc_hw_version()</code></td><td>4 ou plus : l'entrée MIDI existe</td></tr><tr><td><code>MIDI_IN</code></td><td>le registre (0x4000_00DC) : une file de 64 octets reçus tels quels ; détails dans <code>SPEC.md</code></td></tr></tbody></table>
+<p>Pour tester sans clavier, <code>tools/run.js</code> accepte des octets MIDI en hexadécimal, par exemple <code>60:mi=90,3C,64</code> pour jouer le do du milieu à l'image 60. Le module <code>mtrack</code> permet ensuite de jouer ces notes avec les instruments d'un morceau de MONOTRACKER, comme le fait le tracker.</p></body></html>

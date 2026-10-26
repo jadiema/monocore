@@ -9,7 +9,9 @@ Prenez le plus récent : il fait tourner toutes les ROM des versions précédent
 | `MONOCORE_20261026c_midi.rbf` | version 4 | comme la version 3, plus l'**entrée MIDI** : clavier MIDI USB par MidiLink (menu du core : *UART : MIDI*, connexion USB) | commit `eba9fa0` |
 | `MONOCORE_20261026b.rbf` | version 3 | 4 manettes, analogique, clavier, **souris** (molette positive vers l'avant), NVRAM sur la carte SD, cartouche SPI | commit `be98b62` |
 
-`MONOCORE_20261026c_midi.rbf` : compilé avec Quartus Prime 17.0.2 Lite le 26 octobre 2026.
+`MONOCORE_20261026c_midi.rbf` : compilé avec Quartus Prime 17.0.2 Lite le 26 octobre 2026, testé sur DE10-Nano avec un
+Novation Launchkey 49 branché en USB (MidiLink en mode USB) et MONOTRACKER. Mode d'emploi :
+`manual/MONOCORE-1_Guide_MIDI.pdf`.
 SHA-256 : `02836ad1bdd6c01ffe495ac2d03d4fc29e2d68051069c4adc7f84ded4b4573db`
 
 `MONOCORE_20261026b.rbf` : compilé avec Quartus Prime 17.0.2 Lite le 26 octobre 2026, timing respecté (marge de
