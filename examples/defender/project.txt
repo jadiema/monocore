@@ -1,0 +1,7 @@
+# PIANO DEFENDER: invaders come down on the keys, play their note to fire (MIDI keyboard)
+name    = defender
+title   = PIANO DEFENDER
+library = mc
+modules = mtrack
+sources = main.c
+data    = ../tracker/mtbank.bin groove.mts

@@ -9,6 +9,7 @@
 !examples/virusmeadow/build/virusmeadow.mnc
 !examples/tracker/build/monotracker.mnc
 !examples/cascade/build/cascade.mnc
+!examples/defender/build/defender.mnc
 *.o
 *.elf
 __pycache__/

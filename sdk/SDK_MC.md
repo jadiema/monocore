@@ -144,6 +144,7 @@ affiche tout ce que la console reçoit).
 | `examples/nebula` | shoot'em up complet ; tous les graphismes sont produits au démarrage dans la CHR RAM (sprites en « ASCII art », décors procéduraux découpés en tuiles avec partage des tuiles identiques), parallaxe, sol en perspective, 233 sprites, tirs visés avec `mc_atan2` |
 | `examples/tracker` | MONOTRACKER, tracker de musique au clavier et à la souris, interface à panneaux façon trackers Amiga : 16 pistes, page d'édition des sons, sauvegarde en NVRAM, motifs rangés dans la CHR RAM |
 | `examples/cascade` | CASCADE, jeu de rythme au clavier MIDI : un morceau de MONOTRACKER parcouru, ses notes défilant dans une couche de tuiles en anneau, synchronisées sur `mtrack` |
+| `examples/defender` | PIANO DEFENDER, shoot'em up au clavier MIDI : vélocité, accords, molette de modulation, tirs joués avec un instrument défini dans le programme (`mt_note`) |
 | `examples/test_mtrack` | le module `mtrack` comme dans un jeu : un morceau, deux bruitages, pause |
 | `examples/virusmeadow` | pong-casse-briques coopératif à 4 joueurs : écran d'accueil en image 8 bpp (`maps8`) avec fondu par la palette, prairie procédurale, virus sur un plan de tuiles, joueurs console pour les places libres, manettes, sticks, spinners et paddles |
 
