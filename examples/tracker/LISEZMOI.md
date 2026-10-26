@@ -1,5 +1,8 @@
 # MONOTRACKER
 
+Le mode d'emploi complet, illustré, est le manuel `manual/MONOTRACKER_Manuel.pdf`
+(régénéré par `python3 manual/tools/tracker_manual.py`).
+
 Un tracker de musique pour la MONOCORE-1, qui se joue au clavier et à la souris (USB, sur le DE10-Nano). Il pilote
 les 16 canaux de la console : 8 pistes PSG (oscillateurs) et 8 pistes PCM (échantillons d'une
 banque de 21 sons originaux). Les morceaux se gardent dans la NVRAM (8 emplacements) et s'exportent
