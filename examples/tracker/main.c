@@ -19,9 +19,16 @@
 #define G_SOLID 96            // glyphs after the 96 of the font
 #define G_VU 97               // 97-104: VU bar of 1 to 8 pixels
 #define G_ARROW 105           // small play arrow
-#define G_GRAPH 112           // two graphs of GW x GH tiles
+#define G_UP 106              // arrows of the spin buttons
+#define G_DOWN 107
+#define G_LEFT 108
+#define G_RIGHT 109
+#define G_BEV 110             // 110-118: bevelled panel, 3 x 3 pieces
+#define G_PTR 120             // 120-123: mouse pointer, 16 x 16
+#define G_GRAPH 128           // two graphs of GW x GH tiles
 #define GW 13
-#define GH 5
+#define GH 4
+#define G_SCOPE 240           // 16 x 8 tiles of the track meters
 
 #ifndef KEY_COMMA
 #define KEY_COMMA 0x41
@@ -34,10 +41,13 @@
 #define KEY_KPMINUS 0x7B
 #endif
 
-// colours: text palettes 0-7, backgrounds 8-11, graphs 12
+// colours: text on the dark pattern 0-7, row bars 8-11, graphs 12, pointer 13, panels 16-19,
+// text on the grey panels 20-24, track meters 25
 enum { C_WHITE, C_GREY, C_CYAN, C_GREEN, C_ORANGE, C_YELLOW, C_RED, C_BLUE };
 enum { B_CURSOR = 8, B_EDIT, B_FIELD, B_BEAT };
 #define P_GRAPH 12
+#define P_POINTER 13
+enum { P_RAISED = 16, P_SUNK, P_PRESSED, P_SCOPE, T_INK, T_BLUE, T_WHITE, T_RED, T_DIM, P_BARS };
 
 // ================================================================ song being edited
 static mt_instrument_t ins[MT_INSTRUMENTS];
@@ -49,16 +59,24 @@ static int song_slot = -1, dirty;
 static uint32_t *pat(int p) { return PATS + p * PAT_CELLS; }
 static const uint32_t *src_pattern(void *ctx, int p) { (void)ctx; return p < NPAT ? pat(p) : 0; }
 
+static uint8_t vu[MT_TRACKS];              // track meters (smoothed levels)
+
 // ================================================================ screen
-static uint16_t txt[LINES][COLS], txt_old[LINES][COLS];   // glyph | palette << 12
+// Three tile layers of 48 x 30 cells (8 x 8): layer 0 the text, layer 1 the row bars of the
+// pattern, layer 2 the bevelled panels in the manner of the Amiga trackers. Layer 2 is scrolled
+// up by 4 pixels: a panel around text rows r to r2 covers its rows r to r2 + 1, which leaves a
+// margin of 4 pixels above and below the text. The mouse pointer is a sprite.
+static uint16_t txt[LINES][COLS], txt_old[LINES][COLS];   // glyph | palette << 10
 static uint16_t bgr[LINES][COLS], bgr_old[LINES][COLS];
+static uint16_t pnl[LINES + 1][COLS], pnl_old[LINES + 1][COLS];
 static char line[96];
+#define GP(g, pal) ((uint16_t)((g) | ((pal) << 10)))
 
 static void cls(void) {
-  for (int y = 0; y < LINES; y++) for (int x = 0; x < COLS; x++) { txt[y][x] = 0; bgr[y][x] = 0; }
+  memset(txt, 0, sizeof txt); memset(bgr, 0, sizeof bgr); memset(pnl, 0, sizeof pnl);
 }
 static void putg(int x, int y, int g, int pal) {
-  if (x >= 0 && x < COLS && y >= 0 && y < LINES) txt[y][x] = (uint16_t)(g | (pal << 12));
+  if (x >= 0 && x < COLS && y >= 0 && y < LINES) txt[y][x] = GP(g, pal);
 }
 static void print(int x, int y, const char *s, int pal) {
   for (; *s; s++, x++) {
@@ -73,51 +91,180 @@ static void printn(int x, int y, const char *s, int n, int pal) {   // n charact
     putg(x + i, y, (c < 32 || c > 127 ? '?' : c) - 32, pal);
   }
 }
+static void printc(int x0, int x1, int y, const char *s, int pal) {   // centred in x0..x1
+  int n = (int)strlen(s);
+  print(x0 + (x1 - x0 + 1 - n) / 2, y, s, pal);
+}
 static void bar(int x0, int x1, int y, int pal) {
-  for (int x = x0; x <= x1; x++) if (x >= 0 && x < COLS && y >= 0 && y < LINES) bgr[y][x] = (uint16_t)(G_SOLID | (pal << 12));
+  for (int x = x0; x <= x1; x++) if (x >= 0 && x < COLS && y >= 0 && y < LINES) bgr[y][x] = GP(G_SOLID, pal);
+}
+// a bevelled panel around the text cells x0..x1, rows y0..y1
+static void box(int x0, int y0, int x1, int y1, int pal) {
+  for (int y = y0; y <= y1 + 1; y++)
+    for (int x = x0; x <= x1; x++) {
+      int r = y == y0 ? 0 : y == y1 + 1 ? 2 : 1, c = x == x0 ? 0 : x == x1 ? 2 : 1;
+      if (y >= 0 && y <= LINES && x >= 0 && x < COLS) pnl[y][x] = GP(G_BEV + r * 3 + c, pal);
+    }
 }
 static void flush(void) {
-  volatile uint32_t *m0 = mc_tilemap(0), *m1 = mc_tilemap(1);
+  volatile uint32_t *m0 = mc_tilemap(0), *m1 = mc_tilemap(1), *m2 = mc_tilemap(2);
   for (int y = 0; y < LINES; y++)
     for (int x = 0; x < COLS; x++) {
       uint16_t t = txt[y][x], b = bgr[y][x];
-      if (t != txt_old[y][x]) { txt_old[y][x] = t; m0[y * 64 + x] = TILE(t & 0xFFF, t >> 12); }
-      if (b != bgr_old[y][x]) { bgr_old[y][x] = b; m1[y * 64 + x] = TILE(b & 0xFFF, b >> 12); }
+      if (t != txt_old[y][x]) { txt_old[y][x] = t; m0[y * 64 + x] = TILE(t & 0x3FF, t >> 10); }
+      if (b != bgr_old[y][x]) { bgr_old[y][x] = b; m1[y * 64 + x] = TILE(b & 0x3FF, b >> 10); }
     }
+  for (int y = 0; y <= LINES; y++)
+    for (int x = 0; x < COLS; x++)
+      if (pnl[y][x] != pnl_old[y][x]) { pnl_old[y][x] = pnl[y][x]; m2[y * 64 + x] = TILE(pnl[y][x] & 0x3FF, pnl[y][x] >> 10); }
+}
+
+// ---------------------------------------------------------------- clickable zones
+// Each frame, drawing a control also records its zone; the mouse is tested against the zones of
+// the previous frame, the last one drawn on top.
+enum { Z_SPIN = 1, Z_BTN, Z_CELL, Z_TRACK, Z_SCOPE, Z_PARAM, Z_ORDER, Z_ORDPAT, Z_SETTING, Z_SLOT, Z_SONGBTN, Z_HELP, Z_ROWS };
+typedef struct { uint8_t x0, y0, x1, y1, id; int16_t arg; } zone_t;
+static zone_t zones[192], zones_prev[192];
+static int nzones, nzones_prev;
+static void zone(int x0, int y0, int x1, int y1, int id, int arg) {
+  if (nzones < (int)(sizeof zones / sizeof zones[0]))
+    zones[nzones++] = (zone_t){ (uint8_t)x0, (uint8_t)y0, (uint8_t)x1, (uint8_t)y1, (uint8_t)id, (int16_t)arg };
+}
+static const zone_t *zone_at(int x, int y) {
+  for (int i = nzones_prev - 1; i >= 0; i--) {
+    const zone_t *z = &zones_prev[i];
+    if (x >= z->x0 && x <= z->x1 && y >= z->y0 && y <= z->y1) return z;
+  }
+  return 0;
 }
 
 static const uint16_t pal_fg[8] = {
   RGB555(240, 240, 240), RGB555(110, 116, 140), RGB555(90, 210, 240), RGB555(120, 230, 110),
   RGB555(250, 160, 60), RGB555(250, 225, 90), RGB555(250, 80, 80), RGB555(120, 140, 250) };
-static const uint16_t pal_bg[4] = { RGB555(40, 60, 140), RGB555(110, 30, 40), RGB555(80, 110, 220), RGB555(26, 28, 46) };
+static const uint16_t pal_bg[4] = { RGB555(40, 60, 140), RGB555(110, 30, 40), RGB555(80, 110, 220), RGB555(26, 30, 54) };
+#define FACE   RGB555(160, 164, 176)
+#define LIGHT  RGB555(236, 236, 244)
+#define SHADOW RGB555(64, 66, 82)
+#define NAVY   RGB555(18, 22, 44)
+
+static void tile_px(uint8_t *g, int x, int y, int c) { uint8_t *b = &g[y * 4 + (x >> 1)]; *b = (uint8_t)((x & 1) ? (*b & 0x0F) | (c << 4) : (*b & 0xF0) | c); }
+static void upload_glyph(int n, const char *rows) {   // 8 rows of 8 characters: '.' 0, '1'-'3' colours
+  static uint8_t g[32];
+  memset(g, 0, 32);
+  for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) { char c = rows[y * 8 + x]; if (c >= '1' && c <= '9') tile_px(g, x, y, c - '0'); }
+  mc_chr_upload(FONT_OFF + n * 32, g, 32);
+}
+static void set_pal(int p, uint16_t c1, uint16_t c2, uint16_t c3) { PALETTE[p * 16 + 1] = c1; PALETTE[p * 16 + 2] = c2; PALETTE[p * 16 + 3] = c3; }
 
 static void video_init(void) {
   mc_video_mode(384, 240);
   mc_chr_upload(FONT_OFF, font_chr, 96 * 32);
   static uint8_t g[32];
-  // solid tile (colour 3) and VU bars (colour 1, from the bottom)
   memset(g, 0x33, 32); mc_chr_upload(FONT_OFF + G_SOLID * 32, g, 32);
   for (int k = 1; k <= 8; k++) {
     memset(g, 0, 32);
     for (int y = 8 - k; y < 8; y++) for (int x = 1; x < 4; x++) g[y * 4 + x] = 0x11;
     mc_chr_upload(FONT_OFF + (G_VU + k - 1) * 32, g, 32);
   }
-  memset(g, 0, 32);
-  for (int y = 1; y < 7; y++) { int w = y < 4 ? y : 7 - y; for (int x = 0; x <= w * 2 && x < 8; x++) g[y * 4 + x / 2] |= (x & 1) ? 0x10 : 0x01; }
-  mc_chr_upload(FONT_OFF + G_ARROW * 32, g, 32);
-  for (int p = 0; p < 16; p++) for (int i = 0; i < 16; i++) PALETTE[p * 16 + i] = 0;
-  for (int p = 0; p < 8; p++) { PALETTE[p * 16 + 1] = pal_fg[p]; PALETTE[p * 16 + 2] = RGB555(8, 8, 16); }
+  upload_glyph(G_ARROW, "........" ".11....." ".1211..." ".122211." ".1222211" ".122211." ".1211..." ".11.....");
+  upload_glyph(G_UP,    "........" "...1...." "..111..." ".11111.." "1111111." "........" "........" "........");
+  upload_glyph(G_DOWN,  "........" "........" "1111111." ".11111.." "..111..." "...1...." "........" "........");
+  upload_glyph(G_LEFT,  "....1..." "...11..." "..111..." ".1111..." "..111..." "...11..." "....1..." "........");
+  upload_glyph(G_RIGHT, ".1......" ".11....." ".111...." ".1111..." ".111...." ".11....." ".1......" "........");
+  // bevel: top-left light (1), bottom-right shadow (2), face (3)
+  for (int r = 0; r < 3; r++)
+    for (int c = 0; c < 3; c++) {
+      memset(g, 0x33, 32);
+      for (int y = 0; y < 8; y++)
+        for (int x = 0; x < 8; x++) {
+          int v = 3;
+          if (c == 0 && x == 0) v = 1;
+          if (r == 0 && y == 0) v = 1;
+          if (c == 2 && x == 7) v = (r == 0 && y == 0) ? 2 : 2;
+          if (r == 2 && y == 7) v = (c == 0 && x == 0) ? 1 : 2;
+          tile_px(g, x, y, v);
+        }
+      mc_chr_upload(FONT_OFF + (G_BEV + r * 3 + c) * 32, g, 32);
+    }
+  // mouse pointer, 16 x 16 (cells in sprite order): outline 2, body 1
+  static const char *ptr =
+    "1..............."
+    "11.............."
+    "121............."
+    "1221............"
+    "12221..........."
+    "122221.........."
+    "1222221........."
+    "12222221........"
+    "122222221......."
+    "1222211111......"
+    "12212221........"
+    "1211.1221......."
+    "11...1221......."
+    ".....11221......"
+    "......1221......"
+    ".......11.......";
+  for (int cy = 0; cy < 2; cy++)
+    for (int cx = 0; cx < 2; cx++) {
+      memset(g, 0, 32);
+      for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) {
+        char c = ptr[(cy * 8 + y) * 16 + cx * 8 + x];
+        if (c != '.') tile_px(g, x, y, c == '1' ? 2 : 1);
+      }
+      mc_chr_upload(FONT_OFF + (G_PTR + cy * 2 + cx) * 32, g, 32);
+    }
+  for (int p = 0; p < 64; p++) for (int i = 0; i < 16; i++) PALETTE[p * 16 + i] = 0;
+  for (int p = 0; p < 8; p++) set_pal(p, pal_fg[p], RGB555(8, 8, 16), 0);
   for (int p = 0; p < 4; p++) PALETTE[(8 + p) * 16 + 3] = pal_bg[p];
-  PALETTE[P_GRAPH * 16 + 1] = RGB555(250, 225, 90);
-  PALETTE[P_GRAPH * 16 + 2] = RGB555(60, 64, 96);
-  PALETTE[P_GRAPH * 16 + 3] = RGB555(110, 90, 40);
+  set_pal(P_GRAPH, RGB555(250, 225, 90), RGB555(60, 64, 96), RGB555(110, 90, 40));
+  set_pal(P_POINTER, RGB555(255, 255, 255), RGB555(10, 10, 20), 0);
+  set_pal(P_RAISED, LIGHT, SHADOW, FACE);
+  set_pal(P_SUNK, SHADOW, LIGHT, NAVY);
+  set_pal(P_PRESSED, SHADOW, LIGHT, RGB555(104, 120, 172));
+  set_pal(P_SCOPE, SHADOW, LIGHT, RGB555(4, 6, 12));
+  set_pal(T_INK, RGB555(16, 16, 24), FACE, 0);
+  set_pal(T_BLUE, RGB555(20, 50, 160), FACE, 0);
+  set_pal(T_WHITE, RGB555(255, 255, 255), RGB555(50, 60, 100), 0);
+  set_pal(T_RED, RGB555(170, 20, 20), FACE, 0);
+  set_pal(T_DIM, RGB555(92, 96, 110), FACE, 0);
+  // scope bars: green, yellow, red, peak
+  PALETTE[P_BARS * 16 + 1] = RGB555(60, 220, 90); PALETTE[P_BARS * 16 + 2] = RGB555(240, 220, 60);
+  PALETTE[P_BARS * 16 + 3] = RGB555(250, 70, 50); PALETTE[P_BARS * 16 + 4] = RGB555(255, 255, 255);
+  PALETTE[P_BARS * 16 + 5] = RGB555(30, 40, 70);
   PALETTE[15 * 16 + 1] = RGB555(12, 14, 26);
   mc_background(15 * 16 + 1);
-  mc_layer(0, MC_CHR(FONT_OFF), MC_TILE8 | MC_4BPP, 64, 64, 2);
-  mc_layer(1, MC_CHR(FONT_OFF), MC_TILE8 | MC_4BPP, 64, 64, 0);
-  mc_tilemap_fill(0, 0); mc_tilemap_fill(1, 0);
-  memset(txt_old, 0, sizeof txt_old); memset(bgr_old, 0, sizeof bgr_old);
-  mc_display(DISP_ON | DISP_LAYER(0) | DISP_LAYER(1));
+  mc_layer(0, MC_CHR(FONT_OFF), MC_TILE8 | MC_4BPP, 64, 64, 3);
+  mc_layer(1, MC_CHR(FONT_OFF), MC_TILE8 | MC_4BPP, 64, 64, 1);
+  mc_layer(2, MC_CHR(FONT_OFF), MC_TILE8 | MC_4BPP, 64, 64, 0);
+  mc_layer_scroll(2, 0, 4);
+  mc_tilemap_fill(0, 0); mc_tilemap_fill(1, 0); mc_tilemap_fill(2, 0);
+  memset(txt_old, 0, sizeof txt_old); memset(bgr_old, 0, sizeof bgr_old); memset(pnl_old, 0, sizeof pnl_old);
+  mc_sprite_sheet(MC_CHR(FONT_OFF));
+  mc_display(DISP_ON | DISP_LAYER(0) | DISP_LAYER(1) | DISP_LAYER(2) | DISP_SPRITES);
+}
+
+// ---------------------------------------------------------------- scope: a bar per track
+static uint8_t scope[16 * 8 * 32];          // 16 x 8 tiles, one column of tiles per track
+static uint8_t peak[MT_TRACKS], peak_hold[MT_TRACKS];
+static void draw_scope(void) {
+  memset(scope, 0, sizeof scope);
+  for (int t = 0; t < MT_TRACKS; t++) {
+    int h = vu[t] * 62 / 255;                 // 0-62 pixels
+    if (h >= peak[t]) { peak[t] = (uint8_t)h; peak_hold[t] = 30; }
+    else if (peak_hold[t]) peak_hold[t]--; else if (peak[t]) peak[t]--;
+    for (int y = 0; y < 64; y++) {
+      int fromb = 63 - y, c = 0;
+      if (fromb < h) c = fromb > 46 ? 3 : fromb > 30 ? 2 : 1;
+      else if (fromb == peak[t] && peak[t]) c = 4;
+      else if (!(y & 3)) c = 5;               // faint graduations
+      if (mt_muted(t) && c && c != 5) c = 5;
+      if (!c) continue;
+      uint8_t *b = &scope[((y >> 3) * 16 + t) * 32 + (y & 7) * 4];
+      uint8_t cc = (uint8_t)(c | (c << 4));
+      b[0] = (uint8_t)(c << 4); b[1] = cc; b[2] = cc; b[3] = (uint8_t)c;
+    }
+  }
+  mc_chr_upload(FONT_OFF + G_SCOPE * 32, scope, sizeof scope);
 }
 
 // ================================================================ graphs (instrument page)
@@ -257,14 +404,14 @@ enum { PG_PAT, PG_INS, PG_SONG, PG_HELP };
 static int page;
 static int cur_ord, cur_row, cur_track, cur_field, octave = 4, step = 1, edit_mode, follow = 1;
 static int ins_psg = 1, ins_pcm = 10;          // instrument used by the notes typed on each kind of track
-static int ins_sel = 1, ins_field, ins_scroll;   // instrument page
+static int ins_sel = 1, ins_field;               // instrument page
 static int song_pane, song_field, slot_sel, ord_scroll;
 static int naming;                               // editing a name: 1 instrument, 2 song
 static int play_mode;                            // 0 stopped, 1 song, 2 pattern
+static int play_frames;                          // time of the song being played, in frames
 static uint8_t one_order[1];
 static char msg[COLS + 1];
 static int msg_timer, confirm_key, confirm_timer;
-static uint8_t vu[MT_TRACKS];
 static uint32_t clip_track[MT_ROWS], clip_pat[PAT_CELLS];
 static int clip_track_ok, clip_pat_ok;
 static mt_instrument_t clip_ins;
@@ -394,7 +541,7 @@ static void song_save(int k) {
   nv32w(16 + 8 * k, off); nv32w(20 + 8 * k, n);
   NV[5] = (uint8_t)k;
   song_slot = k; dirty = 0;
-  snprintf(line, sizeof line, "SAUVE EMPLACEMENT %d (%u OCTETS) - OUVREZ L'OSD", k + 1, (unsigned)n);
+  snprintf(line, sizeof line, "SAUVE EN %d (%u O) - L'OSD L'ECRIT SUR LA SD", k + 1, (unsigned)n);
   message(line);
 }
 
@@ -405,7 +552,7 @@ static void play(int mode) {
                     .ctx = 0, .speed = s_speed, .bpm = s_bpm, .master = s_master };
   if (mode == 2) { one_order[0] = (uint8_t)cur_pat(); s.orders = one_order; s.n_orders = 1; s.restart = 0; }
   mt_play_source(&s, mode == 2 ? 0 : cur_ord, mode == 2 ? cur_row : 0, mode == 2);
-  play_mode = mode;
+  play_mode = mode; play_frames = 0;
 }
 static void jam(int key, int track, int note, int inst) {
   if (note < 1 || note > 96 || inst < 1 || ins[inst].type != mt_track_type(track)) return;
@@ -448,93 +595,151 @@ static void note_str(int n, char *s) {
   else if (n == MT_NOTE_OFF) strcpy(s, "===");
   else { strcpy(s, note_names[(n - 1) % 12]); s[2] = (char)('0' + (n - 1) / 12); s[3] = 0; }
 }
-static void draw_tabs(void) {
-  print(0, 0, "MONOTRACKER", C_YELLOW);
-  static const char *const tabs[4] = { "F1 MOTIF", "F2 SON", "F3 MORCEAU", "F4 AIDE" };
-  int x = 13;
-  for (int i = 0; i < 4; i++) {
-    int n = (int)strlen(tabs[i]);
-    if (page == i) bar(x - 1, x + n, 0, B_CURSOR);
-    print(x, 0, tabs[i], page == i ? C_WHITE : C_GREY);
-    x += n + 1;
+// ---------------------------------------------------------------- top panel, common to the pages
+// spin buttons: POS MOTIF LONG BPM VIT VOL OCT PAS INSTR; buttons: two columns of five
+enum { SP_POS, SP_PAT, SP_LEN, SP_BPM, SP_SPEED, SP_VOL, SP_OCT, SP_STEP, SP_INS, SP_COUNT };
+enum { BT_PLAY, BT_PATT, BT_STOP, BT_EDIT, BT_FOLLOW, BT_SAVE, BT_PG_PAT, BT_PG_INS, BT_PG_SONG, BT_PG_HELP, BT_COUNT };
+static const char *const spin_labels[SP_COUNT] = { "POS", "MOTIF", "LONG", "BPM", "VIT", "VOL", "OCT", "PAS", "INSTR" };
+static const char *const btn_labels[BT_COUNT] = { "JOUER", "MOTIF", "STOP", "EDIT", "SUIVI", "SAUVER", "MOTIFS", "SONS", "MORCEAU", "AIDE" };
+static int cur_ins(void);
+static int spin_value(int k) {
+  switch (k) {
+    case SP_POS: return cur_ord;
+    case SP_PAT: return orders[cur_ord];
+    case SP_LEN: return n_orders;
+    case SP_BPM: return s_bpm;
+    case SP_SPEED: return s_speed;
+    case SP_VOL: return s_master;
+    case SP_OCT: return octave;
+    case SP_STEP: return step;
+    default: return cur_ins();
   }
 }
-static void draw_message(const char *hint) {
-  if (msg_timer > 0) print(0, LINES - 1, msg, C_YELLOW);
-  else print(0, LINES - 1, hint, C_GREY);
+static bool button_on(int b) {
+  switch (b) {
+    case BT_PLAY: return play_mode == 1;
+    case BT_PATT: return play_mode == 2;
+    case BT_EDIT: return edit_mode;
+    case BT_FOLLOW: return follow;
+    case BT_PG_PAT: return page == PG_PAT;
+    case BT_PG_INS: return page == PG_INS;
+    case BT_PG_SONG: return page == PG_SONG;
+    case BT_PG_HELP: return page == PG_HELP;
+  }
+  return false;
 }
-static void ins_label(int i, char *s) {   // "0A KICK"
-  s[0] = hexd[i >> 4]; s[1] = hexd[i & 15]; s[2] = ' ';
-  memcpy(s + 3, ins[i].name, 10); s[13] = 0;
-  for (int k = 3; k < 13; k++) if (!s[k]) { s[k] = 0; break; }
+static void button(int x0, int x1, int y, const char *label, bool on, int id, int arg) {
+  box(x0, y, x1, y, on ? P_PRESSED : P_RAISED);
+  printc(x0, x1 - 1, y, label, on ? T_WHITE : T_INK);
+  zone(x0, y, x1, y, id, arg);
+}
+static void draw_top(void) {
+  char s[24];
+  // spin buttons (the panels start at the top of the screen, their top edge just above it)
+  box(0, 0, 14, 8, P_RAISED);
+  for (int k = 0; k < SP_COUNT; k++) {
+    int y = k, v = spin_value(k);
+    print(1, y, spin_labels[k], T_INK);
+    if (k <= SP_LEN || k == SP_INS) snprintf(s, sizeof s, "%02X", v); else snprintf(s, sizeof s, "%3d", v);
+    print(11 - (int)strlen(s), y, s, T_BLUE);
+    putg(12, y, G_UP, T_INK); putg(13, y, G_DOWN, T_INK);
+    zone(1, y, 11, y, Z_SPIN, k * 4 + 2);        // the value: wheel
+    zone(12, y, 12, y, Z_SPIN, k * 4);           // up
+    zone(13, y, 13, y, Z_SPIN, k * 4 + 1);       // down
+  }
+  // buttons
+  for (int b = 0; b < BT_COUNT; b++) {
+    int x0 = b & 1 ? 23 : 15, y = 2 * (b >> 1);
+    button(x0, x0 + 7, y, btn_labels[b], button_on(b), Z_BTN, b);
+  }
+  // track meters: a bar per track, number below (click: choose the track, right click: mute)
+  box(31, 0, 47, 8, P_SCOPE);
+  draw_scope();
+  for (int t = 0; t < MT_TRACKS; t++) {
+    for (int y = 0; y < 8; y++) putg(31 + t, y, G_SCOPE + y * 16 + t, P_BARS);
+    char c = t < 8 ? (char)('1' + t) : (char)('A' + t - 8);
+    int pal = mt_muted(t) ? C_RED : t == cur_track ? C_WHITE : t < 8 ? C_CYAN : C_GREEN;
+    putg(31 + t, 8, c - 32, pal);
+    zone(31 + t, 0, 31 + t, 8, Z_SCOPE, t);
+  }
+}
+// the information panel under the top one: song, instrument, time, then messages or a hint
+static const char *info_hint = "";
+static void draw_info(void) {
+  char s[24];
+  box(0, 10, 47, 11, P_RAISED);
+  print(1, 10, "MONOTRACKER", T_BLUE);
+  printn(13, 10, s_name, 16, T_INK);
+  int in = cur_ins();
+  s[0] = hexd[in >> 4]; s[1] = hexd[in & 15]; s[2] = ' '; memcpy(s + 3, ins[in].name, 10); s[13] = 0;
+  print(30, 10, s, T_INK);
+  int sec = play_frames / 60;
+  snprintf(s, sizeof s, "%2d:%02d", sec / 60, sec % 60);
+  print(42, 10, s, play_mode ? T_BLUE : T_DIM);
+  if (msg_timer > 0) print(1, 11, msg, T_RED);
+  else print(1, 11, info_hint, T_DIM);
 }
 
 // ================================================================ pattern page
 static const int field_x[8] = { 0, 3, 4, 5, 6, 7, 8, 9 };
 static const int field_w[8] = { 3, 1, 1, 1, 1, 1, 1, 1 };
-
+#define PAT_Y0 14              // first row of the pattern on the screen
+#define PAT_Y1 28
+#define PAT_YC 21              // the cursor row
+#define TRACK_X(i) (4 + (i) * 11)
 static void draw_pattern(void) {
   int p = cur_pat(), view = cur_track & ~3;
   bool play_here = play_mode && (play_mode == 2 || orders[mt_order()] == p);
-  draw_tabs();
-  snprintf(line, sizeof line, "POS %02X/%02X  MOTIF %02X  BPM %3d VIT %d", cur_ord, n_orders, p, s_bpm, s_speed);
-  print(0, 1, line, C_WHITE);
-  if (play_mode) { putg(38, 1, G_ARROW, C_GREEN); print(40, 1, play_mode == 1 ? "MORCEAU" : "MOTIF", C_GREEN); }
-  snprintf(line, sizeof line, "OCT %d  PAS %d", octave, step);
-  print(0, 2, line, C_WHITE);
   char s[16];
-  ins_label(ins_psg, s); print(14, 2, "PSG", C_GREY); print(18, 2, s, mt_track_type(cur_track) == MT_TYPE_PSG ? C_CYAN : C_GREY);
-  ins_label(ins_pcm, s); print(29, 2, "PCM", C_GREY); print(33, 2, s, mt_track_type(cur_track) == MT_TYPE_PCM ? C_CYAN : C_GREY);
-  if (edit_mode) { bar(44, 47, 2, B_EDIT); print(44, 2, "EDIT", C_WHITE); }
-  // the 16 tracks: number, VU meter
-  for (int t = 0; t < MT_TRACKS; t++) {
-    int x = t * 3;
-    if (t >= view && t < view + 4) bar(x, x + 2, 3, B_BEAT);
-    char c = t < 8 ? (char)('1' + t) : (char)('A' + t - 8);
-    putg(x, 3, c - 32, mt_muted(t) ? C_RED : t < 8 ? C_CYAN : C_GREEN);
-    int v = vu[t] * 8 / 256;
-    if (v) putg(x + 1, 3, G_VU + v - 1, vu[t] > 200 ? C_ORANGE : C_GREEN);
-  }
-  // headers of the 4 tracks shown
+  box(0, 13, 47, 28, P_SUNK);
+  // headers of the 4 tracks shown (click: mute, right click: solo)
+  snprintf(s, sizeof s, "%02X", p);
+  print(1, 13, s, C_YELLOW);
   for (int i = 0; i < 4; i++) {
-    int t = view + i, x = 3 + i * 11;
+    int t = view + i, x = TRACK_X(i);
     snprintf(line, sizeof line, "%s %d", t < 8 ? "PSG" : "PCM", (t & 7) + 1);
-    print(x, 4, line, t == cur_track ? C_WHITE : C_GREY);
-    if (mt_muted(t)) print(x + 6, 4, "MUET", C_RED);
+    print(x, 13, line, mt_muted(t) ? C_RED : t == cur_track ? C_WHITE : t < 8 ? C_CYAN : C_GREEN);
+    if (mt_muted(t)) print(x + 6, 13, "MUET", C_RED);
+    else { int v = vu[t] * 8 / 256; if (v) putg(x + 6, 13, G_VU + v - 1, vu[t] > 200 ? C_ORANGE : C_GREEN); }
+    zone(x, 13, x + 9, 13, Z_TRACK, t);
   }
+  if (edit_mode) print(42, 13, "EDIT", C_RED);
   // rows
   const uint32_t *cells = pat(p);
-  for (int y = 5; y < LINES - 1; y++) {
-    int r = cur_row + y - 16;
+  int prow = play_here ? mt_row() : -1;
+  for (int y = PAT_Y0; y <= PAT_Y1; y++) {
+    int r = cur_row + y - PAT_YC;
     if (r < 0 || r >= MT_ROWS) continue;
-    int prow = play_here ? mt_row() : -1;
-    if (y == 16) bar(0, COLS - 1, y, edit_mode ? B_EDIT : B_CURSOR);
-    else if (r == prow) bar(0, COLS - 1, y, B_FIELD);
-    else if (r % 4 == 0) bar(0, COLS - 1, y, B_BEAT);
+    if (y == PAT_YC) bar(1, 46, y, edit_mode ? B_EDIT : B_CURSOR);
+    else if (r == prow) bar(1, 46, y, B_FIELD);
+    else if (r % 4 == 0) bar(1, 46, y, B_BEAT);
     s[0] = hexd[r >> 4]; s[1] = hexd[r & 15]; s[2] = 0;
-    print(0, y, s, r % 16 == 0 ? C_YELLOW : r % 4 == 0 ? C_WHITE : C_GREY);
+    print(1, y, s, r % 16 == 0 ? C_YELLOW : r % 4 == 0 ? C_WHITE : C_GREY);
     for (int i = 0; i < 4; i++) {
-      int t = view + i, x = 3 + i * 11;
+      int t = view + i, x = TRACK_X(i);
       uint32_t c = cells[r * MT_TRACKS + t];
       int n = MT_C_NOTE(c), in = MT_C_INST(c), vo = MT_C_VOL(c), fx = MT_C_FX(c), pa = MT_C_PARAM(c);
-      note_str(n, s); print(x, y, s, n ? C_WHITE : C_GREY);
-      if (in) { s[0] = hexd[in >> 4]; s[1] = hexd[in & 15]; s[2] = 0; print(x + 3, y, s, ins[in].type == mt_track_type(t) ? C_CYAN : C_RED); }
+      int dim = mt_muted(t);
+      note_str(n, s); print(x, y, s, n && !dim ? C_WHITE : C_GREY);
+      if (in) { s[0] = hexd[in >> 4]; s[1] = hexd[in & 15]; s[2] = 0; print(x + 3, y, s, dim ? C_GREY : ins[in].type == mt_track_type(t) ? C_CYAN : C_RED); }
       else print(x + 3, y, "..", C_GREY);
-      if (vo) { s[0] = hexd[(vo - 1) >> 4]; s[1] = hexd[(vo - 1) & 15]; s[2] = 0; print(x + 5, y, s, C_GREEN); }
+      if (vo) { s[0] = hexd[(vo - 1) >> 4]; s[1] = hexd[(vo - 1) & 15]; s[2] = 0; print(x + 5, y, s, dim ? C_GREY : C_GREEN); }
       else print(x + 5, y, "..", C_GREY);
-      if (fx) { s[0] = hexd[fx - 1]; s[1] = hexd[pa >> 4]; s[2] = hexd[pa & 15]; s[3] = 0; print(x + 7, y, s, C_ORANGE); }
+      if (fx) { s[0] = hexd[fx - 1]; s[1] = hexd[pa >> 4]; s[2] = hexd[pa & 15]; s[3] = 0; print(x + 7, y, s, dim ? C_GREY : C_ORANGE); }
       else print(x + 7, y, "...", C_GREY);
       if (i < 3) putg(x + 10, y, '|' - 32, C_GREY);
-      if (y == 16 && t == cur_track) bar(x + field_x[cur_field], x + field_x[cur_field] + field_w[cur_field] - 1, y, B_FIELD);
+      if (y == PAT_YC && t == cur_track) bar(x + field_x[cur_field], x + field_x[cur_field] + field_w[cur_field] - 1, y, B_FIELD);
+      zone(x, y, x + 9, y, Z_CELL, ((y - PAT_YC + 64) << 4) | i);
     }
   }
+  zone(1, PAT_Y0, 2, PAT_Y1, Z_ROWS, 0);
   const char *hint = "ENTREE JOUE  ESPACE EDIT  F4 AIDE";
   uint32_t c = cells[cur_row * MT_TRACKS + cur_track];
   if (cur_field >= 5 && MT_C_FX(c)) hint = fx_help[MT_C_FX(c) - 1];
   else if (cur_field >= 5) hint = "EFFET: 0-F PUIS PARAMETRE (F4: LISTE)";
   else if (cur_field >= 3) hint = "VOLUME DE LA NOTE: 00 A 40";
-  else if (cur_field >= 1) hint = "INSTRUMENT (F2 POUR LE REGLER)";
-  draw_message(hint);
+  else if (cur_field >= 1) hint = "INSTRUMENT (BOUTON SONS POUR LE REGLER)";
+  info_hint = hint;
 }
 
 static void set_cell(int r, int t, uint32_t c) { pat(cur_pat())[r * MT_TRACKS + t] = c; dirty = 1; }
@@ -672,7 +877,7 @@ static const param_t params[] = {
 #define NPARAMS ((int)(sizeof params / sizeof params[0]))
 static const uint8_t psg_list[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 };
 static const uint8_t pcm_list[] = { 0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 };
-static const char *const wave_names[4] = { "CARRE", "TRIANGLE", "DENT DE SCIE", "BRUIT" };
+static const char *const wave_names[4] = { "CARRE", "TRIANGLE", "DENT SCIE", "BRUIT" };
 
 static int plist(const uint8_t **l) {
   if (ins[ins_sel].type == MT_TYPE_PCM) { *l = pcm_list; return sizeof pcm_list; }
@@ -683,13 +888,13 @@ static void param_value(const mt_instrument_t *in, int pi, char *s, int n) {
   const uint8_t *b = (const uint8_t *)in;
   switch (p->kind) {
     case K_NAME: snprintf(s, n, "%.10s%s", in->name, naming == 1 ? "_" : ""); break;
-    case K_TYPE: snprintf(s, n, "%s", in->type == MT_TYPE_PCM ? "PCM (ECHANTILLON)" : "PSG (OSCILLATEUR)"); break;
+    case K_TYPE: snprintf(s, n, "%s", in->type == MT_TYPE_PCM ? "PCM" : "PSG"); break;
     case K_WAVE:
       if (in->type == MT_TYPE_PSG) snprintf(s, n, "%s", wave_names[in->wave & 3]);
-      else { const mt_sample_t *sm = mt_bank_sample(in->wave); snprintf(s, n, "%02d %.12s", in->wave, sm ? sm->name : "?"); }
+      else { const mt_sample_t *sm = mt_bank_sample(in->wave); snprintf(s, n, "%02d %.8s", in->wave, sm ? sm->name : "?"); }
       break;
     case K_U8:
-      if (pi == 3 && in->type == MT_TYPE_PCM) snprintf(s, n, "%s", in->duty == 1 ? "SANS BOUCLE" : "BOUCLE DE LA BANQUE");
+      if (pi == 3 && in->type == MT_TYPE_PCM) snprintf(s, n, "%s", in->duty == 1 ? "NON" : "OUI");
       else snprintf(s, n, "%d", b[p->off]);
       break;
     case K_S8: snprintf(s, n, "%+d", (int8_t)b[p->off]); break;
@@ -731,39 +936,39 @@ static void draw_instrument(void) {
   int n = plist(&l);
   mt_instrument_t *in = &ins[ins_sel];
   char s[40];
-  draw_tabs();
-  snprintf(line, sizeof line, "SON %02X  %.10s", ins_sel, in->name);
-  print(0, 1, line, C_WHITE);
-  print(22, 1, in->type == MT_TYPE_PCM ? "PCM" : "PSG", in->type == MT_TYPE_PCM ? C_GREEN : C_CYAN);
-  print(27, 1, "PIANO = ECOUTE", C_GREY);
-  // list of the instruments
-  if (ins_sel - 1 < ins_scroll) ins_scroll = ins_sel - 1;
-  if (ins_sel - 1 >= ins_scroll + 27) ins_scroll = ins_sel - 27;
-  for (int i = 0; i < 27; i++) {
-    int k = ins_scroll + i + 1, y = 2 + i;
-    if (k >= MT_INSTRUMENTS) break;
-    ins_label(k, s);
-    if (k == ins_sel) bar(0, 15, y, B_CURSOR);
-    print(0, y, s, ins_empty(&ins[k]) ? C_GREY : C_WHITE);
-    if (!ins_empty(&ins[k])) putg(15, y, (ins[k].type == MT_TYPE_PCM ? 'C' : 'P') - 32, ins[k].type == MT_TYPE_PCM ? C_GREEN : C_CYAN);
-  }
-  // parameters
+  if (ins_field >= n) ins_field = n - 1;
+  box(0, 13, 47, 28, P_SUNK);
+  snprintf(line, sizeof line, "SON %02X", ins_sel);
+  print(1, 13, line, C_YELLOW);
+  print(8, 13, in->name, C_WHITE);
+  print(19, 13, in->type == MT_TYPE_PCM ? "PCM" : "PSG", in->type == MT_TYPE_PCM ? C_GREEN : C_CYAN);
+  print(30, 13, "CLIC +1 DROIT -1", C_GREY);
+  // parameters, in two columns of 11
   for (int i = 0; i < n; i++) {
-    int y = 2 + i;
-    const param_t *p = &params[l[i]];
-    const char *lab = p->label;
+    int col = i / 11, y = 14 + i % 11, x = col ? 24 : 1, vx = col ? 37 : 13, vw = 10;
+    const char *lab = params[l[i]].label;
     if (in->type == MT_TYPE_PCM && l[i] == 2) lab = "ECHANTILLON";
     if (in->type == MT_TYPE_PCM && l[i] == 3) lab = "BOUCLE";
-    if (i == ins_field) bar(17, 34, y, naming ? B_EDIT : B_CURSOR);
-    print(17, y, lab, i == ins_field ? C_WHITE : C_GREY);
-    param_value(in, l[i], s, 19);
-    printn(30, y, s, 17, i == ins_field ? C_YELLOW : C_WHITE);
+    if (i == ins_field) bar(x, vx + vw - 1, y, naming ? B_EDIT : B_CURSOR);
+    print(x, y, lab, i == ins_field ? C_WHITE : C_GREY);
+    param_value(in, l[i], s, vw + 1);
+    printn(vx, y, s, vw, i == ins_field ? C_YELLOW : C_WHITE);
+    zone(x, y, vx - 1, y, Z_PARAM, i);              // the label: chooses the setting
+    zone(vx, y, vx + vw - 1, y, Z_PARAM, 0x100 | i);   // the value: +1, right click -1, wheel
   }
-  // graphs, at the right of the short values
+  // graphs and help
   if (graphs_dirty) { draw_graphs(in); graphs_dirty = 0; }
-  show_graph(0, 17, LINES - 1 - GH);
-  show_graph(1, 31, LINES - 1 - GH);
-  draw_message(params[l[ins_field]].help);
+  show_graph(0, 1, 25);
+  show_graph(1, 15, 25);
+  const char *h = params[l[ins_field]].help;
+  for (int k = 0; k < 4 && *h; k++) {                 // help, cut into lines of 18 characters
+    int len = slen(h, 64), cut = len <= 18 ? len : 18;
+    if (len > 18) { while (cut > 0 && h[cut] != ' ') cut--; if (!cut) cut = 18; }
+    memcpy(s, h, cut); s[cut] = 0;
+    print(29, 25 + k, s, C_GREY);
+    h += cut; while (*h == ' ') h++;
+  }
+  info_hint = "PG.PREC/SUIV: AUTRE SON  PIANO: ECOUTE";
 }
 
 static void instrument_key(int k) {
@@ -815,32 +1020,36 @@ static const char *const song_help[SF_COUNT] = {
   "TICKS PAR LIGNE (6 = UNE DOUBLE CROCHE)", "VOLUME GENERAL DU MORCEAU (0-64)",
   "POSITION REJOUEE APRES LA DERNIERE", "DISPOSITION DU CLAVIER (POUR LES LETTRES)" };
 
+enum { SB_SAVE, SB_LOAD, SB_DELETE, SB_NEW, SB_DEMO, SB_COUNT };
+static const char *const songbtn_labels[SB_COUNT] = { "SAUVER", "CHARGER", "EFFACER", "NOUVEAU", "DEMO" };
+static const char songbtn_keys[SB_COUNT] = { 'S', 'L', 'D', 'E', 'R' };
+static bool song_action(int c);
 static void draw_song(void) {
-  draw_tabs();
-  print(0, 1, "MORCEAU", C_WHITE); print(8, 1, s_name, C_YELLOW);
-  if (dirty) print(26, 1, "(MODIFIE)", C_ORANGE);
+  box(0, 13, 47, 28, P_SUNK);
   static const char *const pane[3] = { "ORDRE", "REGLAGES", "NVRAM" };
-  static const int px[3] = { 0, 12, 32 };
-  for (int i = 0; i < 3; i++) {
-    if (song_pane == i) bar(px[i], px[i] + 9, 3, B_CURSOR);
-    print(px[i] + 1, 3, pane[i], song_pane == i ? C_WHITE : C_GREY);
-  }
-  // order list
+  static const int px[3] = { 1, 14, 32 };
+  for (int i = 0; i < 3; i++) print(px[i], 13, pane[i], song_pane == i ? C_YELLOW : C_GREY);
+  if (dirty) print(23, 13, "MODIFIE", C_ORANGE);
+  // order list (click: position; on the pattern number: +1, right -1; wheel: scrolls)
   if (cur_ord < ord_scroll) ord_scroll = cur_ord;
-  if (cur_ord >= ord_scroll + 23) ord_scroll = cur_ord - 22;
-  for (int i = 0; i < 23; i++) {
-    int o = ord_scroll + i, y = 5 + i;
+  if (cur_ord >= ord_scroll + 15) ord_scroll = cur_ord - 14;
+  if (ord_scroll > n_orders - 1) ord_scroll = n_orders > 15 ? n_orders - 15 : 0;
+  for (int i = 0; i < 15; i++) {
+    int o = ord_scroll + i, y = 14 + i;
     if (o >= n_orders) break;
     snprintf(line, sizeof line, "%02X MOTIF %02X", o, orders[o]);
-    if (o == cur_ord) bar(0, 10, y, song_pane == 0 ? B_CURSOR : B_BEAT);
-    print(0, y, line, o == restart ? C_CYAN : C_WHITE);
-    if (play_mode == 1 && mt_order() == o) putg(11, y, G_ARROW, C_GREEN);
+    if (o == cur_ord) bar(1, 11, y, song_pane == 0 ? B_CURSOR : B_BEAT);
+    print(1, y, line, o == restart ? C_CYAN : C_WHITE);
+    if (play_mode == 1 && mt_order() == o) putg(12, y, G_ARROW, C_GREEN);
+    zone(1, y, 6, y, Z_ORDER, o);
+    zone(7, y, 12, y, Z_ORDPAT, o);
   }
-  // settings
+  // settings (click +1, right -1, wheel; the name: click to write it)
   for (int f = 0; f < SF_COUNT; f++) {
-    int y = f == SF_NAME ? 5 : 6 + 2 * f;
-    if (song_pane == 1 && song_field == f) { bar(12, 30, y, naming == 2 ? B_EDIT : B_CURSOR); if (f == SF_NAME) bar(12, 30, y + 1, naming == 2 ? B_EDIT : B_CURSOR); }
-    print(13, y, song_labels[f], C_GREY);
+    int y = f == SF_NAME ? 14 : 15 + 2 * f;
+    bool cur = song_pane == 1 && song_field == f;
+    if (cur) { bar(14, 30, y, naming == 2 ? B_EDIT : B_CURSOR); if (f == SF_NAME) bar(14, 30, y + 1, naming == 2 ? B_EDIT : B_CURSOR); }
+    print(14, y, song_labels[f], C_GREY);
     switch (f) {
       case SF_NAME: snprintf(line, sizeof line, "%.16s%s", s_name, naming == 2 ? "_" : ""); break;
       case SF_BPM: snprintf(line, sizeof line, "%d", s_bpm); break;
@@ -849,30 +1058,58 @@ static void draw_song(void) {
       case SF_RESTART: snprintf(line, sizeof line, "%02X", restart); break;
       case SF_LAYOUT: snprintf(line, sizeof line, "%s", layout ? "QWERTY" : "AZERTY"); break;
     }
-    print(f == SF_NAME ? 13 : 22, f == SF_NAME ? y + 1 : y, line, C_YELLOW);
+    print(f == SF_NAME ? 14 : 23, f == SF_NAME ? y + 1 : y, line, C_YELLOW);
+    zone(14, y, 30, f == SF_NAME ? y + 1 : y, Z_SETTING, f);
   }
-  // NVRAM slots
+  // NVRAM slots and their buttons
   for (int k = 0; k < NV_SLOTS; k++) {
-    int y = 5 + 2 * k;
-    if (song_pane == 2 && slot_sel == k) bar(32, 47, y, B_CURSOR);
+    int y = 14 + k;
+    if (slot_sel == k) bar(32, 46, y, song_pane == 2 ? B_CURSOR : B_BEAT);
     snprintf(line, sizeof line, "%d", k + 1);
-    print(33, y, line, k == song_slot ? C_YELLOW : C_GREY);
+    print(32, y, line, k == song_slot ? C_YELLOW : C_GREY);
     if (slot_size(k)) {
       const char *nm = mt_song_name((const void *)(NVRAM_BASE + slot_off(k)));
       char s[17]; for (int i = 0; i < 16; i++) s[i] = nm[i]; s[16] = 0;
-      printn(35, y, s, 12, C_WHITE);
-      snprintf(line, sizeof line, "%u OCTETS", (unsigned)slot_size(k));
-      print(35, y + 1, line, C_GREY);
-    } else print(35, y, "(VIDE)", C_GREY);
+      printn(34, y, s, 8, C_WHITE);
+      snprintf(line, sizeof line, "%2u.%uK", (unsigned)(slot_size(k) / 1024), (unsigned)(slot_size(k) % 1024 * 10 / 1024));
+      print(41 + (5 - (int)strlen(line)) + 1, y, line, C_GREY);
+    } else print(34, y, "(VIDE)", C_GREY);
+    zone(32, y, 46, y, Z_SLOT, k);
   }
-  snprintf(line, sizeof line, "LIBRE %u", (unsigned)nv_free(-1));
-  print(33, 22, line, C_GREEN);
-  print(0, 26, "CTRL+S SAUVER  CTRL+L CHARGER  CTRL+D EFFACER", C_GREY);
-  print(0, 27, "CTRL+E NOUVEAU  CTRL+R DEMO  TAB: CADRE", C_GREY);
-  draw_message(song_pane == 0 ? "G/D: MOTIF  INSER/SUPPR  ENTREE: EDITER" :
+  snprintf(line, sizeof line, "%5u O", (unsigned)nv_free(-1));
+  print(39, 13, line, C_GREEN);
+  for (int b = 0; b < SB_COUNT; b++) {
+    int x0 = b & 1 ? 40 : 32, y = 23 + 2 * (b >> 1);
+    if (b == SB_DEMO) x0 = 32;
+    button(x0, x0 + 7, y, songbtn_labels[b], confirm_key == songbtn_keys[b] && confirm_timer > 0, Z_SONGBTN, b);
+  }
+  info_hint = (song_pane == 0 ? "G/D: MOTIF  INSER/SUPPR  ENTREE: EDITER" :
                song_pane == 1 ? song_help[song_field] : "ENTREE OU CTRL+L CHARGE, CTRL+S SAUVE ICI");
 }
 
+// actions of the song page, from Ctrl+key or from its buttons; those that lose something ask
+// for the same action a second time
+static bool song_action(int c) {
+  if (c == 'S') {
+    int k2 = song_pane == 2 ? slot_sel : song_slot >= 0 ? song_slot : slot_sel;
+    if (!slot_size(k2) || k2 == song_slot || confirm('S', "REMPLACER CET EMPLACEMENT")) song_save(k2);
+    return true;
+  }
+  if (c == 'L') {
+    if (!slot_size(slot_sel)) { message("EMPLACEMENT VIDE"); return true; }
+    if (dirty && !confirm('L', "MODIFICATIONS PERDUES")) return true;
+    if (song_load((const void *)(NVRAM_BASE + slot_off(slot_sel)), slot_size(slot_sel))) { song_slot = slot_sel; NV[5] = (uint8_t)slot_sel; message("MORCEAU CHARGE"); }
+    return true;
+  }
+  if (c == 'D') {
+    if (slot_size(slot_sel) && confirm('D', "EFFACER L'EMPLACEMENT")) { nv_delete(slot_sel); if (song_slot == slot_sel) song_slot = -1; message("EMPLACEMENT EFFACE"); }
+    return true;
+  }
+  // new song: Ctrl+E (Ctrl+N would open a window in the simulator's browser)
+  if (c == 'E') { if (!dirty || confirm('E', "MODIFICATIONS PERDUES")) { song_new(); message("NOUVEAU MORCEAU"); } return true; }
+  if (c == 'R') { if (!dirty || confirm('R', "MODIFICATIONS PERDUES")) { song_load(demo_file, demo_size); song_slot = -1; message("DEMO CHARGEE"); } return true; }
+  return false;
+}
 static void song_key(int k) {
   if (naming == 2) {
     int len = slen(s_name, 16), c = key_char(k);
@@ -883,18 +1120,8 @@ static void song_key(int k) {
     return;
   }
   int c = ctrl() ? key_char(k) : 0, big = shift() ? 10 : 1;
-  if (c == 'S') { int k2 = song_pane == 2 ? slot_sel : song_slot >= 0 ? song_slot : slot_sel;
-                  if (!slot_size(k2) || k2 == song_slot || confirm('S', "REMPLACER CET EMPLACEMENT")) song_save(k2); return; }
-  if (c == 'L' || (song_pane == 2 && k == KEY_ENTER)) {
-    if (!slot_size(slot_sel)) { message("EMPLACEMENT VIDE"); return; }
-    if (dirty && !confirm('L', "MODIFICATIONS PERDUES")) return;
-    if (song_load((const void *)(NVRAM_BASE + slot_off(slot_sel)), slot_size(slot_sel))) { song_slot = slot_sel; NV[5] = (uint8_t)slot_sel; message("MORCEAU CHARGE"); }
-    return;
-  }
-  if (c == 'D') { if (slot_size(slot_sel) && confirm('D', "EFFACER L'EMPLACEMENT")) { nv_delete(slot_sel); if (song_slot == slot_sel) song_slot = -1; message("EMPLACEMENT EFFACE"); } return; }
-  // new song: Ctrl+E (Ctrl+N would open a window in the simulator's browser)
-  if (c == 'E') { if (!dirty || confirm('E', "MODIFICATIONS PERDUES")) { song_new(); message("NOUVEAU MORCEAU"); } return; }
-  if (c == 'R') { if (!dirty || confirm('R', "MODIFICATIONS PERDUES")) { song_load(demo_file, demo_size); song_slot = -1; message("DEMO CHARGEE"); } return; }
+  if (c && song_action(c)) return;
+  if (song_pane == 2 && k == KEY_ENTER) { song_action('L'); return; }
   if (k == KEY_TAB) { song_pane = (song_pane + (shift() ? 2 : 1)) % 3; return; }
   if (song_pane == 0) {
     switch (k) {
@@ -944,77 +1171,222 @@ static void song_key(int k) {
 
 // ================================================================ help page
 static const char *const help_text[] = {
-  "*PARTOUT",
-  "F1 F2 F3 F4      MOTIFS / SONS / MORCEAU / AIDE",
-  "ENTREE           JOUE LE MORCEAU (OU ARRETE)",
-  "MAJ+ENTREE       JOUE LE MOTIF EN BOUCLE",
-  "ECHAP            ARRETE TOUT",
+  "*CLAVIER",
+  "F1 F2 F3 F4      MOTIFS/SONS/MORCEAU/AIDE",
+  "ENTREE MAJ+ENTREE ECHAP  MORCEAU/MOTIF/STOP",
   "F5 F6  F7 F8     OCTAVE -/+   PAS -/+",
-  "F11 F12 (PAVE -/+) INSTRUMENT -/+",
-  "*MOTIFS",
+  "F11 F12 PAVE -/+ INSTRUMENT -/+",
   "ESPACE           MODE EDITION (BANDE ROUGE)",
-  "PIANO            RANGEE DU BAS ET RANGEE DU HAUT",
-  "&  (TOUCHE 1)    NOTE COUPEE ===",
+  "PIANO            RANGEES DU BAS ET DU HAUT",
+  "& (TOUCHE 1)     NOTE COUPEE ===",
   "0-9 A-F          INSTRUMENT, VOLUME, EFFET",
-  "SUPPR INSER RET.AR. EFFACE / INSERE / RETIRE",
-  "TAB  FLECHES  PG.PREC/SUIV  DEPLACEMENT",
+  "SUPPR INSER RET.AR. EFFACE/INSERE/RETIRE",
   "CTRL+FLECHES     POSITION -/+   MOTIF -/+",
   "CTRL+C X V       PISTE  ALT+C X V  MOTIF",
   "CTRL+M  CTRL+O   MUET / SOLO   CTRL+F SUIVI",
+  "CTRL+S           SAUVE (L'OSD ECRIT LA SD)",
+  "*SOURIS",
+  "FLECHES DES      +/- (CLIC DROIT: INVERSE),",
+  "COMPTEURS        MAINTENIR POUR REPETER",
+  "VALEURS          CLIC +1, DROIT -1, MOLETTE",
+  "VUMETRES         CLIC: PISTE   DROIT: MUET",
+  "NOM DE PISTE     CLIC: MUET    DROIT: SOLO",
+  "CASE DU MOTIF    CLIC: CURSEUR DROIT: ECOUTE",
   "*EFFETS (COLONNE ORANGE)",
   "0XY ARPEGE  1XX/2XX MONTEE/DESC.  3XX PORTA",
   "4XY VIBRATO  8XX PANO  9XX RAPPORT/DEBUT",
-  "AXY VOLUME +X -Y  BXX SAUT  CXX VOLUME  DXX FIN",
-  "E1X E2X FIN  E9X REDECL.  ECX COUPE  EDX RETARD",
+  "AXY VOL +X -Y  BXX SAUT  CXX VOL  DXX FIN",
+  "E1X E2X FIN  E9X REDECL. ECX COUPE EDX RETARD",
   "FXX VITESSE (<20) OU BPM",
-  "*SONS ET MORCEAU",
-  "HAUT/BAS CHAMP  GAUCHE/DROITE VALEUR (MAJ: X10)",
-  "PG.PREC/SUIV INSTRUMENT  CTRL+C V X COPIE COLLE",
-  "CTRL+S SAUVE EN NVRAM, L'OSD L'ECRIT SUR SD",
 };
 static void draw_help(void) {
-  draw_tabs();
-  for (unsigned i = 0; i < sizeof help_text / sizeof help_text[0] && i < 28; i++) {
+  box(0, 2, 47, 28, P_SUNK);
+  print(0, 0, "MONOTRACKER - AIDE", C_YELLOW);
+  print(29, 0, "CLIC OU F1: RETOUR", C_GREY);
+  for (unsigned i = 0; i < sizeof help_text / sizeof help_text[0] && i < 27; i++) {
     const char *s = help_text[i];
-    if (*s == '*') print(0, 1 + i, s + 1, C_YELLOW);
-    else print(1, 1 + i, s, C_WHITE);
+    if (*s == '*') print(1, 2 + i, s + 1, C_YELLOW);
+    else print(1, 2 + i, s, C_WHITE);
   }
+  zone(0, 0, 47, 29, Z_HELP, 0);
 }
 
 // ================================================================ main loop
+static int help_back;                            // page shown before the help
+static int cur_ins(void) {
+  if (page == PG_INS) return ins_sel;
+  return mt_track_type(cur_track) == MT_TYPE_PSG ? ins_psg : ins_pcm;
+}
+static void set_cur_ins(int v) {
+  v = clampi(v, 1, MT_INSTRUMENTS - 1);
+  if (page == PG_INS) { ins_sel = v; graphs_dirty = 1; }
+  else if (mt_track_type(cur_track) == MT_TYPE_PSG) ins_psg = v; else ins_pcm = v;
+}
+static void goto_page(int p) {
+  if (p == PG_INS && page != PG_INS) { ins_sel = mt_track_type(cur_track) == MT_TYPE_PSG ? ins_psg : ins_pcm; graphs_dirty = 1; }
+  if (p == PG_HELP && page != PG_HELP) help_back = page;
+  page = p; naming = 0;
+}
+static void quick_save(void) {
+  int slot = song_slot;
+  if (slot < 0) for (int i = 0; i < NV_SLOTS; i++) if (!slot_size(i)) { slot = i; break; }
+  if (slot < 0) message("NVRAM: AUCUN EMPLACEMENT LIBRE (MORCEAU)"); else song_save(slot);
+}
+static void stop_all(void) { play(0); for (int i = 0; i < 512; i++) jam_track[i] = -1; }
+static void spin(int k, int d) {
+  switch (k) {
+    case SP_POS: cur_ord = clampi(cur_ord + d, 0, n_orders - 1); break;
+    case SP_PAT: orders[cur_ord] = (uint8_t)clampi(orders[cur_ord] + d, 0, NPAT - 1); dirty = 1; break;
+    case SP_LEN:
+      n_orders = clampi(n_orders + d, 1, MT_ORDERS);
+      if (cur_ord >= n_orders) cur_ord = n_orders - 1;
+      if (restart >= n_orders) restart = 0;
+      dirty = 1; break;
+    case SP_BPM: s_bpm = clampi(s_bpm + d, 32, 255); mt_set_tempo(s_speed, s_bpm); dirty = 1; break;
+    case SP_SPEED: s_speed = clampi(s_speed + d, 1, 31); mt_set_tempo(s_speed, s_bpm); dirty = 1; break;
+    case SP_VOL: s_master = clampi(s_master + d, 0, 64); mt_master(s_master); dirty = 1; break;
+    case SP_OCT: octave = clampi(octave + d, 0, 7); break;
+    case SP_STEP: step = clampi(step + d, 0, 16); break;
+    case SP_INS: set_cur_ins(cur_ins() + d); break;
+  }
+}
+static void press_button(int b) {
+  switch (b) {
+    case BT_PLAY: play(play_mode == 1 ? 0 : 1); break;
+    case BT_PATT: play(play_mode == 2 ? 0 : 2); break;
+    case BT_STOP: stop_all(); break;
+    case BT_EDIT: edit_mode = !edit_mode; break;
+    case BT_FOLLOW: follow = !follow; break;
+    case BT_SAVE: quick_save(); break;
+    case BT_PG_PAT: goto_page(PG_PAT); break;
+    case BT_PG_INS: goto_page(PG_INS); break;
+    case BT_PG_SONG: goto_page(PG_SONG); break;
+    case BT_PG_HELP: goto_page(PG_HELP); break;
+  }
+}
+static void setting_change(int f, int d) {
+  switch (f) {
+    case SF_BPM: s_bpm = clampi(s_bpm + d, 32, 255); mt_set_tempo(s_speed, s_bpm); break;
+    case SF_SPEED: s_speed = clampi(s_speed + (d > 0 ? 1 : -1), 1, 31); mt_set_tempo(s_speed, s_bpm); break;
+    case SF_MASTER: s_master = clampi(s_master + d, 0, 64); mt_master(s_master); break;
+    case SF_RESTART: restart = clampi(restart + (d > 0 ? 1 : -1), 0, n_orders - 1); break;
+    case SF_LAYOUT: layout = !layout; NV[4] = (uint8_t)layout; return;
+    default: return;
+  }
+  dirty = 1;
+}
+static void solo(int t) {
+  bool only = true;
+  for (int i = 0; i < MT_TRACKS; i++) if (i != t && !mt_muted(i)) only = false;
+  for (int i = 0; i < MT_TRACKS; i++) mt_mute(i, only ? false : i != t);
+}
+
+// a click (button 1 left, 2 right) or a repeat while it is held (rep = true)
+static bool zone_repeats(const zone_t *z) {
+  return (z->id == Z_SPIN && z->arg % 4 < 2) || (z->id == Z_PARAM && (z->arg & 0x100)) ||
+         z->id == Z_ORDPAT || (z->id == Z_SETTING && z->arg != SF_NAME && z->arg != SF_LAYOUT);
+}
+static void mouse_click(const zone_t *z, int btn, int cx) {
+  int big = shift() ? 10 : 1, d = btn == 2 ? -big : big;
+  switch (z->id) {
+    case Z_SPIN:
+      if (z->arg % 4 == 0) spin(z->arg / 4, btn == 2 ? -big : big);        // up (right click: down)
+      if (z->arg % 4 == 1) spin(z->arg / 4, btn == 2 ? big : -big);        // down
+      break;
+    case Z_BTN: if (btn == 1) press_button(z->arg); break;
+    case Z_SCOPE:
+      if (btn == 2) mt_mute(z->arg, !mt_muted(z->arg));
+      else { cur_track = z->arg; cur_field = 0; }
+      break;
+    case Z_TRACK: if (btn == 2) solo(z->arg); else mt_mute(z->arg, !mt_muted(z->arg)); break;
+    case Z_ROWS: break;
+    case Z_CELL: {
+      int i = z->arg & 15, r = cur_row + (z->arg >> 4) - 64, fx = cx - TRACK_X(i);
+      if (r < 0 || r >= MT_ROWS) break;
+      cur_track = (cur_track & ~3) + i; cur_row = r; cur_field = fx < 3 ? 0 : fx - 2;
+      if (btn == 2) {                                   // right click: hear the note of the cell
+        uint32_t c = pat(cur_pat())[r * MT_TRACKS + cur_track];
+        int n = MT_C_NOTE(c), in = MT_C_INST(c) ? MT_C_INST(c) : cur_ins();
+        if (n >= 1 && n <= 96) { jam(0, cur_track, n, in); jam_track[0] = -1; }
+      }
+      break;
+    }
+    case Z_PARAM: {
+      const uint8_t *l; int n = plist(&l), i = z->arg & 0xFF;
+      if (i >= n) break;
+      ins_field = i;
+      if (!(z->arg & 0x100)) break;
+      if (l[i] == 0) naming = 1;
+      else param_change(l[i], d);
+      break;
+    }
+    case Z_ORDER: cur_ord = z->arg; song_pane = 0; break;
+    case Z_ORDPAT: cur_ord = z->arg; song_pane = 0; orders[cur_ord] = (uint8_t)clampi(orders[cur_ord] + d, 0, NPAT - 1); dirty = 1; break;
+    case Z_SETTING:
+      song_pane = 1; song_field = z->arg;
+      if (z->arg == SF_NAME) naming = 2; else setting_change(z->arg, d);
+      break;
+    case Z_SLOT: slot_sel = z->arg; song_pane = 2; break;
+    case Z_SONGBTN: if (btn == 1) { if (z->arg != SB_SAVE) song_pane = 2; song_action(songbtn_keys[z->arg]); } break;
+    case Z_HELP: goto_page(help_back); break;
+  }
+}
+static void mouse_wheel(const zone_t *z, int w) {
+  if (!z) return;
+  switch (z->id) {
+    case Z_SPIN: spin(z->arg / 4, w); break;
+    case Z_CELL: case Z_ROWS: case Z_TRACK: cur_row = clampi(cur_row - w * (shift() ? 4 : 1), 0, MT_ROWS - 1); break;
+    case Z_PARAM: { const uint8_t *l; int n = plist(&l), i = z->arg & 0xFF; if (i < n && l[i]) { ins_field = i; param_change(l[i], w); } break; }
+    case Z_ORDER: cur_ord = clampi(cur_ord - w, 0, n_orders - 1); break;
+    case Z_ORDPAT: orders[z->arg] = (uint8_t)clampi(orders[z->arg] + w, 0, NPAT - 1); dirty = 1; break;
+    case Z_SETTING: song_field = z->arg; song_pane = 1; setting_change(z->arg, w); break;
+    case Z_SLOT: slot_sel = clampi(slot_sel - w, 0, NV_SLOTS - 1); break;
+    case Z_SCOPE: cur_track = clampi(cur_track - w, 0, MT_TRACKS - 1); break;
+  }
+}
+static int hold_btn, hold_timer, hold_cx, hold_cy;
+static void mouse_update(void) {
+  if (!mc_mouse_present()) { mc_sprite_hide(0); return; }
+  int mx = mc_mouse_x(), my = mc_mouse_y(), cx = mx / 8, cy = my / 8;
+  mc_sprite(0, mx, my, G_PTR, 2, 2, P_POINTER, 7);
+  if (naming && (mc_mouse_pressed() & (MOUSE_LEFT | MOUSE_RIGHT))) naming = 0;   // a click ends the name
+  const zone_t *z = zone_at(cx, cy);
+  uint32_t pr = mc_mouse_pressed();
+  int btn = pr & MOUSE_LEFT ? 1 : pr & MOUSE_RIGHT ? 2 : 0;
+  if (btn && z) {
+    mouse_click(z, btn, cx);
+    hold_btn = zone_repeats(z) ? btn : 0; hold_timer = 18; hold_cx = cx; hold_cy = cy;
+  } else if (hold_btn) {
+    if (!(mc_mouse_buttons() & (hold_btn == 1 ? MOUSE_LEFT : MOUSE_RIGHT))) hold_btn = 0;
+    else if (--hold_timer == 0) { hold_timer = 4; const zone_t *h = zone_at(hold_cx, hold_cy); if (h && zone_repeats(h)) mouse_click(h, hold_btn, hold_cx); }
+  }
+  if (mc_mouse_wheel()) mouse_wheel(z, mc_mouse_wheel());
+}
+
 static void global_key(int k) {
   if (naming) {
     if (page == PG_INS) instrument_key(k); else if (page == PG_SONG) song_key(k);
     return;
   }
   switch (k) {
-    case KEY_F1: page = PG_PAT; return;
-    case KEY_F2: page = PG_INS; graphs_dirty = 1; return;
-    case KEY_F3: page = PG_SONG; return;
-    case KEY_F4: page = PG_HELP; return;
+    case KEY_F1: goto_page(PG_PAT); return;
+    case KEY_F2: goto_page(PG_INS); return;
+    case KEY_F3: goto_page(PG_SONG); return;
+    case KEY_F4: goto_page(page == PG_HELP ? help_back : PG_HELP); return;
     case KEY_F5: if (octave > 0) octave--; return;
     case KEY_F6: if (octave < 7) octave++; return;
     case KEY_F7: if (step > 0) step--; return;
     case KEY_F8: if (step < 16) step++; return;
-    case KEY_F11: case KEY_F12: case KEY_KPMINUS: case KEY_KPPLUS: {
-      int d = k == KEY_F11 || k == KEY_KPMINUS ? -1 : 1;
-      if (page == PG_INS) { ins_sel = clampi(ins_sel + d, 1, MT_INSTRUMENTS - 1); graphs_dirty = 1; ins_field = 0; }
-      else if (mt_track_type(cur_track) == MT_TYPE_PSG) ins_psg = clampi(ins_psg + d, 1, MT_INSTRUMENTS - 1);
-      else ins_pcm = clampi(ins_pcm + d, 1, MT_INSTRUMENTS - 1);
+    case KEY_F11: case KEY_F12: case KEY_KPMINUS: case KEY_KPPLUS:
+      set_cur_ins(cur_ins() + (k == KEY_F11 || k == KEY_KPMINUS ? -1 : 1));
       return;
-    }
-    case KEY_ESC: play(0); for (int i = 0; i < 512; i++) jam_track[i] = -1; return;
+    case KEY_ESC: stop_all(); return;
   }
   if (k == KEY_ENTER && !(page == PG_INS && ins_field <= 1) && !(page == PG_SONG && (song_pane == 2 || (song_pane == 0 && !shift()) || (song_pane == 1 && song_field == SF_NAME)))) {
     play(play_mode ? 0 : shift() ? 2 : 1);
     return;
   }
-  if (k == KEY_S && ctrl() && page != PG_SONG && key_char(k) == 'S') {   // quick save
-    int slot = song_slot;
-    if (slot < 0) for (int i = 0; i < NV_SLOTS; i++) if (!slot_size(i)) { slot = i; break; }
-    if (slot < 0) message("NVRAM: AUCUN EMPLACEMENT LIBRE (F3)"); else song_save(slot);
-    return;
-  }
+  if (k == KEY_S && ctrl() && page != PG_SONG && key_char(k) == 'S') { quick_save(); return; }
   switch (page) {
     case PG_PAT: pattern_key(k); break;
     case PG_INS: instrument_key(k); break;
@@ -1047,6 +1419,7 @@ int main(void) {
   if (last < NV_SLOTS && slot_size(last) && song_load((const void *)(NVRAM_BASE + slot_off(last)), slot_size(last))) song_slot = last;
   else { song_load(demo_file, demo_size); song_slot = -1; }
   if (mc_hw_version() < 2) message("CE CORE N'A PAS DE CLAVIER (VERSION 1)");
+  else if (mc_hw_version() < 3) message("CORE SANS SOURIS (VERSION 2) - F4 POUR L'AIDE");
   else message("MONOTRACKER - F4 POUR L'AIDE");
   for (;;) {
     mc_frame();
@@ -1078,13 +1451,21 @@ int main(void) {
       int l = mt_level(t);
       vu[t] = (uint8_t)(l > vu[t] ? l : vu[t] > 10 ? vu[t] - 10 : 0);
     }
+    mouse_update();
+    if (play_mode) play_frames++;
     cls();
-    switch (page) {
-      case PG_PAT: draw_pattern(); break;
-      case PG_INS: draw_instrument(); break;
-      case PG_SONG: draw_song(); break;
-      default: draw_help(); break;
+    nzones = 0;
+    if (page == PG_HELP) draw_help();
+    else {
+      draw_top();
+      switch (page) {
+        case PG_PAT: draw_pattern(); break;
+        case PG_INS: draw_instrument(); break;
+        default: draw_song(); break;
+      }
+      draw_info();
     }
     flush();
+    memcpy(zones_prev, zones, sizeof(zone_t) * nzones); nzones_prev = nzones;
   }
 }

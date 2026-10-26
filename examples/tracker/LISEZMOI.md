@@ -1,6 +1,6 @@
 # MONOTRACKER
 
-Un tracker de musique pour la MONOCORE-1, qui se joue au clavier (USB, sur le DE10-Nano). Il pilote
+Un tracker de musique pour la MONOCORE-1, qui se joue au clavier et à la souris (USB, sur le DE10-Nano). Il pilote
 les 16 canaux de la console : 8 pistes PSG (oscillateurs) et 8 pistes PCM (échantillons d'une
 banque de 21 sons originaux). Les morceaux se gardent dans la NVRAM (8 emplacements) et s'exportent
 pour les jeux, qui les jouent avec le module `mtrack` du SDK (voir `sdk/MTRACK.md`).
@@ -11,23 +11,46 @@ pour les jeux, qui les jouent avec le module `mtrack` du SDK (voir `sdk/MTRACK.m
     python3 ../../tools/mtrack/make_demo.py      # demo.mts (déjà fourni)
     python3 ../../sdk/build.py .                 # -> build/monotracker.mnc
 
-Sur MiSTer : `monotracker.mnc` dans `games/MONOCORE`, et un clavier branché.
+Sur MiSTer : `monotracker.mnc` dans `games/MONOCORE`, un clavier et une souris branchés (la souris demande le core à jour, matériel version 3).
 
 Dans le simulateur (`dist/monocore.html`), MONOTRACKER est dans la liste des ROM intégrées ; le
-« clavier de la console » s'active tout seul quand on le choisit (F9 le coupe). Sous l'écran,
+« clavier de la console » et la « souris de la console » s'activent tout seuls quand on le choisit (F9 coupe le clavier). Sous l'écran,
 **Morceaux .mts** télécharge les morceaux sauvés, **Exporter .sav** / **Importer .sav…** échangent
 la NVRAM avec la MiSTer : on peut composer dans le navigateur et finir sur la borne, ou l'inverse.
 Les raccourcis du tracker évitent ceux que le navigateur ne laisse pas à la page (Ctrl+N, Ctrl+T,
 Ctrl+W).
 
-## Pages
+## L'écran
 
-| Touche | Page |
+L'interface reprend l'esprit des trackers de l'Amiga (ProTracker) : des panneaux gris en relief, un
+panneau du haut toujours présent et, dessous, la page en cours.
+
+| Zone | Contenu |
 |---|---|
-| F1 | **Motifs** : 64 lignes, 4 pistes à l'écran (Tab pour passer aux suivantes), vumètres des 16 pistes |
-| F2 | **Sons** : les 31 instruments, leurs réglages, l'enveloppe et l'onde (ou l'échantillon) en graphe |
-| F3 | **Morceau** : ordre des motifs, tempo, volume, clavier AZERTY/QWERTY, emplacements de la NVRAM |
-| F4 | **Aide** : toutes les touches et les effets |
+| en haut à gauche | compteurs POS, MOTIF, LONG (longueur du morceau), BPM, VIT, VOL, OCT, PAS, INSTR, avec leurs flèches ▲▼ |
+| en haut au centre | boutons JOUER, MOTIF (le motif en boucle), STOP, EDIT, SUIVI, SAUVER et les quatre pages : MOTIFS, SONS, MORCEAU, AIDE |
+| en haut à droite | les vumètres des 16 pistes (1-8 PSG, A-H PCM), avec maintien de crête |
+| bandeau | nom du morceau, instrument courant, durée de lecture ; messages et aide contextuelle |
+| dessous | la page : **motifs** (64 lignes, 4 pistes à l'écran), **sons** (réglages en deux colonnes, enveloppe et onde en graphe), **morceau** (ordre, réglages, emplacements de la NVRAM et leurs boutons) ; l'**aide** occupe tout l'écran |
+
+## La souris
+
+Sur MiSTer, une souris USB branchée sur la carte (le core gère la souris depuis la version 3 du
+matériel) ; dans le simulateur, la case « souris de la console », cochée d'office pour MONOTRACKER.
+
+| Où | Clic | Clic droit | Molette |
+|---|---|---|---|
+| flèches ▲▼ des compteurs | +1 / −1 (Maj : ×10), maintenu : répète | sens inverse | sur la valeur : +/− |
+| boutons | action | | |
+| vumètres | choisit la piste | piste muette | change de piste |
+| nom d'une piste (motifs) | muette | solo | |
+| case d'un motif | y place le curseur (note, instrument, volume, effet) | fait entendre la note | fait défiler les lignes |
+| réglage d'un son ou du morceau | sur le nom : le choisit ; sur la valeur : +1 (Maj : +10), maintenu : répète | −1 | +/− |
+| ordre du morceau | choisit la position ; sur le numéro de motif : +1 | −1 | fait défiler |
+| emplacement de la NVRAM | le choisit, puis SAUVER, CHARGER, EFFACER, NOUVEAU ou DEMO | | |
+
+Les actions qui feraient perdre quelque chose (charger par-dessus des modifications, effacer,
+remplacer) demandent un second clic, ou une seconde fois le même raccourci.
 
 ## Touches principales
 
@@ -52,14 +75,16 @@ commence un nouveau morceau, Ctrl+R recharge la démo (chacun demande une confir
 perdre des modifications).
 
 Sur la page des sons, le piano joue l'instrument affiché en polyphonie ; flèches haut/bas pour
-choisir un réglage, gauche/droite pour le changer (Maj : par 10), Page préc./suiv. pour changer
-d'instrument, Entrée sur NOM pour l'écrire. Un nouveau morceau (Ctrl+E en F3) reprend les
+choisir un réglage, gauche/droite pour le changer (Maj : par 10), Page préc./suiv. ou le compteur
+INSTR pour changer d'instrument, Entrée sur NOM pour l'écrire. Un nouveau morceau (Ctrl+E en F3) reprend les
 instruments du morceau de démonstration, qui sont définis dans `tools/mtrack/make_demo.py`.
 
 ## Mémoire
 
-Les 24 motifs (4 Ko chacun) sont rangés dans la CHR RAM, la police et les graphes dans ses 32
-derniers Ko ; la WRAM garde les instruments, l'écran et le tampon de sauvegarde. Un morceau
+Les 24 motifs (4 Ko chacun) sont rangés dans la CHR RAM, la police, les pièces des panneaux, le
+pointeur, les graphes et les vumètres dans ses 32 derniers Ko. Trois plans de tuiles : le texte,
+les bandes des lignes du motif, les panneaux (décalés de 4 pixels vers le haut, ce qui laisse une
+marge de 4 pixels autour du texte) ; le pointeur est un sprite. La WRAM garde les instruments, l'écran et le tampon de sauvegarde. Un morceau
 compact typique fait de 1 à 6 Ko : la NVRAM de 32 Ko en garde plusieurs.
 
 ## Pour un jeu
