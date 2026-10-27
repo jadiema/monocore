@@ -26,10 +26,31 @@ Une erreur remet à zéro la série de la note ; à la deuxième erreur sur la m
 se trouve (« C'EST UN MI, DANS LE 3e INTERLIGNE ») et allume la bonne touche. La bonne note à une autre
 octave est signalée comme telle. La progression de chaque clé est gardée dans la NVRAM.
 
+## La lecture déroulante
+
+Au menu, MODE → LECTURE DEROULANTE : 40 notes arrivent de la droite à un rythme régulier et traversent
+la ligne de lecture ; jouez chacune quand elle passe sur la ligne. Rien n'attend : une fausse note ou
+une note oubliée compte simplement contre le score, et la suivante arrive déjà. Un léger clic marque
+chaque note sur la ligne.
+
+| Ce qui compte | Points |
+|---|---|
+| la bonne note, sur la ligne (à 18 pixels près) | 10, plus la série (jusqu'à 20 de plus) |
+| pile sur la ligne (à 5 pixels près) | 10 de plus |
+| une fausse note | 0, la série repart à zéro, le jeu dit quelle note c'était |
+| une note oubliée | 0, la série repart à zéro |
+
+À la fin : les notes justes (et combien pile sur la ligne), les fausses, les oubliées, le score, la
+meilleure série, et les notes à revoir, celles qui ont été le plus souvent manquées. Une note rejoue
+une série, Entrée revient au menu. Trois vitesses : LENTE (une note toutes les 1,9 s), MOYENNE (1,3 s) et
+RAPIDE (0,85 s). Les notes en jeu sont celles du réglage NOTES ; ce mode ne change pas la progression.
+
 | Réglage du menu | Choix |
 |---|---|
 | CLE | clé de sol ou clé de fa |
 | NOTES | le nombre de notes en jeu, de 3 à 25 : pour sauter ce qu'on sait déjà (14 et plus : avec les dièses et bémols) |
+| MODE | LA NOTE ATTEND (apprendre, avec la progression) ou LECTURE DEROULANTE (lire en rythme, pour les points) |
+| VITESSE | la vitesse de la lecture déroulante |
 | NOMS | les noms sous les notes : toujours, le temps de les apprendre (les deux premières réussites), ou jamais |
 | RECOMMENCER | efface la progression de la clé choisie (Entrée deux fois) |
 

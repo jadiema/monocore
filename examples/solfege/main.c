@@ -194,12 +194,13 @@ static void draw_keys(bool all) {
 }
 
 // ================================================================ progress (NVRAM)
+static int mode, speed_sel = 1;      // mode 0: the note waits, 1: the staff scrolls
 static int clef, help_mode = 1;          // help: 0 names always, 1 for the notes still learnt, 2 never
 static uint8_t unlocked[2], streak[2][NNOTES];
 static void nv_load(void) {
   unlocked[0] = unlocked[1] = 3; memset(streak, 0, sizeof streak);
   if (NVB[0] == 'S' && NVB[1] == 'O' && NVB[2] == 'L' && NVB[3] == 'F') {
-    help_mode = NVB[6] % 3; clef = NVB[7] & 1;
+    help_mode = NVB[6] % 3; clef = NVB[7] & 1; mode = NVB[5] & 1; speed_sel = NVB[80] % 3;
     int v1 = NVB[4] == 1, stride = v1 ? 16 : 32, n = v1 ? NNATURAL : NNOTES;   // version 1: 13 notes, 16 bytes a clef
     for (int c = 0; c < 2; c++) {
       unlocked[c] = NVB[8 + stride * c];
@@ -210,7 +211,7 @@ static void nv_load(void) {
 }
 static void nv_save(void) {
   NVB[0] = 'S'; NVB[1] = 'O'; NVB[2] = 'L'; NVB[3] = 'F'; NVB[4] = 2;
-  NVB[6] = (uint8_t)help_mode; NVB[7] = (uint8_t)clef;
+  NVB[6] = (uint8_t)help_mode; NVB[7] = (uint8_t)clef; NVB[5] = (uint8_t)mode; NVB[80] = (uint8_t)speed_sel;
   for (int c = 0; c < 2; c++) {
     NVB[8 + 32 * c] = unlocked[c];
     for (int i = 0; i < NNOTES; i++) NVB[9 + 32 * c + i] = streak[c][i];
@@ -218,7 +219,7 @@ static void nv_save(void) {
 }
 
 // ================================================================ the game
-enum { S_MENU, S_PLAY };
+enum { S_MENU, S_PLAY, S_SCROLL, S_RESULTS };
 static int state, menu_item, confirm_reset;
 static int queue[QN];                    // indices into clefs[clef]
 static int slide, last_pick = -1, errors_here, new_note = -1;
@@ -228,6 +229,7 @@ static int8_t key_down[512], midi_down[128];
 static mt_instrument_t piano = { "PIANO", MT_TYPE_PCM, 10, 0, 0, 56, 128, 0, 30, 20, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {0, 0} };
 static mt_instrument_t buzz = { "BUZZ", MT_TYPE_PSG, PSG_SQUARE, 40, 0, 20, 128, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, -6, 0, 0, 0, {0, 0} };
 static int voice;
+static mt_instrument_t tick = { "TICK", MT_TYPE_PSG, PSG_NOISE, 128, 0, 30, 128, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, MT_IF_FIXED, {0, 0} };
 
 static int pick(void) {                  // weak notes and the newest come more often
   int n = unlocked[clef], w[NNOTES], tot = 0;
@@ -399,48 +401,171 @@ static void play_frame(void) {
   draw_keys(false);
 }
 
+// ================================================================ scrolling reading
+// The notes come from the right at a steady pace and cross the reading line: play each one as it
+// passes. Nothing waits: a wrong note or a note let go simply counts against the score. The progress
+// of the clef is left as it is; the results say which notes to work on.
+#define SN 40                               // notes in a session
+#define WIN 18                              // pixels on each side of the line where a note can be played
+static const int speeds_q[3] = { 8, 12, 18 };          // 1/16 pixel per frame: 1.9 s, 1.3 s and 0.85 s a note
+static const char *const speed_txt[3] = { "LENTE", "MOYENNE", "RAPIDE" };
+typedef struct { uint8_t idx, state; int32_t x; } snote_run_t;        // state: 0 to play, 1 right, 2 wrong, 3 let go
+static snote_run_t run[SN];
+static int run_first, s_right, s_wrong, s_missed, s_perfect, ticked;
+static uint8_t s_bad[NNOTES], s_seen[NNOTES];
+
+static void start_scroll(void) {
+  score = series = best_series = 0; s_right = s_wrong = s_missed = s_perfect = 0;
+  memset(s_bad, 0, sizeof s_bad); memset(s_seen, 0, sizeof s_seen);
+  last_pick = -1;
+  for (int i = 0; i < SN; i++) { run[i].idx = (uint8_t)pick(); run[i].state = 0; run[i].x = (400 + i * QSTEP) * 16; s_seen[run[i].idx]++; }
+  run_first = 0; ticked = -1;
+  memset(key_state, 0, sizeof key_state);
+  draw_staff(true); clear_rows(0, 24);
+  say("LES NOTES ARRIVENT : JOUEZ-LES SUR LA LIGNE JAUNE", P_WHITE, "UNE ERREUR NE BLOQUE RIEN : ELLE COMPTE", P_GREY);
+  state = S_SCROLL;
+}
+static void scroll_hud(void) {
+  char s[48];
+  clear_rows(0, 1);
+  snprintf(s, sizeof s, "%s  %s", clef_name[clef], speed_txt[speed_sel]); text(1, 0, s, P_YELLOW);
+  snprintf(s, sizeof s, "SCORE %d", score); text(47 - (int)strlen(s), 0, s, P_WHITE);
+  snprintf(s, sizeof s, "JUSTES %d  FAUSSES %d  OUBLIEES %d", s_right, s_wrong, s_missed); text(1, 1, s, P_GREY);
+  if (series >= 3) { snprintf(s, sizeof s, "SERIE %d", series); text(47 - (int)strlen(s), 1, s, P_CYAN); }
+}
+static void scroll_answer(int n, int vol) {
+  sound(n, vol);
+  int best = -1, bd = 1 << 30;                // the note to play: the closest one to the line, inside the window
+  for (int i = run_first; i < SN; i++) {
+    if (run[i].state) continue;
+    int d = run[i].x / 16 - QX; if (d < 0) d = -d;
+    if (d <= WIN && d < bd) { bd = d; best = i; }
+    if (run[i].x / 16 > QX + WIN) break;
+  }
+  int x = n - LOWKEY;
+  if (best < 0) { if (x >= 0 && x < COLS) key_state[x] = 1; return; }      // nothing on the line: nothing counts
+  snote_run_t *r = &run[best];
+  const snote_t *t = &clefs[clef][r->idx];
+  if (n == t->note) {
+    r->state = 1; s_right++; series++; if (series > best_series) best_series = series;
+    int perfect = bd <= 5;
+    if (perfect) s_perfect++;
+    score += 10 + (perfect ? 10 : 0) + (series > 20 ? 20 : series);
+    if (x >= 0 && x < COLS) key_state[x] = 2;
+  } else {
+    r->state = 2; s_wrong++; series = 0; s_bad[r->idx]++;
+    if (x >= 0 && x < COLS) key_state[x] = 1;
+    char a[48], tn[16]; sname(t, tn, sizeof tn, true);
+    snprintf(a, sizeof a, "C'ETAIT UN %s (VOUS : %s)", tn, played_name(n));
+    say(a, P_RED, 0, 0); msg_timer = 60;
+  }
+  scroll_hud();
+}
+static void show_results(void) {
+  char s[64];
+  for (int i = 0; i < 40; i++) mc_sprite_hide(i);
+  draw_staff(false); clear_rows(0, 24);
+  int pc = s_right * 100 / SN;
+  textc(3, "R E S U L T A T S", P_YELLOW);
+  snprintf(s, sizeof s, "%s, VITESSE %s", clef_name[clef], speed_txt[speed_sel]); textc(5, s, P_GREY);
+  snprintf(s, sizeof s, "NOTES JUSTES   %2d / %d  (%d %%)", s_right, SN, pc); textc(8, s, P_GREEN);
+  snprintf(s, sizeof s, "DONT PILE SUR LA LIGNE  %2d", s_perfect); textc(9, s, P_WHITE);
+  snprintf(s, sizeof s, "FAUSSES NOTES  %2d", s_wrong); textc(11, s, P_RED);
+  snprintf(s, sizeof s, "OUBLIEES       %2d", s_missed); textc(12, s, P_GREY);
+  snprintf(s, sizeof s, "SCORE %d   MEILLEURE SERIE %d", score, best_series); textc(14, s, P_YELLOW);
+  // the notes to work on: the ones most often wrong or let go
+  char line[64] = "";
+  for (int k = 0; k < 4; k++) {
+    int bi = -1, bv = 0;
+    for (int i = 0; i < NNOTES; i++) if (s_bad[i] > bv) { bv = s_bad[i]; bi = i; }
+    if (bi < 0) break;
+    char nm[12]; sname(&clefs[clef][bi], nm, sizeof nm, false);
+    snprintf(s, sizeof s, "%s%s%d (%d)", line[0] ? "  " : "", nm, octave(clefs[clef][bi].note - clefs[clef][bi].acc), bv);
+    if (strlen(line) + strlen(s) < 46) strcat(line, s);
+    s_bad[bi] = 0;
+  }
+  if (line[0]) { textc(17, "A REVOIR :", P_WHITE); textc(18, line, P_CYAN); }
+  else textc(17, pc == 100 ? "SANS FAUTE ! ESSAYEZ PLUS VITE." : "", P_GREEN);
+  textc(21, "UNE NOTE : REJOUER    ENTREE : MENU", P_GREY);
+  state = S_RESULTS;
+}
+static void scroll_frame(void) {
+  int sp = 0;
+  mc_sprite(sp++, 16, clef ? Y0 - 24 - 5 : Y0 - 8 - 18, clef ? SP_BASS : SP_TREBLE, 2, clef ? 2 : 5, P_CLEF, 2);
+  bool hud = false;
+  for (int i = run_first; i < SN; i++) run[i].x -= speeds_q[speed_sel];      // all the notes move together
+  for (int i = run_first; i < SN; i++) {
+    snote_run_t *r = &run[i];
+    int x = r->x / 16;
+    if (!r->state && x < QX - WIN) { r->state = 3; s_missed++; series = 0; s_bad[r->idx]++; hud = true; }
+    if (x < 8) { if (i == run_first) run_first++; continue; }
+    if (x > 380) break;
+    if (i > ticked && x <= QX) { ticked = i; mt_note(MT_PSG(1), 61, &tick, 10); }      // a soft click on the beat
+    const snote_t *n = &clefs[clef][r->idx];
+    int y = Y0 - n->step * 4;
+    int pal = r->state == 1 ? P_NOTE_OK : r->state >= 2 ? P_NOTE_BAD : (x <= QX + WIN && x >= QX - WIN) ? P_NOTE_CUR : P_NOTE;
+    for (int st = -2; st >= n->step; st -= 2) mc_sprite(sp++, x - 1, Y0 - st * 4 - 8, SP_LEDGER, 2, 2, P_NOTE, 2);
+    for (int st = 10; st <= n->step; st += 2) mc_sprite(sp++, x - 1, Y0 - st * 4 - 8, SP_LEDGER, 2, 2, P_NOTE, 2);
+    mc_sprite(sp++, x, y - 8, SP_HEAD, 2, 2, pal, 3);
+    if (n->acc) mc_sprite(sp++, x - 9, y - 8, n->acc > 0 ? SP_SHARP : SP_FLAT, 1, 2, pal, 3);
+    if (show_name(r->idx) && sp < 100) {               // the name follows the note: letters of the font as sprites
+      char nm[12]; sname(n, nm, sizeof nm, false);
+      int len = (int)strlen(nm), nx = x + 8 - len * 4;
+      for (int c = 0; c < len; c++) mc_sprite(sp++, nx + 8 * c, 136, nm[c] - 32, 1, 1, P_INK_GREY, 3);
+    }
+  }
+  while (sp < 120) mc_sprite_hide(sp++);
+  if (hud) scroll_hud();
+  if (msg_timer && --msg_timer == 0) clear_rows(20, 22);
+  draw_keys(false);
+  if (run_first >= SN) show_results();
+}
+
 // ================================================================ menu
 static void draw_menu(void) {
   char s[64];
   clear_rows(0, 24);
   for (int i = 0; i < 32; i++) mc_sprite_hide(i);
   draw_staff(false);
-  textc(3, "S O L F E G E", P_YELLOW);
-  textc(5, "APPRENDRE A LIRE LES NOTES", P_GREY);
+  textc(2, "S O L F E G E", P_YELLOW);
+  textc(4, "APPRENDRE A LIRE LES NOTES", P_GREY);
   static const char *const help_txt[3] = { "TOUJOURS", "LE TEMPS DE LES APPRENDRE", "JAMAIS" };
-  const char *lab[4] = { "CLE", "NOTES", "NOMS", "RECOMMENCER" };
-  for (int i = 0; i < 4; i++) {
-    int y = 9 + 2 * i;
+  const char *lab[6] = { "CLE", "NOTES", "MODE", "VITESSE", "NOMS", "RECOMMENCER" };
+  for (int i = 0; i < 6; i++) {
+    int y = 7 + 2 * i;
     text(6, y, lab[i], menu_item == i ? P_WHITE : P_GREY);
     if (menu_item == i) text(4, y, ">", P_YELLOW);
     if (i == 0) snprintf(s, sizeof s, "< %s >", clef_name[clef]);
     else if (i == 1) snprintf(s, sizeof s, "< %d/%d >  %s", unlocked[clef], NNOTES, unlocked[clef] > NNATURAL ? "AVEC # ET b" : "");
-    else if (i == 2) snprintf(s, sizeof s, "< %s >", help_txt[help_mode]);
+    else if (i == 2) snprintf(s, sizeof s, "< %s >", mode ? "LECTURE DEROULANTE" : "LA NOTE ATTEND");
+    else if (i == 3) snprintf(s, sizeof s, mode ? "< %s >" : "(LECTURE DEROULANTE)", speed_txt[speed_sel]);
+    else if (i == 4) snprintf(s, sizeof s, "< %s >", help_txt[help_mode]);
     else snprintf(s, sizeof s, confirm_reset ? "ENTREE ENCORE : TOUT EFFACER ?" : "EFFACER LA PROGRESSION");
-    text(18, y, s, menu_item == i ? (i == 3 && confirm_reset ? P_RED : P_YELLOW) : P_WHITE);
+    text(18, y, s, menu_item == i ? (i == 5 && confirm_reset ? P_RED : P_YELLOW) : i == 3 && !mode ? P_GREY : P_WHITE);
   }
-  textc(17, "UNE NOTE ATTEND SUR LA PORTEE : JOUEZ-LA.", P_WHITE);
-  textc(18, "TOUTES BIEN CONNUES : UNE NOUVELLE NOTE ARRIVE", P_WHITE);
+  textc(19, mode ? "40 NOTES DEFILENT : JOUEZ-LES SUR LA LIGNE" : "LA NOTE ATTEND, PUIS UNE NOUVELLE ARRIVE", P_WHITE);
   textc(20, "JOUEZ UNE NOTE OU APPUYEZ SUR ENTREE", P_YELLOW);
   textc(22, clef ? "SANS MIDI : W X C V... = DO3, A Z E R... = DO4" : "SANS MIDI : W X C V... = DO4, A Z E R... = DO5", P_GREY);
   if (mc_hw_version() < 4) textc(23, "CE CORE N'A PAS D'ENTREE MIDI (VERSION 4)", P_RED);
 }
 static void menu_action(int a) {                      // 1 up 2 down 3 left 4 right 5 ok
-  if (a != 5 || menu_item != 3) confirm_reset = 0;
-  if (a == 1) menu_item = (menu_item + 3) % 4;
-  else if (a == 2) menu_item = (menu_item + 1) % 4;
+  if (a != 5 || menu_item != 5) confirm_reset = 0;
+  if (a == 1) menu_item = (menu_item + 5) % 6;
+  else if (a == 2) menu_item = (menu_item + 1) % 6;
   else if (a == 3 || a == 4) {
     if (menu_item == 0) clef ^= 1;
     else if (menu_item == 1) {                     // choose where to start: 13 = the naturals known, sharps and flats next
       int n = unlocked[clef] + (a == 4 ? 1 : -1);
       if (n >= 3 && n <= NNOTES) unlocked[clef] = (uint8_t)n;
-    } else if (menu_item == 2) help_mode = (help_mode + (a == 4 ? 1 : 2)) % 3;
+    } else if (menu_item == 2) mode ^= 1;
+    else if (menu_item == 3) speed_sel = (speed_sel + (a == 4 ? 1 : 2)) % 3;
+    else if (menu_item == 4) help_mode = (help_mode + (a == 4 ? 1 : 2)) % 3;
     nv_save();
   } else if (a == 5) {
-    if (menu_item == 3) {
+    if (menu_item == 5) {
       if (confirm_reset) { unlocked[clef] = 3; memset(streak[clef], 0, NNOTES); nv_save(); confirm_reset = 0; }
       else confirm_reset = 1;
-    } else { start_game(); return; }
+    } else { if (mode) start_scroll(); else start_game(); return; }
   }
   draw_menu();
 }
@@ -469,8 +594,11 @@ int main(void) {
     while ((e = mc_midi_event()) >= 0) {
       int st = MIDI_STATUS(e), mn = MIDI_DATA1(e);
       if (st == MIDI_NOTE_ON) {
-        if (state == S_MENU) { if (menu_item != 3) start_game(); }
-        else answer(mn - 11, (MIDI_DATA2(e) * 64 + 63) / 127);
+        int vol = (MIDI_DATA2(e) * 64 + 63) / 127;
+        if (state == S_MENU) { if (menu_item != 5) { if (mode) start_scroll(); else start_game(); } }
+        else if (state == S_RESULTS) start_scroll();
+        else if (state == S_SCROLL) scroll_answer(mn - 11, vol);
+        else answer(mn - 11, vol);
       } else if (st == MIDI_NOTE_OFF) release_key(mn - 11);
     }
     while ((e = mc_key_event()) >= 0) {
@@ -478,8 +606,13 @@ int main(void) {
       if (e & 0x200) {
         if (state == S_MENU) {
           menu_action(k == KEY_UP ? 1 : k == KEY_DOWN ? 2 : k == KEY_LEFT ? 3 : k == KEY_RIGHT ? 4 : k == KEY_ENTER ? 5 : 0);
-        } else if (k == KEY_ESC) { state = S_MENU; nv_save(); draw_menu(); }
-        else if (pk >= 0) { answer(base + pk, 50); key_down[k] = (int8_t)(base + pk); }
+        } else if (k == KEY_ESC || (state == S_RESULTS && k == KEY_ENTER)) { state = S_MENU; nv_save(); draw_menu(); }
+        else if (pk >= 0) {
+          if (state == S_RESULTS) start_scroll();
+          else if (state == S_SCROLL) scroll_answer(base + pk, 50);
+          else answer(base + pk, 50);
+          key_down[k] = (int8_t)(base + pk);
+        }
       } else if (key_down[k] >= 0) { release_key(key_down[k]); key_down[k] = -1; }
     }
     uint32_t p = mc_pad_pressed(1);
@@ -490,8 +623,9 @@ int main(void) {
       if (p & IN_RIGHT) menu_action(4);
       if (p & (IN_B(1) | IN_START)) menu_action(5);
     } else {
-      if (p & IN_B(2)) { state = S_MENU; nv_save(); draw_menu(); }
-      play_frame();
+      if (p & IN_B(2) || (state == S_RESULTS && p & (IN_B(1) | IN_START))) { state = S_MENU; nv_save(); draw_menu(); }
+      else if (state == S_PLAY) play_frame();
+      else if (state == S_SCROLL) scroll_frame();
     }
     draw_keys(false);
   }
