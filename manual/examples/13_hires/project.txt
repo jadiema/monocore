@@ -1,0 +1,5 @@
+# Chapter 13: high resolution, 640 x 480 interlaced (hardware version 5)
+name    = carnet
+title   = CARNET
+library = mc
+sources = main.c

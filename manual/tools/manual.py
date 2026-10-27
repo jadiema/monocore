@@ -503,6 +503,50 @@ A(ol(["Changez les dessins du vaisseau et des ennemis, ou les couleurs du ciel."
       "Remplacez les décors calculés par un paysage dessiné, converti avec <code>maps = …</code> dans <code>project.txt</code>.",
       "Passez l'écran en 384 x 224 avec <code>mc_video_mode</code>, comme une borne d'arcade."]))
 
+# ---------------------------------------------------------------- 13
+A(chapter(13, 'La haute résolution', "640 pixels de large, et même 480 lignes : la place qu'il faut aux éditeurs et aux outils.", 1))
+A(p("Depuis la version 5 de son matériel, la MONOCORE-1 sait afficher bien plus de détails que ses 320 x 240 habituels. Ce n'est pas fait pour tous les programmes : un jeu garde en général la <b>basse résolution</b>, ses gros pixels nets et son allure de borne d'arcade. La haute résolution sert surtout aux <b>éditeurs et aux outils</b> : beaucoup de texte, des grilles, des réglages, comme dans MONOTRACKER ou SOLFEGE."))
+A(table(['Mode', 'Taille', 'Pour quoi faire'], [
+  ['basse résolution', '224 à 384 x 192 à 288 (320 x 240 au départ)', "les jeux : gros pixels, tous les effets de la console"],
+  ['haute résolution', "jusqu'à 640 de large, avec 270 lignes au plus (640 x 240, 640 x 270)", "80 colonnes de texte en cases de 8 x 8 ; les pixels sont deux fois plus hauts que larges"],
+  ['entrelacé', '640 x 480 (de 384 à 512 lignes)', "une image fine dans les deux sens : des caractères de 8 x 16, des dessins précis"]]))
+A(p("Il suffit de demander la taille voulue à <code>mc_video_mode</code> : une hauteur de 384 à 512 lignes choisit le mode entrelacé. Avant, le programme vérifie que la console sait le faire."))
+A(listing("""if (mc_hw_version() >= 5)
+  mc_video_mode(640, 480);          // interlaced: two fields of 240 lines
+else
+  mc_video_mode(320, 240);          // an older core: stay in low resolution""", numbers=False))
+A(h2("L'entrelacé, comment ça marche"))
+A(p("Un téléviseur dessine 60 images par seconde de 240 lignes. Pour en montrer 480, la console alterne deux <b>trames</b> : l'une affiche les lignes paires de l'image, l'autre les lignes impaires. Sur la MiSTer, le framework reconstitue l'image entière en HDMI. Pour le programme, presque rien ne change : les plans, les sprites et les tables de défilement se placent toujours en lignes de l'image complète (0 à 479). Seuls le compteur de lignes <code>VCOUNT</code>, les interruptions de ligne et les effets raster comptent en lignes de trame (0 à 239). <code>mc_interlaced()</code> dit si le mode est actif, <code>mc_field()</code> donne la parité de la trame en cours."))
+A(box('warn', 'Pas de trait d\'un seul pixel de haut', p("Une ligne horizontale d'un pixel n'apparaît que dans une trame sur deux : elle scintille. Donnez aux traits horizontaux au moins deux lignes d'épaisseur : bords de cadre, lignes de portée, et les barres des lettres. Doubler chaque ligne de la police 8 x 8 du SDK suffit à le garantir, c'est ce que fait l'exemple de ce chapitre. Les traits verticaux, eux, peuvent rester fins.")))
+A(h2("Couvrir 640 x 480 avec des tuiles"))
+A(p("Une carte de tuiles compte au plus 4096 cases. En tuiles de 8 x 8, il en faudrait 80 x 60 = 4800 pour couvrir l'image : c'est trop. Deux solutions, que les programmes du projet emploient."))
+A(table(['Solution', 'Comment', 'Exemples'], [
+  ['tuiles de 16 x 16', "une carte de 64 x 32 couvre 1024 x 512 pixels : tout l'écran d'un seul plan. Le texte tient alors en 40 x 30 caractères de 16 x 16", "AUBE (une image en 8 bits par pixel), SOLFEGE"],
+  ['deux plans par couche', "en tuiles de 8 x 8, une carte de 128 x 32 couvre 1024 x 256 pixels. Un plan prend les lignes du haut, un autre celles du bas ; le défilement par ligne cache, dans chaque plan, la moitié qui n'est pas la sienne", "MONOTRACKER, l'exemple de ce chapitre : 80 x 30 caractères de 8 x 16"]]))
+A(h2('Un exemple : CARNET'))
+A(p("CARNET est un petit bloc-notes : on tape du texte au clavier, sur 80 colonnes et 30 lignes. Son cadre utilise des tuiles de 16 x 16, son texte deux plans de tuiles de 8 x 8, et son curseur est un sprite."))
+A(screen('screen_13.png', "CARNET : 80 x 30 caractères de 8 x 16, un cadre en tuiles de 16 x 16 et un curseur en sprite."))
+A(listing(source('13_hires', 'project.txt'), '13_hires/project.txt', numbers=False, lang='txt'))
+A(listing(source('13_hires'), '13_hires/main.c'))
+A(table(['Fonction', 'Rôle'], [
+  [c('make_font'), "fabrique la police 8 x 16 : chaque caractère de la police du SDK devient deux tuiles de 8 x 8, ses lignes doublées"],
+  [c('put'), "écrit un caractère : ses deux tuiles, dans le plan 0 pour les lignes 0 à 14, dans le plan 1 pour les lignes 15 à 29"],
+  [c('text_layers'), "règle les deux plans de texte et leurs tables de défilement par ligne"],
+  [c('make_frame'), "le cadre : un plan de tuiles de 16 x 16 qui couvre tout l'écran"],
+  [c('key_char'), "le caractère d'une touche, en AZERTY ou en QWERTY"],
+  [c('type'), "ce que fait chaque touche : écrire, effacer, déplacer le curseur"]]))
+A(h2('Deux plans pour une seule couche de texte'))
+A(p("Le plan 0 porte les lignes de texte 0 à 14, soit les lignes d'image 0 à 239 ; le plan 1 porte les lignes de texte 15 à 29. Comme chaque carte se répète tous les 256 pixels, le plan 0 se montrerait aussi en bas de l'écran, et le plan 1 en haut. La table de défilement par ligne l'empêche : dans la moitié qui n'est pas la sienne, chaque ligne du plan est décalée vers les rangées 30 et 31 de sa carte, que le programme laisse vides. Le plan 1 est en outre décalé de 16 lignes, pour que la ligne d'image 240 montre la rangée 0 de sa carte."))
+A(listing("""ls[y].dy = mine ? 0 : (l ? 224 : 240) + (y & 15) - y;   // elsewhere: map rows 30-31, empty""", numbers=False))
+A(box('tip', 'Des polices plus belles', p("La police du SDK, doublée, a l'air d'un écran de 1980. MONOTRACKER et SOLFEGE rendent leur police à partir d'une vraie police vectorielle (DejaVu Sans Mono) avec un petit script Python, <code>make_font.py</code> ou <code>make_assets.py</code>, et gardent quatre niveaux de gris : le programme règle ses palettes en mélangeant la couleur du texte avec celle du fond, ce qui lisse les bords. SOLFEGE rend de la même façon les clés et les notes d'une police musicale.")))
+A(h2('Les sprites en haute résolution'))
+A(p("Les sprites se placent en pixels de l'image complète : en 640 x 480, un sprite de 16 x 16 paraît deux fois plus petit qu'en 320 x 240. <code>mc_sprite_zoom</code> le grandit sans dessin supplémentaire ; c'est ce que fait CARNET pour son curseur, une case de 8 x 8 doublée en hauteur. Le budget par ligne ne change pas : 64 sprites et 1280 pixels de sprites."))
+A(h2('Pour aller plus loin'))
+A(ol(["Ajoutez une ligne de règle (les numéros de colonnes) sous la barre de titre.",
+      "Gardez le texte dans la mémoire sauvegardée (NVRAM), pour le retrouver au prochain lancement.",
+      "Changez la police : rendez-en une avec le <code>make_font.py</code> de MONOTRACKER.",
+      "Passez CARNET en 640 x 240, sans entrelacement : une seule carte de 128 x 32 tuiles de 8 x 8 couvre alors l'écran, et les caractères redeviennent des cases de 8 x 8."]))
+
 # ---------------------------------------------------------------- appendices
 A(chapter('A', 'La bibliothèque easy', "Toutes les fonctions, d'un coup d'oeil, avec la traduction de leur nom.", 1))
 A(table(['Fonction', 'Traduction', 'Description'], [
@@ -583,7 +627,7 @@ A(table(['Registre', 'Rôle'], [
 A(h3('Entrées, interruptions, timers, DMA'))
 A(table(['Registre', 'Rôle'], [
   [c('IN_P1 / IN_P2 / IN_SYS / DIPSW'), 'manettes, boutons système, DIP switches'],
-  [c('HW_VERSION'), 'version du matériel : 2 et plus, les entrées ci-dessous existent'],
+  [c('HW_VERSION'), "version du matériel : 2 et plus, les entrées ci-dessous existent ; 3 la souris, 4 l'entrée MIDI, 5 la haute résolution et le mode entrelacé"],
   [c('IN_P3 / IN_P4'), 'joueurs 3 et 4, même format que <code>IN_P1</code>'],
   [c('ANALOG_P(n)'), 'manette n (0 à 3) : sticks gauche et droit, X et Y de −127 à +127'],
   [c('PADDLE_P(n)'), 'paddle de 0 à 255 (bits 0-7), position du spinner (bits 16-31)'],
@@ -626,7 +670,9 @@ A(table(['Fonction', 'Description'], [
   [c('mc_on_timer(t, hz, f)'), "appelle <i>f</i> <i>hz</i> fois par seconde (timer 0 ou 1)"],
   [c('mc_raster_add(ligne, f)'), "effet raster : <i>f</i> s'applique à partir de cette ligne (64 au plus)"],
   [c('mc_raster_line / mc_raster_clear()'), "ligne de l'effet en cours ; efface tous les effets"],
-  [c('mc_video_mode(w, h)'), "taille de l'écran, de 224 à 384 x 192 à 288"],
+  [c('mc_video_mode(w, h)'), "taille de l'écran, de 224 à 384 x 192 à 288 ; en version 5, jusqu'à 640 de large, et 384 à 512 lignes en entrelacé (chapitre 13)"],
+  [c('mc_screen_w() / mc_screen_h()'), "la taille de l'image (en entrelacé, la hauteur complète)"],
+  [c('mc_interlaced() / mc_field()'), "le mode entrelacé est-il actif ; la parité de la trame en cours"],
   [c('mc_display(flags)'), "allume l'affichage, les plans et les sprites (<code>DISP_ON | DISP_LAYER(n) | DISP_SPRITES</code>)"],
   [c('mc_color(i, rgb) / MC_RGB(r, g, b)'), "change la couleur <i>i</i> (0 à 4095)"],
   [c('mc_palette(p, couleurs, n)'), "charge <i>n</i> couleurs à partir de la palette <i>p</i>"],
