@@ -70,7 +70,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, label:focus-wit
   font: 600 10px var(--f-mono); letter-spacing: .14em; color: var(--silk-dim); background: var(--board);
 }
 .screen-box { display: flex; align-items: center; justify-content: center; aspect-ratio: 4 / 3; max-width: 100%; position: relative; }
-canvas#screen { image-rendering: pixelated; image-rendering: crisp-edges; max-width: 100%; max-height: 100%; background: #000; display: block; }
+canvas#screen { image-rendering: auto; max-width: 100%; max-height: 100%; background: #000; display: block; }
 .overlay {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   background: color-mix(in srgb, var(--glass) 70%, transparent); text-align: center; padding: 20px;
@@ -608,7 +608,7 @@ __CORE_JS__
   function mouseOn() { return $('mouseMode').checked && m; }
   function mousePos(e) {
     const r = canvas.getBoundingClientRect();
-    return { x: Math.floor((e.clientX - r.left) / r.width * canvas.width), y: Math.floor((e.clientY - r.top) / r.height * canvas.height) };
+    return { x: Math.floor((e.clientX - r.left) / r.width * natW), y: Math.floor((e.clientY - r.top) / r.height * natH) };
   }
   function mouseStep() {   // before each frame
     if (!mouseOn()) return;
@@ -707,6 +707,11 @@ __CORE_JS__
   bindMouse();
   const off = document.createElement('canvas'), octx = off.getContext('2d');
   let img = null, squarePixels = false, wide = false;
+  // "sharp bilinear": the picture is first enlarged by whole factors (nearest pixel) to at least the size
+  // it is shown at, then the browser smooths the last, fractional step. Every console pixel thus keeps
+  // the same width and height (a 640 x 240 picture shown at 1.23 x 2.46 would otherwise get columns
+  // and lines of uneven sizes), and the edges stay sharp.
+  let natW = 320, natH = 240, kx = 1, ky = 1;
   function draw() {
     const W = m.scrW, H = m.scrH;
     if (off.width !== W || off.height !== H || !img) { off.width = W; off.height = H; img = octx.createImageData(W, H); }
@@ -714,9 +719,14 @@ __CORE_JS__
     octx.putImageData(img, 0, 0);
     const rot = (m.gpuDV.getUint32(0, true) >> 8) & 3;
     const cw = rot & 1 ? H : W, ch = rot & 1 ? W : H;
-    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; layoutScreen(); }
+    if (natW !== cw || natH !== ch) { natW = cw; natH = ch; canvas.width = cw; canvas.height = ch; layoutScreen(); }
+    const dpr = window.devicePixelRatio || 1;
+    const fx = Math.min(8, Math.max(1, Math.ceil((canvas.clientWidth || cw) * dpr / cw - 0.01)));
+    const fy = Math.min(8, Math.max(1, Math.ceil((canvas.clientHeight || ch) * dpr / ch - 0.01)));
+    if (fx !== kx || fy !== ky || canvas.width !== cw * fx || canvas.height !== ch * fy) { kx = fx; ky = fy; canvas.width = cw * kx; canvas.height = ch * ky; }
     ctx.imageSmoothingEnabled = false;
     ctx.save();
+    ctx.setTransform(kx, 0, 0, ky, 0, 0);
     ctx.translate(cw / 2, ch / 2);
     ctx.rotate(rot * Math.PI / 2);
     ctx.drawImage(off, -W / 2, -H / 2);
@@ -726,8 +736,8 @@ __CORE_JS__
     const box = $('screenBox');
     // arcade monitors are 4:3 (3:4 when rotated); "square pixels" shows the native grid as is;
     // "16:9" stretches the picture as a MiSTer does in full screen on a 16:9 screen
-    const rotated = canvas.height > canvas.width;
-    const ar = squarePixels ? canvas.width / canvas.height : wide ? (rotated ? 9 / 16 : 16 / 9) : (rotated ? 3 / 4 : 4 / 3);
+    const rotated = natH > natW;
+    const ar = squarePixels ? natW / natH : wide ? (rotated ? 9 / 16 : 16 / 9) : (rotated ? 3 / 4 : 4 / 3);
     canvas.style.aspectRatio = String(ar);
     canvas.style.width = rotated ? 'auto' : '100%';
     canvas.style.height = rotated ? '100%' : 'auto';
