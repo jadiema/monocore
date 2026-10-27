@@ -160,8 +160,10 @@ void mj_sfx(int ch, int wave, int f0, int f1, int frames, int vol) {
   fx[ch].f0 = f0; fx[ch].f1 = f1; fx[ch].n = frames > 0 ? frames : 1; fx[ch].t = 0; fx[ch].vol = vol; fx[ch].wave = wave;
   mc_psg(ch, wave, (uint32_t)f0, 128, vol, vol);
 }
+void ms_tick(void) __attribute__((weak));       // the msfx module, when the game has it
 void mj_frame(void) {
   mc_frame();
+  if (ms_tick) ms_tick();
   for (int ch = 0; ch < 8; ch++) {
     if (!fx[ch].n) continue;
     if (++fx[ch].t >= fx[ch].n) { mc_psg_volume(ch, 0, 0); fx[ch].n = 0; continue; }

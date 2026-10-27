@@ -191,6 +191,10 @@ void ui_init(uint32_t off) {
   mc_layer_scroll(2, 0, 8);
   mc_layer_linescroll(2, false);
   mc_tilemap_fill(2, 0);
+  mc_layer(3, MC_CHR(off + 0x4000), MC_TILE16 | MC_4BPP, 64, 32, 0);   // free for the program: empty
+  mc_layer_scroll(3, 0, 0);
+  mc_layer_linescroll(3, false);
+  mc_tilemap_fill(3, 0);
   memset(txt, 0, sizeof txt); memset(txt_old, 0, sizeof txt_old);
   memset(pnl, 0, sizeof pnl); memset(pnl_old, 0, sizeof pnl_old);
   mc_sprite_sheet(MC_CHR(0));

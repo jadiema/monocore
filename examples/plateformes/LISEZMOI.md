@@ -2,7 +2,7 @@
 
 Un modèle de jeu de plateformes à copier pour faire le sien. Tout le niveau est dans sa banque
 `niveau.mgf`, dessinée avec MONOPIXEL : le décor, ce que sont les tuiles et les objets posés
-dedans. Le programme (`main.c`, environ 150 lignes) ne dit que ce que fait chaque sorte d'objet,
+dedans, et ses sons dans `bruits.mfx`, faite avec MONOSFX. Le programme (`main.c`, environ 150 lignes) ne dit que ce que fait chaque sorte d'objet,
 d'après le nom de son lutin :
 
 | Lutin | Rôle |
@@ -13,8 +13,9 @@ d'après le nom de son lutin :
 | `DRAPEAU` | la fin du niveau |
 
 Le jeu enchaîne un écran titre, la partie, puis « BRAVO » ou « PERDU », avec 3 vies. Le record
-est sauvé dans la NVRAM (`mj_save`), et des bruitages PSG accompagnent le saut, les pièces,
-l'ennemi écrasé et les vies perdues.
+est sauvé dans la NVRAM (`mj_save`). Les bruitages viennent de `bruits.mfx`, faits avec MONOSFX et
+joués par leur nom : `SAUT`, `PIECE`, `ECRASE`, `AIE`, `BRAVO`, `PERDU`, `MENU`. Pour changer un
+son, il suffit de le refaire dans MONOSFX sous le même nom et d'exporter la banque.
 
 ## Construire
 
@@ -39,4 +40,5 @@ Pour une nouvelle sorte d'objet (une clé, un ressort, un ennemi qui vole…), i
 lutin, de lui donner un nom, de le poser, puis d'ajouter un cas dans `update()`. Les fonctions
 utilisées sont celles de `mjeu` (`sdk/MJEU.md`) et `mgfx` (`sdk/MGFX.md`).
 
-`niveau.mgf` est une copie de la banque de démonstration de MONOPIXEL (`tools/mgfx/make_demo.py`).
+`niveau.mgf` est une copie de la banque de démonstration de MONOPIXEL (`tools/mgfx/make_demo.py`),
+`bruits.mfx` celle de MONOSFX (`tools/msfx/make_demo.py`).

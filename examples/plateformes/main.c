@@ -11,14 +11,17 @@
 //   DRAPEAU  the end of the level
 // Another level: draw it in MONOPIXEL, export it (tools/mgfx/mgfx.py monopixel.sav 1 -o niveau.mgf)
 // and build again. Another kind of object: a sprite with a new name and a case in update().
-// Modules: mgfx (the bank) and mjeu (objects, collisions, camera, sound effects, save): sdk/MJEU.md.
+// The sounds come from bruits.mfx, made with MONOSFX, and are played by name (sound("SAUT")).
+// Modules: mgfx (the bank), mjeu (objects, collisions, camera, save: sdk/MJEU.md) and msfx (sounds).
 #include <stdio.h>
 #include "mc.h"
 #include "mgfx.h"
 #include "mjeu.h"
+#include "msfx.h"
 
 #define MAX_OBJ 64
 static mg_bank_t bank;
+static ms_bank_t sfx;                            // bruits.mfx, made with MONOSFX
 static mj_world_t world;
 static mj_obj_t obj[MAX_OBJ];
 static int n_obj;
@@ -30,6 +33,7 @@ static struct { uint32_t best; } save;
 enum { TITLE, PLAY, WON, OVER };
 static int scene, scene_timer;
 
+static void sound(const char *name) { ms_play(&sfx, ms_find(&sfx, name)); }
 static void text(int x, int y, const char *s) { mc_text(0, x, y, s, 0); }
 static void clear_text(void) { for (int y = 0; y < 30; y++) text(0, y, "                                        "); }
 
@@ -53,8 +57,8 @@ static void start_level(void) {
   hurt_timer = 0;
 }
 static void lose_life(void) {
-  mj_sfx(6, PSG_SQUARE, 400, 80, 40, 120);
-  if (--lives <= 0) { scene = OVER; scene_timer = 0; return; }
+  if (--lives <= 0) { scene = OVER; scene_timer = 0; sound("PERDU"); return; }
+  sound("AIE");
   mj_set_pos(hero, start_x, start_y);
   hero->vx = hero->vy = 0;
   hurt_timer = 90;                                  // blinks, cannot be hurt again for 1.5 s
@@ -70,7 +74,7 @@ static void update_hero(mj_obj_t *o) {
   bool ground = (o->touch & MJ_GROUND) != 0;
   if (ground && (pr & IN_B(1))) {
     if (p & IN_DOWN) o->flags |= MJ_DOWN;           // down + jump: through the platform
-    else { o->vy = -76; mj_sfx(7, PSG_SQUARE, 300, 900, 10, 90); }
+    else { o->vy = -76; sound("SAUT"); }
   }
   if (!(p & IN_B(1)) && o->vy < -24) o->vy = -24;  // jump button released: a shorter jump
   mj_move(&world, o);
@@ -85,16 +89,16 @@ static void update(mj_obj_t *o) {
   if (!(o->flags & MJ_ACTIVE)) return;
   if (o == hero) { update_hero(o); return; }
   if (o->sprite == PIECE) {
-    if (mj_overlap(hero, o)) { o->flags &= ~MJ_ACTIVE; score += 10; mj_sfx(5, PSG_SQUARE, 1200, 1800, 8, 80); }
+    if (mj_overlap(hero, o)) { o->flags &= ~MJ_ACTIVE; score += 10; sound("PIECE"); }
   } else if (o->sprite == BLOB) {
     mj_patrol(&world, o, 6 + o->param * 2, true);
     if (mj_overlap(hero, o) && !hurt_timer) {
       bool from_above = hero->vy > 0 && mj_py(hero) + hero->by + hero->bh - 6 < mj_py(o) + o->by;
-      if (from_above) { o->flags &= ~MJ_ACTIVE; hero->vy = -56; score += 50; mj_sfx(5, PSG_NOISE, 2000, 200, 12, 110); }
+      if (from_above) { o->flags &= ~MJ_ACTIVE; hero->vy = -56; score += 50; sound("ECRASE"); }
       else lose_life();
     }
   } else if (o->sprite == DRAPEAU) {
-    if (mj_overlap(hero, o)) { scene = WON; scene_timer = 0; mj_sfx(5, PSG_TRIANGLE, 500, 1500, 60, 120); }
+    if (mj_overlap(hero, o)) { scene = WON; scene_timer = 0; sound("BRAVO"); }
   }
 }
 
@@ -111,6 +115,7 @@ int main(void) {
     mc_debug("niveau.mgf : banque illisible ou trop grande\n");
     for (;;) mc_frame();
   }
+  ms_open(&sfx, bruits_file, bruits_size);        // a missing sound is simply silent
   HEROS = mg_sprite_find(&bank, "HEROS"); PIECE = mg_sprite_find(&bank, "PIECE");
   BLOB = mg_sprite_find(&bank, "BLOB"); DRAPEAU = mg_sprite_find(&bank, "DRAPEAU");
   mc_text_layer(0, 3);
@@ -136,6 +141,7 @@ int main(void) {
       if ((scene_timer / 30) & 1) text(10, 19, "APPUYEZ SUR B1");
       if ((pr & IN_B(1)) && scene_timer > 20) {
         if (scene != TITLE && score > best) { best = score; save.best = (uint32_t)best; mj_save(&save, sizeof save); }
+        sound("MENU");
         score = 0; lives = 3;
         start_level();
         scene = PLAY; scene_timer = 0;

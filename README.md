@@ -20,6 +20,7 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 | `examples/pbobble2/` | portage de Puzzle Bobble 2 / Bust-A-Move Again (Neo Geo, Taito 1995) : code 68000 traduit par `tools/recomp68k`, runtime Neo Geo, couche MONOCORE ; jouable, muet pour l'instant ; données tirées de sa propre copie |
 | `examples/monotracker/` | MONOTRACKER, un tracker de musique en 640 × 480 entrelacé (80 colonnes) qui se joue au clavier, à la souris et au clavier MIDI : 16 pistes (8 PSG, 8 PCM), édition des sons, morceaux en NVRAM, exportés pour les jeux (`sdk/MTRACK.md`) |
 | `examples/monopixel/` | MONOPIXEL, l'éditeur graphique en 640 × 480 entrelacé (souris et clavier, à la manière de Deluxe Paint) : planche de 4 pages, 16 palettes, 64 lutins animés, 4 décors, banques en NVRAM exportées pour les jeux (`sdk/MGFX.md`) ; interface `ui480` réutilisable (`sdk/UI480.md`) |
+| `examples/monosfx/` | MONOSFX, l'éditeur de bruitages en 640 × 480 (souris et clavier, à la manière de sfxr) : 32 bruitages PSG par banque, générateurs (saut, pièce, tir, boum…), courbe de la note et du volume ; joués dans les jeux par le module `msfx` (`sdk/MSFX.md`) |
 | `examples/cascade/` | CASCADE, le jeu des notes qui tombent, à jouer sur un clavier MIDI : les morceaux de MONOTRACKER deviennent des niveaux |
 | `examples/defender/` | PIANO DEFENDER, shoot'em up au clavier MIDI : les envahisseurs descendent sur les touches, on joue leur note pour tirer |
 | `examples/solfege/` | SOLFEGE, apprendre à lire les notes en 640 × 480 entrelacé : une portée (clé de sol ou de fa), le clavier MIDI, une nouvelle note dès que les précédentes sont connues, et une lecture déroulante |
@@ -33,6 +34,7 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 | `tools/recomp68k/` | traducteur statique 68000 → C → RV32IM, validé contre Musashi par un banc différentiel, voir son `LISEZMOI.md` |
 | `tools/mtrack/` | outils du tracker : banque d'échantillons (`make_bank.py`), morceau de démo (`make_demo.py`), export des morceaux depuis le `.sav` (`sav2song.py`) |
 | `tools/mgfx/` | outils de MONOPIXEL : format des banques en Python (`mgbank.py`), banque de démo (`make_demo.py`), export depuis le `.sav`, PNG, import d'images (`mgfx.py`) |
+| `tools/msfx/` | outils de MONOSFX : format et calcul des bruitages en Python (`msbank.py`), banque de démo (`make_demo.py`), export depuis le `.sav` et en WAV (`msfx.py`) |
 | `tools/cart/` | `cart_split.py` : découpe une ROM en images pour une ou deux Flash SPI W25Q64 (cartouche sur le port USER) |
 | `rtl/` | le core FPGA en Verilog (CPU, mémoires, E/S, DMA, rendu vidéo, son) et ses bancs de test Verilator |
 | `tools/quartus_trial/` | essai de compilation du core seul dans Quartus (ressources, fréquence maximale), voir son `LISEZMOI.md` |

@@ -98,7 +98,8 @@ void mj_draw_all(const mj_world_t *w, const mj_obj_t *objs, int n, int first_hw,
 
 // sound effects on the PSG: a tone gliding from f0 to f1 Hz over a number of frames, fading out
 // (wave PSG_SQUARE, PSG_TRIANGLE, PSG_SAW, PSG_NOISE; volume 0-255); choose channels the music does
-// not use. mj_frame() = mc_frame() plus the steps of the effects: call it instead of mc_frame().
+// not use. mj_frame() = mc_frame() plus the steps of the effects, these and those of the msfx module
+// (MONOSFX banks) when the game has it: call it instead of mc_frame().
 void mj_sfx(int ch, int wave, int f0, int f1, int frames, int vol);
 void mj_frame(void);
 

@@ -66,7 +66,7 @@ touche plus rien.
 | `mj_camera(w, o)`, `mj_camera_at(w, x, y)` | la caméra suit l'objet (avec une zone morte au centre) ou se place ; elle reste dans le décor et fait défiler le plan |
 | `mj_draw(w, o, sprite, prio)`, `mj_draw_all(w, objets, n, premier, prio)` | dessine aux positions de la caméra ; cache les objets inactifs ou hors de l'écran |
 | `mj_sfx(canal, onde, f0, f1, images, volume)` | un bruitage sur un canal PSG : un son qui glisse de f0 à f1 Hz en s'éteignant (`PSG_SQUARE`, `PSG_TRIANGLE`, `PSG_SAW`, `PSG_NOISE`) ; on prend des canaux que la musique n'utilise pas |
-| `mj_frame()` | `mc_frame()` puis fait avancer les bruitages ; à appeler à la place de `mc_frame()` |
+| `mj_frame()` | `mc_frame()` puis fait avancer les bruitages, ceux de `mj_sfx` et ceux du module `msfx` (banques de MONOSFX, `MSFX.md`) si le jeu l'a ; à appeler à la place de `mc_frame()` |
 | `mj_save(données, n)`, `mj_load(données, n)` | une sauvegarde de 4000 octets au plus au début de la NVRAM, avec une somme de contrôle (record, progression) ; `mj_load` renvoie false s'il n'y a rien de valable |
 
 Les nombres aléatoires viennent de `mc_rand()`.

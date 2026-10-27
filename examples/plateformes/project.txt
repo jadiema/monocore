@@ -1,7 +1,8 @@
 # plateformes: a model of platform game, made from a MONOPIXEL bank (decor, tile attributes, objects)
+# and a MONOSFX bank (the sound effects)
 name    = plateformes
 title   = PLATEFORMES
 library = mc
-modules = mgfx mjeu
+modules = mgfx mjeu msfx
 sources = main.c
-data    = niveau.mgf
+data    = niveau.mgf bruits.mfx

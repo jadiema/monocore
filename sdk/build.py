@@ -20,6 +20,7 @@ project.txt (one setting per line, # starts a comment):
     library = mc                    "easy" (default) or "mc", the low-level SDK (mc.h, libc)
     modules = mtrack                extra SDK modules (mc only): mtrack = music player (mtrack.h),
                                     mgfx = MONOPIXEL graphics banks (mgfx.h), mjeu = game library on mgfx (mjeu.h),
+                                    msfx = MONOSFX sound effects (msfx.h),
                                     ui480 = 640 x 480 editor interface (ui480.h)
 
 The SDK font is always included. The names above are declared in build/assets.h, which every

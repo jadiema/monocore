@@ -101,6 +101,10 @@ canvas#screen { image-rendering: auto; max-width: 100%; max-height: 100%; backgr
 #songTools[hidden] { display: none; }
 #bankTools { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 #bankTools[hidden] { display: none; }
+#sfxTools { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#sfxTools[hidden] { display: none; }
+#sfxList { display: inline-flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--silk-dim); }
+#sfxList a.btn { text-decoration: none; text-transform: none; }
 #bankList { display: inline-flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--silk-dim); }
 #bankList a.btn { text-decoration: none; text-transform: none; }
 #songList { display: inline-flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--silk-dim); }
@@ -221,6 +225,7 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
               <option value="hello" data-i18n="optHello">Exemple « Bonjour »</option>
               <option value="tracker" data-i18n="optTracker">MONOTRACKER (musique, clavier)</option>
               <option value="pixel" data-i18n="optPixel">MONOPIXEL (graphismes, souris)</option>
+              <option value="sfx" data-i18n="optSfx">MONOSFX (bruitages, souris)</option>
               <option value="plateformes" data-i18n="optPlateformes">PLATEFORMES (modèle de jeu, mjeu)</option>
               <option value="cascade" data-i18n="optCascade">CASCADE (jeu, clavier MIDI)</option>
               <option value="defender" data-i18n="optDefender">PIANO DEFENDER (jeu, clavier MIDI)</option>
@@ -238,6 +243,10 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
             <span id="songTools" hidden>
               <button class="btn" id="songsBtn" data-i18n="nvSongs" data-i18n-title="nvSongsTitle" title="Les morceaux de MONOTRACKER, en fichiers .mts pour les jeux (data = …, module mtrack)">Morceaux .mts</button>
               <span id="songList"></span>
+            </span>
+            <span id="sfxTools" hidden>
+              <button class="btn" id="sfxBtn" data-i18n="nvSfx" data-i18n-title="nvSfxTitle" title="Les banques de MONOSFX, en fichiers .mfx pour les jeux (data = …, module msfx)">Bruitages .mfx</button>
+              <span id="sfxList"></span>
             </span>
             <span id="bankTools" hidden>
               <button class="btn" id="banksBtn" data-i18n="nvBanks" data-i18n-title="nvBanksTitle" title="Les banques de MONOPIXEL, en fichiers .mgf pour les jeux (data = …, module mgfx)">Banques .mgf</button>
@@ -383,6 +392,12 @@ __CORE_JS__
     optAube: ['AUBE (démarrage)', 'AUBE (boot)'], optTest: ['ROM de test', 'Test ROM'], optHello: ['Exemple « Bonjour »', '“Hello” example'],
     optTracker: ['MONOTRACKER (musique, clavier)', 'MONOTRACKER (music, keyboard)'],
     optPixel: ['MONOPIXEL (graphismes, souris)', 'MONOPIXEL (graphics, mouse)'],
+    optSfx: ['MONOSFX (bruitages, souris)', 'MONOSFX (sound effects, mouse)'],
+    sfxKbd: ['MONOSFX se joue à la souris et au clavier : « souris de la console » et « clavier de la console » activés (F9 coupe le clavier). Espace : écouter ; F3 : l\'aide.',
+             'MONOSFX is used with the mouse and the keyboard: “console mouse” and “console keyboard” are on (F9 turns the keyboard off). Space: listen; F3: help.'],
+    nvSfx: ['Bruitages .mfx', '.mfx sound banks'],
+    nvSfxTitle: ['Les banques de MONOSFX, en fichiers .mfx pour les jeux (data = …, module msfx)', 'The MONOSFX banks, as .mfx files for the games (data = …, msfx module)'],
+    nvNoSfx: ['aucune banque sauvée (Ctrl+S dans MONOSFX)', 'no bank saved (Ctrl+S in MONOSFX)'],
     optPlateformes: ['PLATEFORMES (modèle de jeu, mjeu)', 'PLATEFORMES (game template, mjeu)'],
     nvBanks: ['Banques .mgf', '.mgf banks'],
     nvBanksTitle: ['Les banques de MONOPIXEL, en fichiers .mgf pour les jeux (data = …, module mgfx)',
@@ -547,9 +562,9 @@ __CORE_JS__
     setPill('runPill', 'ok', running ? 'running' : 'ready');
     peakWin.length = 0;
     // MONOTRACKER needs the console keyboard: switched on for it, and off again after it
-    const pixel = m.header.title === 'MONOPIXEL';
+    const pixel = m.header.title === 'MONOPIXEL' || m.header.title === 'MONOSFX', sfxEd = m.header.title === 'MONOSFX';
     const tracker = m.header.title === 'MONOTRACKER' || pixel, cascade = ['CASCADE', 'PIANO DEFENDER', 'SOLFEGE'].includes(m.header.title);
-    if ((tracker || cascade) && !$('kbdMode').checked) { setKbd(true); autoKbd = true; log(t(cascade ? 'cascadeKbd' : pixel ? 'pixelKbd' : 'trackerKbd') + '\n'); }
+    if ((tracker || cascade) && !$('kbdMode').checked) { setKbd(true); autoKbd = true; log(t(cascade ? 'cascadeKbd' : sfxEd ? 'sfxKbd' : pixel ? 'pixelKbd' : 'trackerKbd') + '\n'); }
     else if (!tracker && !cascade && autoKbd) { setKbd(false); autoKbd = false; }
     if (tracker && !$('mouseMode').checked) { $('mouseMode').checked = true; autoMouse = true; }
     else if (!tracker && autoMouse) { $('mouseMode').checked = false; autoMouse = false; }
@@ -557,7 +572,9 @@ __CORE_JS__
     $('songList').textContent = '';
     $('songTools').hidden = !hasSongs() && !(tracker && !pixel);
     $('bankList').textContent = '';
-    $('bankTools').hidden = !pixel && !hasBanks();
+    $('bankTools').hidden = !(pixel && !sfxEd) && !hasBanks();
+    $('sfxList').textContent = '';
+    $('sfxTools').hidden = !sfxEd && !hasSfx();
   }
   let autoKbd = false, autoMouse = false;
 
@@ -674,7 +691,7 @@ __CORE_JS__
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   }
   function savName() {   // the MiSTer names the save after the ROM file
-    const base = /\.mnc$/i.test(romKey) ? romKey.replace(/\.mnc$/i, '') : romKey === 'tracker' ? 'monotracker' : romKey === 'pixel' ? 'monopixel' : (m.header.title || romKey);
+    const base = /\.mnc$/i.test(romKey) ? romKey.replace(/\.mnc$/i, '') : romKey === 'tracker' ? 'monotracker' : romKey === 'pixel' ? 'monopixel' : romKey === 'sfx' ? 'monosfx' : (m.header.title || romKey);
     return base.toLowerCase().replace(/[^a-z0-9_.-]+/g, '_') + '.sav';
   }
   // songs of MONOTRACKER in the NVRAM: "MTNV", then 8 x {offset, size} from byte 16 (sdk/MTRACK.md)
@@ -709,6 +726,22 @@ __CORE_JS__
     return out;
   }
   function hasBanks() { return pixelBanks().length > 0; }
+  // banks of MONOSFX in the NVRAM: "MSNV", the same slot table (sdk/MSFX.md); name at +12 of a bank
+  function sfxBanks() {
+    if (!m) return [];
+    const n = m.nvram, dv = new DataView(n.buffer, n.byteOffset, n.byteLength);
+    if (String.fromCharCode(n[0], n[1], n[2], n[3]) !== 'MSNV') return [];
+    const out = [];
+    for (let k = 0; k < 8; k++) {
+      const off = dv.getUint32(16 + 8 * k, true), size = dv.getUint32(20 + 8 * k, true);
+      if (!size || off + size > n.length || String.fromCharCode(n[off], n[off + 1], n[off + 2], n[off + 3]) !== 'MFX1') continue;
+      let name = '';
+      for (let i = 0; i < 16 && n[off + 12 + i]; i++) name += String.fromCharCode(n[off + 12 + i]);
+      out.push({ slot: k + 1, name: name.trim() || 'bruits', bytes: n.slice(off, off + size) });
+    }
+    return out;
+  }
+  function hasSfx() { return sfxBanks().length > 0; }
   $('nvExportBtn').addEventListener('click', () => { if (m) { saveNv(); download(m.nvram.slice(), savName()); } });
   $('nvFile').addEventListener('change', (e) => {
     const f = e.target.files[0]; e.target.value = '';
@@ -724,6 +757,8 @@ __CORE_JS__
       if (hasSongs()) $('songTools').hidden = false;
       $('bankList').textContent = '';
       if (hasBanks()) $('bankTools').hidden = false;
+      $('sfxList').textContent = '';
+      if (hasSfx()) $('sfxTools').hidden = false;
     };
     r.readAsArrayBuffer(f);
   });
@@ -741,6 +776,19 @@ __CORE_JS__
     }
   });
 
+  $('sfxBtn').addEventListener('click', () => {
+    const list = $('sfxList'), banks = sfxBanks();
+    list.textContent = '';
+    if (!banks.length) { list.textContent = t('nvNoSfx'); return; }
+    for (const s of banks) {
+      const a = document.createElement('a');
+      a.className = 'btn';
+      a.href = URL.createObjectURL(new Blob([s.bytes], { type: 'application/octet-stream' }));
+      a.download = s.name.toLowerCase().replace(/[^a-z0-9_-]+/g, '_') + '.mfx';
+      a.textContent = s.slot + ' · ' + s.name;
+      list.appendChild(a);
+    }
+  });
   $('banksBtn').addEventListener('click', () => {
     const list = $('bankList'), banks = pixelBanks();
     list.textContent = '';

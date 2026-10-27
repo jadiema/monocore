@@ -1,0 +1,7 @@
+# MONOSFX: sound effect editor for MONOCORE-1, mouse and keyboard (32 effects of the PSG, generators)
+name    = monosfx
+title   = MONOSFX
+library = mc
+modules = msfx ui480
+sources = main.c
+data    = demo.mfx
