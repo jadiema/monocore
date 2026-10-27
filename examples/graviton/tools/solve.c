@@ -39,13 +39,16 @@ static int climb(const gv_level *lv, int np, int nq, int restarts, gv_world *out
       w.pods[w.n_pods++] = p;
     }
     if (fail) continue;
-    int a = lv->amin + (lv->amax > lv->amin ? (int)(rnd() % (lv->amax - lv->amin + 1)) : 0);
-    int ev; int64_t sc = shot_score(&w, a, &ev);
+    int a = lv->amin, ev; int64_t sc = (int64_t)1 << 62;
+    for (int aa = lv->amin; aa <= lv->amax; aa += 15) {        // coarse sweep of the angle first
+      int64_t s1 = shot_score(&w, aa, &ev);
+      if (s1 < sc) { sc = s1; a = aa; }
+    }
     for (int it = 0; it < 400 && sc > 0; it++) {
       gv_world w2 = w; int a2 = a;
       int step = 1 + rnd() % 24;
       int which = rnd() % (k + 1);
-      if (which == k || k == 0) { if (lv->amax > lv->amin) { a2 += (int)(rnd() % 9) - 4; if (a2 < lv->amin) a2 = lv->amin; if (a2 > lv->amax) a2 = lv->amax; } else continue; }
+      if (which == k || k == 0) { if (lv->amax > lv->amin) { a2 += (rnd() & 1) ? (int)(rnd() % 81) - 40 : (int)(rnd() % 5) - 2; if (a2 < lv->amin) a2 = lv->amin; if (a2 > lv->amax) a2 = lv->amax; } else continue; }
       else {
         int i = lv->n_fixed + which;
         int x = w2.pods[i].x + (int)(rnd() % (2 * step + 1)) - step, y = w2.pods[i].y + (int)(rnd() % (2 * step + 1)) - step;

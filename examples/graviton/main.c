@@ -23,16 +23,19 @@
 #define L_STAT 3
 
 // sprite cells (32 bytes each, from CHR_SPR)
-#define CELL_POD    0                      // 16 x 16: 4 cells
-#define CELL_PODFIX 4                      // 16 x 16, with a locked rim
-#define CELL_TARGET 8                      // 16 x 16
-#define CELL_SHOT   12                     // 8 x 8
-#define CELL_DOT    13                     // 8 x 8, a 2 x 2 dot
-#define CELL_SPARK  14                     // 8 x 8, a small star
-#define CELL_CURSOR 16                     // 16 x 16
-#define CELL_RING   20                     // 32 x 32: 16 cells
-#define CELL_BIGPOD 36                     // 32 x 32 planet: 16 cells
-#define N_CELLS     52
+#define CELL_POD     0                     // 16 x 16 asterisk (pull)
+#define CELL_PODPUSH 4                     // asterisk in a ring (push)
+#define CELL_PODFIX  8                     // fixed pull: asterisk in a square
+#define CELL_PODFIXP 12                    // fixed push: ring in a square
+#define CELL_TARGET  16                    // 16 x 16 hatched circle
+#define CELL_SHOT    20                    // 8 x 8
+#define CELL_SPARK   21
+#define CELL_DOT     22                    // 2 x 2 dot
+#define CELL_CURSOR  24                    // 16 x 16
+#define CELL_BIGPOD  28                    // 32 x 32 planet: 16 cells
+#define CELL_BIGPUSH 44                    // 32 x 32
+#define CELL_TGT     60                    // 4 frames of the spinning target, 4 cells each
+#define N_CELLS      76
 
 // palettes
 #define PAL_FONT    0
@@ -48,9 +51,7 @@
 #define PAL_SHOT    24
 #define PAL_CURSOR  25
 #define PAL_AIM     26
-#define PAL_RPULL   32                     // 32-35: rings of the pulling pods, bright to faint
-#define PAL_RPUSH   36                     // 36-39
-#define PAL_RTARGET 40                     // 40-43
+#define PAL_DIM     27                     // dimmed inventory dots
 #define PAL_SPARK   44                     // 44-47: sparks, bright to faint
 #define BG_ENTRY    4095
 
@@ -58,9 +59,8 @@ enum { INK_WHITE, INK_YELLOW, INK_CYAN, INK_ORANGE, INK_PURPLE, INK_GREY, INK_GR
 #define INK(i) (PAL_INK + (i))
 
 // static bitmap colours
-#define C_GRID   1
-#define C_STAR1  2
-#define C_STAR2  3
+#define C_FRAME  1
+#define C_DIM    2
 #define C_HALO   4
 #define C_WALL   5
 #define C_WALLHI 6
@@ -79,8 +79,8 @@ enum { INK_WHITE, INK_YELLOW, INK_CYAN, INK_ORANGE, INK_PURPLE, INK_GREY, INK_GR
 #define S_SHOT   2
 #define S_TARGET 3
 #define S_TRING  4
-#define S_AIM    5                         // 5-14
-#define N_AIM    10
+#define S_INV    5                         // 5-14: inventory dots
+#define N_INV    10
 #define S_POD    16                        // 16-31
 #define S_RING   32                        // 32-47
 #define S_FX     48
@@ -133,9 +133,6 @@ static void bm_line(uint32_t base, int x0, int y0, int x1, int y1, int r, int c)
     if (r) bm_disc(base, x, y, r, c); else bm_plot(base, x, y, c);
   }
 }
-static void bm_circle(uint32_t base, int x, int y, int r, int c) {
-  for (int a = 0; a < 1024; a += 4) bm_plot(base, x + FIX_INT(mc_cos(a) * r + 32768), y + FIX_INT(mc_sin(a) * r + 32768), c);
-}
 
 // ---------------------------------------------------------------- sprite graphics
 static uint8_t gfx[32 * 32];               // one picture being drawn, 1 byte a pixel
@@ -154,18 +151,6 @@ static void gfx_upload(int cell, int size) {   // size 8, 16 or 32: picture -> c
         }
   mc_chr_upload(CHR_SPR + cell * 32, buf, (uint32_t)k);
 }
-// a shaded ball: colours 1 (rim) .. 6 (highlight), centre (c, c), radius r
-static void gfx_ball(int c, int r, int size) {
-  for (int y = 0; y < size; y++)
-    for (int x = 0; x < size; x++) {
-      int dx = 2 * x + 1 - 2 * c, dy = 2 * y + 1 - 2 * c, d2 = dx * dx + dy * dy, R = 2 * r;
-      if (d2 > R * R) continue;
-      int hx = dx + R / 2, hy = dy + R / 2, h2 = hx * hx + hy * hy;     // light from the top left
-      int k = 6 - (h2 * 6) / (R * R * 2 + 1);
-      if (d2 > (R - 2) * (R - 2)) k = 1;
-      gfx_put(x, y, clampi(k, 1, 6), size);
-    }
-}
 static void gfx_ring(int c2, int r2, int thick2, int col, int size) {   // in half pixels
   for (int y = 0; y < size; y++)
     for (int x = 0; x < size; x++) {
@@ -175,92 +160,94 @@ static void gfx_ring(int c2, int r2, int thick2, int col, int size) {   // in ha
     }
 }
 
+static void gfx_line(int x0, int y0, int x1, int y1, int c, int size) {
+  int dx = x1 - x0, dy = y1 - y0, n = iabs(dx) > iabs(dy) ? iabs(dx) : iabs(dy);
+  if (!n) n = 1;
+  for (int i = 0; i <= n; i++) gfx_put(x0 + (dx * i + (dx >= 0 ? n / 2 : -n / 2)) / n, y0 + (dy * i + (dy >= 0 ? n / 2 : -n / 2)) / n, c, size);
+}
+static void gfx_asterisk(int c, int r, int col, int size) {
+  gfx_line(c - r, c, c + r, c, col, size); gfx_line(c, c - r, c, c + r, col, size);
+  int d = r * 3 / 4; gfx_line(c - d, c - d, c + d, c + d, col, size); gfx_line(c - d, c + d, c + d, c - d, col, size);
+}
+static void gfx_square(int a, int b, int col, int size) {
+  gfx_line(a, a, b, a, col, size); gfx_line(b, a, b, b, col, size); gfx_line(b, b, a, b, col, size); gfx_line(a, b, a, a, col, size);
+}
+
 static void make_sprites(void) {
-  gfx_begin(); gfx_ball(8, 6, 16); gfx_upload(CELL_POD, 16);
-  gfx_begin(); gfx_ball(8, 5, 16); gfx_ring(16, 14, 1, 7, 16); gfx_upload(CELL_PODFIX, 16);
-  gfx_begin(); gfx_ball(8, 7, 16);
-  gfx_ring(16, 6, 1, 7, 16); gfx_upload(CELL_TARGET, 16);
-  gfx_begin(); gfx_ball(4, 2, 8);
-  for (int i = 0; i < 8; i++) { if (!gfx[3 * 32 + i]) gfx[3 * 32 + i] = 8; if (!gfx[i * 32 + 3]) gfx[i * 32 + 3] = 8; }
+  gfx_begin(); gfx_asterisk(8, 5, 1, 16); gfx_upload(CELL_POD, 16);
+  gfx_begin(); gfx_asterisk(8, 3, 1, 16); gfx_ring(17, 12, 1, 1, 16); gfx_upload(CELL_PODPUSH, 16);
+  gfx_begin(); gfx_asterisk(8, 4, 1, 16); gfx_square(1, 15, 2, 16); gfx_upload(CELL_PODFIX, 16);
+  gfx_begin(); gfx_asterisk(8, 3, 1, 16); gfx_ring(17, 10, 1, 1, 16); gfx_square(1, 15, 2, 16); gfx_upload(CELL_PODFIXP, 16);
+  for (int f = 0; f < 4; f++) {                    // hatching turned by 22.5 degrees a frame
+    gfx_begin(); gfx_ring(17, 14, 1, 1, 16);
+    int32_t c = mc_cos(f * 64), sn = mc_sin(f * 64);
+    for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+      int dx = 2 * x + 1 - 17, dy = 2 * y + 1 - 17;
+      if (dx * dx + dy * dy >= 11 * 11) continue;
+      int u = (dx * c + dy * sn) >> 16;            // half pixels across the hatching
+      if (((u + 64) % 6) < 1) gfx_put(x, y, 1, 16);
+    }
+    gfx_upload(CELL_TGT + f * 4, 16);
+  }
+  gfx_begin(); gfx_put(3, 3, 1, 8); gfx_put(4, 3, 2, 8); gfx_put(3, 4, 2, 8); gfx_put(2, 3, 2, 8); gfx_put(3, 2, 2, 8);
   gfx_upload(CELL_SHOT, 8);
+  gfx_begin(); gfx_put(3, 3, 1, 8); gfx_put(3, 2, 2, 8); gfx_put(3, 4, 2, 8); gfx_put(2, 3, 2, 8); gfx_put(4, 3, 2, 8);
+  gfx_upload(CELL_SPARK, 8);
   gfx_begin(); gfx_put(3, 3, 1, 8); gfx_put(4, 3, 1, 8); gfx_put(3, 4, 1, 8); gfx_put(4, 4, 1, 8); gfx_upload(CELL_DOT, 8);
   gfx_begin();
-  gfx_put(3, 3, 1, 8); gfx_put(3, 2, 2, 8); gfx_put(3, 4, 2, 8); gfx_put(2, 3, 2, 8); gfx_put(4, 3, 2, 8);
-  gfx_upload(CELL_SPARK, 8);
-  gfx_begin();
-  for (int i = 0; i < 16; i++) {
-    if (i < 6 || i > 9) { gfx_put(i, 7, 1, 16); gfx_put(i, 8, 1, 16); gfx_put(7, i, 1, 16); gfx_put(8, i, 1, 16); }
-  }
-  for (int i = 0; i < 4; i++) { gfx_put(i, 0, 2, 16); gfx_put(0, i, 2, 16); gfx_put(15 - i, 0, 2, 16); gfx_put(15, i, 2, 16);
-                                gfx_put(i, 15, 2, 16); gfx_put(0, 15 - i, 2, 16); gfx_put(15 - i, 15, 2, 16); gfx_put(15, 15 - i, 2, 16); }
+  for (int i = 0; i < 16; i++) if (i < 5 || i > 10) { gfx_put(i, 8, 1, 16); gfx_put(8, i, 1, 16); }
   gfx_upload(CELL_CURSOR, 16);
-  gfx_begin(); gfx_ring(32, 28, 2, 1, 32); gfx_upload(CELL_RING, 32);
-  gfx_begin(); gfx_ball(16, 13, 32); gfx_ring(32, 30, 1, 7, 32); gfx_upload(CELL_BIGPOD, 32);
+  gfx_begin(); gfx_ring(32, 26, 1, 1, 32); gfx_asterisk(16, 6, 1, 32); gfx_upload(CELL_BIGPOD, 32);
+  gfx_begin(); gfx_ring(32, 26, 1, 1, 32); gfx_ring(32, 18, 1, 1, 32); gfx_asterisk(16, 4, 1, 32); gfx_upload(CELL_BIGPUSH, 32);
   mc_sprite_sheet(MC_CHR(CHR_SPR));
 }
 
 // ---------------------------------------------------------------- palettes
-static void ramp(int pal, int r, int g, int b) {   // 1 = rim (dark) ... 6 = highlight, 7 = rim line, 8 = glow
-  for (int k = 1; k <= 6; k++) {
-    int m = 90 + k * 28;                            // 118..258
-    int rr = r * m / 256, gg = g * m / 256, bb = b * m / 256;
-    if (k == 6) { rr = (rr + 255) / 2; gg = (gg + 255) / 2; bb = (bb + 255) / 2; }
-    set_rgb(pal, k, clampi(rr, 0, 255), clampi(gg, 0, 255), clampi(bb, 0, 255));
-  }
-  set_rgb(pal, 7, 170, 175, 190);
-  set_rgb(pal, 8, r / 2, g / 2, b / 2);
-}
-static void ring_pals(int pal, int r, int g, int b) {
-  for (int k = 0; k < 4; k++) { int m = 256 - k * 60; set_rgb(pal + k, 1, r * m / 256, g * m / 256, b * m / 256); }
-}
+static void two(int pal, int r, int g, int b) { set_rgb(pal, 1, r, g, b); set_rgb(pal, 2, r * 3 / 5, g * 3 / 5, b * 3 / 5); }
 static void make_palettes(void) {
   font_white = 1;
   for (int i = 1; i < 16; i++) if (PALETTE[i] == MC_RGB(255, 255, 255)) font_white = i;
   font_dark = font_white == 1 ? 2 : 1;
   for (int i = 1; i < 16; i++) if (i != font_white && PALETTE[i]) font_dark = i;
-  static const uint8_t ink[7][3] = { {240, 240, 255}, {255, 225, 90}, {90, 220, 255}, {255, 150, 60},
-                                     {200, 120, 255}, {120, 125, 150}, {120, 240, 140} };
+  // green phosphor: INK_WHITE is the bright green, INK_GREY the dim one
+  static const uint8_t ink[7][3] = { {90, 255, 90}, {255, 230, 60}, {80, 230, 255}, {255, 150, 40},
+                                     {240, 80, 255}, {40, 150, 40}, {180, 255, 180} };
   for (int p = 0; p < 7; p++) {
     for (int i = 0; i < 16; i++) PALETTE[(PAL_INK + p) * 16 + i] = PALETTE[i];
     set_rgb(PAL_INK + p, font_white, ink[p][0], ink[p][1], ink[p][2]);
-    set_rgb(PAL_INK + p, font_dark, 6, 8, 24);
+    set_rgb(PAL_INK + p, font_dark, 0, 0, 0);
   }
-  // scenery
-  set_rgb(PAL_STAT, C_GRID, 16, 22, 52);
-  set_rgb(PAL_STAT, C_STAR1, 60, 70, 110);
-  set_rgb(PAL_STAT, C_STAR2, 170, 180, 230);
-  set_rgb(PAL_STAT, C_HALO, 50, 55, 85);
-  set_rgb(PAL_STAT, C_WALL, 175, 180, 205);
-  set_rgb(PAL_STAT, C_WALLHI, 245, 245, 255);
-  set_rgb(PAL_STAT, C_BHALO, 10, 70, 95);
-  set_rgb(PAL_STAT, C_BOUNCE, 40, 200, 240);
-  set_rgb(PAL_STAT, C_BHI, 190, 250, 255);
-  set_rgb(PAL_STAT, C_NOPOD, 70, 18, 34);
-  set_rgb(PAL_STAT, C_BASE, 255, 220, 80);
-  set_rgb(PAL_STAT, C_TITLE1, 60, 20, 110);
-  set_rgb(PAL_STAT, C_TITLE2, 150, 80, 255);
-  set_rgb(PAL_STAT, C_TITLE3, 240, 220, 255);
-  // traces: set by trace_colours()
-  ramp(PAL_PULL, 70, 150, 255);
-  ramp(PAL_PUSH, 255, 110, 40);
-  ramp(PAL_PULLFIX, 50, 100, 190);
-  ramp(PAL_PUSHFIX, 190, 80, 30);
-  ramp(PAL_BAD, 130, 40, 50);
-  ramp(PAL_TARGET, 190, 70, 255);
-  set_rgb(PAL_TARGET, 7, 255, 220, 255);
-  ramp(PAL_SHOT, 255, 240, 160);
-  set_rgb(PAL_SHOT, 8, 255, 170, 40);
-  set_rgb(PAL_CURSOR, 1, 255, 255, 255); set_rgb(PAL_CURSOR, 2, 120, 230, 255);
-  set_rgb(PAL_AIM, 1, 255, 220, 80);
-  ring_pals(PAL_RPULL, 80, 160, 255);
-  ring_pals(PAL_RPUSH, 255, 120, 50);
-  ring_pals(PAL_RTARGET, 200, 90, 255);
+  set_rgb(PAL_STAT, C_FRAME, 40, 200, 40);
+  set_rgb(PAL_STAT, C_DIM, 20, 70, 20);
+  set_rgb(PAL_STAT, C_HALO, 20, 90, 20);
+  set_rgb(PAL_STAT, C_WALL, 60, 240, 60);
+  set_rgb(PAL_STAT, C_WALLHI, 60, 240, 60);
+  set_rgb(PAL_STAT, C_BHALO, 10, 70, 90);
+  set_rgb(PAL_STAT, C_BOUNCE, 60, 220, 255);
+  set_rgb(PAL_STAT, C_BHI, 60, 220, 255);
+  set_rgb(PAL_STAT, C_NOPOD, 70, 18, 18);
+  set_rgb(PAL_STAT, C_BASE, 60, 240, 60);
+  set_rgb(PAL_STAT, C_TITLE1, 15, 70, 15);
+  set_rgb(PAL_STAT, C_TITLE2, 50, 210, 50);
+  set_rgb(PAL_STAT, C_TITLE3, 170, 255, 170);
+  set_rgb(PAL_DYN, 4, 20, 90, 20);                 // aim line
+  set_rgb(PAL_DYN, 5, 60, 240, 60);                // barrel
+  two(PAL_PULL, 255, 150, 20);                     // the player's pods: orange (pull), yellow (push)
+  two(PAL_PUSH, 255, 240, 60);
+  two(PAL_PULLFIX, 255, 40, 40); set_rgb(PAL_PULLFIX, 2, 120, 20, 20);   // fixed pods: red
+  two(PAL_PUSHFIX, 200, 40, 160); set_rgb(PAL_PUSHFIX, 2, 100, 20, 80);
+  two(PAL_BAD, 90, 90, 90);
+  two(PAL_TARGET, 230, 60, 255);
+  two(PAL_SHOT, 255, 255, 255);
+  set_rgb(PAL_CURSOR, 1, 150, 255, 150);
+  set_rgb(PAL_AIM, 1, 255, 230, 60);
+  set_rgb(PAL_DIM, 1, 90, 80, 30);
   for (int k = 0; k < 4; k++) {
     int m = 256 - k * 60;
-    set_rgb(PAL_SPARK + k, 1, 255 * m / 256, 250 * m / 256, 200 * m / 256);
-    set_rgb(PAL_SPARK + k, 2, 255 * m / 256, 150 * m / 256, 50 * m / 256);
+    set_rgb(PAL_SPARK + k, 1, 200 * m / 256, 255 * m / 256, 200 * m / 256);
+    set_rgb(PAL_SPARK + k, 2, 40 * m / 256, 180 * m / 256, 40 * m / 256);
   }
-  mc_color(BG_ENTRY, MC_RGB(4, 5, 16));
+  mc_color(BG_ENTRY, MC_RGB(0, 0, 0));
 }
 
 // ---------------------------------------------------------------- sound
@@ -365,12 +352,15 @@ static int cur_x, cur_y, cur_hold;         // cursor, frames a direction has bee
 static int held = -1;                      // player pod carried, HELD_AIM, or -1
 #define HELD_AIM 100
 static int sel = 1;                        // type to put next: +1 pull, -1 push
+static bool pod_mode;                      // levels with pods to place: B2 switches aiming / placing
+static int aim_hold;
 static int trace_slot, trace_count;
 static uint32_t t_frame;
 
 static int count_on(int sign) { int n = 0; for (int i = 0; i < MAX_PLAYER; i++) if (pp[i].on && pp[i].sign == sign) n++; return n; }
 static int left_of(int sign) { return (sign > 0 ? lv->n_pull : lv->n_push) - count_on(sign); }
 static bool aim_free(void) { return lv->amax > lv->amin; }
+static bool can_place_any(void) { return lv->n_pull + lv->n_push > 0; }
 
 // the world as the physics sees it: fixed pods, then the player's (skip = one not counted)
 static void build_world(int skip) {
@@ -383,45 +373,113 @@ static void build_world(int skip) {
 }
 
 // ---------------------------------------------------------------- scenery
-static void draw_stars(int n) {
-  for (int i = 0; i < n; i++) {
-    int x = (int)rnd(SCR_W), y = GV_TOP + (int)rnd(SCR_H - GV_TOP);
-    if (bm_get(CHR_STAT, x, y)) continue;
-    bm_plot(CHR_STAT, x, y, rnd(5) ? C_STAR1 : C_STAR2);
+// the frame of the playfield, with a gap where a launcher sits on it
+static void draw_frame(int lx, int ly) {
+  int y0 = GV_TOP - 1;
+  for (int x = 0; x < SCR_W; x++) { bm_plot(CHR_STAT, x, y0, C_FRAME); bm_plot(CHR_STAT, x, SCR_H - 1, C_FRAME); }
+  for (int y = y0; y < SCR_H; y++) { bm_plot(CHR_STAT, 0, y, C_FRAME); bm_plot(CHR_STAT, SCR_W - 1, y, C_FRAME); }
+  if (lx < -100) return;
+  for (int y = ly - 9; y <= ly + 9; y++) for (int x = lx - 9; x <= lx + 9; x++) {
+    int dx = x - lx, dy = y - ly;
+    if (dx * dx + dy * dy <= 81) bm_plot(CHR_STAT, x, y, 0);
   }
 }
-static void draw_grid(void) {
-  for (int x = 20; x < SCR_W; x += 40) for (int y = GV_TOP + 2; y < SCR_H; y += 4) bm_plot(CHR_STAT, x, y, C_GRID);
-  for (int y = GV_TOP + 28; y < SCR_H; y += 40) for (int x = 0; x < SCR_W; x += 4) bm_plot(CHR_STAT, x, y, C_GRID);
+// launcher: the half of a circle that faces the playfield (all of it away from the edges)
+static void draw_launcher(void) {
+  int lx = lv->lx, ly = lv->ly;
+  for (int a = 0; a < 1024; a += 2) {
+    int x = lx + FIX_INT(mc_cos(a) * 9 + 32768), y = ly + FIX_INT(mc_sin(a) * 9 + 32768);
+    if (x < 0 || x >= SCR_W || y < GV_TOP - 1 || y >= SCR_H) continue;
+    bm_plot(CHR_STAT, x, y, C_BASE);
+  }
+}
+// a wall: the outline of a 5-pixel-wide bar around the segment
+static void draw_wall(const gv_wall *w) {
+  int dx = w->x2 - w->x1, dy = w->y2 - w->y1;
+  int len = (int)mc_isqrt((uint32_t)(dx * dx + dy * dy)); if (!len) len = 1;
+  int nx = (-dy * 2 + (dy > 0 ? -len / 2 : len / 2)) / len, ny = (dx * 2 + (dx > 0 ? len / 2 : -len / 2)) / len;
+  int ex = (dx * 2 + (dx > 0 ? len / 2 : -len / 2)) / len, ey = (dy * 2 + (dy > 0 ? len / 2 : -len / 2)) / len;
+  int ax = w->x1 - ex, ay = w->y1 - ey, bx = w->x2 + ex, by = w->y2 + ey;
+  int c = w->kind == W_BOUNCE ? C_BOUNCE : C_WALL;
+  bm_line(CHR_STAT, ax + nx, ay + ny, bx + nx, by + ny, 0, c);
+  bm_line(CHR_STAT, ax - nx, ay - ny, bx - nx, by - ny, 0, c);
+  bm_line(CHR_STAT, ax + nx, ay + ny, ax - nx, ay - ny, 0, c);
+  bm_line(CHR_STAT, bx + nx, by + ny, bx - nx, by - ny, 0, c);
 }
 static void draw_level(void) {
   bm_clear(CHR_STAT);
-  mc_srand(0x1234u + (uint32_t)level * 77u);
-  draw_grid();
   for (int i = 0; i < lv->n_nopod; i++) {          // forbidden zones: hatching
     const gv_rect *r = &lv->nopod[i];
     for (int y = r->y0; y <= r->y1; y++)
       for (int x = r->x0; x <= r->x1; x++)
-        if (((x + y) % 7) == 0 || x == r->x0 || x == r->x1 || y == r->y0 || y == r->y1) bm_plot(CHR_STAT, x, y, C_NOPOD);
+        if (((x + y) % 6) == 0) bm_plot(CHR_STAT, x, y, C_NOPOD);
   }
-  draw_stars(140);
-  for (int pass = 0; pass < 3; pass++)
-    for (int i = 0; i < lv->n_walls; i++) {
-      const gv_wall *w = &lv->walls[i];
-      bool b = w->kind == W_BOUNCE;
-      int r = pass == 0 ? 3 : pass == 1 ? 2 : 0;
-      int c = pass == 0 ? (b ? C_BHALO : C_HALO) : pass == 1 ? (b ? C_BOUNCE : C_WALL) : (b ? C_BHI : C_WALLHI);
-      bm_line(CHR_STAT, w->x1, w->y1, w->x2, w->y2, r, c);
-    }
-  bm_circle(CHR_STAT, lv->lx, lv->ly, 7, C_BASE);   // launcher
-  bm_circle(CHR_STAT, lv->lx, lv->ly, 8, C_HALO);
-  bm_disc(CHR_STAT, lv->lx, lv->ly, 2, C_BASE);
-  for (int x = 0; x < SCR_W; x++) bm_plot(CHR_STAT, x, GV_TOP - 2, C_HALO);
+  draw_frame(lv->lx, lv->ly);
+  for (int i = 0; i < lv->n_walls; i++) draw_wall(&lv->walls[i]);
+  draw_launcher();
+}
+
+// aim line and barrel, on the trace bitmap: their pixels are remembered to be wiped later, and the
+// aim line never covers a trace
+#define AIM_PIX 1200
+static uint16_t aim_px[AIM_PIX]; static uint8_t aim_py[AIM_PIX];
+static int aim_n, aim_drawn = -9999;
+static void aim_put(int x, int y, int c, bool over) {
+  if ((unsigned)x >= SCR_W || (unsigned)y >= SCR_H || aim_n >= AIM_PIX) return;
+  int v = bm_get(CHR_DYN, x, y);
+  if (v && !over) return;
+  if (v == 5 || v == 4) return;
+  bm_plot(CHR_DYN, x, y, c);
+  aim_px[aim_n] = (uint16_t)x; aim_py[aim_n] = (uint8_t)y; aim_n++;
+}
+static void aim_erase(void) {
+  for (int i = 0; i < aim_n; i++) { int v = bm_get(CHR_DYN, aim_px[i], aim_py[i]); if (v == 4 || v == 5) bm_plot(CHR_DYN, aim_px[i], aim_py[i], 0); }
+  aim_n = 0; aim_drawn = -9999;
+}
+static void aim_draw(void) {
+  if (aim_drawn == angle) return;
+  aim_erase();
+  int32_t c, s; gv_dir(angle, &c, &s);
+  int32_t x = (lv->lx << 16) + c * 18, y = (lv->ly << 16) + s * 18;
+  for (int i = 0; i < 520; i++) {                  // the long guide, a dimmed line
+    x += c; y += s;
+    int px = x >> 16, py = y >> 16;
+    if (px < 1 || px >= SCR_W - 1 || py < GV_TOP || py >= SCR_H - 1) break;
+    aim_put(px, py, 4, false);
+  }
+  // the barrel: a 14 x 5 outline from the centre outwards
+  int nx = -s * 2, ny = c * 2;
+  for (int k = 0; k < 4; k++) {
+    int32_t ax, ay, bx, by;
+    int32_t x0 = (lv->lx << 16) + c * 4, y0 = (lv->ly << 16) + s * 4, x1 = (lv->lx << 16) + c * 18, y1 = (lv->ly << 16) + s * 18;
+    if (k == 0) { ax = x0 + nx; ay = y0 + ny; bx = x1 + nx; by = y1 + ny; }
+    else if (k == 1) { ax = x0 - nx; ay = y0 - ny; bx = x1 - nx; by = y1 - ny; }
+    else if (k == 2) { ax = x1 + nx; ay = y1 + ny; bx = x1 - nx; by = y1 - ny; }
+    else { ax = x0 + nx; ay = y0 + ny; bx = x0 - nx; by = y0 - ny; }
+    for (int i = 0; i <= 16; i++)
+      aim_put((ax + (int32_t)(((int64_t)(bx - ax) * i) >> 4) + 32768) >> 16, (ay + (int32_t)(((int64_t)(by - ay) * i) >> 4) + 32768) >> 16, 5, true);
+  }
+  aim_drawn = angle;
+}
+// the angle, in degrees with a tenth, near the launcher ("-30.3"): 0 = right, minus = up
+static void angle_text(void) {
+  int d = angle % 3600; if (d > 1800) d -= 3600; if (d < -1800) d += 3600;   // tenths, up is negative
+  char s[10]; int k = 0;
+  if (d < 0) { s[k++] = '-'; d = -d; }
+  if (d >= 1000) s[k++] = (char)('0' + d / 1000);
+  if (d >= 100) s[k++] = (char)('0' + d / 100 % 10);
+  s[k++] = (char)('0' + d / 10 % 10); s[k++] = '.'; s[k++] = (char)('0' + d % 10);
+  while (k < 6) s[k++] = ' ';
+  s[k] = 0;
+  int col = lv->lx / 8, row = lv->ly / 8 + 2;
+  if (lv->ly >= SCR_H - 16) { row = lv->ly / 8 - 3; col = lv->lx / 8 + 2; }
+  if (lv->lx <= 8) col = 1;
+  text(clampi(col, 0, 34), clampi(row, 2, 28), s, INK_WHITE);
 }
 
 // traces of the last three shots: slot colours, newest brightest
 static void trace_colours(void) {
-  static const uint8_t c[3][3] = { {255, 235, 140}, {170, 110, 40}, {80, 45, 30} };
+  static const uint8_t c[3][3] = { {235, 235, 235}, {130, 130, 130}, {70, 70, 70} };
   for (int s = 0; s < 3; s++) {
     int age = (trace_slot - s + 3) % 3;
     if (age >= trace_count) age = 2;
@@ -445,26 +503,16 @@ static void trace_new(void) {                      // next slot, wiping the shot
 
 // ---------------------------------------------------------------- sprites of the level
 static void pod_sprite(int n, int x, int y, int sign, bool fixed, int power, bool bad, uint32_t t) {
+  (void)t;
   int pal = bad ? PAL_BAD : fixed ? (sign > 0 ? PAL_PULLFIX : PAL_PUSHFIX) : (sign > 0 ? PAL_PULL : PAL_PUSH);
   bool big = power > GV_POD_POWER + 40;
-  if (big) mc_sprite(S_POD + n, x - 16, y - 16, CELL_BIGPOD, 4, 4, pal, 4);
-  else mc_sprite(S_POD + n, x - 8, y - 8, fixed ? CELL_PODFIX : CELL_POD, 2, 2, pal, 4);
-  // the field: a ring that closes in (pull) or opens out (push)
-  int ph = (int)((t * 2 + (uint32_t)n * 23) % 64);
-  if (sign < 0) ph = 63 - ph;
-  int z = big ? 0x90 + ph * 5 : 0x50 + ph * 6;     // 0x50 .. 0x1D0 (0x90 .. 0x1D3 for planets)
-  int size = 32 * z / 256;
-  int fade = sign > 0 ? 3 - ph / 16 : ph / 16;
-  if (bad) fade = 3;
-  mc_sprite(S_RING + n, x - size / 2, y - size / 2, CELL_RING, 4, 4, (sign > 0 ? PAL_RPULL : PAL_RPUSH) + clampi(fade, 0, 3), 3);
-  mc_sprite_zoom(S_RING + n, z, z);
+  if (big) mc_sprite(S_POD + n, x - 16, y - 16, sign > 0 ? CELL_BIGPOD : CELL_BIGPUSH, 4, 4, pal, 4);
+  else mc_sprite(S_POD + n, x - 8, y - 8, sign > 0 ? CELL_POD : CELL_PODPUSH, 2, 2, pal, 4);
+  mc_sprite_hide(S_RING + n);
 }
-
 static void draw_target(uint32_t t) {
-  mc_sprite(S_TARGET, lv->tx - 8, lv->ty - 8, CELL_TARGET, 2, 2, PAL_TARGET, 4);
-  int ph = (int)(t % 48), z = 0x60 + ph * 5, size = 32 * z / 256;
-  mc_sprite(S_TRING, lv->tx - size / 2, lv->ty - size / 2, CELL_RING, 4, 4, PAL_RTARGET + clampi(ph / 12, 0, 3), 3);
-  mc_sprite_zoom(S_TRING, z, z);
+  mc_sprite(S_TARGET, lv->tx - 8, lv->ty - 8, CELL_TGT + (int)((t / 6) % 4) * 4, 2, 2, PAL_TARGET, 4);
+  mc_sprite_hide(S_TRING);
 }
 static void draw_pods(uint32_t t) {
   int n = 0;
@@ -476,34 +524,65 @@ static void draw_pods(uint32_t t) {
   }
   for (; n < 16; n++) { mc_sprite_hide(S_POD + n); mc_sprite_hide(S_RING + n); }
 }
-static void draw_aim(bool show) {
-  for (int i = 0; i < N_AIM; i++) {
-    if (!show) { mc_sprite_hide(S_AIM + i); continue; }
-    int d = 12 + i * 6;
-    int x = lv->lx + FIX_INT(gv_cos(angle) * d + 32768), y = lv->ly + FIX_INT(gv_sin(angle) * d + 32768);
-    mc_sprite(S_AIM + i, x - 4, y - 4, CELL_DOT, 1, 1, PAL_AIM, 4);
-  }
-}
+static void draw_aim(bool show) { if (show) aim_draw(); else aim_erase(); }
 
 // ---------------------------------------------------------------- HUD
 static void num2(char *s, int v) { s[0] = (char)('0' + v / 10 % 10); s[1] = (char)('0' + v % 10); }
+static const char *const level_hint[GV_LEVELS] = {
+  "VISEZ AVEC HAUT ET BAS, TIREZ AVEC B3\nCHAQUE TIR LAISSE SA TRACE.",
+  "UN PUITS ROUGE ATTIRE LE TIR.\nPASSEZ A COTE SANS TOMBER DEDANS.",
+  "LE PUITS VOUS AIDERA A REDESCENDRE\nDERRIERE LE MUR.",
+  "VISEZ LA FENETRE.",
+  "LES MURS BLEUS FONT REBONDIR LE TIR.",
+  "DEUX PUITS, UN MUR.\nLE DIXIEME DE DEGRE COMPTE.",
+  "CET ASTRE ATTIRE TRES FORT.",
+  "UN REBOND, PUIS LE PUITS VOUS\nPOSE DANS LA COUPE.",
+  "FAITES LE TOUR DE L'ASTRE.",
+  "TOUTE UNE CONSTELLATION A TRAVERSER.",
+  "CONTOURNEZ LE MUR PAR LA DROITE\nET REVENEZ PAR-DESSOUS.",
+  "DEUX TROUS D'AIGUILLE.",
+  "A VOUS DE POSER : B2, PUIS B1.\nUN PUITS PEUT ALLER DANS UN MUR.",
+  "UN PUITS ORANGE ATTIRE, LE JAUNE\nREPOUSSE (B4 CHANGE DE TYPE).",
+  "RIEN NE SE POSE DANS LES ZONES\nHACHUREES.",
+  "SUIVEZ LE COULOIR.",
+  "ENTREZ DANS LE COFFRE PAR LE HAUT.",
+  "LE TROU NOIR AVALE TOUT CE QUI\nS'APPROCHE TROP.",
+  "UN VIRAGE SERRE APRES L'AUTRE.",
+  "TOUT CE QUE VOUS AVEZ APPRIS.\nBONNE CHANCE.",
+};
+static void inventory(void) {                       // dots for the pods left: yellow pull, orange push
+  int n = 0, x = 4;
+  for (int pass = 0; pass < 2; pass++) {
+    int sign = pass == 0 ? 1 : -1, k = left_of(sign);
+    for (int i = 0; i < k && n < N_INV; i++, n++, x += 6)
+      mc_sprite(S_INV + n, x - 3, SCR_H - 10, CELL_DOT, 1, 1, sel == sign ? (sign > 0 ? PAL_PULL : PAL_PUSH) : PAL_DIM, 6);
+    if (k) x += 6;
+  }
+  for (; n < N_INV; n++) mc_sprite_hide(S_INV + n);
+}
 static void hud(void) {
   char s[48];
   memset(s, ' ', 40); s[40] = 0;
   text(0, 0, s, INK_WHITE);
-  s[0] = 'N'; s[1] = 'I'; s[2] = 'V'; s[3] = ' '; num2(s + 4, level + 1); s[6] = 0;
+  s[0] = 'N'; s[1] = 'I'; s[2] = 'V'; s[3] = 'E'; s[4] = 'A'; s[5] = 'U'; s[6] = ' '; num2(s + 7, level + 1); s[9] = 0;
   text(0, 0, s, INK_GREY);
-  text(7, 0, lv->name, INK_WHITE);
-  int col = 24;
-  if (lv->n_pull) { char p[8] = "+ 0/0"; p[2] = (char)('0' + left_of(1)); p[4] = (char)('0' + lv->n_pull);
-                    text(col, 0, p, sel > 0 ? INK_CYAN : INK_GREY); col += 6; }
-  if (lv->n_push) { char p[8] = "- 0/0"; p[2] = (char)('0' + left_of(-1)); p[4] = (char)('0' + lv->n_push);
-                    text(col, 0, p, sel < 0 ? INK_ORANGE : INK_GREY); col += 6; }
-  char t[8] = "T 00"; num2(t + 2, shots); text(36, 0, t, INK_YELLOW);
+  text(10, 0, lv->name, INK_WHITE);
+  char t[12] = "TIRS 00/20"; num2(t + 5, shots); num2(t + 8, GV_SHOTS); text(30, 0, t, shots >= GV_SHOTS - 3 ? INK_ORANGE : INK_WHITE);
+  inventory();
+}
+static void level_text(void) {                      // the advice of the level, top left, until the first shot
+  text(1, 2, "                                      ", INK_GREY);
+  text(1, 3, "                                      ", INK_GREY);
+  if (shots > 0) return;
+  const char *h = level_hint[level], *nl = strchr(h, '\n');
+  char l1[40]; int n = nl ? (int)(nl - h) : (int)strlen(h);
+  memcpy(l1, h, (size_t)n); l1[n] = 0;
+  text(1, 2, l1, INK_GREY);
+  if (nl) text(1, 3, nl + 1, INK_GREY);
 }
 static void hint(const char *s) {
-  char b[41]; memset(b, ' ', 40); b[40] = 0; text(0, 29, b, INK_WHITE);
-  text_c(29, s, INK_GREY);
+  char b[41]; memset(b, ' ', 40); b[40] = 0; text(0, 28, b, INK_WHITE);
+  text((40 - (int)strlen(s)) - 1, 28, s, INK_GREY);
 }
 
 // ---------------------------------------------------------------- vector title
@@ -531,12 +610,9 @@ static void vector_word(const int8_t *const *letters, int n, int x0, int y0, int
 static void draw_title(void) {
   static const int8_t *const word[8] = { L_G, L_R, L_A, L_V, L_I, L_T, L_O, L_N };
   bm_clear(CHR_STAT);
-  mc_srand(99);
-  draw_grid();
-  draw_stars(260);
+  draw_frame(-999, 0);
   int sc = 7, w = 8 * (5 * sc - sc / 2) - sc, x0 = (SCR_W - w) / 2, y0 = 34;
-  vector_word(word, 8, x0, y0, sc, 3, C_TITLE1);
-  vector_word(word, 8, x0, y0, sc, 1, C_TITLE2);
+  vector_word(word, 8, x0, y0, sc, 1, C_TITLE1);
   vector_word(word, 8, x0, y0, sc, 0, C_TITLE3);
 }
 
@@ -555,9 +631,9 @@ static void title_screen(void) {
   draw_title();
   bm_clear(CHR_DYN);
   trace_slot = 0; trace_count = 1;
-  set_rgb(PAL_DYN, 1, 255, 235, 140); set_rgb(PAL_DYN, 2, 150, 90, 40); set_rgb(PAL_DYN, 3, 70, 40, 30);
-  text_c(15, "PLACEZ LES PUITS, COURBEZ LE TIR,", INK_GREY);
-  text_c(16, "ATTEIGNEZ LA CIBLE.", INK_GREY);
+  set_rgb(PAL_DYN, 1, 235, 235, 235); set_rgb(PAL_DYN, 2, 130, 130, 130); set_rgb(PAL_DYN, 3, 70, 70, 70);
+  text_c(15, "VISEZ AU DIXIEME DE DEGRE, COURBEZ", INK_GREY);
+  text_c(16, "LE TIR, ATTEIGNEZ LA CIBLE.", INK_GREY);
   text_c(27, "MONOCORE-1  2026", INK_GREY);
   display_play();
   music_on();
@@ -571,10 +647,8 @@ static void title_screen(void) {
   for (uint32_t t = 0;; t++) {
     mc_frame(); sfx_update(); fx_update();
     if ((t / 30) & 1) text_c(22, "APPUYEZ SUR UN BOUTON", INK_YELLOW); else text_c(22, "                     ", INK_YELLOW);
-    for (int s = 0; s < GV_SUB; s++) {
-      gv_step(&dw, &b);
-      bm_plot(CHR_DYN, b.x >> 16, b.y >> 16, 1 + slot);
-    }
+    for (int s = 0; s < GV_SUB; s++) gv_step(&dw, &b);
+    bm_plot(CHR_DYN, b.x >> 16, b.y >> 16, 1 + slot);
     if (t % 160 == 159) {                          // rotate the trace colours
       slot = (slot + 1) % 3;
       volatile uint8_t *p = MC_CHRRAM + CHR_DYN;
@@ -582,14 +656,13 @@ static void title_screen(void) {
       for (int i = 0; i < BM_SIZE; i++) { uint8_t v = p[i]; if (!v) continue;
         if ((v & 15) == s) v &= 0xF0; if ((v >> 4) == s) v &= 0x0F; p[i] = v; }
       for (int k = 0; k < 3; k++) {
-        static const uint8_t c[3][3] = { {255, 235, 140}, {150, 90, 40}, {70, 40, 30} };
+        static const uint8_t c[3][3] = { {235, 235, 235}, {130, 130, 130}, {70, 70, 70} };
         int age = (slot - k + 3) % 3;
         set_rgb(PAL_DYN, 1 + k, c[age][0], c[age][1], c[age][2]);
       }
     }
     pod_sprite(0, 160, 176, 1, true, 150, false, t);
     mc_sprite(S_SHOT, (b.x >> 16) - 4, (b.y >> 16) - 4, CELL_SHOT, 1, 1, PAL_SHOT, 5);
-    if (t % 3 == 0) spark(b.x >> 16, b.y >> 16, 40, 12);
     if (t > 20 && any_button()) { click(880); break; }
   }
   music_off();
@@ -601,13 +674,13 @@ static int select_screen(int start) {
   bm_clear(CHR_DYN);
   draw_title();
   int c = clampi(start, 0, save.unlocked - 1);
-  text_c(13, "CHOIX DU NIVEAU", INK_PURPLE);
+  text_c(12, "CHOIX DU NIVEAU", INK_PURPLE);
   hint("B1: JOUER   START: TITRE");
   display_play();
   for (;;) {
     mc_frame(); sfx_update();
     for (int i = 0; i < GV_LEVELS; i++) {
-      int col = (i < 8) ? 0 : 20, row = 15 + (i % 8);
+      int col = (i < 10) ? 0 : 20, row = 14 + (i % 10);
       char s[24]; memset(s, ' ', 20); s[20] = 0;
       bool open = i < save.unlocked;
       s[0] = i == c ? '>' : ' ';
@@ -622,10 +695,10 @@ static int select_screen(int start) {
     }
     uint32_t p = pressed_all();
     int old = c;
-    if (p & IN_UP) c = c % 8 == 0 ? c : c - 1;
-    if (p & IN_DOWN) c = (c % 8 == 7 || c + 1 >= GV_LEVELS) ? c : c + 1;
-    if (p & IN_LEFT) c = c >= 8 ? c - 8 : c;
-    if (p & IN_RIGHT) c = c + 8 < GV_LEVELS ? c + 8 : c;
+    if (p & IN_UP) c = c % 10 == 0 ? c : c - 1;
+    if (p & IN_DOWN) c = (c % 10 == 9 || c + 1 >= GV_LEVELS) ? c : c + 1;
+    if (p & IN_LEFT) c = c >= 10 ? c - 10 : c;
+    if (p & IN_RIGHT) c = c + 10 < GV_LEVELS ? c + 10 : c;
     if (c >= save.unlocked) c = old;
     if (c != old) click(660);
     if (p & (IN_B(1) | IN_B(3)) || (mc_mouse_pressed() & MOUSE_LEFT)) { click(990); return c; }
@@ -634,11 +707,12 @@ static int select_screen(int start) {
 }
 
 // ---------------------------------------------------------------- playing a level
+static void mode_text(void);
 static void level_start(int n) {
   level = n; lv = &gv_levels[n];
   memset(pp, 0, sizeof pp);
   angle = lv->angle; if (angle < lv->amin || angle > lv->amax) angle = (lv->amin + lv->amax) / 2;
-  shots = 0; held = -1;
+  shots = 0; held = -1; pod_mode = false; aim_hold = 0;
   sfx_silence();
   sel = lv->n_pull ? 1 : -1;
   cur_x = SCR_W / 2; cur_y = SCR_H / 2; cur_hold = 0;
@@ -646,7 +720,8 @@ static void level_start(int n) {
   draw_level();
   bm_clear(CHR_DYN);
   trace_slot = 0; trace_count = 0; trace_colours();
-  hud();
+  aim_n = 0; aim_drawn = -9999;
+  hud(); level_text(); angle_text(); mode_text();
   display_play();
   if (mc_mouse_present()) mc_mouse_set(cur_x, cur_y);
 }
@@ -660,16 +735,7 @@ static int near_player_pod(int x, int y) {
   }
   return best;
 }
-static bool on_launcher(int x, int y) { int dx = x - lv->lx, dy = y - lv->ly; return dx * dx + dy * dy <= 12 * 12; }
 static bool can_put(int x, int y, int skip) { build_world(skip); return gv_can_place(&world, x, y, -1); }
-
-static void aim_to(int x, int y) {
-  int a = mc_atan2(y - lv->ly, x - lv->lx);
-  while (a < lv->amin) a += 1024;
-  while (a > lv->amin + 1023) a -= 1024;
-  if (a > lv->amax) a = (a - lv->amax < lv->amin + 1024 - a) ? lv->amax : lv->amin;
-  angle = a;
-}
 
 static void move_cursor(void) {
   uint32_t h = held_all();
@@ -678,6 +744,7 @@ static void move_cursor(void) {
   if (h & IN_RIGHT) dx++;
   if (h & IN_UP) dy--;
   if (h & IN_DOWN) dy++;
+  if (!pod_mode) dx = dy = 0;                      // the pad aims instead
   if (dx || dy) cur_hold++; else cur_hold = 0;
   int sp = cur_hold < 6 ? 1 : cur_hold < 20 ? 2 : 4;
   cur_x += dx * sp; cur_y += dy * sp;
@@ -694,25 +761,48 @@ static void move_cursor(void) {
   if (mc_mouse_present()) { mc_mouse_set(cur_x, cur_y); mx = cur_x; my = cur_y; }
 }
 
+static void mode_text(void) {
+  if (!can_place_any()) return;
+  text(29, 29, pod_mode ? "MODE PUITS" : "MODE VISEE", pod_mode ? INK_ORANGE : INK_GREY);
+}
+
 // returns 1 when the shot is fired, 2 to go to the menu
 static int edit_frame(uint32_t t) {
   move_cursor();
   uint32_t p = pressed_all();
   uint32_t m = mc_mouse_pressed();
   int wheel = mc_mouse_wheel();
-  if (m & MOUSE_LEFT) p |= IN_B(1);
-  if (m & MOUSE_RIGHT) p |= IN_B(2);
+  if (m & MOUSE_LEFT) { if (!pod_mode && can_place_any()) { pod_mode = true; mode_text(); } p |= IN_B(1); }
+  if (m & MOUSE_RIGHT) p |= IN_B(5);
   if (m & MOUSE_MIDDLE) p |= IN_B(3);
+  if (!can_place_any()) pod_mode = false;
 
-  if (p & IN_B(1)) {
-    if (held == HELD_AIM) { held = -1; click(700); }
-    else if (held >= 0) {
+  // aiming: up / down (keyboard arrows too), 0.1 degree a step, faster when held; wheel 0.1 a notch
+  uint32_t h = held_all();
+  int d = 0;
+  int up = pod_mode ? (mc_key(KEY_UP) ? 1 : 0) : ((h & (IN_UP | IN_LEFT)) ? 1 : 0);
+  int dn = pod_mode ? (mc_key(KEY_DOWN) ? 1 : 0) : ((h & (IN_DOWN | IN_RIGHT)) ? 1 : 0);
+  if (up || dn) {
+    aim_hold++;
+    int step = aim_hold == 1 ? 1 : aim_hold < 15 ? 0 : aim_hold < 45 ? 1 : aim_hold < 90 ? 3 : 10;
+    d = (dn - up) * step;
+  } else aim_hold = 0;
+  d -= wheel;
+  if (d && aim_free()) angle = clampi(angle + d, lv->amin, lv->amax);
+  static int shown = -9999;
+  if (angle != shown) { angle_text(); shown = angle; }
+
+  if ((p & IN_B(2)) && can_place_any()) {
+    if (held >= 0) { pp[held].on = false; held = -1; hud(); }
+    pod_mode = !pod_mode; click(pod_mode ? 700 : 500); mode_text();
+  }
+  if (pod_mode && (p & IN_B(1))) {
+    if (held >= 0) {
       if (can_put(cur_x, cur_y, held)) { pp[held].x = cur_x; pp[held].y = cur_y; held = -1; click(520); }
       else sfx_buzz = 8;
     } else {
       int k = near_player_pod(cur_x, cur_y);
       if (k >= 0) { held = k; click(780); }
-      else if (aim_free() && on_launcher(cur_x, cur_y)) { held = HELD_AIM; click(900); }
       else if (left_of(sel) > 0 && can_put(cur_x, cur_y, -1)) {
         for (int i = 0; i < MAX_PLAYER; i++) if (!pp[i].on) {
           pp[i].on = true; pp[i].x = cur_x; pp[i].y = cur_y; pp[i].sign = sel; break; }
@@ -722,39 +812,29 @@ static int edit_frame(uint32_t t) {
       } else sfx_buzz = 8;
     }
   }
-  if (p & IN_B(2)) {
-    int k = held >= 0 && held != HELD_AIM ? held : near_player_pod(cur_x, cur_y);
+  if (pod_mode && (p & IN_B(5))) {                  // remove (right click, B5)
+    int k = held >= 0 ? held : near_player_pod(cur_x, cur_y);
     if (k >= 0) { pp[k].on = false; if (held == k) held = -1; click(300); sel = pp[k].sign; hud(); }
-    else if (held == HELD_AIM) held = -1;
-    else if (lv->n_pull && lv->n_push) { sel = -sel; click(sel > 0 ? 440 : 620); hud(); }
   }
-  if (aim_free()) {
-    int d = 0;
-    if (pad_all() & IN_B(4)) d -= 1;
-    if (pad_all() & IN_B(5)) d += 1;
-    d += wheel * 2;
-    if (d) angle = clampi(angle + d, lv->amin, lv->amax);
-    if (held == HELD_AIM) aim_to(cur_x, cur_y);
-  }
+  if (pod_mode && (p & IN_B(4)) && lv->n_pull && lv->n_push && held < 0) { sel = -sel; click(sel > 0 ? 440 : 620); hud(); }
   if (p & IN_START) return 2;
 
-  // sprites
   draw_pods(t);
   draw_target(t);
   draw_aim(true);
   mc_sprite_hide(S_SHOT);
-  if (held >= 0 && held != HELD_AIM) {
+  if (pod_mode && held >= 0) {
     bool ok = can_put(cur_x, cur_y, held);
     pod_sprite(15, cur_x, cur_y, pp[held].sign, false, GV_POD_POWER, !ok, t);
     mc_sprite_hide(S_CURSOR);
-  } else {
+  } else if (pod_mode) {
     mc_sprite(S_CURSOR, cur_x - 8, cur_y - 8, CELL_CURSOR, 2, 2, PAL_CURSOR, 7);
-    // what the button would do here
-    if (held == HELD_AIM) hint("B1: LACHER LE CANON");
-    else if (near_player_pod(cur_x, cur_y) >= 0) hint("B1: PRENDRE   B2: RETIRER");
-    else if (aim_free() && on_launcher(cur_x, cur_y)) hint("B1: ORIENTER LE CANON");
-    else if (left_of(sel) > 0) hint(sel > 0 ? "B1: PUITS  B2: TYPE  B3: TIR" : "B1: REPOUSSOIR  B2: TYPE  B3: TIR");
-    else hint("B3: TIR   START: MENU");
+    if (near_player_pod(cur_x, cur_y) >= 0) hint("B1 PRENDRE  B5 RETIRER  B2 VISEE");
+    else if (left_of(sel) > 0) hint(sel > 0 ? "B1 POSER  B4 TYPE  B2 VISEE  B3 TIR" : "B1 REPOUSSOIR  B4 TYPE  B2 VISEE");
+    else hint("B2 VISEE   B3 TIR");
+  } else {
+    mc_sprite_hide(S_CURSOR);
+    hint(can_place_any() ? "HAUT/BAS VISER  B2 PUITS  B3 TIR" : "HAUT/BAS VISER   B3 TIR");
   }
   if (held < 0 && (p & IN_B(3))) return 1;
   return 0;
@@ -766,7 +846,7 @@ static int fly(void) {
   held = -1;
   build_world(-1);
   gv_body b; gv_launch(&b, lv, angle);
-  shots++; hud();
+  shots++; hud(); if (shots == 1) level_text();
   trace_new();
   int col = 1 + trace_slot;
   mc_sprite_hide(S_CURSOR); mc_sprite_hide(S_HELD); draw_aim(false);
@@ -780,7 +860,7 @@ static int fly(void) {
       ev = EV_NONE;
       for (int s = 0; s < GV_SUB; s++) {
         int e = gv_step(&world, &b);
-        bm_plot(CHR_DYN, b.x >> 16, b.y >> 16, col);
+        if (s == 0) bm_plot(CHR_DYN, b.x >> 16, b.y >> 16, col);
         if (e == EV_BOUNCE) { sfx_bounce = 8; burst(b.x >> 16, b.y >> 16, 4, 80); ev = EV_BOUNCE; }
         else if (e != EV_NONE) { ev = e; break; }
       }
@@ -788,7 +868,6 @@ static int fly(void) {
     }
     int x = b.x >> 16, y = b.y >> 16;
     mc_sprite(S_SHOT, x - 4, y - 4, CELL_SHOT, 1, 1, PAL_SHOT, 5);
-    if (t % 2 == 0) spark(x, y, 24, 10);
     draw_pods(t_frame + t); draw_target(t_frame + t);
     mc_frame(); sfx_update(); fx_update();
     if (ev != EV_NONE && ev != EV_BOUNCE) {
@@ -845,7 +924,7 @@ static int play_level(int n) {
     int r = edit_frame(t_frame++);
     if (r == 2) {
       int m = pause_menu();
-      hud();
+      hud(); level_text(); angle_text(); mode_text();
       if (m == 1) { level_start(n); continue; }
       if (m == 2) return -1;
       continue;
@@ -874,9 +953,15 @@ static int play_level(int n) {
       }
     } else {
       text_c(13, fail_text(ev), INK_ORANGE);
-      wait_frames(50);
+      if (shots >= GV_SHOTS) text_c(15, "PLUS DE TIRS : LE NIVEAU RECOMMENCE", INK_YELLOW);
+      wait_frames(shots >= GV_SHOTS ? 110 : 50);
       text_c(13, "                              ", INK_WHITE);
-      hud();
+      text_c(15, "                                   ", INK_WHITE);
+      if (shots >= GV_SHOTS) {                     // new series of shots; the pods stay where they are
+        shots = 0; bm_clear(CHR_DYN); aim_n = 0; aim_drawn = -9999;
+        trace_slot = 0; trace_count = 0; trace_colours();
+      }
+      hud(); level_text(); angle_text(); mode_text();
     }
   }
 }

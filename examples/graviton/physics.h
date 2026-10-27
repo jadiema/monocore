@@ -6,7 +6,8 @@
 #include "sintab.h"
 
 #define GV_SUB        4            // sub-steps per frame
-#define GV_LIFE       1500         // frames before the shot is lost in space
+#define GV_LIFE       1500
+#define GV_SHOTS      20           // shots a level         // frames before the shot is lost in space
 #define GV_POD_POWER  64           // pull of a player pod (px^3 / frame^2)
 #define GV_RMIN2      (6 * 6 * 256) // softening: r >= 6 px (units 1/256 px^2)
 #define GV_HIT_TARGET 8            // px
@@ -26,7 +27,7 @@ typedef struct { int16_t x0, y0, x1, y1; } gv_rect;
 typedef struct {
   const char *name;
   int16_t lx, ly;                  // launcher
-  int16_t angle, amin, amax;       // 1024 steps a turn, 0 = right, 256 = down; amin == amax: fixed
+  int16_t angle, amin, amax;       // tenths of a degree: 0 = right, 900 = down, -900 = up
   uint8_t speed;                   // launch speed, 1/16 px per frame
   int16_t tx, ty;                  // target
   uint8_t n_pull, n_push;          // pods the player may place
@@ -60,11 +61,22 @@ static inline uint32_t gv_isqrt(uint32_t v) {
   return r;
 }
 
-static inline void gv_launch(gv_body *b, const gv_level *lv, int angle) {
+// direction for an angle in tenths of a degree (16.16), the table read between its steps
+static inline void gv_dir(int a10, int32_t *c, int32_t *s) {
+  a10 %= 3600; if (a10 < 0) a10 += 3600;
+  int32_t pos = a10 * 65536 / 900;                     // 1/256 of a table step (1024 a turn)
+  int i = pos >> 8, f = pos & 255;
+  int32_t s0 = gv_sin(i), s1 = gv_sin(i + 1), c0 = gv_cos(i), c1 = gv_cos(i + 1);
+  *s = s0 + (((s1 - s0) * f) >> 8);
+  *c = c0 + (((c1 - c0) * f) >> 8);
+}
+
+static inline void gv_launch(gv_body *b, const gv_level *lv, int angle10) {
   b->x = lv->lx << 16; b->y = lv->ly << 16;
   int32_t s = lv->speed << 12;                         // 1/16 px -> 16.16
-  b->vx = (int32_t)(((int64_t)s * gv_cos(angle)) >> 16);
-  b->vy = (int32_t)(((int64_t)s * gv_sin(angle)) >> 16);
+  int32_t dc, ds; gv_dir(angle10, &dc, &ds);
+  b->vx = (int32_t)(((int64_t)s * dc) >> 16);
+  b->vy = (int32_t)(((int64_t)s * ds) >> 16);
   // start just outside the launcher
   b->x += b->vx * 4; b->y += b->vy * 4;
   b->frame = 0;
@@ -167,7 +179,7 @@ static inline void gv_world_init(gv_world *w, const gv_level *lv) {
 }
 
 // Where the player may put a pod: inside the playfield, outside the forbidden zones, away from the
-// launcher, the target, the walls and the other pods. skip = index of a pod to ignore (-1: none).
+// launcher, the target and the other pods (inside a wall is allowed). skip = index of a pod to ignore (-1: none).
 static inline int gv_can_place(const gv_world *w, int x, int y, int skip) {
   const gv_level *lv = w->lv;
   if (x < 8 || x > GV_W - 9 || y < GV_TOP + 8 || y > GV_H - 9) return 0;
@@ -183,14 +195,6 @@ static inline int gv_can_place(const gv_world *w, int x, int y, int skip) {
     if (i == skip) continue;
     dx = x - w->pods[i].x; dy = y - w->pods[i].y;
     if (dx * dx + dy * dy < 14 * 14) return 0;
-  }
-  for (int i = 0; i < lv->n_walls; i++) {
-    int32_t nx, ny;
-    gv_wall wl = lv->walls[i];
-    // a pod needs 8 px of room: test with the shot test, twice as wide
-    if (gv_wall_hit(&wl, x * 16, y * 16, &nx, &ny)) return 0;
-    if (gv_wall_hit(&wl, x * 16 + 64, y * 16, &nx, &ny) || gv_wall_hit(&wl, x * 16 - 64, y * 16, &nx, &ny) ||
-        gv_wall_hit(&wl, x * 16, y * 16 + 64, &nx, &ny) || gv_wall_hit(&wl, x * 16, y * 16 - 64, &nx, &ny)) return 0;
   }
   return 1;
 }
