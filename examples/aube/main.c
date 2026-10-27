@@ -1,4 +1,4 @@
-// MONOCORE-1 - AUBE, the start-up screen (boot.rom), in 360 x 270: a dawn over a lake where a black monolith
+// MONOCORE-1 - AUBE, the start-up screen (boot.rom), in 640 x 480 interlaced (hardware version 5): a dawn over a lake where a black monolith
 // stands, an orchestral piece, the name of the console, then "INSÉREZ UNE CARTOUCHE".
 // Everything moves through the palette: scene.png is the painting monolithe.png in 230 colours (plus
 // 12 for the rim of the monolith), and every colour goes from its night shade to the painting's,
@@ -55,9 +55,9 @@ static void text_palette(int layer, rgb ink, int a) {
 #define MOTES 24
 static struct { int x, y, vy, life, max; } mote[MOTES];
 static void mote_spawn(int i) {
-  mote[i].x = (115 + (int)(mc_rand() % 130)) << 8;
-  mote[i].y = (125 + (int)(mc_rand() % 45)) << 8;
-  mote[i].vy = 40 + (int)(mc_rand() % 50);                  // 1/256 pixel per frame
+  mote[i].x = (204 + (int)(mc_rand() % 231)) << 8;          // (positions of the 360 x 270 version x 16 / 9)
+  mote[i].y = (222 + (int)(mc_rand() % 80)) << 8;
+  mote[i].vy = 71 + (int)(mc_rand() % 89);                  // 1/256 pixel per frame
   mote[i].max = 300 + (int)(mc_rand() % 300);
   mote[i].life = 0;
 }
@@ -85,11 +85,11 @@ static void start_music(void) {
 
 int main(void) {
   mc_init();
-  mc_video_mode(360, 270);                                  // x 4 on a 1080p screen: every pixel sharp
+  mc_video_mode(640, 480);                                  // interlaced: fields of 240 lines, 640 pixels wide
   mc_background(0);
-  mc_layer(0, scene_chr, MC_TILE16 | MC_8BPP, 32, 32, 0);
-  mc_layer(1, logo_chr, MC_TILE16 | MC_4BPP, 32, 32, 2);
-  mc_layer(2, prompt_chr, MC_TILE16 | MC_4BPP, 32, 32, 2);
+  mc_layer(0, scene_chr, MC_TILE16 | MC_8BPP, 64, 32, 0);   // 64 x 32 tiles of 16 x 16: 1024 x 512 pixels
+  mc_layer(1, logo_chr, MC_TILE16 | MC_4BPP, 64, 32, 2);
+  mc_layer(2, prompt_chr, MC_TILE16 | MC_4BPP, 64, 32, 2);
   load_map(0, scene_map, 0);
   load_map(1, logo_map, 0);
   load_map(2, prompt_map, 0);
@@ -98,7 +98,7 @@ int main(void) {
     int p = 2 * (text_tiles[j].y * scene_width + text_tiles[j].x);
     mc_tile(text_tiles[j].layer, text_tiles[j].x, text_tiles[j].y, MC_TILE(map[p] | map[p + 1] << 8, PAL_TEXT + j, 0));
   }
-  for (int l = 0; l < 3; l++) mc_layer_scroll(l, 4, 1);       // the images are 368 x 272, shown from (4, 1)
+  for (int l = 0; l < 3; l++) mc_layer_scroll(l, 8, 8);       // the images are 656 x 496, shown from (8, 8)
   mc_sprite_sheet(mote_chr);
   for (int q = 0; q < 4; q++)                                // specks: four brightnesses, never darker than the sky
     for (int i = 1; i < 16; i++) {
@@ -131,13 +131,13 @@ int main(void) {
     for (int i = 0; i < MOTES; i++) {
       if (i >= n || mote[i].life < 0) { mote[i].life++; mc_sprite_hide(i); continue; }
       mote[i].y -= mote[i].vy; mote[i].life++;
-      mote[i].x += mc_sin(mote[i].life * 6 + i * 40) * 24 / 65536;
-      if (mote[i].life > mote[i].max || mote[i].y < (34 << 8)) { mote_spawn(i); continue; }
+      mote[i].x += mc_sin(mote[i].life * 6 + i * 40) * 43 / 65536;
+      if (mote[i].life > mote[i].max || mote[i].y < (60 << 8)) { mote_spawn(i); continue; }
       int sx = mote[i].x >> 8, sy = mote[i].y >> 8;
-      if (sx > MONO_X0 - 8 && sx < MONO_X1 && sy > MONO_Y0 - 8 && sy < MONO_Y1) { mc_sprite_hide(i); continue; }   // behind the monolith
+      if (sx > MONO_X0 - 16 && sx < MONO_X1 && sy > MONO_Y0 - 16 && sy < MONO_Y1) { mc_sprite_hide(i); continue; }   // behind the monolith
       int u = mote[i].life * 256 / mote[i].max;              // brightness: up, then down
       int q = (u < 128 ? u : 256 - u) * 4 / 129;
-      mc_sprite(i, mote[i].x >> 8, mote[i].y >> 8, 0, 1, 1, PAL_MOTE + (q > 3 ? 3 : q), 1);
+      mc_sprite(i, mote[i].x >> 8, mote[i].y >> 8, 0, 2, 2, PAL_MOTE + (q > 3 ? 3 : q), 1);
     }
   }
 }

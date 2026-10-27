@@ -6,8 +6,11 @@ lueur, puis le nom de la console apparaît sur l'accord final, suivi de « INSÉ
 La musique est une courte pièce orchestrale (cordes, chœur, cors, célesta, harpe, timbales, environ
 30 s), de ré mineur vers ré majeur. START rejoue la séquence.
 
-- **Image** : 360 × 270 pixels, soit exactement 4 fois l'écran en 1080p (1440 × 1080) : le scaler de la MiSTer
-  n'interpole rien et chaque pixel reste net. La scène est la peinture `monolithe.png`, réduite et
+- **Image** : 640 × 480 entrelacé (matériel version 5 : deux trames de 240 lignes, que le scaler de la
+  MiSTer réassemble en HDMI). Les images font 656 × 496 pixels en tuiles 16 × 16 (cartes 64 × 32),
+  affichées à partir de (8, 8) ; la première version était en 360 × 270, et `make_assets.py` garde ses
+  proportions (facteur 16/9). Sur un core plus ancien (version 4 ou moins), la hauteur est ramenée à
+  288 lignes et l'image est coupée. La scène est la peinture `monolithe.png`, réduite et
   ramenée à 230 couleurs par `make_assets.py` (165 pour le ciel et les collines, 65 pour le lac),
   plus 12 niveaux pour le bord du monolithe. Tout passe par la palette : `scene_colors.h` donne pour
   chaque couleur sa teinte de nuit et le moment où elle prend la lumière (les couleurs vives près du
