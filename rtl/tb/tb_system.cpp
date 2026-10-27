@@ -349,8 +349,8 @@ int main(int argc, char **argv) {
                 if (!hb && prev_hb) px = 0;
                 if (!hb && !vb) {
                     int yy = (int)top->dbg_vcount - 1, xx = px;
-                    // interlaced: field line yy is picture line 2 yy + field, with VGA_F1 = 1 on even fields
-                    if (top->dbg_interlace) { yy = 2 * yy + (top->vga_f1 ? 0 : 1); fb_il = true; }
+                    // interlaced: field line yy is picture line 2 yy + field, with VGA_F1 = field
+                    if (top->dbg_interlace) { yy = 2 * yy + (top->vga_f1 ? 1 : 0); fb_il = true; }
                     if (xx < 640 && yy >= 0 && yy < 512) {
                         fb[yy * 640 + xx] = (top->vga_r << 16) | (top->vga_g << 8) | top->vga_b;
                         if (xx + 1 > fb_w) fb_w = xx + 1;

@@ -6,8 +6,10 @@
 // (12.5 MHz at 50 MHz).
 //
 // Interlaced mode: line period v renders picture line 2v + field, so the buffer is chosen by px_y[1];
-// f1 tells the framework's scaler (sys/ascal.vhd) where the field goes: it samples VGA_F1 at the first
-// active line and puts the field on the odd output lines when it is 0, on the even ones when it is 1.
+// f1 tells the framework's scaler (sys/ascal.vhd) where the field goes. At the start of a field the scaler
+// uses the VGA_F1 value it latched on the last active line of the previous field, and puts the new field on
+// the odd output lines when that value is 0. As VGA_F1 alternates, this means VGA_F1 = 1 during the field
+// that goes on the odd lines: f1 = field (seen on the board: the opposite polarity swaps the line pairs).
 //
 // Line layout, in pixels from the start of the line period: horizontal sync 0-55, picture from
 // H_START to H_START + width, blanking for the rest (the period is 667 to 964 pixels depending on the
@@ -66,7 +68,7 @@ module mc_scanout (
 				vblank <= !vis_line;
 				hs <= hpos < H_SYNC;                            // syncs active high, like the template's
 				vs <= vcount >= height + 10'd4 && vcount < height + 10'd7;
-				f1 <= interlace && !field;                     // even picture lines: output lines 0, 2, 4...
+				f1 <= interlace && field;                      // 1 on the field of the odd picture lines
 				if (vis_px && vis_line) begin
 					r <= {q[14:10], q[14:12]};
 					g <= {q[9:5], q[9:7]};
