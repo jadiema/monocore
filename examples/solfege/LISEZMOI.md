@@ -58,7 +58,7 @@ RAPIDE (0,85 s). Les notes en jeu sont celles du réglage NOTES ; ce mode ne cha
 
 | Où | Comment |
 |---|---|
-| MiSTer | `solfege.mnc` dans `games/MONOCORE`, le core version 4 et le clavier MIDI branché (menu du core : *UART Mode* → *MIDI*, *MidiLink : USB*), voir `manual/MONOCORE-1_Guide_MIDI.pdf` |
+| MiSTer | `solfege.mnc` dans `games/MONOCORE`, le core version 5 (640 × 480) et le clavier MIDI branché (menu du core : *UART Mode* → *MIDI*, *MidiLink : USB*), voir `manual/MONOCORE-1_Guide_MIDI.pdf` |
 | Simulateur | SOLFEGE dans la liste des ROM intégrées ; cochez « clavier MIDI » sous l'écran (Firefox : page ouverte par `dist/simulateur.bat`) |
 
 Le clavier à l'écran couvre quatre octaves, de do 2 à si 5. Sans clavier MIDI : W X C V… joue l'octave
@@ -66,8 +66,14 @@ du do 4 en clé de sol (do 3 en clé de fa), A Z E R… l'octave au-dessus. Éch
 
 ## Comment c'est fait
 
-La portée est une couche de tuiles (le papier, les cinq lignes, la ligne de lecture) ; les clés, les
-notes et les petites lignes supplémentaires sont des sprites, placés au pixel près : une note monte de
-4 pixels par degré. Les notes jouées sonnent avec l'échantillon de piano électrique de la banque de
-MONOTRACKER (`mt_note`, sans morceau). Le choix de la note suivante favorise les notes pas encore
-connues et la dernière arrivée.
+Le jeu tourne en **640 × 480 entrelacé** : il faut le core en version 5 du matériel (le menu le signale
+sinon). Le texte est en tuiles de 16 × 16 (la police agrandie deux fois avec l'algorithme EPX, qui adoucit
+les diagonales : 40 × 30 caractères) ; la portée aussi, avec des lignes de deux pixels d'épaisseur pour
+qu'elles ne scintillent pas en entrelacé. Les notes sont dessinées en pleine résolution (une ronde de
+24 × 16 pixels, calculée au démarrage entre deux ellipses), un degré vaut 8 pixels ; les clés, les
+altérations et les noms sous les notes sont des sprites agrandis deux fois. Le piano est une seule image
+en 8 bits par pixel, 28 touches blanches de 22 pixels et les touches noires entre elles : chaque touche a
+son propre indice de couleur, si bien qu'en allumer une ne coûte qu'une écriture dans la palette.
+
+Les notes jouées sonnent avec l'échantillon de piano électrique de la banque de MONOTRACKER (`mt_note`,
+sans morceau). Le choix de la note suivante favorise les notes pas encore connues et la dernière arrivée.

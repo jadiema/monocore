@@ -145,7 +145,7 @@ affiche tout ce que la console reçoit).
 | `examples/monotracker` | MONOTRACKER, tracker de musique au clavier et à la souris, interface à panneaux façon trackers Amiga : 16 pistes, page d'édition des sons, sauvegarde en NVRAM, motifs rangés dans la CHR RAM |
 | `examples/cascade` | CASCADE, jeu de rythme au clavier MIDI : un morceau de MONOTRACKER parcouru, ses notes défilant dans une couche de tuiles en anneau, synchronisées sur `mtrack` |
 | `examples/defender` | PIANO DEFENDER, shoot'em up au clavier MIDI : vélocité, accords, molette de modulation, tirs joués avec un instrument défini dans le programme (`mt_note`) |
-| `examples/solfege` | SOLFEGE, lecture de notes au clavier MIDI : portée en tuiles, notes et clés en sprites, progression gardée en NVRAM |
+| `examples/solfege` | SOLFEGE, lecture de notes au clavier MIDI en 640 × 480 entrelacé : texte et portée en tuiles 16 × 16 (police agrandie en EPX), piano en une image 8 bpp où chaque touche a sa couleur, sprites zoomés, progression gardée en NVRAM |
 | `examples/test_mtrack` | le module `mtrack` comme dans un jeu : un morceau, deux bruitages, pause |
 | `examples/virusmeadow` | pong-casse-briques coopératif à 4 joueurs : écran d'accueil en image 8 bpp (`maps8`) avec fondu par la palette, prairie procédurale, virus sur un plan de tuiles, joueurs console pour les places libres, manettes, sticks, spinners et paddles |
 
