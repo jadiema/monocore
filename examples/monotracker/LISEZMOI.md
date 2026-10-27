@@ -1,5 +1,9 @@
 # MONOTRACKER
 
+En haute résolution : 640 × 240, soit 80 colonnes de texte (il faut le core MONOCORE en version 5 ;
+un core plus ancien affiche un message). La police est rendue pour ces pixels deux fois plus hauts que
+larges par `make_font.py` (DejaVu Sans Mono Bold, licence Bitstream Vera), lissée sur quatre niveaux.
+
 Le mode d'emploi complet, illustré, est le manuel `manual/MONOTRACKER_Manuel.pdf`
 (régénéré par `python3 manual/tools/tracker_manual.py`).
 
@@ -34,7 +38,7 @@ panneau du haut toujours présent et, dessous, la page en cours.
 | en haut au centre | boutons JOUER, MOTIF (le motif en boucle), STOP, EDIT, SUIVI, SAUVER et les quatre pages : MOTIFS, SONS, MORCEAU, AIDE |
 | en haut à droite | les vumètres des 16 pistes (1-8 PSG, A-H PCM), avec maintien de crête |
 | bandeau | nom du morceau, instrument courant, durée de lecture ; messages et aide contextuelle |
-| dessous | la page : **motifs** (64 lignes, 4 pistes à l'écran), **sons** (réglages en deux colonnes, enveloppe et onde en graphe), **morceau** (ordre, réglages, emplacements de la NVRAM et leurs boutons) ; l'**aide** occupe tout l'écran |
+| dessous | la page : **motifs** (64 lignes, 6 pistes à l'écran), **sons** (réglages en deux colonnes, enveloppe et onde en graphe), **morceau** (ordre, réglages, emplacements de la NVRAM et leurs boutons) ; l'**aide** occupe tout l'écran |
 
 ## La souris
 

@@ -34,7 +34,8 @@ def run(script, nvram=None):
     for f in os.listdir(out):
         if f.endswith('.ppm'):
             im = Image.open(os.path.join(out, f))
-            im.resize((im.width * 2, im.height * 2), Image.NEAREST).save(os.path.join(IMG, 'tracker_%s.png' % f[:-4]))
+            w, h = (im.width, im.height * 2) if im.width >= 640 else (im.width * 2, im.height * 2)   # 640 x 240: pixels twice as tall
+            im.resize((w, h), Image.NEAREST).save(os.path.join(IMG, 'tracker_%s.png' % f[:-4]))
             print('tracker_%s.png' % f[:-4])
 
 nv = os.path.join(tempfile.mkdtemp(), 'monotracker.sav')

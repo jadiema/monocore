@@ -18,7 +18,7 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 | `examples/aube/` | AUBE, l'écran d'accueil actuel (`boot.rom`) : animation de palette et musique orchestrale synthétisée |
 | `examples/aigle/` | portage de L'Aigle d'Or (MO5, 1985) : BASIC traduit à la main, code 6809 traduit automatiquement (`tools/recomp6809.py`) ; données tirées de sa propre copie |
 | `examples/pbobble2/` | portage de Puzzle Bobble 2 / Bust-A-Move Again (Neo Geo, Taito 1995) : code 68000 traduit par `tools/recomp68k`, runtime Neo Geo, couche MONOCORE ; jouable, muet pour l'instant ; données tirées de sa propre copie |
-| `examples/monotracker/` | MONOTRACKER, un tracker de musique qui se joue au clavier et à la souris : 16 pistes (8 PSG, 8 PCM), édition des sons, morceaux en NVRAM, exportés pour les jeux (`sdk/MTRACK.md`) |
+| `examples/monotracker/` | MONOTRACKER, un tracker de musique en 640 × 240 (80 colonnes) qui se joue au clavier, à la souris et au clavier MIDI : 16 pistes (8 PSG, 8 PCM), édition des sons, morceaux en NVRAM, exportés pour les jeux (`sdk/MTRACK.md`) |
 | `examples/cascade/` | CASCADE, le jeu des notes qui tombent, à jouer sur un clavier MIDI : les morceaux de MONOTRACKER deviennent des niveaux |
 | `examples/defender/` | PIANO DEFENDER, shoot'em up au clavier MIDI : les envahisseurs descendent sur les touches, on joue leur note pour tirer |
 | `examples/solfege/` | SOLFEGE, apprendre à lire les notes en 640 × 480 entrelacé : une portée (clé de sol ou de fa), le clavier MIDI, une nouvelle note dès que les précédentes sont connues, et une lecture déroulante |

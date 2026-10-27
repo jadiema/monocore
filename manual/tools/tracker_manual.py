@@ -22,14 +22,14 @@ A = parts.append
 # ---------------------------------------------------------------- figures
 def fig_screen():
     """the screen of the tracker with its zones numbered"""
-    zones = [(0, 0, 120, 76, 1), (120, 0, 128, 76, 2), (248, 0, 136, 76, 3), (0, 76, 384, 24, 4), (0, 100, 384, 140, 5)]
+    zones = [(0, 0, 120, 152, 1), (120, 0, 128, 152, 2), (248, 0, 392, 152, 3), (0, 152, 640, 48, 4), (0, 200, 640, 280, 5)]   # 640 x 480: the 640 x 240 screen, pixels twice as tall
     g = []
     for x, y, w, h, n in zones:
-        g.append('<rect x="%d" y="%d" width="%d" height="%d" fill="none" stroke="#f2c81b" stroke-width="2" stroke-dasharray="5 3"/>' % (x + 1, y + 1, w - 2, h - 2))
-        g.append('<circle cx="%d" cy="%d" r="9" fill="#e23b2e" stroke="#fff" stroke-width="1.5"/><text x="%d" y="%d" fill="#fff" font-size="11" font-weight="700" text-anchor="middle">%d</text>'
-                 % (x + w - 12, y + 12, x + w - 12, y + 16, n))
-    return ('<figure class="fig"><svg viewBox="0 0 384 240" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="Archivo" style="width:125mm">'
-            '<image href="images/tracker_motifs.png" x="0" y="0" width="384" height="240" style="image-rendering:pixelated"/>%s</svg>'
+        g.append('<rect x="%d" y="%d" width="%d" height="%d" fill="none" stroke="#f2c81b" stroke-width="2" stroke-dasharray="5 3"/>' % (x + 2, y + 2, w - 4, h - 4))
+        g.append('<circle cx="%d" cy="%d" r="15" fill="#e23b2e" stroke="#fff" stroke-width="2.5"/><text x="%d" y="%d" fill="#fff" font-size="18" font-weight="700" text-anchor="middle">%d</text>'
+                 % (x + w - 20, y + 20, x + w - 20, y + 26, n))
+    return ('<figure class="fig"><svg viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="Archivo" style="width:108mm">'
+            '<image href="images/tracker_motifs.png" x="0" y="0" width="640" height="480" style="image-rendering:pixelated"/>%s</svg>'
             '<figcaption>Les cinq zones de l\'écran, ici sur la page des motifs pendant la lecture de la démo.</figcaption></figure>') % ''.join(g)
 
 def fig_cell():
@@ -92,7 +92,7 @@ COVER = '''<section class="cover">
  <div class="cover-sub">MANUEL DE L'UTILISATEUR</div>
  <div class="cover-shot"><img src="images/tracker_motifs.png"></div>
  <div class="cover-bottom">Composez au clavier, à la souris ou au clavier MIDI · Créez vos sons · Mettez la musique dans vos jeux</div>
- <div class="cover-ed">ÉDITION 2 · OCTOBRE 2026</div>
+ <div class="cover-ed">ÉDITION 3 · OCTOBRE 2026</div>
 </section>'''
 
 A('@@TOC@@')
@@ -126,7 +126,7 @@ A(h2('Où le lancer'))
 A(table(['Machine', 'Comment'], [
   ['MiSTer', "copiez " + c('monotracker.mnc') + " dans " + c('games/MONOCORE') + ", branchez un clavier USB (et une souris), puis chargez la ROM depuis le menu du core MONOCORE"],
   ['Simulateur', "ouvrez " + c('dist/monocore.html') + " et choisissez <b>MONOTRACKER</b> dans la liste des ROM intégrées : le clavier et la souris de la console s'activent tout seuls"],
-  ['Version du core', "le clavier demande le core en version 2, la souris en version 3, le clavier MIDI en version 4 ; avec un core plus ancien, le bandeau l'indique (<i>CORE SANS SOURIS</i>) et tout reste utilisable au clavier"]]))
+  ['Version du core', "MONOTRACKER demande le core en version 5 (640 pixels de large, 80 colonnes) : avec un core plus ancien, il l'indique à l'écran et s'arrête. La souris est là depuis la version 3, le clavier MIDI depuis la version 4"]]))
 
 # ---------------------------------------------------------------- 2
 A(chapter(2, "Un premier morceau", "Quatre notes, une batterie, une sauvegarde : le tour complet en dix minutes.", 2))
@@ -140,7 +140,7 @@ A(screen('tracker_premier.png', "Les quatre notes de l'accord de do majeur sur l
 A(p("Appuyez sur " + k('Maj', 'Entrée') + " : le motif se joue en boucle à partir du curseur. " + k('Échap') + " arrête tout."))
 A(h2('Ajouter une batterie'))
 A(ol([
-  "Appuyez sur " + k('Tab') + " jusqu'à la piste <b>PCM 1</b> (huit fois) : les quatre pistes PCM 1 à 4 apparaissent à l'écran.",
+  "Appuyez sur " + k('Tab') + " jusqu'à la piste <b>PCM 1</b> (huit fois) : la vue passe aux pistes PSG 7 à PCM 4.",
   "Remontez en haut avec " + k('Origine') + ". Sur une piste PCM, l'instrument courant est celui des échantillons : appuyez sur " + k('F12') + " ou " + k('F11') + " jusqu'à <b>0A KICK</b>.",
   "Mettez le pas à 4 avec " + k('F8') + " (trois fois) : après chaque note, le curseur descendra de quatre lignes, soit un temps.",
   "Tapez " + k('W') + " seize fois : une grosse caisse sur chaque temps, du haut au bas du motif.",
@@ -164,7 +164,7 @@ A(p("La souris déplace une flèche blanche. Un clic gauche augmente ou active, 
 # ---------------------------------------------------------------- 4
 A(chapter(4, "Écrire des motifs", "La grille de notes, le piano, et toutes les façons de la remplir.", 4))
 A(h2('La grille'))
-A(p("La page des motifs montre quatre pistes à la fois : PSG 1 à 4, PSG 5 à 8, PCM 1 à 4 ou PCM 5 à 8. " + k('Tab') + " passe à la piste suivante (" + k('Maj', 'Tab') + " à la précédente) et l'affichage suit. Le numéro du motif est en haut à gauche ; les numéros de ligne sont en hexadécimal, de 00 à 3F, avec un repère tous les quatre temps."))
+A(p("La page des motifs montre six pistes à la fois : PSG 1 à 6, puis PSG 7 à PCM 4, puis PCM 3 à 8. " + k('Tab') + " passe à la piste suivante (" + k('Maj', 'Tab') + " à la précédente) et l'affichage suit. Le numéro du motif est en haut à gauche ; les numéros de ligne sont en hexadécimal, de 00 à 3F, avec un repère tous les quatre temps."))
 A(fig_cell())
 A(table(['Colonne', 'Contenu'], [
   ['note', "C-4 est le do de la 4e octave, C#4 le do dièse ; les notes vont de C-0 à B-7 ; " + c('===') + " est une note coupée"],
@@ -197,7 +197,7 @@ A(table(['Touches', 'Effet'], [
   [k('Alt', 'C') + ' ' + k('Alt', 'X') + ' ' + k('Alt', 'V'), "copie, coupe ou colle le motif entier (ses 16 pistes)"],
   [k('Ctrl', '↑') + ' ' + k('Ctrl', '↓'), "position précédente ou suivante du morceau"],
   [k('Ctrl', '←') + ' ' + k('Ctrl', '→'), "change le motif joué à la position courante"]]))
-A(screen('tracker_motifs_pcm.png', "Les pistes PCM 1 à 4 de la démo : grosse caisse, caisses claires, charleston et basse, avec leurs volumes en vert."))
+A(screen('tracker_motifs_pcm.png', "La vue des pistes PSG 7 à PCM 4 de la démo : grosse caisse, caisses claires, charleston et basse, avec leurs volumes en vert."))
 
 # ---------------------------------------------------------------- 5
 A(chapter(5, "Les effets", "Une lettre, deux chiffres : arpèges, glissés, vibratos et changements de tempo.", 5))
@@ -428,7 +428,7 @@ A(table(['Où', 'Clic', 'Clic droit', 'Molette'], [
   ['page d\'aide', "la referme", '', '']], 'ref'))
 A(p("Le pointeur avance d'un pixel par pas de la souris. Sur la MiSTer, la souris USB de la carte est prise en charge par le core à partir de la version 3 du matériel ; dans le simulateur, le pointeur du tracker suit celui du navigateur sur l'écran."))
 
-A('<section class="colophon">' + p("MONOTRACKER · Manuel de l'utilisateur · édition 2, octobre 2026.") +
+A('<section class="colophon">' + p("MONOTRACKER · Manuel de l'utilisateur · édition 3, octobre 2026.") +
   p("Titres en Press Start 2P (Cody Boisclair), texte en Archivo (Omnibus-Type), listings en IBM Plex Mono : polices sous licence SIL Open Font License.") +
   p("Les images d'écran ont été prises dans le simulateur avec " + c('manual/tools/tracker_shots.py') + ". Ce manuel se régénère avec " + c('python3 manual/tools/tracker_manual.py') + ".") + '</section>')
 
