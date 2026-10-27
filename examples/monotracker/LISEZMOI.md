@@ -1,8 +1,11 @@
 # MONOTRACKER
 
-En haute résolution : 640 × 240, soit 80 colonnes de texte (il faut le core MONOCORE en version 5 ;
-un core plus ancien affiche un message). La police est rendue pour ces pixels deux fois plus hauts que
-larges par `make_font.py` (DejaVu Sans Mono Bold, licence Bitstream Vera), lissée sur quatre niveaux.
+En haute résolution : 640 × 480 entrelacé, soit 80 × 30 caractères de 8 × 16 (il faut le core MONOCORE
+en version 5 ; un core plus ancien affiche un message). La police est rendue par `make_font.py` (DejaVu
+Sans Mono Bold, licence Bitstream Vera), lissée sur quatre niveaux, avec des traits d'au moins deux
+pixels d'épaisseur pour ne pas scintiller. Une carte de tuiles 8 × 8 ne couvrant que 256 lignes, le texte
+occupe deux plans (lignes 0-14 et 15-29) et le fond deux autres ; le défilement par ligne cache, dans
+chaque plan, la moitié qui n'est pas la sienne. Les vumètres, les graphes et le pointeur sont des sprites.
 
 Le mode d'emploi complet, illustré, est le manuel `manual/MONOTRACKER_Manuel.pdf`
 (régénéré par `python3 manual/tools/tracker_manual.py`).

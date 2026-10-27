@@ -22,7 +22,7 @@ A = parts.append
 # ---------------------------------------------------------------- figures
 def fig_screen():
     """the screen of the tracker with its zones numbered"""
-    zones = [(0, 0, 120, 152, 1), (120, 0, 128, 152, 2), (248, 0, 392, 152, 3), (0, 152, 640, 48, 4), (0, 200, 640, 280, 5)]   # 640 x 480: the 640 x 240 screen, pixels twice as tall
+    zones = [(0, 0, 120, 152, 1), (120, 0, 128, 152, 2), (248, 0, 392, 152, 3), (0, 152, 640, 48, 4), (0, 200, 640, 280, 5)]   # the 640 x 480 screen
     g = []
     for x, y, w, h, n in zones:
         g.append('<rect x="%d" y="%d" width="%d" height="%d" fill="none" stroke="#f2c81b" stroke-width="2" stroke-dasharray="5 3"/>' % (x + 2, y + 2, w - 4, h - 4))
@@ -126,7 +126,7 @@ A(h2('Où le lancer'))
 A(table(['Machine', 'Comment'], [
   ['MiSTer', "copiez " + c('monotracker.mnc') + " dans " + c('games/MONOCORE') + ", branchez un clavier USB (et une souris), puis chargez la ROM depuis le menu du core MONOCORE"],
   ['Simulateur', "ouvrez " + c('dist/monocore.html') + " et choisissez <b>MONOTRACKER</b> dans la liste des ROM intégrées : le clavier et la souris de la console s'activent tout seuls"],
-  ['Version du core', "MONOTRACKER demande le core en version 5 (640 pixels de large, 80 colonnes) : avec un core plus ancien, il l'indique à l'écran et s'arrête. La souris est là depuis la version 3, le clavier MIDI depuis la version 4"]]))
+  ['Version du core', "MONOTRACKER demande le core en version 5 (640 × 480 entrelacé, 80 colonnes de 8 × 16) : avec un core plus ancien, il l'indique à l'écran et s'arrête. La souris est là depuis la version 3, le clavier MIDI depuis la version 4"]]))
 
 # ---------------------------------------------------------------- 2
 A(chapter(2, "Un premier morceau", "Quatre notes, une batterie, une sauvegarde : le tour complet en dix minutes.", 2))

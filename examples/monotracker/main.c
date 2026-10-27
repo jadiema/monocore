@@ -9,14 +9,15 @@
 #include <string.h>
 #include "mc.h"
 #include "mtrack.h"
-#include "font640.h"            // the font, rendered by make_font.py
+#include "font480.h"            // the font, rendered by make_font.py
 
-#define COLS 80                // 640 x 240: 80 x 30 cells of 8 x 8 (pixels twice as tall as wide)
+#define COLS 80                // 640 x 480 interlaced: 80 x 30 characters of 8 x 16
 #define LINES 30
 #define NPAT 24
 #define PAT_CELLS (MT_ROWS * MT_TRACKS)
 #define PATS ((uint32_t *)CHRRAM_BASE)
 #define FONT_OFF 0x18000u
+// glyphs: g is drawn with the 8 x 8 tiles 2g (top half) and 2g + 1 (bottom half)
 #define G_SOLID 96            // glyphs after the 96 of the font
 #define G_VU 97               // 97-104: VU bar of 1 to 8 pixels
 #define G_ARROW 105           // small play arrow
@@ -24,12 +25,14 @@
 #define G_DOWN 107
 #define G_LEFT 108
 #define G_RIGHT 109
-#define G_BEV 110             // 110-118: bevelled panel, 3 x 3 pieces
-#define G_PTR 120             // 120-123: mouse pointer, 16 x 16
-#define G_GRAPH 128           // two graphs of GW x GH tiles
+// 8 x 8 tiles after the glyphs: panels and bars (background layers), then sprite cells
+#define T_BEV 220             // 220-228: bevelled panel, 3 x 3 pieces
+#define T_SOLID 229           // a bar
+#define G_PTR 232             // 232-235: mouse pointer, 16 x 16 (sprite)
+#define G_GRAPH 240           // two graphs of GW x GH cells (sprites, twice as tall)
 #define GW 24
 #define GH 4
-#define G_SCOPE 400           // 32 x 8 tiles of the track meters (two columns of tiles a track)
+#define G_SCOPE 432           // the track meters: a sprite of 2 x 8 cells a track (twice as tall)
 
 #ifndef KEY_COMMA
 #define KEY_COMMA 0x41
@@ -63,18 +66,20 @@ static const uint32_t *src_pattern(void *ctx, int p) { (void)ctx; return p < NPA
 static uint8_t vu[MT_TRACKS];              // track meters (smoothed levels)
 
 // ================================================================ screen
-// Three tile layers of 48 x 30 cells (8 x 8): layer 0 the text, layer 1 the row bars of the
-// pattern, layer 2 the bevelled panels in the manner of the Amiga trackers. Layer 2 is scrolled
-// up by 4 pixels: a panel around text rows r to r2 covers its rows r to r2 + 1, which leaves a
-// margin of 4 pixels above and below the text. The mouse pointer is a sprite.
+// 640 x 480 interlaced: 80 x 30 characters of 8 x 16, each made of two 8 x 8 tiles. A map of 8 x 8
+// tiles covers at most 1024 x 256 pixels, so the text uses two layers, 0 for its rows 0-14 and 1 for
+// rows 15-29, and the background (the bevelled panels in the manner of the Amiga trackers, and the
+// bars of the pattern rows) two more, 2 and 3, in rows of 8 pixels (half a character: a panel leaves
+// 8 pixels around its text). Each layer shows its half only: in the other half, its line scroll
+// table points at two map rows left empty. Meters, graphs and the mouse pointer are sprites.
+#define BROWS (2 * LINES)                                    // background rows of 8 pixels
 static uint16_t txt[LINES][COLS], txt_old[LINES][COLS];   // glyph | palette << 10
-static uint16_t bgr[LINES][COLS], bgr_old[LINES][COLS];
-static uint16_t pnl[LINES + 1][COLS], pnl_old[LINES + 1][COLS];
+static uint16_t bgt[BROWS][COLS], bgt_old[BROWS][COLS];
 static char line[96];
 #define GP(g, pal) ((uint16_t)((g) | ((pal) << 10)))
 
 static void cls(void) {
-  memset(txt, 0, sizeof txt); memset(bgr, 0, sizeof bgr); memset(pnl, 0, sizeof pnl);
+  memset(txt, 0, sizeof txt); memset(bgt, 0, sizeof bgt);
 }
 static void putg(int x, int y, int g, int pal) {
   if (x >= 0 && x < COLS && y >= 0 && y < LINES) txt[y][x] = GP(g, pal);
@@ -97,27 +102,34 @@ static void printc(int x0, int x1, int y, const char *s, int pal) {   // centred
   print(x0 + (x1 - x0 + 1 - n) / 2, y, s, pal);
 }
 static void bar(int x0, int x1, int y, int pal) {
-  for (int x = x0; x <= x1; x++) if (x >= 0 && x < COLS && y >= 0 && y < LINES) bgr[y][x] = GP(G_SOLID, pal);
+  for (int x = x0; x <= x1; x++)
+    if (x >= 0 && x < COLS && y >= 0 && y < LINES) bgt[2 * y][x] = bgt[2 * y + 1][x] = GP(T_SOLID, pal);
 }
-// a bevelled panel around the text cells x0..x1, rows y0..y1
+// a bevelled panel around the text cells x0..x1, rows y0..y1, half a character beyond them
 static void box(int x0, int y0, int x1, int y1, int pal) {
-  for (int y = y0; y <= y1 + 1; y++)
+  int r0 = 2 * y0 - 1, r1 = 2 * y1 + 2;
+  for (int y = r0; y <= r1; y++)
     for (int x = x0; x <= x1; x++) {
-      int r = y == y0 ? 0 : y == y1 + 1 ? 2 : 1, c = x == x0 ? 0 : x == x1 ? 2 : 1;
-      if (y >= 0 && y <= LINES && x >= 0 && x < COLS) pnl[y][x] = GP(G_BEV + r * 3 + c, pal);
+      int r = y == r0 ? 0 : y == r1 ? 2 : 1, c = x == x0 ? 0 : x == x1 ? 2 : 1;
+      if (y >= 0 && y < BROWS && x >= 0 && x < COLS) bgt[y][x] = GP(T_BEV + r * 3 + c, pal);
     }
 }
 static void flush(void) {
-  volatile uint32_t *m0 = mc_tilemap(0), *m1 = mc_tilemap(1), *m2 = mc_tilemap(2);
-  for (int y = 0; y < LINES; y++)
+  for (int y = 0; y < LINES; y++) {
+    volatile uint32_t *m = mc_tilemap(y < 15 ? 0 : 1) + (y % 15) * 2 * 128;
     for (int x = 0; x < COLS; x++) {
-      uint16_t t = txt[y][x], b = bgr[y][x];
-      if (t != txt_old[y][x]) { txt_old[y][x] = t; m0[y * 128 + x] = TILE(t & 0x3FF, t >> 10); }
-      if (b != bgr_old[y][x]) { bgr_old[y][x] = b; m1[y * 128 + x] = TILE(b & 0x3FF, b >> 10); }
+      uint16_t t = txt[y][x];
+      if (t == txt_old[y][x]) continue;
+      txt_old[y][x] = t;
+      int g = t & 0x3FF;
+      m[x] = TILE(2 * g, t >> 10); m[128 + x] = TILE(2 * g + 1, t >> 10);
     }
-  for (int y = 0; y <= LINES; y++)
+  }
+  for (int y = 0; y < BROWS; y++) {
+    volatile uint32_t *m = mc_tilemap(y < 30 ? 2 : 3) + (y % 30) * 128;
     for (int x = 0; x < COLS; x++)
-      if (pnl[y][x] != pnl_old[y][x]) { pnl_old[y][x] = pnl[y][x]; m2[y * 128 + x] = TILE(pnl[y][x] & 0x3FF, pnl[y][x] >> 10); }
+      if (bgt[y][x] != bgt_old[y][x]) { bgt_old[y][x] = bgt[y][x]; m[x] = TILE(bgt[y][x] & 0x3FF, bgt[y][x] >> 10); }
+  }
 }
 
 // ---------------------------------------------------------------- clickable zones
@@ -149,11 +161,14 @@ static const uint16_t pal_bg[4] = { RGB555(40, 60, 140), RGB555(110, 30, 40), RG
 #define NAVY   RGB555(18, 22, 44)
 
 static void tile_px(uint8_t *g, int x, int y, int c) { uint8_t *b = &g[y * 4 + (x >> 1)]; *b = (uint8_t)((x & 1) ? (*b & 0x0F) | (c << 4) : (*b & 0xF0) | c); }
-static void upload_glyph(int n, const char *rows) {   // 8 rows of 8 characters: '.' 0, '1'-'3' colours
-  static uint8_t g[32];
-  memset(g, 0, 32);
-  for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) { char c = rows[y * 8 + x]; if (c >= '1' && c <= '9') tile_px(g, x, y, c - '0'); }
-  mc_chr_upload(FONT_OFF + n * 32, g, 32);
+static void upload_pair(int g, const uint8_t *top, const uint8_t *bot) {   // the two tiles of glyph g
+  mc_chr_upload(FONT_OFF + 2 * g * 32, top, 32); mc_chr_upload(FONT_OFF + (2 * g + 1) * 32, bot, 32);
+}
+static void upload_glyph(int n, const char *rows) {   // 8 rows of 8 characters: '.' 0, '1'-'3' colours; each row twice
+  static uint8_t a[32], b[32];
+  memset(a, 0, 32); memset(b, 0, 32);
+  for (int y = 0; y < 16; y++) for (int x = 0; x < 8; x++) { char c = rows[(y / 2) * 8 + x]; if (c >= '1' && c <= '9') tile_px(y < 8 ? a : b, x, y & 7, c - '0'); }
+  upload_pair(n, a, b);
 }
 static void set_pal(int p, uint16_t c1, uint16_t c2, uint16_t c3) { PALETTE[p * 16 + 1] = c1; PALETTE[p * 16 + 2] = c2; PALETTE[p * 16 + 3] = c3; }
 // the fainter edges of the font (indices 4, 5, 6): the ink blended with the colour behind the text
@@ -167,21 +182,22 @@ static void text_blend(int p, uint16_t ink, uint16_t bg) {
 }
 
 static void video_init(void) {
-  mc_video_mode(640, 240);                    // hardware version 5: 640 pixels wide, 240 lines
-  mc_chr_upload(FONT_OFF, font640, sizeof font640);
+  mc_video_mode(640, 480);                    // hardware version 5: 640 x 480 interlaced
+  mc_chr_upload(FONT_OFF, font480, sizeof font480);
   static uint8_t g[32];
-  memset(g, 0x33, 32); mc_chr_upload(FONT_OFF + G_SOLID * 32, g, 32);
-  for (int k = 1; k <= 8; k++) {
-    memset(g, 0, 32);
-    for (int y = 8 - k; y < 8; y++) for (int x = 1; x < 4; x++) g[y * 4 + x] = 0x11;
-    mc_chr_upload(FONT_OFF + (G_VU + k - 1) * 32, g, 32);
+  memset(g, 0x33, 32); upload_pair(G_SOLID, g, g); mc_chr_upload(FONT_OFF + T_SOLID * 32, g, 32);
+  for (int k = 1; k <= 8; k++) {                       // VU bars of 2 to 16 pixels
+    static uint8_t top[32], bot[32];
+    memset(top, 0, 32); memset(bot, 0, 32);
+    for (int y = 16 - 2 * k; y < 16; y++) for (int x = 1; x < 4; x++) (y < 8 ? top : bot)[(y & 7) * 4 + x] = 0x11;
+    upload_pair(G_VU + k - 1, top, bot);
   }
   upload_glyph(G_ARROW, "........" ".11....." ".1211..." ".122211." ".1222211" ".122211." ".1211..." ".11.....");
   upload_glyph(G_UP,    "........" "...1...." "..111..." ".11111.." "1111111." "........" "........" "........");
   upload_glyph(G_DOWN,  "........" "........" "1111111." ".11111.." "..111..." "...1...." "........" "........");
   upload_glyph(G_LEFT,  "....1..." "...11..." "..111..." ".1111..." "..111..." "...11..." "....1..." "........");
   upload_glyph(G_RIGHT, ".1......" ".11....." ".111...." ".1111..." ".111...." ".11....." ".1......" "........");
-  // bevel: top-left light (1), bottom-right shadow (2), face (3)
+  // bevel: top-left light (1), bottom-right shadow (2), face (3); horizontal edges two lines thick
   for (int r = 0; r < 3; r++)
     for (int c = 0; c < 3; c++) {
       memset(g, 0x33, 32);
@@ -189,12 +205,12 @@ static void video_init(void) {
         for (int x = 0; x < 8; x++) {
           int v = 3;
           if (c == 0 && x == 0) v = 1;
-          if (r == 0 && y == 0) v = 1;
-          if (c == 2 && x == 7) v = (r == 0 && y == 0) ? 2 : 2;
-          if (r == 2 && y == 7) v = (c == 0 && x == 0) ? 1 : 2;
+          if (r == 0 && y < 2) v = 1;
+          if (c == 2 && x == 7) v = 2;
+          if (r == 2 && y >= 6) v = (c == 0 && x == 0) ? 1 : 2;
           tile_px(g, x, y, v);
         }
-      mc_chr_upload(FONT_OFF + (G_BEV + r * 3 + c) * 32, g, 32);
+      mc_chr_upload(FONT_OFF + (T_BEV + r * 3 + c) * 32, g, 32);
     }
   // mouse pointer, 16 x 16 (cells in sprite order): outline 2, body 1
   static const char *ptr =
@@ -243,18 +259,25 @@ static void video_init(void) {
   PALETTE[P_BARS * 16 + 5] = RGB555(30, 40, 70);
   PALETTE[15 * 16 + 1] = RGB555(12, 14, 26);
   mc_background(15 * 16 + 1);
-  mc_layer(0, MC_CHR(FONT_OFF), MC_TILE8 | MC_4BPP, 128, 32, 3);   // 1024 x 256 pixels
-  mc_layer(1, MC_CHR(FONT_OFF), MC_TILE8 | MC_4BPP, 128, 32, 1);   // 1024 x 256 pixels
-  mc_layer(2, MC_CHR(FONT_OFF), MC_TILE8 | MC_4BPP, 128, 32, 0);   // 1024 x 256 pixels
-  mc_layer_scroll(2, 0, 4);
-  mc_tilemap_fill(0, 0); mc_tilemap_fill(1, 0); mc_tilemap_fill(2, 0);
-  memset(txt_old, 0, sizeof txt_old); memset(bgr_old, 0, sizeof bgr_old); memset(pnl_old, 0, sizeof pnl_old);
+  for (int l = 0; l < 4; l++) {                  // 1024 x 256 pixels each: text 0-1, background 2-3
+    mc_layer(l, MC_CHR(FONT_OFF), MC_TILE8 | MC_4BPP, 128, 32, l < 2 ? 3 : 0);
+    mc_layer_scroll(l, 0, l & 1 ? 16 : 0);       // the lower halves: line 240 shows map row 0
+    mc_layer_linescroll(l, true);
+    volatile linescroll_t *ls = mc_linescroll(l);
+    for (int y = 0; y < 480; y++) {
+      bool mine = (l & 1) ? y >= 240 : y < 240;    // elsewhere: map rows 30-31, always empty
+      ls[y].dx = 0;
+      ls[y].dy = (int16_t)(mine ? 0 : (l & 1) ? 224 + (y & 15) - y : 240 + (y & 15) - y);
+    }
+    mc_tilemap_fill(l, 0);
+  }
+  memset(txt_old, 0, sizeof txt_old); memset(bgt_old, 0, sizeof bgt_old);
   mc_sprite_sheet(MC_CHR(FONT_OFF));
-  mc_display(DISP_ON | DISP_LAYER(0) | DISP_LAYER(1) | DISP_LAYER(2) | DISP_SPRITES);
+  mc_display(DISP_ON | DISP_LAYER(0) | DISP_LAYER(1) | DISP_LAYER(2) | DISP_LAYER(3) | DISP_SPRITES);
 }
 
 // ---------------------------------------------------------------- scope: a bar per track
-static uint8_t scope[32 * 8 * 32];          // 32 x 8 tiles, two columns of tiles per track
+static uint8_t scope[16 * 16 * 32];         // 16 cells (2 x 8) a track
 static uint8_t peak[MT_TRACKS], peak_hold[MT_TRACKS];
 static void draw_scope(void) {
   memset(scope, 0, sizeof scope);
@@ -269,7 +292,7 @@ static void draw_scope(void) {
       else if (!(y & 3)) c = 5;               // faint graduations
       if (mt_muted(t) && c && c != 5) c = 5;
       if (!c) continue;
-      uint8_t *b = &scope[((y >> 3) * 32 + 2 * t) * 32 + (y & 7) * 4], *b2 = b + 32;
+      uint8_t *b = &scope[(t * 16 + (y >> 3) * 2) * 32 + (y & 7) * 4], *b2 = b + 32;
       uint8_t cc = (uint8_t)(c | (c << 4));
       b[0] = (uint8_t)(c << 4); b[1] = cc; b[2] = cc; b[3] = cc;          // pixels 1 to 14 of the two tiles
       b2[0] = cc; b2[1] = cc; b2[2] = cc; b2[3] = (uint8_t)c;
@@ -353,8 +376,8 @@ static void draw_graphs(const mt_instrument_t *in) {
   mc_chr_upload(FONT_OFF + G_GRAPH * 32, graph[0], sizeof graph[0]);
   mc_chr_upload(FONT_OFF + (G_GRAPH + GW * GH) * 32, graph[1], sizeof graph[1]);
 }
-static void show_graph(int g, int x0, int y0) {
-  for (int y = 0; y < GH; y++) for (int x = 0; x < GW; x++) putg(x0 + x, y0 + y, G_GRAPH + g * GW * GH + y * GW + x, P_GRAPH);
+static void show_graph(int g, int x0, int y0) {                // a sprite, twice as tall (cells of 8 x 16)
+  mc_sprite(17 + g, x0 * 8, y0 * 16, G_GRAPH + g * GW * GH, GW, GH, P_GRAPH, 2); mc_sprite_zoom(17 + g, 0x100, 0x200);
 }
 
 // ================================================================ keyboard
@@ -671,7 +694,7 @@ static void draw_top(void) {
   draw_scope();
   for (int t = 0; t < MT_TRACKS; t++) {
     int x = 32 + 3 * t;
-    for (int y = 0; y < 8; y++) { putg(x, y, G_SCOPE + y * 32 + 2 * t, P_BARS); putg(x + 1, y, G_SCOPE + y * 32 + 2 * t + 1, P_BARS); }
+    mc_sprite(1 + t, x * 8, 0, G_SCOPE + t * 16, 2, 8, P_BARS, 2); mc_sprite_zoom(1 + t, 0x100, 0x200);
     char c = t < 8 ? (char)('1' + t) : (char)('A' + t - 8);
     int pal = mt_muted(t) ? C_RED : t == cur_track ? C_WHITE : t < 8 ? C_CYAN : C_GREEN;
     putg(x, 8, c - 32, pal);
@@ -1368,8 +1391,8 @@ static void mouse_wheel(const zone_t *z, int w) {
 static int hold_btn, hold_timer, hold_cx, hold_cy;
 static void mouse_update(void) {
   if (!mc_mouse_present()) { mc_sprite_hide(0); return; }
-  int mx = mc_mouse_x(), my = mc_mouse_y(), cx = mx / 8, cy = my / 8;
-  mc_sprite(0, mx, my, G_PTR, 2, 2, P_POINTER, 7); mc_sprite_zoom(0, 0x200, 0x100);
+  int mx = mc_mouse_x(), my = mc_mouse_y(), cx = mx / 8, cy = my / 16;
+  mc_sprite(0, mx, my, G_PTR, 2, 2, P_POINTER, 7); mc_sprite_zoom(0, 0x180, 0x180);
   if (naming && (mc_mouse_pressed() & (MOUSE_LEFT | MOUSE_RIGHT))) naming = 0;   // a click ends the name
   const zone_t *z = zone_at(cx, cy);
   uint32_t pr = mc_mouse_pressed();
@@ -1549,6 +1572,7 @@ int main(void) {
     if (play_mode) play_frames++;
     cls();
     nzones = 0;
+    for (int i = 1; i <= 18; i++) mc_sprite_hide(i);   // meters and graphs: drawn again by their page
     if (page == PG_HELP) draw_help();
     else {
       draw_top();
