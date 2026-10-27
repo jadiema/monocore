@@ -67,13 +67,23 @@ du do 4 en clé de sol (do 3 en clé de fa), A Z E R… l'octave au-dessus. Éch
 ## Comment c'est fait
 
 Le jeu tourne en **640 × 480 entrelacé** : il faut le core en version 5 du matériel (le menu le signale
-sinon). Le texte est en tuiles de 16 × 16 (la police agrandie deux fois avec l'algorithme EPX, qui adoucit
-les diagonales : 40 × 30 caractères) ; la portée aussi, avec des lignes de deux pixels d'épaisseur pour
-qu'elles ne scintillent pas en entrelacé. Les notes sont dessinées en pleine résolution (une ronde de
-24 × 16 pixels, calculée au démarrage entre deux ellipses), un degré vaut 8 pixels ; les clés, les
-altérations et les noms sous les notes sont des sprites agrandis deux fois. Le piano est une seule image
-en 8 bits par pixel, 28 touches blanches de 22 pixels et les touches noires entre elles : chaque touche a
-son propre indice de couleur, si bien qu'en allumer une ne coûte qu'une écriture dans la palette.
+sinon). Rien n'y est agrandi : la police et les symboles sont rendus à la taille de l'écran par
+`make_assets.py`, qui produit `assets.h`.
 
-Les notes jouées sonnent avec l'échantillon de piano électrique de la banque de MONOTRACKER (`mt_note`,
-sans morceau). Le choix de la note suivante favorise les notes pas encore connues et la dernière arrivée.
+| Élément | D'où il vient |
+|---|---|
+| texte | DejaVu Sans Mono Bold (licence Bitstream Vera), en cases de 16 × 16 : 40 × 30 caractères |
+| noms sous les touches | la même police, en 8 × 16 |
+| clés, ronde, dièse, bémol | les symboles musicaux Unicode de GNU FreeSerif (GPL avec l'exception pour les polices), à l'échelle d'une portée dont les lignes sont à 16 pixels |
+
+Chaque pixel garde quatre niveaux de couverture (indices de couleur 1 à 4) : le jeu règle les palettes
+en mélangeant l'encre avec ce qu'il y a derrière (l'écran sombre ou le papier). Les bords sont ainsi
+lissés sans scintiller en entrelacé, comme les lignes de la portée, épaisses de deux pixels.
+`make_assets.py` repère aussi où chaque symbole se pose : la ligne du sol passe au centre de la
+spirale de la clé de sol, la ligne du fa entre les deux points de la clé de fa.
+
+Le piano est une seule image en 8 bits par pixel, 28 touches blanches de 22 pixels et les touches
+noires entre elles : chaque touche a son propre indice de couleur, si bien qu'en allumer une ne coûte
+qu'une écriture dans la palette. Les notes jouées sonnent avec l'échantillon de piano électrique de la
+banque de MONOTRACKER (`mt_note`, sans morceau). Le choix de la note suivante favorise les notes pas
+encore connues et la dernière arrivée.

@@ -16,6 +16,7 @@
 #include <string.h>
 #include "mc.h"
 #include "mtrack.h"
+#include "assets.h"                // font and music symbols, rendered by make_assets.py
 
 #define SW 640
 #define SH 480
@@ -31,9 +32,11 @@
 
 // CHR RAM: sprite cells (8 x 8, 4 bpp) from 0; text and staff tiles (16 x 16, 4 bpp) from TXT_OFF;
 // the piano (16 x 16, 8 bpp) from KEY_OFF
-#define TXT_OFF 0x4000
-#define KEY_OFF 0x8000
-enum { C_FONT = 0, C_HEAD = 96, C_LEDGER = C_HEAD + 6, C_TREBLE = C_LEDGER + 8, C_BASS = C_TREBLE + 10, C_SHARP = C_BASS + 4, C_FLAT = C_SHARP + 2 };
+#define TXT_OFF 0x8000
+#define KEY_OFF 0xC000
+enum { C_NAME = 0, C_SMALL = C_NAME + 96 * 4, C_HEAD = C_SMALL + 96 * 2, C_LEDGER = C_HEAD + HEAD_W * HEAD_H,
+       C_TREBLE = C_LEDGER + 8, C_BASS = C_TREBLE + TREBLE_W * TREBLE_H, C_SHARP = C_BASS + BASS_W * BASS_H,
+       C_FLAT = C_SHARP + SHARP_W * SHARP_H };
 enum { T_PAPER = 96, T_LINE, T_MARK, T_MARKLINE };
 enum { P_WHITE, P_YELLOW, P_GREEN, P_RED, P_GREY, P_CYAN, P_INK, P_INK_GREY, P_PAPER = 8, P_NOTE, P_NOTE_CUR, P_NOTE_OK,
        P_NOTE_BAD, P_CLEF, P_KEYS = 16 };                       // P_KEYS: the 8 bpp piano, palettes 16 to 31
@@ -88,31 +91,22 @@ static void clear_row(int y) { for (int x = 0; x < COLS; x++) L0[y * 64 + x] = 0
 static void clear_rows(int a, int b) { for (int y = a; y <= b; y++) clear_row(y); }
 
 // ================================================================ graphics
-static int font_px(int ch, int x, int y) {                     // a pixel of the 8 x 8 font (4 bpp)
-  if (x < 0 || x > 7 || y < 0 || y > 7) return 0;
-  uint8_t b = font_chr[ch * 32 + y * 4 + (x >> 1)];
-  return (x & 1) ? b >> 4 : b & 15;
-}
 static void px4(uint8_t *g, int w, int x, int y, int c) {      // 4 bpp pixel in a picture w pixels wide
   uint8_t *b = &g[y * (w / 2) + (x >> 1)];
   *b = (uint8_t)((x & 1) ? (*b & 0x0F) | (c << 4) : (*b & 0xF0) | c);
 }
-// the font enlarged twice with EPX (smooth diagonals) into 16 x 16 tiles
-static void make_font16(void) {
+// the 16 x 16 font: as tiles for the text, and cut into 2 x 2 sprite cells for the names under the notes
+static void load_fonts(void) {
   static uint8_t g[128];
+  mc_chr_upload(TXT_OFF, font16, sizeof font16);
   for (int ch = 0; ch < 96; ch++) {
-    memset(g, 0, sizeof g);
-    for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) {
-      int p = font_px(ch, x, y), a = font_px(ch, x, y - 1), b = font_px(ch, x + 1, y), c = font_px(ch, x - 1, y), d = font_px(ch, x, y + 1);
-      int e0 = p, e1 = p, e2 = p, e3 = p;
-      if (c == a && c != d && a != b) e0 = a;
-      if (a == b && a != c && b != d) e1 = b;
-      if (d == c && d != b && c != a) e2 = c;
-      if (b == d && b != a && d != c) e3 = d;
-      px4(g, 16, 2 * x, 2 * y, e0); px4(g, 16, 2 * x + 1, 2 * y, e1); px4(g, 16, 2 * x, 2 * y + 1, e2); px4(g, 16, 2 * x + 1, 2 * y + 1, e3);
-    }
-    mc_chr_upload(TXT_OFF + ch * 128, g, 128);
+    const uint8_t *t = &font16[ch * 128];
+    for (int c = 0; c < 4; c++)
+      for (int y = 0; y < 8; y++) for (int x = 0; x < 4; x++)
+        g[c * 32 + y * 4 + x] = t[((c / 2) * 8 + y) * 8 + (c % 2) * 4 + x];
+    mc_chr_upload((C_NAME + ch * 4) * 32, g, 128);
   }
+  mc_chr_upload(C_SMALL * 32, small16, sizeof small16);
 }
 static void tile16(int n, const char *rows) {                  // a 16 x 16 tile from 16 rows of 16 characters
   static uint8_t g[128];
@@ -133,52 +127,27 @@ static void cells(int n, int w, int h, const char *const *rows) {
   }
 }
 static void set_pal(int p, uint16_t a, uint16_t b, uint16_t c) { PALETTE[p * 16 + 1] = a; PALETTE[p * 16 + 2] = b; PALETTE[p * 16 + 3] = c; }
+// the four levels of an anti-aliased picture: the ink blended with what is behind it
+typedef struct { uint8_t r, g, b; } rgb_t;
+static const rgb_t SCREEN = { 14, 16, 30 }, PAPER = { 244, 236, 214 };
+static void ink_pal(int p, rgb_t ink, rgb_t bg) {
+  static const int alpha[5] = { 0, 100, 72, 46, 22 };
+  for (int k = 1; k <= 4; k++) {
+    int a = alpha[k];
+    PALETTE[p * 16 + k] = RGB555((ink.r * a + bg.r * (100 - a)) / 100, (ink.g * a + bg.g * (100 - a)) / 100, (ink.b * a + bg.b * (100 - a)) / 100);
+  }
+}
 
 // a sprite with its zoom (the zoom stays with the sprite entry: every use sets it)
 static void spr(int n, int x, int y, int cell, int w, int h, int pal, int prio, int zx, int zy) {
   mc_sprite(n, x, y, cell, w, h, pal, prio); mc_sprite_zoom(n, zx, zy);
 }
 
-// the whole note, drawn at full resolution: a ring between two ellipses, the inner one tilted
-static void make_head(void) {
-  static char rows[16][25];
-  for (int y = 0; y < 16; y++) {
-    for (int x = 0; x < 24; x++) {
-      int dx = 2 * x - 23, dy = 2 * y - 15;                    // in half pixels from the centre
-      bool out = dx * dx * 225 + dy * dy * 529 <= 225 * 529;   // ellipse 23 x 15 (half pixels)
-      int u = (dx * 87 + dy * 50) / 100, v = (dy * 87 - dx * 50) / 100;   // rotated by 30 degrees
-      bool in = u * u * 64 + v * v * 196 <= 64 * 196;          // ellipse 14 x 8, tilted
-      rows[y][x] = out && !in ? '1' : '.';
-    }
-    rows[y][24] = 0;
-  }
-  const char *r[16]; for (int y = 0; y < 16; y++) r[y] = rows[y];
-  cells(C_HEAD, 3, 2, r);
-}
 static const char *const ledger_art[16] = {
   "................................", "................................", "................................", "................................",
   "................................", "................................", "................................", "11111111111111111111111111111111",
   "11111111111111111111111111111111", "................................", "................................", "................................",
   "................................", "................................", "................................", "................................" };
-static const char *const treble_art[40] = {
-  ".........11.....", "........1111....", "........1..1....", ".......11..1....", ".......1...1....", ".......1..11....",
-  ".......1.11.....", ".......111......", "......111.......", ".....111........", "....1111........", "...11.11........",
-  "..11..1.........", ".11...11111.....", ".1...111..11....", "11..11.1...11...", "1..11..1....1...", "1..1...11...11..",
-  "1..1....1....1..", "1...1...1....1..", "11...1..1...11..", ".11.....1..11...", "..111...1111....", "....11111.......",
-  "........1.......", "........1.......", "........11......", ".........1......", ".........1......", ".....11..1......",
-  "....1111.1......", "....1111.1......", ".....11.11......", "......111.......", "................", "................",
-  "................", "................", "................", "................" };
-static const char *const bass_art[16] = {
-  "..11111.........", ".11...111.......", "11.....11...11..", "111.....11..11..", "111.....11......", ".1......11......",
-  "........11......", ".......11...11..", ".......11...11..", "......11........", ".....11.........", "....11..........",
-  "..11............", "11..............", "................", "................" };
-static const char *const sharp_art[16] = {
-  "........", "........", "........", "..1..1..", "..1..1..", "..1..111", "..1111..", "111..1..",
-  "..1..111", "..1111..", "111..1..", "..1..1..", "..1..1..", "........", "........", "........" };
-static const char *const flat_art[16] = {
-  "........", "..1.....", "..1.....", "..1.....", "..1.....", "..1.....", "..1.11..", "..11..1.",
-  "..1...1.", "..1..1..", "..111...", "........", "........", "........", "........", "........" };
-
 // ================================================================ the piano: 28 white keys of 22 pixels, 8 bpp
 #define KX0 12
 #define KW 22
@@ -223,35 +192,35 @@ static int label_sprites(int sp) {
   for (int o = 0; o < 4; o++) {
     int x = KX0 + o * 7 * KW + KW / 2 - 12;
     char s[4] = { 'D', 'O', (char)('2' + o), 0 };
-    for (int c = 0; c < 3; c++) spr(sp++, x + 8 * c, KY + 66, s[c] - 32, 1, 1, P_GREY, 4, 0x100, 0x200);
+    for (int c = 0; c < 3; c++) spr(sp++, x + 8 * c, KY + 64, C_SMALL + (s[c] - 32) * 2, 1, 2, P_GREY, 4, 0x100, 0x100);
   }
   return sp;
 }
 
 static void video_init(void) {
   mc_video_mode(SW, SH);
-  mc_chr_upload(0, font_chr, 96 * 32);                        // the font as sprite cells, for the names
-  make_font16();
+  load_fonts();
   tile16(T_PAPER, "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111");
   tile16(T_LINE,  "2222222222222222222222222222222211111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111");
   tile16(T_MARK,  "3333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333");
   tile16(T_MARKLINE, "2222222222222222222222222222222233333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333333");
-  make_head();
   cells(C_LEDGER, 4, 2, ledger_art);
-  cells(C_TREBLE, 2, 5, treble_art);
-  cells(C_BASS, 2, 2, bass_art);
-  cells(C_SHARP, 1, 2, sharp_art);
-  cells(C_FLAT, 1, 2, flat_art);
+  mc_chr_upload(C_HEAD * 32, spr_head, sizeof spr_head);
+  mc_chr_upload(C_TREBLE * 32, spr_treble, sizeof spr_treble);
+  mc_chr_upload(C_BASS * 32, spr_bass, sizeof spr_bass);
+  mc_chr_upload(C_SHARP * 32, spr_sharp, sizeof spr_sharp);
+  mc_chr_upload(C_FLAT * 32, spr_flat, sizeof spr_flat);
   for (int p = 0; p < 32; p++) for (int i = 0; i < 16; i++) PALETTE[p * 16 + i] = 0;
-  static const uint16_t fg[8] = { RGB555(240, 240, 240), RGB555(250, 220, 80), RGB555(110, 230, 120), RGB555(250, 90, 80),
-                                  RGB555(120, 126, 150), RGB555(90, 210, 240), RGB555(40, 36, 30), RGB555(140, 130, 110) };
-  for (int p = 0; p < 8; p++) set_pal(p, fg[p], p >= 6 ? 0 : RGB555(10, 10, 20), 0);
+  static const rgb_t fg[6] = { {240, 240, 240}, {250, 220, 80}, {110, 230, 120}, {250, 90, 80}, {130, 136, 160}, {90, 210, 240} };
+  for (int p = 0; p < 6; p++) ink_pal(p, fg[p], SCREEN);       // text on the dark screen
+  ink_pal(P_INK, (rgb_t){40, 36, 30}, PAPER);                  // on the paper
+  ink_pal(P_INK_GREY, (rgb_t){120, 110, 92}, PAPER);
   set_pal(P_PAPER, RGB555(244, 236, 214), RGB555(60, 54, 46), RGB555(252, 238, 170));
-  set_pal(P_NOTE, RGB555(40, 36, 30), 0, 0);
-  set_pal(P_NOTE_CUR, RGB555(40, 90, 200), 0, 0);
-  set_pal(P_NOTE_OK, RGB555(40, 160, 70), 0, 0);
-  set_pal(P_NOTE_BAD, RGB555(220, 50, 40), 0, 0);
-  set_pal(P_CLEF, RGB555(40, 36, 30), 0, 0);
+  ink_pal(P_NOTE, (rgb_t){40, 36, 30}, PAPER);
+  ink_pal(P_NOTE_CUR, (rgb_t){30, 80, 210}, PAPER);
+  ink_pal(P_NOTE_OK, (rgb_t){30, 150, 60}, PAPER);
+  ink_pal(P_NOTE_BAD, (rgb_t){220, 40, 30}, PAPER);
+  ink_pal(P_CLEF, (rgb_t){40, 36, 30}, PAPER);
   PALETTE[P_KEYS * 16 + 2] = RGB555(90, 90, 110);              // gaps between white keys
   PALETTE[P_KEYS * 16 + 3] = RGB555(120, 120, 140);            // edges
   PALETTE[31 * 16 + 1] = RGB555(14, 16, 30);
@@ -305,18 +274,19 @@ static int sprite_note(int sp, const snote_t *n, int x, int pal, bool name) {
   int y = Y0 - n->step * DEG;
   for (int s = -2; s >= n->step; s -= 2) spr(sp++, x - 16, Y0 - s * DEG - 8, C_LEDGER, 4, 2, P_NOTE, 2, 0x100, 0x100);
   for (int s = 10; s <= n->step; s += 2) spr(sp++, x - 16, Y0 - s * DEG - 8, C_LEDGER, 4, 2, P_NOTE, 2, 0x100, 0x100);
-  spr(sp++, x - 12, y - 8, C_HEAD, 3, 2, pal, 3, 0x100, 0x100);
-  if (n->acc) spr(sp++, x - 34, y - 16, n->acc > 0 ? C_SHARP : C_FLAT, 1, 2, pal, 3, 0x200, 0x200);
+  spr(sp++, x - HEAD_W * 4, y - HEAD_ROW, C_HEAD, HEAD_W, HEAD_H, pal, 3, 0x100, 0x100);
+  if (n->acc > 0) spr(sp++, x - 12 - SHARP_W * 8, y - SHARP_ROW, C_SHARP, SHARP_W, SHARP_H, pal, 3, 0x100, 0x100);
+  if (n->acc < 0) spr(sp++, x - 12 - FLAT_W * 8, y - FLAT_ROW, C_FLAT, FLAT_W, FLAT_H, pal, 3, 0x100, 0x100);
   if (name) {
     char nm[12]; sname(n, nm, sizeof nm, false);
-    int len = (int)strlen(nm), nx = x - len * 8;
-    for (int c = 0; c < len; c++) spr(sp++, nx + 16 * c, 278, nm[c] - 32, 1, 1, P_INK_GREY, 3, 0x200, 0x200);
+    int len = (int)strlen(nm), nx = x - len * 6 - 2;          // 12 pixels a letter: the font is narrower than its cells
+    for (int c = 0; c < len; c++) spr(sp++, nx + 12 * c, 278, C_NAME + (nm[c] - 32) * 4, 2, 2, P_INK_GREY, 3, 0x100, 0x100);
   }
   return sp;
 }
 static int sprite_clef(int sp) {
-  if (clef) spr(sp, 24, 182, C_BASS, 2, 2, P_CLEF, 2, 0x200, 0x200);
-  else spr(sp, 24, 181, C_TREBLE, 2, 5, P_CLEF, 2, 0x200, 0x260);
+  if (clef) spr(sp, 18, Y0 - 6 * DEG - BASS_F_ROW, C_BASS, BASS_W, BASS_H, P_CLEF, 2, 0x100, 0x100);       // F line: 4th
+  else spr(sp, 14, Y0 - 2 * DEG - TREBLE_G_ROW, C_TREBLE, TREBLE_W, TREBLE_H, P_CLEF, 2, 0x100, 0x100);  // G line: 2nd
   return sp + 1;
 }
 static void hide_from(int sp) { while (sp < 160) mc_sprite_hide(sp++); }
