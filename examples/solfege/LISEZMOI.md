@@ -13,8 +13,14 @@ qu'elles sont à apprendre, blanches en cours, vertes quand elles sont connues.
 
 | Clé | Notes, dans l'ordre où elles arrivent |
 |---|---|
-| clé de sol | do 4 (petite ligne en dessous) à la 5 (petite ligne au-dessus), en montant depuis do 4 |
-| clé de fa | do 3 à do 4, puis en descendant si 2 à mi 2 |
+| clé de sol | do 4 (petite ligne en dessous) à la 5 (petite ligne au-dessus), en montant depuis do 4 ; puis fa♯, si♭, do♯, mi♭, sol♯, la♭, do♯ 4, ré♭, fa♯ 5, sol♭, la♯, mi♭ 5 |
+| clé de fa | do 3 à do 4, puis en descendant si 2 à mi 2 ; puis fa♯, si♭, do♯, mi♭, sol♯, la♭, do♯ 4, ré♭, fa♯ 2, sol♭, la♯, mi♭ 2 |
+
+Chaque clé compte 25 notes : les 13 notes naturelles, puis 12 altérations. Les dièses (♯) et les bémols
+(♭) arrivent une touche noire à la fois, et chaque touche noire sous ses deux noms (sol♯ et la♭, fa♯ et
+sol♭…) : la même touche s'écrit de deux façons. À l'arrivée d'une altération, le jeu rappelle sa règle
+(« LE DIESE MONTE D'UN DEMI-TON : TOUCHE DE DROITE ») ; après deux erreurs, il dit quelle touche jouer
+(« C'EST UN SI BEMOL : LA TOUCHE A GAUCHE DU SI »).
 
 Une erreur remet à zéro la série de la note ; à la deuxième erreur sur la même note, le jeu dit où elle
 se trouve (« C'EST UN MI, DANS LE 3e INTERLIGNE ») et allume la bonne touche. La bonne note à une autre
@@ -22,7 +28,8 @@ octave est signalée comme telle. La progression de chaque clé est gardée dans
 
 | Réglage du menu | Choix |
 |---|---|
-| CLE | clé de sol ou clé de fa, avec le nombre de notes déjà rencontrées |
+| CLE | clé de sol ou clé de fa |
+| NOTES | le nombre de notes en jeu, de 3 à 25 : pour sauter ce qu'on sait déjà (14 et plus : avec les dièses et bémols) |
 | NOMS | les noms sous les notes : toujours, le temps de les apprendre (les deux premières réussites), ou jamais |
 | RECOMMENCER | efface la progression de la clé choisie (Entrée deux fois) |
 
