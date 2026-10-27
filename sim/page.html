@@ -417,6 +417,7 @@ __CORE_JS__
     midiNoDevice: ['aucun clavier MIDI trouvé : branchez-le, il sera pris dès son arrivée', 'no MIDI keyboard found: plug it in, it will be used as soon as it appears'],
     midiDevices: ['MIDI', 'MIDI'],
     midiFirst: ['première note MIDI reçue', 'first MIDI note received'],
+    midiSkip: ['ignoré', 'ignored'],
     midiOff: ['la console est éteinte : mettez-la sous tension', 'the console is off: power it on'],
     mouseDd: [': la souris pilote le pointeur du jeu sur l\'écran (boutons et molette compris)',
               ': the mouse drives the game\'s pointer on the screen (buttons and wheel included)'],
@@ -549,9 +550,15 @@ __CORE_JS__
     $('midiState').textContent = midiNames.length
       ? '(' + midiNames.join(', ') + (midiCount ? ' · ' + midiCount + ' · ' + midiLast : '') + ')' : '';
   }
+  // keyboards like the Novation Launchkey have a second port for DAW control ("MIDIIN2", "DAW"), whose
+  // messages (pads, lights, transport) are not the notes played: it is left out when there is another one
+  const daw = (n) => /MIDIIN2|DAW|InControl/i.test(n || '');
   function midiBind() {
     midiNames = [];
+    let ports = 0;
+    midiAccess.inputs.forEach((inp) => { if (!daw(inp.name)) ports++; });
     midiAccess.inputs.forEach((inp) => {
+      if (ports && daw(inp.name)) { inp.onmidimessage = null; midiNames.push(inp.name + ' : ' + t('midiSkip')); return; }
       midiNames.push(inp.name);
       inp.onmidimessage = (e) => {
         const d = e.data;

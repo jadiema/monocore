@@ -452,7 +452,7 @@ static void answer(int n, int vol) {
       snprintf(b, sizeof b, "MAIS PAS CETTE OCTAVE : DO%d A SI%d", octave(t->note), octave(t->note));
       say(a, P_YELLOW, b, P_WHITE, 0, 0);
     } else {
-      snprintf(a, sizeof a, "VOUS AVEZ JOUE %s", played_name(n));
+      snprintf(a, sizeof a, "VOUS AVEZ JOUE %s%d", played_name(n), octave(n));
       if (errors_here >= 2) {
         snprintf(b, sizeof b, "C'EST UN %s,", tn);
         if (t->acc) snprintf(c, sizeof c, "LA TOUCHE %s DU %s", t->acc > 0 ? "A DROITE" : "A GAUCHE", letters[(t->note - t->acc - 1) % 12]);
@@ -543,7 +543,7 @@ static void scroll_answer(int n, int vol) {
     r->state = 2; s_wrong++; series = 0; s_bad[r->idx]++;
     if (x >= 0 && x < KEYS) key_state[x] = 1;
     char a[48], tn[16]; sname(t, tn, sizeof tn, true);
-    snprintf(a, sizeof a, "C'ETAIT UN %s (VOUS : %s)", tn, played_name(n));
+    snprintf(a, sizeof a, "C'ETAIT UN %s%d (VOUS : %s%d)", tn, octave(t->note - t->acc), played_name(n), octave(n));
     say(0, 0, a, P_RED, 0, 0); msg_timer = 60;
   }
   scroll_hud();
