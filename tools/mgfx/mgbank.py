@@ -337,6 +337,11 @@ NV_SIZE, NV_SLOTS, NV_DATA = 0x8000, 8, 80
 
 def read_nvram(data):
     """the banks of a .sav, as a list of (slot 0-7, bytes) for the slots in use"""
+    if data[:4] == b'ATNV':                         # the atelier (tools/atelier/atnv.py)
+        import os, sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../atelier'))
+        import atnv
+        return [(k, it) for k, it in enumerate(atnv.read(data, atnv.PIXEL)) if it]
     if data[:4] != b'MGNV':
         raise ValueError('this save is not the NVRAM of MONOPIXEL (MGNV)')
     out = []

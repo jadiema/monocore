@@ -103,6 +103,7 @@ void mj_draw_all(const mj_world_t *w, const mj_obj_t *objs, int n, int first_hw,
 void mj_sfx(int ch, int wave, int f0, int f1, int frames, int vol);
 void mj_frame(void);
 
-// a small save in the NVRAM (high scores, progress): data of n bytes (up to 4000), checked
+// a small save in the NVRAM (high scores, progress): data of n bytes (up to 4000; 244 in the
+// atelier, where it takes the end of the shared NVRAM), checked
 bool mj_load(void *data, uint32_t n);                 // false: nothing saved yet (data untouched)
 void mj_save(const void *data, uint32_t n);

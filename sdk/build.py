@@ -20,7 +20,8 @@ project.txt (one setting per line, # starts a comment):
     library = mc                    "easy" (default) or "mc", the low-level SDK (mc.h, libc)
     modules = mtrack                extra SDK modules (mc only): mtrack = music player (mtrack.h),
                                     mgfx = MONOPIXEL graphics banks (mgfx.h), mjeu = game library on mgfx (mjeu.h),
-                                    msfx = MONOSFX sound effects (msfx.h),
+                                    msfx = MONOSFX sound effects (msfx.h), nvslots = NVRAM slots of the
+                                    editors (nvslots.h), atelier = several programs in one ROM (atelier.h),
                                     ui480 = 640 x 480 editor interface (ui480.h)
 
 The SDK font is always included. The names above are declared in build/assets.h, which every
@@ -182,6 +183,7 @@ else:
 cc('build/data.S', 'build/data.o', ARCH)
 for s in sources:
     cc(s, 'build/%s.o' % ident(s), PCFLAGS)
+open('build/link.txt', 'w').write('\n'.join(os.path.abspath(o) for o in objs) + '\n')   # for tools/mkatelier.py
 run([LD, '-T', os.path.join(SDK, 'link.ld')] + objs + ['-o', 'build/%s.elf' % name])
 run([OBJCOPY, '-O', 'binary', 'build/%s.elf' % name, 'build/%s.bin' % name])
 run([sys.executable, os.path.join(SDK, 'mkrom.py'), 'build/%s.bin' % name, 'build/%s.mnc' % name, title, conf.get('origin', 'MONOCORE-1'),

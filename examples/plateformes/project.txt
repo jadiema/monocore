@@ -1,8 +1,8 @@
 # plateformes: a model of platform game, made from a MONOPIXEL bank (decor, tile attributes, objects)
-# and a MONOSFX bank (the sound effects)
+# and a MONOSFX bank (the sound effects), with the music of MONOTRACKER; in the atelier, those saved there
 name    = plateformes
 title   = PLATEFORMES
 library = mc
-modules = mgfx mjeu msfx
+modules = mgfx mjeu msfx mtrack nvslots atelier
 sources = main.c
-data    = niveau.mgf bruits.mfx
+data    = niveau.mgf bruits.mfx ../monotracker/mtbank.bin ../monotracker/demo.mts

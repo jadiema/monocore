@@ -1,0 +1,6 @@
+# MONOATELIER: the launcher of the atelier ROM (tools/mkatelier.py puts the editors and the game with it)
+name    = atelier
+title   = MONOATELIER
+library = mc
+modules = ui480 nvslots atelier mgfx msfx mtrack
+sources = main.c

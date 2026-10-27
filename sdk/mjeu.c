@@ -176,19 +176,28 @@ void mj_frame(void) {
 // ---------------------------------------------------------------- a save in the NVRAM
 // "MJSV", u32 size, u32 checksum, then the data (from the start of the NVRAM)
 static uint32_t sum(const uint8_t *p, uint32_t n) { uint32_t s = 0x4D4A; for (uint32_t i = 0; i < n; i++) s = (s << 5) + s + p[i]; return s; }
-static uint32_t nvw(int a) { volatile uint8_t *n = MC_NVRAM; return n[a] | (n[a + 1] << 8) | (n[a + 2] << 16) | ((uint32_t)n[a + 3] << 24); }
-bool mj_load(void *data, uint32_t n) {
+// in the NVRAM of the atelier ("ATNV": the editors' items, nvslots.h), in its last 256 bytes
+static volatile uint8_t *save_at(uint32_t *max) {
   volatile uint8_t *nv = MC_NVRAM;
-  if (n > 4000 || nv[0] != 'M' || nv[1] != 'J' || nv[2] != 'S' || nv[3] != 'V' || nvw(4) != n) return false;
+  bool atelier = nv[0] == 'A' && nv[1] == 'T' && nv[2] == 'N' && nv[3] == 'V';
+  *max = atelier ? 256 - 12 : 4000;
+  return atelier ? nv + MC_NVRAM_SIZE - 256 : nv;
+}
+static uint32_t nvw(volatile uint8_t *n, int a) { return n[a] | (n[a + 1] << 8) | (n[a + 2] << 16) | ((uint32_t)n[a + 3] << 24); }
+bool mj_load(void *data, uint32_t n) {
+  uint32_t max;
+  volatile uint8_t *nv = save_at(&max);
+  if (n > max || nv[0] != 'M' || nv[1] != 'J' || nv[2] != 'S' || nv[3] != 'V' || nvw(nv, 4) != n) return false;
   static uint8_t b[4000];
   for (uint32_t i = 0; i < n; i++) b[i] = nv[12 + i];
-  if (sum(b, n) != nvw(8)) return false;
+  if (sum(b, n) != nvw(nv, 8)) return false;
   memcpy(data, b, n);
   return true;
 }
 void mj_save(const void *data, uint32_t n) {
-  volatile uint8_t *nv = MC_NVRAM;
-  if (n > 4000) return;
+  uint32_t max;
+  volatile uint8_t *nv = save_at(&max);
+  if (n > max) return;
   uint32_t s = sum(data, n);
   for (uint32_t i = 0; i < n; i++) nv[12 + i] = ((const uint8_t *)data)[i];
   nv[0] = 'M'; nv[1] = 'J'; nv[2] = 'S'; nv[3] = 'V';

@@ -111,6 +111,11 @@ NV_MAGIC, NV_SLOTS, NV_DATA, NV_SIZE = b'MTNV', 8, 80, 0x8000
 
 def read_nvram(data):
     """returns a list of NV_SLOTS songs (bytes) or None for the empty slots"""
+    if data[:4] == b'ATNV':                         # the atelier (tools/atelier/atnv.py)
+        import os, sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../atelier'))
+        import atnv
+        return atnv.read(data, atnv.TRACKER)
     if data[:4] != NV_MAGIC: raise ValueError('this .sav does not come from MONOTRACKER')
     out = []
     for k in range(NV_SLOTS):

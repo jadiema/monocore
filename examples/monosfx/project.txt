@@ -2,6 +2,6 @@
 name    = monosfx
 title   = MONOSFX
 library = mc
-modules = msfx ui480
+modules = msfx ui480 nvslots atelier
 sources = main.c
 data    = demo.mfx

@@ -10,6 +10,8 @@
 #include "mc.h"
 #include "msfx.h"
 #include "ui480.h"
+#include "nvslots.h"
+#include "atelier.h"
 
 #define GRAPH_OFF 0x10000u            // the graph: 32 x 12 cells (256 x 96 pixels), shown by sprite 1
 #define UI_OFF    0x1A000u
@@ -31,38 +33,12 @@ static int rnd(int lo, int hi) { return lo + (int)(mc_rand() % (uint32_t)(hi - l
 
 // ================================================================ NVRAM: 8 banks
 // "MSNV", u8 layout, u8 last slot, 10 bytes, then 8 x {u32 offset, u32 size}, banks from 80
-#define NV MC_NVRAM
-#define NV_SLOTS 8
-#define NV_DATA 80
-static uint32_t nv32(uint32_t a) { return NV[a] | (NV[a + 1] << 8) | (NV[a + 2] << 16) | ((uint32_t)NV[a + 3] << 24); }
-static void nv32w(uint32_t a, uint32_t v) { for (int i = 0; i < 4; i++) NV[a + i] = (uint8_t)(v >> (8 * i)); }
-static uint32_t slot_off(int k) { return nv32(16 + 8 * k); }
-static uint32_t slot_size(int k) { return nv32(20 + 8 * k); }
-static uint32_t align4(uint32_t v) { return (v + 3) & ~3u; }
-static const void *slot_data(int k) { return (const void *)(NVRAM_BASE + slot_off(k)); }
-static void nv_check(void) {
-  if (NV[0] == 'M' && NV[1] == 'S' && NV[2] == 'N' && NV[3] == 'V') {
-    for (int k = 0; k < NV_SLOTS; k++)
-      if (slot_size(k) && (slot_off(k) + slot_size(k) > MC_NVRAM_SIZE || ms_check(slot_data(k), slot_size(k)))) { nv32w(16 + 8 * k, 0); nv32w(20 + 8 * k, 0); }
-    ui_layout = NV[4] & 1;
-    return;
-  }
-  for (uint32_t i = 0; i < NV_DATA; i++) NV[i] = 0;
-  NV[0] = 'M'; NV[1] = 'S'; NV[2] = 'N'; NV[3] = 'V'; NV[5] = 0xFF;
-}
-static uint32_t nv_end(void) {
-  uint32_t e = NV_DATA;
-  for (int k = 0; k < NV_SLOTS; k++) if (slot_size(k)) { uint32_t f = slot_off(k) + align4(slot_size(k)); if (f > e) e = f; }
-  return e;
-}
-static void nv_delete(int k) {
-  uint32_t off = slot_off(k), size = align4(slot_size(k)), end = nv_end();
-  if (!slot_size(k)) return;
-  for (uint32_t i = off; i + size < end; i++) NV[i] = NV[i + size];
-  for (int j = 0; j < NV_SLOTS; j++) if (slot_size(j) && slot_off(j) > off) nv32w(16 + 8 * j, slot_off(j) - size);
-  nv32w(16 + 8 * k, 0); nv32w(20 + 8 * k, 0);
-}
-static uint32_t nv_free(int replacing) { return MC_NVRAM_SIZE - nv_end() + (replacing >= 0 ? align4(slot_size(replacing)) : 0); }
+#define NV_SLOTS NVS_SLOTS                 // the slots: module nvslots (alone, or shared in the atelier)
+static uint32_t slot_size(int k) { return nvs_size(k); }
+static const void *slot_data(int k) { return nvs_data(k); }
+static void nv_delete(int k) { nvs_delete(k); }
+static uint32_t nv_free(int replacing) { return nvs_free(replacing); }
+static void nv_check(void) { nvs_init("MSNV", NVS_SFX, ms_check); ui_layout = nvs_get(4) & 1; }
 
 // ================================================================ the bank
 static int used(void) { int n = 0; for (int i = 0; i < MS_EFFECTS; i++) if (fx[i].name[0]) n = i + 1; return n; }
@@ -88,11 +64,8 @@ static bool bank_load(const void *data, uint32_t max) {
 static void bank_save(int k) {
   uint32_t n = bank_encode(0);
   if (n > nv_free(k)) { ui_message("NVRAM PLEINE"); return; }
-  nv_delete(k);
-  uint32_t off = nv_end();
-  bank_encode((uint8_t *)(NVRAM_BASE + off));
-  nv32w(16 + 8 * k, off); nv32w(20 + 8 * k, n);
-  NV[5] = (uint8_t)k; bank_slot = k; dirty = 0;
+  bank_encode(nvs_alloc(k, n));
+  nvs_set_last(k); bank_slot = k; dirty = 0;
   snprintf(line, sizeof line, "SAUVE EN %d (%u O) - L'OSD L'ECRIT SUR LA SD", k + 1, (unsigned)n);
   ui_message(line);
 }
@@ -390,14 +363,14 @@ static void action(int a) {
     case A_BLOAD:
       if (!slot_size(slot_sel)) { ui_message("EMPLACEMENT VIDE"); break; }
       if (dirty && !ui_confirm('L', "MODIFICATIONS PERDUES")) break;
-      if (bank_load(slot_data(slot_sel), slot_size(slot_sel))) { bank_slot = slot_sel; NV[5] = (uint8_t)slot_sel; ui_message("BANQUE CHARGEE"); }
+      if (bank_load(slot_data(slot_sel), slot_size(slot_sel))) { bank_slot = slot_sel; nvs_set_last(slot_sel); ui_message("BANQUE CHARGEE"); }
       break;
     case A_BDEL:
       if (slot_size(slot_sel) && ui_confirm('D', "EFFACER L'EMPLACEMENT")) { nv_delete(slot_sel); if (bank_slot == slot_sel) bank_slot = -1; ui_message("EMPLACEMENT EFFACE"); }
       break;
     case A_BNEW: if (!dirty || ui_confirm('N', "MODIFICATIONS PERDUES")) { bank_clear(); strcpy(bank_name, "SANS NOM"); bank_slot = -1; dirty = 0; } break;
     case A_BDEMO: if (!dirty || ui_confirm('R', "MODIFICATIONS PERDUES")) { bank_load(demo_file, demo_size); bank_slot = -1; ui_message("DEMO CHARGEE"); } break;
-    case A_LAYOUT: ui_layout = !ui_layout; NV[4] = (uint8_t)ui_layout; break;
+    case A_LAYOUT: ui_layout = !ui_layout; nvs_set(4, ui_layout); break;
   }
 }
 static void select_fx(int n) { sel = clampi(n, 0, MS_EFFECTS - 1); naming = 0; graph_dirty = 1; }
@@ -419,6 +392,9 @@ static void key(int k) {
     case KEY_F1: goto_page(PG_FX); return;
     case KEY_F2: goto_page(PG_BANK); return;
     case KEY_F3: goto_page(page == PG_HELP ? help_back : PG_HELP); return;
+    case KEY_F12:                                 // the atelier: back to its launcher
+      if (at_present() && (!dirty || ui_confirm(KEY_F12, "MODIFICATIONS NON SAUVEES : F12 ENCORE POUR QUITTER"))) at_exit();
+      return;
     case KEY_ESC: if (page == PG_HELP) goto_page(help_back); return;
   }
   int c = ui_char(k);
@@ -501,10 +477,10 @@ int main(void) {
   PALETTE[P_GRAPH * 16 + 3] = RGB555(40, 46, 80);      // octaves
   mc_srand(0x5EED1234u);
   nv_check();
-  int last = NV[5];
+  int last = nvs_last();
   if (last < NV_SLOTS && slot_size(last) && bank_load(slot_data(last), slot_size(last))) bank_slot = last;
   else { bank_load(demo_file, demo_size); bank_slot = -1; }
-  ui_message("MONOSFX - ESPACE : JOUER, F3 : AIDE");
+  ui_message(at_present() ? "MONOSFX - ESPACE : JOUER, F3 : AIDE, F12 : ATELIER" : "MONOSFX - ESPACE : JOUER, F3 : AIDE");
   for (;;) {
     mc_frame();
     ms_tick();

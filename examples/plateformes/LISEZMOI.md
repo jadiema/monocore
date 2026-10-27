@@ -17,6 +17,9 @@ est sauvé dans la NVRAM (`mj_save`). Les bruitages viennent de `bruits.mfx`, fa
 joués par leur nom : `SAUT`, `PIECE`, `ECRASE`, `AIE`, `BRAVO`, `PERDU`, `MENU`. Pour changer un
 son, il suffit de le refaire dans MONOSFX sous le même nom et d'exporter la banque.
 
+Dans **MONOATELIER** (`sdk/ATELIER.md`), le jeu prend le niveau, les bruitages et la musique
+sauvés dans l'atelier : on les refait dans les éditeurs, puis F5 pour y jouer.
+
 ## Construire
 
     python3 ../../sdk/build.py .         # -> build/plateformes.mnc

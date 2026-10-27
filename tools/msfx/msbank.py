@@ -129,6 +129,11 @@ NV_SIZE, NV_SLOTS, NV_DATA = 0x8000, 8, 80
 
 
 def read_nvram(data):
+    if data[:4] == b'ATNV':                         # the atelier (tools/atelier/atnv.py)
+        import os, sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../atelier'))
+        import atnv
+        return [(k, it) for k, it in enumerate(atnv.read(data, atnv.SFX)) if it]
     if data[:4] != b'MSNV':
         raise ValueError('this save is not the NVRAM of MONOSFX (MSNV)')
     out = []

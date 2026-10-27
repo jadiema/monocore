@@ -9,6 +9,8 @@
 #include <string.h>
 #include "mc.h"
 #include "mtrack.h"
+#include "nvslots.h"
+#include "atelier.h"
 #include "font480.h"            // the font, rendered by make_font.py
 
 #define COLS 80                // 640 x 480 interlaced: 80 x 30 characters of 8 x 16
@@ -466,40 +468,14 @@ static int slen(const char *s, int max) { int n = 0; while (n < max && s[n]) n++
 
 // ================================================================ NVRAM: 8 songs, packed
 // "MTNV", u8 layout, u8 last slot, 10 bytes free, then 8 x {u32 offset, u32 size}, songs from 80
-#define NV MC_NVRAM
-#define NV_SLOTS 8
-#define NV_DATA 80
-static uint32_t nv32(uint32_t a) { return NV[a] | (NV[a + 1] << 8) | (NV[a + 2] << 16) | ((uint32_t)NV[a + 3] << 24); }
-static void nv32w(uint32_t a, uint32_t v) { for (int i = 0; i < 4; i++) NV[a + i] = (uint8_t)(v >> (8 * i)); }
-static uint32_t slot_off(int k) { return nv32(16 + 8 * k); }
-static uint32_t slot_size(int k) { return nv32(20 + 8 * k); }
-static uint32_t align4(uint32_t v) { return (v + 3) & ~3u; }
-
+#define NV_SLOTS NVS_SLOTS                 // the slots: module nvslots (alone, or shared in the atelier)
+static uint32_t slot_size(int k) { return nvs_size(k); }
+static const void *slot_data(int k) { return nvs_data(k); }
+static void nv_delete(int k) { nvs_delete(k); }
+static uint32_t nv_free(int replacing) { return nvs_free(replacing); }
 static void nv_check(void) {
-  if (NV[0] == 'M' && NV[1] == 'T' && NV[2] == 'N' && NV[3] == 'V') {
-    for (int k = 0; k < NV_SLOTS; k++)
-      if (slot_size(k) && (slot_off(k) + slot_size(k) > MC_NVRAM_SIZE ||
-                           mt_song_check((const void *)(NVRAM_BASE + slot_off(k)), slot_size(k)))) { nv32w(16 + 8 * k, 0); nv32w(20 + 8 * k, 0); }
-    layout = NV[4] & 1; velo_off = NV[6] & 1;
-    return;
-  }
-  for (uint32_t i = 0; i < NV_DATA; i++) NV[i] = 0;
-  NV[0] = 'M'; NV[1] = 'T'; NV[2] = 'N'; NV[3] = 'V'; NV[5] = 0xFF;
-}
-static uint32_t nv_end(void) {
-  uint32_t e = NV_DATA;
-  for (int k = 0; k < NV_SLOTS; k++) if (slot_size(k)) { uint32_t f = slot_off(k) + align4(slot_size(k)); if (f > e) e = f; }
-  return e;
-}
-static void nv_delete(int k) {
-  uint32_t off = slot_off(k), size = align4(slot_size(k)), end = nv_end();
-  if (!slot_size(k)) return;
-  for (uint32_t i = off; i + size < end; i++) NV[i] = NV[i + size];
-  for (int j = 0; j < NV_SLOTS; j++) if (slot_size(j) && slot_off(j) > off) nv32w(16 + 8 * j, slot_off(j) - size);
-  nv32w(16 + 8 * k, 0); nv32w(20 + 8 * k, 0);
-}
-static uint32_t nv_free(int replacing) {
-  return MC_NVRAM_SIZE - nv_end() + (replacing >= 0 ? align4(slot_size(replacing)) : 0);
+  nvs_init("MTNV", NVS_TRACKER, mt_song_check);
+  layout = nvs_get(4) & 1; velo_off = nvs_get(6) & 1;
 }
 
 // ================================================================ songs: compact format
@@ -570,11 +546,9 @@ static void song_save(int k) {
   uint32_t n = song_encode(songbuf, sizeof songbuf);
   if (!n) { message("MORCEAU TROP GROS POUR LA NVRAM"); return; }
   if (n > nv_free(k)) { snprintf(line, sizeof line, "NVRAM PLEINE (%u OCTETS A TROUVER)", (unsigned)(n - nv_free(k))); message(line); return; }
-  nv_delete(k);
-  uint32_t off = nv_end();
-  for (uint32_t i = 0; i < n; i++) NV[off + i] = songbuf[i];
-  nv32w(16 + 8 * k, off); nv32w(20 + 8 * k, n);
-  NV[5] = (uint8_t)k;
+  uint8_t *dst = nvs_alloc(k, n);
+  for (uint32_t i = 0; i < n; i++) dst[i] = songbuf[i];
+  nvs_set_last(k);
   song_slot = k; dirty = 0;
   snprintf(line, sizeof line, "SAUVE EN %d (%u O) - L'OSD L'ECRIT SUR LA SD", k + 1, (unsigned)n);
   message(line);
@@ -1110,7 +1084,7 @@ static void draw_song(void) {
     snprintf(line, sizeof line, "%d", k + 1);
     print(50, y, line, k == song_slot ? C_YELLOW : C_GREY);
     if (slot_size(k)) {
-      const char *nm = mt_song_name((const void *)(NVRAM_BASE + slot_off(k)));
+      const char *nm = mt_song_name(slot_data(k));
       char s[17]; for (int i = 0; i < 16; i++) s[i] = nm[i]; s[16] = 0;
       printn(52, y, s, 16, C_WHITE);
       snprintf(line, sizeof line, "%2u.%uK", (unsigned)(slot_size(k) / 1024), (unsigned)(slot_size(k) % 1024 * 10 / 1024));
@@ -1140,7 +1114,7 @@ static bool song_action(int c) {
   if (c == 'L') {
     if (!slot_size(slot_sel)) { message("EMPLACEMENT VIDE"); return true; }
     if (dirty && !confirm('L', "MODIFICATIONS PERDUES")) return true;
-    if (song_load((const void *)(NVRAM_BASE + slot_off(slot_sel)), slot_size(slot_sel))) { song_slot = slot_sel; NV[5] = (uint8_t)slot_sel; message("MORCEAU CHARGE"); }
+    if (song_load(slot_data(slot_sel), slot_size(slot_sel))) { song_slot = slot_sel; nvs_set_last(slot_sel); message("MORCEAU CHARGE"); }
     return true;
   }
   if (c == 'D') {
@@ -1200,8 +1174,8 @@ static void song_key(int k) {
         case SF_SPEED: s_speed = clampi(s_speed + (d > 0 ? 1 : -1), 1, 31); break;
         case SF_MASTER: s_master = clampi(s_master + d, 0, 64); mt_master(s_master); break;
         case SF_RESTART: restart = clampi(restart + (d > 0 ? 1 : -1), 0, n_orders - 1); break;
-        case SF_LAYOUT: layout = !layout; NV[4] = (uint8_t)layout; return;
-        case SF_VELO: velo_off = !velo_off; NV[6] = (uint8_t)((NV[6] & ~1) | velo_off); return;
+        case SF_LAYOUT: layout = !layout; nvs_set(4, layout); return;
+        case SF_VELO: velo_off = !velo_off; nvs_set(6, (nvs_get(6) & ~1) | velo_off); return;
       }
       if (song_field == SF_BPM || song_field == SF_SPEED) mt_set_tempo(s_speed, s_bpm);
       dirty = 1;
@@ -1313,8 +1287,8 @@ static void setting_change(int f, int d) {
     case SF_SPEED: s_speed = clampi(s_speed + (d > 0 ? 1 : -1), 1, 31); mt_set_tempo(s_speed, s_bpm); break;
     case SF_MASTER: s_master = clampi(s_master + d, 0, 64); mt_master(s_master); break;
     case SF_RESTART: restart = clampi(restart + (d > 0 ? 1 : -1), 0, n_orders - 1); break;
-    case SF_LAYOUT: layout = !layout; NV[4] = (uint8_t)layout; return;
-    case SF_VELO: velo_off = !velo_off; NV[6] = (uint8_t)((NV[6] & ~1) | velo_off); return;
+    case SF_LAYOUT: layout = !layout; nvs_set(4, layout); return;
+    case SF_VELO: velo_off = !velo_off; nvs_set(6, (nvs_get(6) & ~1) | velo_off); return;
     default: return;
   }
   dirty = 1;
@@ -1417,11 +1391,15 @@ static void global_key(int k) {
     case KEY_F2: goto_page(PG_INS); return;
     case KEY_F3: goto_page(PG_SONG); return;
     case KEY_F4: goto_page(page == PG_HELP ? help_back : PG_HELP); return;
+    case KEY_F12:                                 // in the atelier: back to its launcher (else: next instrument)
+      if (!at_present()) { set_cur_ins(cur_ins() + 1); return; }
+      if (!dirty || confirm(KEY_F12, "MODIFICATIONS NON SAUVEES : F12 ENCORE POUR QUITTER")) at_exit();
+      return;
     case KEY_F5: if (octave > 0) octave--; return;
     case KEY_F6: if (octave < 7) octave++; return;
     case KEY_F7: if (step > 0) step--; return;
     case KEY_F8: if (step < 16) step++; return;
-    case KEY_F11: case KEY_F12: case KEY_KPMINUS: case KEY_KPPLUS:
+    case KEY_F11: case KEY_KPMINUS: case KEY_KPPLUS:
       set_cur_ins(cur_ins() + (k == KEY_F11 || k == KEY_KPMINUS ? -1 : 1));
       return;
     case KEY_ESC: stop_all(); return;
@@ -1531,12 +1509,12 @@ int main(void) {
   for (int i = 0; i < 512; i++) jam_track[i] = -1;
   for (int i = 0; i < 128; i++) midi_track[i] = -1;
   nv_check();
-  int last = NV[5];
-  if (last < NV_SLOTS && slot_size(last) && song_load((const void *)(NVRAM_BASE + slot_off(last)), slot_size(last))) song_slot = last;
+  int last = nvs_last();
+  if (last < NV_SLOTS && slot_size(last) && song_load(slot_data(last), slot_size(last))) song_slot = last;
   else { song_load(demo_file, demo_size); song_slot = -1; }
   if (mc_hw_version() < 2) message("CE CORE N'A PAS DE CLAVIER (VERSION 1)");
   else if (mc_hw_version() < 3) message("CORE SANS SOURIS (VERSION 2) - F4 POUR L'AIDE");
-  else message("MONOTRACKER - F4 POUR L'AIDE");
+  else message(at_present() ? "MONOTRACKER - F4 : AIDE, F12 : RETOUR A L'ATELIER" : "MONOTRACKER - F4 POUR L'AIDE");
   for (;;) {
     mc_frame();
     int e;

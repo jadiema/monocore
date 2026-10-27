@@ -226,6 +226,7 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
               <option value="tracker" data-i18n="optTracker">MONOTRACKER (musique, clavier)</option>
               <option value="pixel" data-i18n="optPixel">MONOPIXEL (graphismes, souris)</option>
               <option value="sfx" data-i18n="optSfx">MONOSFX (bruitages, souris)</option>
+              <option value="atelier" data-i18n="optAtelier">MONOATELIER (les trois éditeurs et le jeu)</option>
               <option value="plateformes" data-i18n="optPlateformes">PLATEFORMES (modèle de jeu, mjeu)</option>
               <option value="cascade" data-i18n="optCascade">CASCADE (jeu, clavier MIDI)</option>
               <option value="defender" data-i18n="optDefender">PIANO DEFENDER (jeu, clavier MIDI)</option>
@@ -393,6 +394,9 @@ __CORE_JS__
     optTracker: ['MONOTRACKER (musique, clavier)', 'MONOTRACKER (music, keyboard)'],
     optPixel: ['MONOPIXEL (graphismes, souris)', 'MONOPIXEL (graphics, mouse)'],
     optSfx: ['MONOSFX (bruitages, souris)', 'MONOSFX (sound effects, mouse)'],
+    optAtelier: ['MONOATELIER (les trois éditeurs et le jeu)', 'MONOATELIER (the three editors and the game)'],
+    atelierKbd: ['MONOATELIER : souris et clavier de la console activés (F9 coupe le clavier). F1 images, F2 bruitages, F3 musique, F5 le jeu ; F12 dans chacun : retour à l\'atelier. Tout est dans une seule NVRAM (Exporter .sav).',
+                 'MONOATELIER: console mouse and keyboard on (F9 turns the keyboard off). F1 images, F2 sound effects, F3 music, F5 the game; F12 in each: back to the atelier. Everything is in one NVRAM (Export .sav).'],
     sfxKbd: ['MONOSFX se joue à la souris et au clavier : « souris de la console » et « clavier de la console » activés (F9 coupe le clavier). Espace : écouter ; F3 : l\'aide.',
              'MONOSFX is used with the mouse and the keyboard: “console mouse” and “console keyboard” are on (F9 turns the keyboard off). Space: listen; F3: help.'],
     nvSfx: ['Bruitages .mfx', '.mfx sound banks'],
@@ -562,9 +566,10 @@ __CORE_JS__
     setPill('runPill', 'ok', running ? 'running' : 'ready');
     peakWin.length = 0;
     // MONOTRACKER needs the console keyboard: switched on for it, and off again after it
-    const pixel = m.header.title === 'MONOPIXEL' || m.header.title === 'MONOSFX', sfxEd = m.header.title === 'MONOSFX';
+    const atelier = m.header.title === 'MONOATELIER';
+    const pixel = m.header.title === 'MONOPIXEL' || m.header.title === 'MONOSFX' || atelier, sfxEd = m.header.title === 'MONOSFX';
     const tracker = m.header.title === 'MONOTRACKER' || pixel, cascade = ['CASCADE', 'PIANO DEFENDER', 'SOLFEGE'].includes(m.header.title);
-    if ((tracker || cascade) && !$('kbdMode').checked) { setKbd(true); autoKbd = true; log(t(cascade ? 'cascadeKbd' : sfxEd ? 'sfxKbd' : pixel ? 'pixelKbd' : 'trackerKbd') + '\n'); }
+    if ((tracker || cascade) && !$('kbdMode').checked) { setKbd(true); autoKbd = true; log(t(cascade ? 'cascadeKbd' : atelier ? 'atelierKbd' : sfxEd ? 'sfxKbd' : pixel ? 'pixelKbd' : 'trackerKbd') + '\n'); }
     else if (!tracker && !cascade && autoKbd) { setKbd(false); autoKbd = false; }
     if (tracker && !$('mouseMode').checked) { $('mouseMode').checked = true; autoMouse = true; }
     else if (!tracker && autoMouse) { $('mouseMode').checked = false; autoMouse = false; }
@@ -573,8 +578,9 @@ __CORE_JS__
     $('songTools').hidden = !hasSongs() && !(tracker && !pixel);
     $('bankList').textContent = '';
     $('bankTools').hidden = !(pixel && !sfxEd) && !hasBanks();
+    if (atelier) $('songTools').hidden = false;
     $('sfxList').textContent = '';
-    $('sfxTools').hidden = !sfxEd && !hasSfx();
+    $('sfxTools').hidden = !sfxEd && !atelier && !hasSfx();
   }
   let autoKbd = false, autoMouse = false;
 
@@ -691,56 +697,32 @@ __CORE_JS__
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   }
   function savName() {   // the MiSTer names the save after the ROM file
-    const base = /\.mnc$/i.test(romKey) ? romKey.replace(/\.mnc$/i, '') : romKey === 'tracker' ? 'monotracker' : romKey === 'pixel' ? 'monopixel' : romKey === 'sfx' ? 'monosfx' : (m.header.title || romKey);
+    const base = /\.mnc$/i.test(romKey) ? romKey.replace(/\.mnc$/i, '') : romKey === 'tracker' ? 'monotracker' : romKey === 'pixel' ? 'monopixel' : romKey === 'sfx' ? 'monosfx' : romKey === 'atelier' ? 'monoatelier' : (m.header.title || romKey);
     return base.toLowerCase().replace(/[^a-z0-9_.-]+/g, '_') + '.sav';
   }
   // songs of MONOTRACKER in the NVRAM: "MTNV", then 8 x {offset, size} from byte 16 (sdk/MTRACK.md)
-  function trackerSongs() {
+  // items of an editor in the NVRAM: its own ("MTNV"...: 8 slots from 16) or the atelier's ("ATNV": 32 slots
+  // from 16, editor e at 8e to 8e + 7; sdk/nvslots.h). nameAt: offset of the name in an item
+  function nvItems(own, app, itemMagic, nameAt, fallback) {
     if (!m) return [];
     const n = m.nvram, dv = new DataView(n.buffer, n.byteOffset, n.byteLength);
-    if (String.fromCharCode(n[0], n[1], n[2], n[3]) !== 'MTNV') return [];
+    const tag = String.fromCharCode(n[0], n[1], n[2], n[3]), first = tag === 'ATNV' ? app * 8 : tag === own ? 0 : -1;
+    if (first < 0) return [];
     const out = [];
     for (let k = 0; k < 8; k++) {
-      const off = dv.getUint32(16 + 8 * k, true), size = dv.getUint32(20 + 8 * k, true);
-      if (!size || off + size > n.length || String.fromCharCode(n[off], n[off + 1], n[off + 2], n[off + 3]) !== 'MTS1') continue;
+      const off = dv.getUint32(16 + 8 * (first + k), true), size = dv.getUint32(20 + 8 * (first + k), true);
+      if (!size || off + size > n.length || String.fromCharCode(n[off], n[off + 1], n[off + 2], n[off + 3]) !== itemMagic) continue;
       let name = '';
-      for (let i = 0; i < 16 && n[off + 20 + i]; i++) name += String.fromCharCode(n[off + 20 + i]);
-      out.push({ slot: k + 1, name: name.trim() || 'morceau', bytes: n.slice(off, off + size) });
+      for (let i = 0; i < 16 && n[off + nameAt + i]; i++) name += String.fromCharCode(n[off + nameAt + i]);
+      out.push({ slot: k + 1, name: name.trim() || fallback, bytes: n.slice(off, off + size) });
     }
     return out;
   }
+  function trackerSongs() { return nvItems('MTNV', 0, 'MTS1', 20, 'morceau'); }
   function hasSongs() { return trackerSongs().length > 0; }
-  // banks of MONOPIXEL in the NVRAM: "MGNV", the same slot table (sdk/MGFX.md); name at +16 of a bank
-  function pixelBanks() {
-    if (!m) return [];
-    const n = m.nvram, dv = new DataView(n.buffer, n.byteOffset, n.byteLength);
-    if (String.fromCharCode(n[0], n[1], n[2], n[3]) !== 'MGNV') return [];
-    const out = [];
-    for (let k = 0; k < 8; k++) {
-      const off = dv.getUint32(16 + 8 * k, true), size = dv.getUint32(20 + 8 * k, true);
-      if (!size || off + size > n.length || String.fromCharCode(n[off], n[off + 1], n[off + 2], n[off + 3]) !== 'MGF1') continue;
-      let name = '';
-      for (let i = 0; i < 16 && n[off + 16 + i]; i++) name += String.fromCharCode(n[off + 16 + i]);
-      out.push({ slot: k + 1, name: name.trim() || 'banque', bytes: n.slice(off, off + size) });
-    }
-    return out;
-  }
+  function pixelBanks() { return nvItems('MGNV', 1, 'MGF1', 16, 'banque'); }   // sdk/MGFX.md
   function hasBanks() { return pixelBanks().length > 0; }
-  // banks of MONOSFX in the NVRAM: "MSNV", the same slot table (sdk/MSFX.md); name at +12 of a bank
-  function sfxBanks() {
-    if (!m) return [];
-    const n = m.nvram, dv = new DataView(n.buffer, n.byteOffset, n.byteLength);
-    if (String.fromCharCode(n[0], n[1], n[2], n[3]) !== 'MSNV') return [];
-    const out = [];
-    for (let k = 0; k < 8; k++) {
-      const off = dv.getUint32(16 + 8 * k, true), size = dv.getUint32(20 + 8 * k, true);
-      if (!size || off + size > n.length || String.fromCharCode(n[off], n[off + 1], n[off + 2], n[off + 3]) !== 'MFX1') continue;
-      let name = '';
-      for (let i = 0; i < 16 && n[off + 12 + i]; i++) name += String.fromCharCode(n[off + 12 + i]);
-      out.push({ slot: k + 1, name: name.trim() || 'bruits', bytes: n.slice(off, off + size) });
-    }
-    return out;
-  }
+  function sfxBanks() { return nvItems('MSNV', 2, 'MFX1', 12, 'bruits'); }     // sdk/MSFX.md
   function hasSfx() { return sfxBanks().length > 0; }
   $('nvExportBtn').addEventListener('click', () => { if (m) { saveNv(); download(m.nvram.slice(), savName()); } });
   $('nvFile').addEventListener('change', (e) => {

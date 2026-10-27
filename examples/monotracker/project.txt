@@ -2,6 +2,6 @@
 name    = monotracker
 title   = MONOTRACKER
 library = mc
-modules = mtrack
+modules = mtrack nvslots atelier
 sources = main.c
 data    = mtbank.bin demo.mts

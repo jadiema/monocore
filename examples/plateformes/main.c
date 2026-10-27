@@ -11,13 +11,18 @@
 //   DRAPEAU  the end of the level
 // Another level: draw it in MONOPIXEL, export it (tools/mgfx/mgfx.py monopixel.sav 1 -o niveau.mgf)
 // and build again. Another kind of object: a sprite with a new name and a case in update().
-// The sounds come from bruits.mfx, made with MONOSFX, and are played by name (sound("SAUT")).
+// The sounds come from bruits.mfx, made with MONOSFX, and are played by name (sound("SAUT")); the
+// music is the demo song of MONOTRACKER. In the atelier (examples/atelier), the game takes instead the
+// level, the sounds and the song saved in its NVRAM by the editors: no computer between them.
 // Modules: mgfx (the bank), mjeu (objects, collisions, camera, save: sdk/MJEU.md) and msfx (sounds).
 #include <stdio.h>
 #include "mc.h"
 #include "mgfx.h"
 #include "mjeu.h"
 #include "msfx.h"
+#include "mtrack.h"
+#include "nvslots.h"
+#include "atelier.h"
 
 #define MAX_OBJ 64
 static mg_bank_t bank;
@@ -108,14 +113,34 @@ static void hud(void) {
   snprintf(s, sizeof s, "SCORE %5d   VIES %d   RECORD %5d", score, lives, best);
   text(1, 1, s);
 }
+// in the atelier: the item of an editor chosen in the launcher (else its last one), if valid
+static const void *atelier_item(int app, int setting, uint32_t *size, int (*check)(const void *, uint32_t)) {
+  if (!at_present() || !nvs_shared()) return 0;
+  int k = nvs_get(setting);
+  if (k >= NVS_SLOTS || !nvs_size_of(app, k)) k = nvs_last_of(app);
+  if (k >= NVS_SLOTS || !nvs_size_of(app, k) || check(nvs_data_of(app, k), nvs_size_of(app, k))) return 0;
+  *size = nvs_size_of(app, k);
+  return nvs_data_of(app, k);
+}
 int main(void) {
   mc_init();
   mc_video_mode(320, 240);
-  if (mg_open(&bank, niveau_file, niveau_size) || !mg_load(&bank, 0, 16, MG_LOAD_ALL)) {
+  volatile uint8_t *nv = MC_NVRAM;                  // in the atelier: the items saved by the editors
+  if (at_present() && nv[0] == 'A' && nv[1] == 'T' && nv[2] == 'N' && nv[3] == 'V') nvs_init("ATNV", NVS_GAME, 0);
+  uint32_t n_level = niveau_size, n_sfx = bruits_size, n_song = demo_size;
+  const void *level = niveau_file, *sounds = bruits_file, *song = demo_file, *p;
+  if ((p = atelier_item(NVS_PIXEL, 12, &n_level, mg_check))) level = p; else n_level = niveau_size;
+  if ((p = atelier_item(NVS_SFX, 13, &n_sfx, ms_check))) sounds = p; else n_sfx = bruits_size;
+  if ((p = atelier_item(NVS_TRACKER, 14, &n_song, mt_song_check))) song = p; else n_song = demo_size;
+  (void)n_song;
+  if (mg_open(&bank, level, n_level) || !mg_load(&bank, 0, 16, MG_LOAD_ALL)) {
     mc_debug("niveau.mgf : banque illisible ou trop grande\n");
     for (;;) mc_frame();
   }
-  ms_open(&sfx, bruits_file, bruits_size);        // a missing sound is simply silent
+  ms_open(&sfx, sounds, n_sfx);                   // a missing sound is simply silent
+  mt_init(mtbank_file);
+  mt_reserve(MT_PSG(6), true); mt_reserve(MT_PSG(7), true);   // PSG 6-7: the sound effects
+  mt_play(song, 0);
   HEROS = mg_sprite_find(&bank, "HEROS"); PIECE = mg_sprite_find(&bank, "PIECE");
   BLOB = mg_sprite_find(&bank, "BLOB"); DRAPEAU = mg_sprite_find(&bank, "DRAPEAU");
   mc_text_layer(0, 3);
@@ -129,13 +154,19 @@ int main(void) {
     mj_frame();
     scene_timer++;
     uint32_t pr = mc_pad_pressed(1);
+    int key;
+    while ((key = mc_key_event()) >= 0) if (key == (KEY_F12 | 0x200) && at_present()) at_exit();
+    if (at_present() && (mc_pad(1) & IN_START) && (mc_pad(1) & IN_COIN)) at_exit();
     if (scene == PLAY) {
       for (int i = 0; i < n_obj; i++) update(&obj[i]);
       if (hero) mj_camera(&world, hero);
       clear_text(); hud();
     } else {
       clear_text();
-      if (scene == TITLE) { text(13, 9, "PLATEFORMES"); text(5, 13, "GAUCHE / DROITE : COURIR"); text(5, 15, "B1 : SAUTER (BAS + B1 : DESCENDRE)"); }
+      if (scene == TITLE) {
+        text(13, 9, "PLATEFORMES"); text(5, 13, "GAUCHE / DROITE : COURIR"); text(5, 15, "B1 : SAUTER (BAS + B1 : DESCENDRE)");
+        if (at_present()) text(5, 23, "F12 OU START + COIN : ATELIER");
+      }
       if (scene == WON) { text(15, 10, "BRAVO !"); hud(); }
       if (scene == OVER) { text(14, 10, "PERDU..."); hud(); }
       if ((scene_timer / 30) & 1) text(10, 19, "APPUYEZ SUR B1");

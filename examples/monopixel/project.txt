@@ -2,6 +2,6 @@
 name    = monopixel
 title   = MONOPIXEL
 library = mc
-modules = mgfx ui480
+modules = mgfx ui480 nvslots atelier
 sources = main.c
 data    = demo.mgf
