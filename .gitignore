@@ -7,6 +7,7 @@
 !examples/test_inputs/build/inputs.mnc
 !examples/aube/build/aube.mnc
 !examples/virusmeadow/build/virusmeadow.mnc
+!examples/graviton/build/graviton.mnc
 !examples/monotracker/build/monotracker.mnc
 !examples/monopixel/build/monopixel.mnc
 !examples/test_mgfx/build/test_mgfx.mnc

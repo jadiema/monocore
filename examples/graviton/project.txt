@@ -1,0 +1,5 @@
+# GRAVITON: gravity puzzle for MONOCORE-1 (all graphics drawn at start-up)
+name    = graviton
+title   = GRAVITON
+library = mc
+sources = main.c
