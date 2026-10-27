@@ -31,7 +31,7 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 | `tools/mtrack/` | outils du tracker : banque d'échantillons (`make_bank.py`), morceau de démo (`make_demo.py`), export des morceaux depuis le `.sav` (`sav2song.py`) |
 | `tools/cart/` | `cart_split.py` : découpe une ROM en images pour une ou deux Flash SPI W25Q64 (cartouche sur le port USER) |
 | `rtl/` | le core FPGA en Verilog (CPU, mémoires, E/S, DMA, rendu vidéo, son) et ses bancs de test Verilator |
-| `quartus_trial/` | essai de compilation du core seul dans Quartus (ressources, fréquence maximale), voir son `LISEZMOI.md` |
+| `tools/quartus_trial/` | essai de compilation du core seul dans Quartus (ressources, fréquence maximale), voir son `LISEZMOI.md` |
 | `manual/` | le manuel du programmeur (`MONOCORE-1_Manuel_du_programmeur.pdf`), ses exemples (`examples/`, un dossier par chapitre) et l'outil qui le régénère (`tools/manual.py`) ; le manuel de MONOTRACKER (`MONOTRACKER_Manuel.pdf`) et le guide pour brancher un clavier MIDI (`MONOCORE-1_Guide_MIDI.pdf`) |
 | `mister/` | le core MiSTer (framework `Template_MiSTer`, projet `MONOCORE.qpf`), voir son `LISEZMOI.md` ; ses modules propres sont dans `rtl/mister/` (contrôleur SDRAM, balayage vidéo, chargement) |
 | `tools/apu/` | journaux d'écritures son, modèle de référence et comparaison au bit près du moteur son |

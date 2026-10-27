@@ -31,7 +31,7 @@ tools/regress_system.sh           # système complet avec modèle de SDRAM (rtl/
 python3 manual/tools/manual.py    # régénère le manuel PDF (Playwright/Chromium)
 ```
 
-Quartus : ouvrir `mister/MONOCORE.qpf` (voir `mister/LISEZMOI.md`). `quartus_trial/` est l'essai de synthèse du core seul.
+Quartus : ouvrir `mister/MONOCORE.qpf` (voir `mister/LISEZMOI.md`). `tools/quartus_trial/` est l'essai de synthèse du core seul.
 
 ## SDK
 

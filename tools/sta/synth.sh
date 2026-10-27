@@ -5,7 +5,7 @@ set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 OUT=$(realpath -m "$1")
 W=$(mktemp -d /home/claude/ysta.XXXX)
-cp -r "$ROOT/rtl" "$ROOT/quartus_trial" "$W/"
+cp -r "$ROOT/rtl" "$ROOT/tools/quartus_trial" "$W/"
 rm -rf "$W/rtl/obj_dir" "$W/rtl/obj_apu"
 cd "$W"
 {

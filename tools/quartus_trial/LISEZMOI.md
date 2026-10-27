@@ -17,7 +17,7 @@ L'essai n° 4 tenait les 50 MHz avec seulement 0,09 ns de marge ; cette version 
 ## Prérequis
 
 - Quartus Prime **Lite 17.0** (la version utilisée par MiSTer), avec la prise en charge du **Cyclone V** installée.
-- Le dossier `monocore` complet : ce projet lit les sources dans `../rtl`.
+- Le dossier `monocore` complet : ce projet lit les sources dans `../../rtl`.
 
 ## Lancer la compilation
 
@@ -54,7 +54,7 @@ Si la compilation s'arrête sur une erreur, renvoyer plutôt tous les fichiers `
 
 ## Ce que contient l'essai
 
-`monocore_trial_top.v` enveloppe le core (`../rtl/mc_core.v`). Toutes les entrées du core (données de la ROM, manettes, DIP switches, taille de la ROM) viennent d'un registre à décalage alimenté par une seule broche, et toutes ses sorties (pixels, son, adresses mémoire) sont combinées en 8 broches. Quartus ne peut donc rien supprimer, et le résultat reflète le core réel.
+`monocore_trial_top.v` enveloppe le core (`../../rtl/mc_core.v`). Toutes les entrées du core (données de la ROM, manettes, DIP switches, taille de la ROM) viennent d'un registre à décalage alimenté par une seule broche, et toutes ses sorties (pixels, son, adresses mémoire) sont combinées en 8 broches. Quartus ne peut donc rien supprimer, et le résultat reflète le core réel.
 
 La contrainte (`monocore_trial.sdc`) demande 50 MHz sur l'horloge, la fréquence de l'oscillateur de la carte sur cette broche. Sur la vraie carte, cette horloge viendra d'une PLL ; pour l'essai, elle est déclarée directement sur la broche de l'oscillateur.
 
