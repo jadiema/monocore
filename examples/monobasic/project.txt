@@ -1,0 +1,7 @@
+# MONOBASIC: the BASIC of MONOCORE-1 (editor in 640 x 480, games in 320 x 240 on the SDK modules)
+name    = monobasic
+title   = MONOBASIC
+library = mc
+modules = ui480 nvslots atelier mgfx mjeu msfx mtrack
+sources = main.c
+data    = images.mgf bruits.mfx musique.mts ../monotracker/mtbank.bin

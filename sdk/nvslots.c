@@ -42,11 +42,12 @@ void nvs_format_atelier(void) {
   for (uint32_t i = 0; i < 16 + 8 * 32; i++) NV[i] = 0;
   NV[0] = 'A'; NV[1] = 'T'; NV[2] = 'N'; NV[3] = 'V';
   for (int i = 5; i <= 7; i++) NV[i] = 0xFF;
-  for (int i = 12; i <= 14; i++) NV[i] = 0xFF;
+  for (int i = 12; i <= 15; i++) NV[i] = 0xFF;
 }
 uint32_t nvs_size_of(int app, int k) { return k >= 0 && k < NVS_SLOTS && (shared || app == app_no) ? size_p(phys(app, k)) : 0; }
 const void *nvs_data_of(int app, int k) { return (const void *)(NVRAM_BASE + off_p(phys(app, k))); }
-int nvs_last_of(int app) { return shared ? NV[5 + (app < 3 ? app : 0)] : (app == app_no ? NV[5] : 0xFF); }
+static int last_byte(int app) { return app < 3 ? 5 + app : 15; }   // atelier: MONOBASIC in byte 15
+int nvs_last_of(int app) { return shared ? NV[last_byte(app)] : (app == app_no ? NV[5] : 0xFF); }
 uint32_t nvs_size(int k) { return nvs_size_of(app_no, k); }
 const void *nvs_data(int k) { return nvs_data_of(app_no, k); }
 uint32_t nvs_free(int k) { return TOP - end_all() + (k >= 0 ? al4(nvs_size(k)) : 0); }
@@ -67,7 +68,7 @@ uint8_t *nvs_alloc(int k, uint32_t size) {
   return (uint8_t *)(NVRAM_BASE + off);
 }
 int nvs_last(void) { return nvs_last_of(app_no); }
-void nvs_set_last(int k) { NV[shared ? 5 + (app_no < 3 ? app_no : 0) : 5] = (uint8_t)k; }
+void nvs_set_last(int k) { NV[shared ? last_byte(app_no) : 5] = (uint8_t)k; }
 static int setting(int i) { return (shared && i >= 6 && i <= 9 ? i + 2 : i) & 15; }   // shared: 5-7 are last slots
 int nvs_get(int i) { return NV[setting(i)]; }
 void nvs_set(int i, int v) { NV[setting(i)] = (uint8_t)v; }

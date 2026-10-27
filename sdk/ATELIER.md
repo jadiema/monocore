@@ -2,7 +2,7 @@
 
 **MONOATELIER** (`examples/atelier/build/monoatelier.mnc`) réunit dans **une seule ROM** un
 lanceur, les trois éditeurs (MONOPIXEL pour les images, MONOSFX pour les bruitages, MONOTRACKER
-pour la musique) et un jeu, PLATEFORMES. Comme c'est une seule ROM, MiSTer leur donne **une seule
+pour la musique), le BASIC (MONOBASIC, pour écrire le jeu) et un jeu tout fait, PLATEFORMES. Comme c'est une seule ROM, MiSTer leur donne **une seule
 NVRAM** (`saves/MONOCORE/monoatelier.sav`). Ce qu'un éditeur sauve est donc là pour les autres et
 pour le jeu : on dessine un niveau, on fait ses bruitages et sa musique, puis on y joue, sans
 ordinateur entre les étapes.
@@ -12,6 +12,7 @@ ordinateur entre les étapes.
 | Touche | Rôle |
 |---|---|
 | F1, F2, F3 (ou clic) | ouvre MONOPIXEL, MONOSFX, MONOTRACKER |
+| F4 | ouvre MONOBASIC : un programme qui utilise les images, bruitages et musiques de l'atelier (`examples/monobasic/LISEZMOI.md`) |
 | F5, Entrée | joue PLATEFORMES avec le niveau, les bruitages et la musique de la NVRAM |
 | clic sur un emplacement | c'est celui que le jeu prendra (sinon : le dernier sauvé par l'éditeur) ; un second clic revient au choix automatique |
 | F12, dans chaque programme | retour à l'atelier (après confirmation s'il reste des modifications non sauvées) ; dans le jeu aussi START + COIN |
@@ -43,6 +44,7 @@ démarrer, son code de démarrage remettant la WRAM et la vidéo à zéro. C'est
 | 0x280000 | MONOSFX |
 | 0x300000 | PLATEFORMES |
 | 0x480000 | MONOTRACKER |
+| 0x600000 | MONOBASIC |
 
 Les adresses sont dans `PROGRAMS`, en tête de `tools/mkatelier.py` ; on y ajoute un jeu comme les
 autres. `at_present()` vérifie l'en-tête de la ROM en cours (titre `MONOATELIER`, taille), car la
@@ -58,10 +60,10 @@ lisibles. Dans l'atelier, la NVRAM commence par `ATNV` :
 |---|---|
 | 0–3 | `ATNV` |
 | 4 | disposition du clavier (AZERTY 0, QWERTY 1), commune |
-| 5, 6, 7 | dernier emplacement sauvé par MONOTRACKER, MONOPIXEL, MONOSFX |
+| 5, 6, 7 | dernier emplacement sauvé par MONOTRACKER, MONOPIXEL, MONOSFX (15 : MONOBASIC) |
 | 8–11 | réglages des éditeurs (MONOTRACKER : bit 0 de l'octet 8, la vélocité) |
-| 12, 13, 14 | emplacements choisis pour le jeu (images, bruitages, musique ; 0xFF : le dernier) |
-| 16–271 | 32 × {u32 décalage, u32 taille} : MONOTRACKER 0–7, MONOPIXEL 8–15, MONOSFX 16–23 |
+| 12, 13, 14 | emplacements choisis pour le jeu et le BASIC (images, bruitages, musique ; 0xFF : le dernier) |
+| 16–271 | 32 × {u32 décalage, u32 taille} : MONOTRACKER 0–7, MONOPIXEL 8–15, MONOSFX 16–23, MONOBASIC 24–31 |
 | 272 → | les éléments, rangés à la suite |
 | les 256 derniers | la sauvegarde du jeu (`mj_save` : record…) |
 

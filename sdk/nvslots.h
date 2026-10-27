@@ -13,7 +13,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-enum { NVS_TRACKER, NVS_PIXEL, NVS_SFX, NVS_GAME };   // editor numbers in the atelier
+enum { NVS_TRACKER, NVS_PIXEL, NVS_SFX, NVS_BASIC };  // editor numbers in the atelier (slots 8e to 8e + 7)
+#define NVS_GAME NVS_BASIC                // a game only reads the others' items
 #define NVS_SLOTS 8
 
 // magic: the editor's own NVRAM ("MGNV"); app: its number; check: 0 if an item is valid (else the

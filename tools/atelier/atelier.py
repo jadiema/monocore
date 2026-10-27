@@ -10,18 +10,19 @@ usage:
                                                                 the items of the editors alone go into the
                                                                 same slots of the atelier (created if missing)
     python3 atelier.py monoatelier.sav --put 1 3 niveau.mgf     a file into slot 3 of MONOPIXEL (0 MONOTRACKER,
-                                                                1 MONOPIXEL, 2 MONOSFX)
+                                                                1 MONOPIXEL, 2 MONOSFX, 3 MONOBASIC)
 """
 import argparse, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import atnv
 
-EXT = {atnv.TRACKER: ('musique', '.mts'), atnv.PIXEL: ('images', '.mgf'), atnv.SFX: ('bruits', '.mfx')}
+EXT = {atnv.TRACKER: ('musique', '.mts'), atnv.PIXEL: ('images', '.mgf'), atnv.SFX: ('bruits', '.mfx'), atnv.BASIC: ('programme', '.mbs')}
 
 
 def name_of(app, it):
     if app == atnv.PIXEL: return it[16:32].split(b'\0')[0].decode('ascii', 'replace')
     if app == atnv.SFX: return it[12:28].split(b'\0')[0].decode('ascii', 'replace')
+    if app == atnv.BASIC: return it[8:24].split(b'\0')[0].decode('ascii', 'replace')
     try:
         sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '../mtrack'))
         from mtsong import Song
@@ -56,7 +57,7 @@ def main():
         open(a.sav, 'wb').write(data)
     if not data:
         sys.exit('%s : introuvable' % a.sav)
-    for app in (atnv.PIXEL, atnv.SFX, atnv.TRACKER):
+    for app in (atnv.PIXEL, atnv.SFX, atnv.TRACKER, atnv.BASIC):
         print(atnv.APP_NAMES[app])
         for k, it in enumerate(atnv.read(data, app)):
             print('  %d  %s' % (k + 1, '-' if not it else '%-16s %5d octets' % (name_of(app, it), len(it))))

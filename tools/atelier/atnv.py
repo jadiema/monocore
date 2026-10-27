@@ -1,6 +1,6 @@
 """The NVRAM of the atelier ("ATNV", sdk/nvslots.h), in Python: 32 slots, 8 for each editor.
 
-    "ATNV", byte 4 keyboard layout, bytes 5-7 last slot of MONOTRACKER, MONOPIXEL, MONOSFX,
+    "ATNV", byte 4 keyboard layout, bytes 5-7 last slot of MONOTRACKER, MONOPIXEL, MONOSFX (15: MONOBASIC),
     8-11 settings of the editors, 12-14 slots played by the game (0xFF: the last ones),
     32 x {u32 offset, u32 size} from 16 (editor e: slots 8e to 8e + 7), items from 272,
     the last 256 bytes: the save of the game (mj_save).
@@ -8,10 +8,10 @@
 import struct
 
 MAGIC, SLOTS, TABLE, DATA, SIZE, GAME = b'ATNV', 32, 16, 16 + 8 * 32, 0x8000, 256
-TRACKER, PIXEL, SFX = 0, 1, 2
-APP_NAMES = {TRACKER: 'MONOTRACKER', PIXEL: 'MONOPIXEL', SFX: 'MONOSFX'}
-ITEM_MAGIC = {TRACKER: b'MTS1', PIXEL: b'MGF1', SFX: b'MFX1'}
-OWN_MAGIC = {TRACKER: b'MTNV', PIXEL: b'MGNV', SFX: b'MSNV'}   # the NVRAM of each editor alone
+TRACKER, PIXEL, SFX, BASIC = 0, 1, 2, 3
+APP_NAMES = {TRACKER: 'MONOTRACKER', PIXEL: 'MONOPIXEL', SFX: 'MONOSFX', BASIC: 'MONOBASIC'}
+ITEM_MAGIC = {TRACKER: b'MTS1', PIXEL: b'MGF1', SFX: b'MFX1', BASIC: b'MBS1'}
+OWN_MAGIC = {TRACKER: b'MTNV', PIXEL: b'MGNV', SFX: b'MSNV', BASIC: b'MBNV'}   # the NVRAM of each editor alone
 
 
 def is_atelier(data):
@@ -22,7 +22,7 @@ def new():
     nv = bytearray(SIZE)
     nv[0:4] = MAGIC
     nv[5:8] = b'\xff\xff\xff'
-    nv[12:15] = b'\xff\xff\xff'
+    nv[12:16] = b'\xff\xff\xff\xff'
     return nv
 
 
@@ -53,7 +53,7 @@ def write(data, items):
     nv = bytearray(data) if data and is_atelier(data) else new()
     nv = (nv + bytes(SIZE))[:SIZE]
     every = {}
-    for app in (TRACKER, PIXEL, SFX):
+    for app in (TRACKER, PIXEL, SFX, BASIC):
         for k, it in enumerate(read(nv, app)):
             if it:
                 every[(app, k)] = it

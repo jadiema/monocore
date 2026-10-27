@@ -1,7 +1,8 @@
 // MONOATELIER: the launcher of the atelier, a ROM with everything to make a small game on the console.
 //
 // tools/mkatelier.py puts in one ROM this launcher and complete programs: MONOPIXEL (images, decors,
-// objects), MONOSFX (sound effects), MONOTRACKER (music) and PLATEFORMES (the game). Being one ROM,
+// objects), MONOSFX (sound effects), MONOTRACKER (music), MONOBASIC (programs) and PLATEFORMES (the
+// game). Being one ROM,
 // they share one NVRAM (module nvslots): what is saved in an editor is there for the others, and
 // PLATEFORMES plays the level, the sounds and the music saved here, with no computer between.
 // F12 in each program comes back here. Documentation: ATELIER.md.
@@ -71,6 +72,7 @@ static void draw(void) {
   }
   ui_box(0, 18, 79, 26, UI_RAISED);
   ui_button(2, 19, 30, "F5 JOUER : PLATEFORMES", false, Z_RUN, 3);
+  ui_button(2, 21, 30, "F4 PROGRAMMER : MONOBASIC", false, Z_RUN, 4);
   ui_print(34, 19, "LE JEU PREND :", UI_INK);
   static const char *const kind[3] = { "LE NIVEAU   ", "LES BRUITS  ", "LA MUSIQUE  " };
   for (int e = 0; e < 3; e++) {
@@ -79,15 +81,14 @@ static void draw(void) {
     else snprintf(line, sizeof line, "%s(CELUI DU JEU)", kind[e]);
     ui_print(34, 21 + e, line, g >= 0 ? UI_INK_BLUE : UI_INK_DIM);
   }
-  ui_print(1, 21, "UN CLIC SUR UN EMPLACEMENT LE", UI_INK_DIM);
-  ui_print(1, 22, "DONNE AU JEU (SINON : LE", UI_INK_DIM);
-  ui_print(1, 23, "DERNIER SAUVE). F12 DANS CHAQUE", UI_INK_DIM);
-  ui_print(1, 24, "PROGRAMME : RETOUR ICI.", UI_INK_DIM);
+  ui_print(1, 23, "UN CLIC SUR UN EMPLACEMENT :", UI_INK_DIM);
+  ui_print(1, 24, "LE JEU ET LE BASIC LE PRENNENT.", UI_INK_DIM);
+  ui_print(1, 25, "F12 DANS CHAQUE PROGRAMME : ICI.", UI_INK_DIM);
   snprintf(line, sizeof line, "NVRAM LIBRE : %u OCTETS SUR 32768 - L'OSD L'ECRIT SUR LA CARTE SD", (unsigned)nvs_free(-1));
   ui_print(1, 26, line, UI_INK_DIM);
   ui_box(0, 29, 79, 29, UI_SUNK);
   const char *m = ui_message_text();
-  ui_printn(1, 29, m ? m : "F1 IMAGES  F2 BRUITAGES  F3 MUSIQUE  F5 JOUER  -  SOURIS ET CLAVIER", 78, m ? UI_YELLOW : UI_GREY);
+  ui_printn(1, 29, m ? m : "F1 IMAGES  F2 BRUITAGES  F3 MUSIQUE  F4 BASIC  F5 JOUER  -  SOURIS ET CLAVIER", 78, m ? UI_YELLOW : UI_GREY);
 }
 static void open_editor(int e) { run(ed[e].title); }
 int main(void) {
@@ -107,10 +108,11 @@ int main(void) {
       if (k == KEY_F2) open_editor(1);
       if (k == KEY_F3) open_editor(2);
       if (k == KEY_F5 || k == KEY_ENTER) run("PLATEFORMES");
+      if (k == KEY_F4) run("MONOBASIC");
     }
     if (mc_mouse_present() && (mc_mouse_pressed() & MOUSE_LEFT)) {
       const ui_zone_t *z = ui_zone_at(mc_mouse_x(), mc_mouse_y());
-      if (z && z->id == Z_RUN) { if (z->arg < 3) open_editor(z->arg); else run("PLATEFORMES"); }
+      if (z && z->id == Z_RUN) { if (z->arg < 3) open_editor(z->arg); else run(z->arg == 4 ? "MONOBASIC" : "PLATEFORMES"); }
       if (z && z->id == Z_SLOT) {
         int e = z->arg / 8, s = z->arg % 8;
         if (nvs_size_of(ed[e].app, s)) nvs_set(ed[e].setting, nvs_get(ed[e].setting) == s ? 0xFF : s);

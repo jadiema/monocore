@@ -15,7 +15,7 @@ OUT = os.path.join(ROOT, 'examples/atelier/build')
 TABLE = 0x1F0000
 # program folder, ROM address (the launcher first, at 0)
 PROGRAMS = [('examples/atelier', 0x000000), ('examples/monopixel', 0x200000), ('examples/monosfx', 0x280000),
-            ('examples/plateformes', 0x300000), ('examples/monotracker', 0x480000)]
+            ('examples/plateformes', 0x300000), ('examples/monotracker', 0x480000), ('examples/monobasic', 0x600000)]
 
 
 def tool(*names):
