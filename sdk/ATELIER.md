@@ -1,9 +1,13 @@
 # L'atelier : faire un jeu entièrement sur la console
 
+Le mode d'emploi illustré, pour les utilisateurs, est `manual/MONOATELIER_Manuel.pdf`. Les ROM prêtes
+à copier sur la carte SD (l'atelier et chaque outil seul) sont dans `outils/` (`tools/mkoutils.py`).
+Ce document-ci décrit comment l'atelier est fait.
+
 **MONOATELIER** (`examples/atelier/build/monoatelier.mnc`) réunit dans **une seule ROM** un
 lanceur, les trois éditeurs (MONOPIXEL pour les images, MONOSFX pour les bruitages, MONOTRACKER
 pour la musique), le BASIC (MONOBASIC, pour écrire le jeu) et un jeu tout fait, PLATEFORMES. Comme c'est une seule ROM, MiSTer leur donne **une seule
-NVRAM** (`saves/MONOCORE/monoatelier.sav`). Ce qu'un éditeur sauve est donc là pour les autres et
+NVRAM** (`saves/MONOCORE/MONOATELIER.sav` : le nom suit celui du fichier de la ROM). Ce qu'un éditeur sauve est donc là pour les autres et
 pour le jeu : on dessine un niveau, on fait ses bruitages et sa musique, puis on y joue, sans
 ordinateur entre les étapes.
 

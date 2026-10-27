@@ -1,0 +1,277 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>MONOATELIER - Manuel de l'utilisateur</title>
+<style>@font-face { font-family: 'Press Start 2P'; src: url('fonts/press-start-2p-latin-400-normal.woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 400; src: url('fonts/archivo-latin-400-normal.woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 400; font-style: italic; src: url('fonts/archivo-latin-400-italic.woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 600; src: url('fonts/archivo-latin-600-normal.woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 700; src: url('fonts/archivo-latin-700-normal.woff2'); }
+@font-face { font-family: 'Archivo'; font-weight: 800; src: url('fonts/archivo-latin-800-normal.woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-weight: 400; src: url('fonts/ibm-plex-mono-latin-400-normal.woff2'); }
+@font-face { font-family: 'IBM Plex Mono'; font-weight: 600; src: url('fonts/ibm-plex-mono-latin-600-normal.woff2'); }
+@font-face { font-family: 'VT323'; src: url('fonts/vt323-latin-400-normal.woff2'); }
+
+:root {
+  --paper: #ffffff;
+  --ink: #1d1b18;
+  --dim: #5d574c;
+  --rule: #d8ceb6;
+  --red: #e23b2e; --orange: #f28c1b; --yellow: #f2c81b; --green: #3aa655; --blue: #2f6fd6;
+  --code-bg: #fdfbf4; --bar: #e3f0dc;
+}
+@page { size: A4; margin: 16mm 0 16mm 0; }
+body.cover-page { }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); color: var(--ink); }
+body { font: 10.2pt/1.5 'Archivo', sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+section, p, ul, ol, table, .listing, .terminal, figure, .box, h2, h3 { margin-left: 20mm; margin-right: 20mm; }
+p { margin-top: 0; margin-bottom: 2.6mm; text-align: justify; hyphens: auto; orphans: 3; widows: 3; }
+section p, section ul, section table, section h2, section .box, section .listing { margin-left: 0; margin-right: 0; }
+ul, ol { padding-left: 6mm; margin-top: 0; margin-bottom: 3mm; }
+li { margin-bottom: 1mm; }
+b { font-weight: 700; }
+code { font: 8.6pt 'IBM Plex Mono', monospace; background: #ece3cc; padding: 0 1.2mm; border-radius: 1px; white-space: nowrap; }
+h2 { font: 11pt 'Press Start 2P', monospace; line-height: 1.5; margin-top: 7mm; margin-bottom: 3mm; color: var(--ink); break-after: avoid; }
+h2::before { content: ''; display: inline-block; width: 4mm; height: 4mm; margin-right: 2.5mm; vertical-align: -0.5mm;
+  background: linear-gradient(90deg, var(--red) 0 20%, var(--orange) 20% 40%, var(--yellow) 40% 60%, var(--green) 60% 80%, var(--blue) 80%); }
+h3 { font: 700 11pt 'Archivo', sans-serif; text-transform: uppercase; letter-spacing: .08em; margin-top: 5mm; margin-bottom: 2mm; break-after: avoid; }
+.page-break { break-after: page; }
+
+/* ---------------- cover */
+.cover { margin: 0; height: 297mm; width: 210mm; background: #121016; color: #f5efdf; position: relative; overflow: hidden; break-after: page; }
+.cover-stripes { position: absolute; left: -40mm; top: 150mm; width: 320mm; transform: rotate(-24deg); }
+.cover-stripes i { display: block; height: 9mm; margin-bottom: 2.2mm; }
+.cover-stripes i:nth-child(1) { background: var(--red); } .cover-stripes i:nth-child(2) { background: var(--orange); }
+.cover-stripes i:nth-child(3) { background: var(--yellow); } .cover-stripes i:nth-child(4) { background: var(--green); }
+.cover-stripes i:nth-child(5) { background: var(--blue); }
+.cover-top { position: absolute; top: 18mm; left: 18mm; font: 600 9pt 'Archivo'; letter-spacing: .3em; color: #b9b2a2; }
+.cover-title { position: absolute; top: 34mm; left: 16mm; font: 40pt 'Press Start 2P'; letter-spacing: -1px; color: #fff; text-shadow: 4px 4px 0 var(--red), 8px 8px 0 var(--blue); }
+.cover-title span { color: var(--yellow); }
+.cover-sub { position: absolute; top: 62mm; left: 18mm; font: 13pt 'Press Start 2P'; color: var(--yellow); }
+.cover-shot { position: absolute; top: 86mm; right: 18mm; width: 120mm; padding: 6mm; background: #2b2a30; border-radius: 9mm;
+  box-shadow: inset 0 0 0 2px #3c3b42, 0 0 0 3px #0a0a0c; }
+.cover-shot img { display: block; width: 100%; border-radius: 4mm; image-rendering: pixelated; }
+.cover-bottom { position: absolute; bottom: 30mm; left: 18mm; right: 18mm; font: 700 12pt 'Archivo'; color: #fff; }
+.cover-ed { position: absolute; bottom: 18mm; left: 18mm; font: 8pt 'Press Start 2P'; color: #b9b2a2; }
+
+/* ---------------- table of contents, foreword */
+.toc-page { break-after: page; padding-top: 8mm; }
+.toc-page h2 { font-size: 16pt; margin-bottom: 8mm; }
+.toc { list-style: none; padding: 0; margin: 0; }
+.toc li { margin: 0 0 3.2mm 0; }
+.toc a { display: flex; align-items: baseline; color: var(--ink); text-decoration: none; }
+.toc .tn { font: 10pt 'Press Start 2P'; width: 12mm; color: var(--red); }
+.toc .tt { font: 600 12pt 'Archivo'; }
+.toc .tp { flex: 1; border-bottom: 1.5px dotted #9b927e; margin: 0 2mm; transform: translateY(-1mm); }
+.toc .pg { font: 10pt 'Press Start 2P'; }
+.foreword { break-after: page; padding-top: 6mm; }
+
+/* ---------------- chapter opener */
+.chap-open { break-before: page; position: relative; padding-top: 4mm; margin-bottom: 8mm; }
+.chap-num { display: inline-block; font: 34pt 'Press Start 2P'; padding: 5mm 6mm 4mm; color: #fff; }
+.chap-band { height: 3mm; margin: 3mm 0 5mm; background: linear-gradient(90deg, var(--red) 0 20%, var(--orange) 20% 40%, var(--yellow) 40% 60%, var(--green) 60% 80%, var(--blue) 80%); }
+.chap-open h1 { font: 17pt/1.45 'Press Start 2P'; margin: 0 0 4mm; }
+.lead { font: italic 12pt 'Archivo'; color: var(--dim); }
+.c1 .chap-num { background: var(--red); } .c2 .chap-num { background: var(--orange); } .c3 .chap-num { background: #d9a900; }
+.c4 .chap-num { background: var(--green); } .c5 .chap-num { background: var(--blue); } .c6 .chap-num { background: var(--red); }
+.c7 .chap-num { background: var(--orange); } .c8 .chap-num { background: #d9a900; } .c9 .chap-num { background: var(--green); }
+.c10 .chap-num { background: var(--blue); } .c11 .chap-num { background: var(--red); } .c12 .chap-num { background: var(--orange); }
+
+/* ---------------- listings */
+.listing { border: 1.5px solid #2c2a25; background: var(--code-bg); margin-top: 2mm; margin-bottom: 4mm; box-shadow: 3px 3px 0 #2c2a25; }
+.listing pre { margin: 0; padding: 2.4mm 3mm; font: 8.3pt/13.2px 'IBM Plex Mono', monospace; white-space: pre-wrap;
+  background: repeating-linear-gradient(180deg, var(--bar) 0 39.6px, transparent 39.6px 79.2px); background-origin: content-box; }
+.listing .ln { color: #a39a85; display: inline-block; width: 7mm; user-select: none; }
+.lst-cap { font: 7pt 'Press Start 2P'; padding: 2mm 3mm; background: #2c2a25; color: #f5efdf; }
+.lst-cap span { color: var(--yellow); margin-right: 2mm; }
+.listing.nonum pre { background: none; }
+.c-com { color: #7a7465; font-style: italic; }
+.c-str { color: #b5371f; }
+.c-kw { color: #1f4fae; font-weight: 600; }
+.c-num { color: #8a3fb0; }
+.c-pre { color: #2f7d3a; }
+.c-cst { color: #8a5a00; }
+.terminal { background: #0f1a12; border-radius: 3mm; margin-top: 2mm; margin-bottom: 4mm; box-shadow: inset 0 0 6mm rgba(0,0,0,.6); break-inside: avoid; }
+.terminal pre { margin: 0; padding: 3mm 4mm; font: 13pt/1.15 'VT323', monospace; color: #7dff8a; white-space: pre-wrap; text-shadow: 0 0 2px rgba(125,255,138,.6); }
+.lst-cap.sh { background: #1d3022; border-radius: 3mm 3mm 0 0; }
+
+/* ---------------- screens and figures */
+figure { margin-top: 3mm; margin-bottom: 5mm; break-inside: avoid; text-align: center; }
+.tv .bezel { display: inline-block; padding: 5mm; background: #2b2a30; border-radius: 7mm; box-shadow: inset 0 0 0 2px #3c3b42, 3px 3px 0 #1a191d; }
+.tv img { display: block; width: 112mm; border-radius: 3mm; image-rendering: pixelated; }
+.tv.small img { width: 70mm; }
+figcaption { font: italic 9pt 'Archivo'; color: var(--dim); margin-top: 2mm; }
+.fig svg { width: 150mm; height: auto; }
+.pair { display: flex; justify-content: center; gap: 4mm; margin: 0 20mm; }
+.pair figure { margin-left: 0; margin-right: 0; }
+.sheet-row { display: flex; gap: 8mm; align-items: flex-start; margin: 2mm 20mm 4mm; break-inside: avoid; }
+.sheet-row img.sheet { height: 92mm; image-rendering: pixelated; border: 1.5px solid #2c2a25; }
+.sheet-row table, .sheet-row p { margin-left: 0; margin-right: 0; }
+
+/* ---------------- boxes */
+.box { border: 1.5px solid #2c2a25; padding: 3mm 4mm 1mm; margin-top: 3mm; margin-bottom: 5mm; background: #fbf6e8; break-inside: avoid; position: relative; }
+.box-t { font: 7.5pt 'Press Start 2P'; display: inline-block; padding: 1.4mm 2mm; margin: -6.2mm 0 2.5mm -1mm; color: #fff; }
+.box.tip .box-t { background: #d9a900; } .box.tip { box-shadow: 3px 3px 0 #d9a900; }
+.box.warn .box-t { background: var(--red); } .box.warn { box-shadow: 3px 3px 0 var(--red); }
+.box.know .box-t { background: var(--blue); } .box.know { box-shadow: 3px 3px 0 var(--blue); }
+.box p, .box ul, .box .listing { margin-left: 0; margin-right: 0; }
+
+/* ---------------- tables */
+table { border-collapse: collapse; width: calc(100% - 40mm); margin-top: 2mm; margin-bottom: 5mm; font-size: 9.4pt; break-inside: auto; }
+.box table, .sheet-row table { width: 100%; }
+th { font: 7pt 'Press Start 2P'; text-align: left; background: #2c2a25; color: #f5efdf; padding: 2mm 2.5mm; }
+td { padding: 1.5mm 2.5mm; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tr { break-inside: avoid; }
+tbody tr:nth-child(even) td { background: rgba(0,0,0,.035); }
+table.specs td:first-child { font-weight: 700; white-space: nowrap; width: 28mm; }
+table.ref td:first-child { white-space: nowrap; }
+table.ref code { font-size: 8pt; }
+.colophon { margin-top: 14mm; font-size: 8.5pt; color: var(--dim); border-top: 1px solid var(--rule); padding-top: 3mm; }
+.mark { font-size: 2px; color: #ffffff; position: absolute; left: 0; top: 0; }
+
+body.cover-page { background: #121016; }
+@media print { body.cover-page { margin: 0; } }
+table.notes th, table.notes td { text-align: center; }
+
+kbd { font: 600 8pt 'IBM Plex Mono', monospace; display: inline-block; padding: 0 1.4mm; border: 1px solid #2c2a25; border-bottom-width: 2px;
+  border-radius: 1.2mm; background: #fbf6e8; white-space: nowrap; line-height: 1.35; }
+.c10 .chap-num { background: var(--blue); } .c11 .chap-num { background: var(--red); } .c12 .chap-num { background: var(--orange); }
+.cover-title { font-size: 34pt; }
+</style></head><body><section class="cover">
+ <div class="cover-stripes"><i></i><i></i><i></i><i></i><i></i></div>
+ <div class="cover-top">MONOCORE-1 · IMAGES · SONS · MUSIQUE · PROGRAMMES</div>
+ <div class="cover-title">MONO<span>ATELIER</span></div>
+ <div class="cover-sub">MANUEL DE L'UTILISATEUR</div>
+ <div class="cover-shot"><img src="images/atelier_basic_jeu.png"></div>
+ <div class="cover-bottom">Dessinez · Faites les bruitages et la musique · Programmez en BASIC · Jouez — tout sur la console</div>
+ <div class="cover-ed">ÉDITION 1 · OCTOBRE 2026</div>
+</section><section class="toc-page"><h2>Sommaire</h2><ol class="toc">
+<li><a href="#ch1"><span class="tn">1</span><span class="tt">L'atelier en un coup d'œil</span><span class="tp"></span><span class="pg">2</span></a></li>
+<li><a href="#ch2"><span class="tn">2</span><span class="tt">Votre premier jeu en une heure</span><span class="tp"></span><span class="pg">4</span></a></li>
+<li><a href="#ch3"><span class="tn">3</span><span class="tt">MONOPIXEL : les images</span><span class="tp"></span><span class="pg">8</span></a></li>
+<li><a href="#ch4"><span class="tn">4</span><span class="tt">MONOSFX : les bruitages</span><span class="tp"></span><span class="pg">11</span></a></li>
+<li><a href="#ch5"><span class="tn">5</span><span class="tt">MONOTRACKER : la musique</span><span class="tp"></span><span class="pg">13</span></a></li>
+<li><a href="#ch6"><span class="tn">6</span><span class="tt">MONOBASIC : programmer</span><span class="tp"></span><span class="pg">14</span></a></li>
+<li><a href="#ch7"><span class="tn">7</span><span class="tt">PLATEFORMES : le jeu tout fait</span><span class="tp"></span><span class="pg">18</span></a></li>
+<li><a href="#ch8"><span class="tn">8</span><span class="tt">Sauvegardes et échanges</span><span class="tp"></span><span class="pg">19</span></a></li>
+<li><a href="#ch9"><span class="tn">9</span><span class="tt">Aide-mémoire et dépannage</span><span class="tp"></span><span class="pg">21</span></a></li>
+</ol></section>
+<section class="chap-open c1"><div class="chap-num">1</div><div class="chap-band"></div><h1 id="ch1">L'atelier en un coup d'œil</h1><p class="lead">Une seule cartouche pour fabriquer un petit jeu de A à Z sur la MONOCORE-1 : les images, les bruitages, la musique, le programme, et le jeu pour y jouer aussitôt.</p></section>
+<p><b>MONOATELIER</b> réunit dans une seule ROM cinq programmes qui travaillent ensemble. Comme c'est une seule ROM, la MiSTer leur donne <b>une seule sauvegarde</b> : ce qu'on fabrique dans un outil est aussitôt disponible pour les autres et pour le jeu. Aucun ordinateur n'est nécessaire entre les étapes.</p>
+<table class=""><thead><tr><th>Touche</th><th>Programme</th><th>Pour faire</th></tr></thead><tbody><tr><td><kbd>F1</kbd></td><td><b>MONOPIXEL</b></td><td>les images : les tuiles et les personnages pixel par pixel, les palettes, les animations, les décors, ce que sont les tuiles (murs, plateformes, eau…) et où sont les objets</td></tr><tr><td><kbd>F2</kbd></td><td><b>MONOSFX</b></td><td>les bruitages : saut, pièce, explosion… 32 sons par banque, avec des générateurs</td></tr><tr><td><kbd>F3</kbd></td><td><b>MONOTRACKER</b></td><td>la musique : des morceaux de 16 pistes, au clavier, à la souris ou au clavier MIDI</td></tr><tr><td><kbd>F4</kbd></td><td><b>MONOBASIC</b></td><td>le programme : un BASIC avec des instructions faites pour les jeux</td></tr><tr><td><kbd>F5</kbd></td><td><b>PLATEFORMES</b></td><td>un jeu tout fait, qui prend vos images, vos sons et votre musique</td></tr></tbody></table>
+<figure class="tv"><div class="bezel"><img src="images/atelier_lanceur_plein.png"></div><figcaption>Le lanceur de l'atelier. Chaque colonne montre les 8 emplacements d'un outil ; la flèche rouge marque celui que le jeu et le BASIC prendront.</figcaption></figure>
+<h2>Le matériel</h2>
+<ul><li>une MiSTer (carte DE10-Nano) avec le core <b>MONOCORE-1 en version 5</b> ou plus récente (<code>releases/v5_haute_resolution/</code>) : les outils sont en 640 × 480 entrelacé, et un core plus ancien affiche un message ;</li><li>une <b>souris USB</b> et un <b>clavier USB</b> : les éditeurs s'utilisent à la souris et au clavier, en AZERTY comme en QWERTY ;</li><li>une manette pour jouer (le clavier convient aussi : flèches et Espace) ;</li><li>en option, un clavier MIDI USB pour MONOTRACKER.</li></ul>
+<h2>Installation</h2>
+<ol><li>Copiez le core <code>MONOCORE_*.rbf</code> dans <code>_Console</code> sur la carte SD, et le <code>boot.rom</code> du même dossier dans <code>games/MONOCORE</code>.</li><li>Copiez <code>outils/MONOATELIER.mnc</code> dans <code>games/MONOCORE</code>.</li><li>Branchez la souris et le clavier, lancez le core MONOCORE, puis chargez MONOATELIER depuis le menu de la MiSTer (OSD).</li></ol>
+<p>Le dossier <code>outils/</code> contient aussi chaque programme <b>seul</b> : <code>MONOPIXEL.mnc</code>, <code>MONOSFX.mnc</code>, <code>MONOTRACKER.mnc</code>, <code>MONOBASIC.mnc</code> et <code>PLATEFORMES.mnc</code>. Ils fonctionnent exactement de la même façon, mais chacun a sa propre sauvegarde. L'atelier, lui, les partage. Pour reprendre dans l'atelier un travail fait avec un outil seul, voyez le chapitre 8.</p>
+<h2>Aller d'un programme à l'autre</h2>
+<p>Depuis le lanceur, <kbd>F1</kbd> à <kbd>F5</kbd> (ou un clic sur les boutons) ouvrent les programmes. Dans chacun, <kbd>F12</kbd> ramène au lanceur. S'il reste des modifications non sauvées, le programme le dit, et il faut appuyer une seconde fois sur <kbd>F12</kbd> pour partir quand même. Dans le jeu, <kbd>START</kbd> + <kbd>COIN</kbd> sur la manette fait la même chose.</p>
+<div class="box warn"><div class="box-t">Sauver, puis ouvrir le menu</div><p>Chaque outil sauve dans la NVRAM avec <kbd>Ctrl</kbd> <kbd>S</kbd>. La MiSTer n'écrit la NVRAM sur la carte SD (<code>saves/MONOCORE/MONOATELIER.sav</code>) que lorsqu'on <b>ouvre le menu (OSD)</b>. Prenez l'habitude : <kbd>Ctrl</kbd> <kbd>S</kbd>, puis ouvrir et refermer le menu, avant d'éteindre.</p></div>
+<h2>Choisir ce que le jeu prend</h2>
+<p>Le jeu PLATEFORMES et vos programmes BASIC prennent les images, les bruitages et la musique de l'atelier. Par défaut, c'est le <b>dernier emplacement sauvé</b> par chaque outil. Un clic sur un emplacement du lanceur le choisit à la place, et la flèche rouge se déplace. Un second clic revient au choix automatique. Le cadre du bas résume ce que le jeu prendra. S'il manque quelque chose, le jeu utilise la démonstration qu'il contient.</p>
+<section class="chap-open c2"><div class="chap-num">2</div><div class="chap-band"></div><h1 id="ch2">Votre premier jeu en une heure</h1><p class="lead">Un parcours complet, pas à pas : on part de la démonstration, on la transforme avec chaque outil, puis on écrit son propre programme.</p></section>
+<p>Ce chapitre suppose l'atelier tout neuf : les colonnes du lanceur sont vides et chaque outil démarre sur sa démonstration.</p>
+<h2>Étape 1 — Jouer à la démo</h2>
+<p>Dans le lanceur, appuyez sur <kbd>F5</kbd>. PLATEFORMES démarre avec ses propres images. <kbd>B1</kbd> (ou Espace) commence la partie : gauche et droite pour courir, <kbd>B1</kbd> pour sauter (plus haut en le tenant), bas + <kbd>B1</kbd> pour descendre d'une plateforme de pierre. Ramassez les pièces, sautez sur les ennemis violets, évitez l'eau, et allez jusqu'au drapeau. <kbd>F12</kbd> ramène au lanceur.</p>
+<figure class="tv small"><div class="bezel"><img src="images/atelier_jeu_partie.png"></div><figcaption>PLATEFORMES, le jeu tout fait : tout ce qu'on y voit vient d'une banque d'images que vous pouvez refaire.</figcaption></figure>
+<h2>Étape 2 — Redessiner le héros</h2>
+<ol><li>Dans le lanceur, <kbd>F1</kbd> ouvre MONOPIXEL sur la page DESSIN, avec la banque de démonstration.</li><li>À droite, la <b>planche</b> montre toutes les images. Cliquez sur le petit robot (sous les tuiles) : la zone de 16 × 16 pixels qui le contient s'agrandit à gauche.</li><li>Choisissez une couleur dans le nuancier (clic : couleur A, clic droit : couleur B), puis dessinez sur l'image agrandie : clic pour A, clic droit pour B. <kbd>Ctrl</kbd> <kbd>Z</kbd> annule.</li><li>Le robot a quatre images (il marche) : elles sont côte à côte dans la planche. Cliquez sur la suivante pour la retoucher aussi.</li><li>Sauvez avec <kbd>Ctrl</kbd> <kbd>S</kbd>.</li></ol>
+<figure class="tv"><div class="bezel"><img src="images/atelier_pixel_dessin.png"></div><figcaption>MONOPIXEL, page DESSIN : la zone agrandie à gauche, les outils au milieu, la planche à droite, le nuancier en bas.</figcaption></figure>
+<h2>Étape 3 — Changer le niveau</h2>
+<ol><li>Appuyez sur <kbd>F3</kbd> : la page DECORS montre le niveau (à gauche) et la planche (à droite).</li><li>Cliquez sur la tuile de briques dans la planche, puis cliquez et glissez sur le niveau pour en poser. Clic droit : effacer.</li><li>Les boutons SOLIDE, PLATEF., EAU… disent ce que sont les tuiles. Les briques sont déjà « solides » : on ne les traverse pas.</li><li>Appuyez sur <kbd>O</kbd> (outil OBJETS). Choisissez « PIECE » avec les flèches à droite du bouton OBJETS, puis cliquez sur le niveau pour poser des pièces. Un clic sur un objet le prend pour le déplacer ; un clic droit l'enlève.</li><li>Sauvez avec <kbd>Ctrl</kbd> <kbd>S</kbd>, puis <kbd>F12</kbd>.</li></ol>
+<figure class="tv"><div class="bezel"><img src="images/atelier_pixel_decors.png"></div><figcaption>La page DECORS avec l'outil OBJETS : le héros, les pièces, les ennemis et le drapeau sont des objets posés dans le niveau.</figcaption></figure>
+<h2>Étape 4 — Un nouveau bruit de saut</h2>
+<ol><li>Dans le lanceur, <kbd>F2</kbd> ouvre MONOSFX. La liste à gauche montre les bruitages de la démo : SAUT, PIECE, BOUM…</li><li>Cliquez sur SAUT : on l'entend. Cliquez plusieurs fois sur le générateur SAUT en bas : à chaque clic, un nouveau son de saut, tiré au hasard. Le nom SAUT est gardé.</li><li>Affinez avec MUTER ou les compteurs (clic : plus, clic droit : moins), puis <kbd>Ctrl</kbd> <kbd>S</kbd> et <kbd>F12</kbd>.</li></ol>
+<h2>Étape 5 — La musique</h2>
+<p><kbd>F3</kbd> ouvre MONOTRACKER, qui joue sa démonstration. Pour ce premier parcours, sauvez-la simplement avec <kbd>Ctrl</kbd> <kbd>S</kbd> : elle sera la musique du jeu. Le chapitre 5 et le manuel de MONOTRACKER expliquent comment composer la vôtre.</p>
+<h2>Étape 6 — Jouer à votre version</h2>
+<p>De retour dans le lanceur, les trois colonnes montrent vos sauvegardes, et le cadre du bas indique que le jeu les prendra. <kbd>F5</kbd> : votre héros, votre niveau, votre saut, votre musique.</p>
+<h2>Étape 7 — Écrire le jeu en BASIC</h2>
+<ol><li>Dans le lanceur, <kbd>F4</kbd> ouvre MONOBASIC. Tapez <code>EXEMPLE</code> puis Entrée : un petit jeu de plateformes de 26 lignes est chargé.</li><li>Tapez <code>RUN</code> (ou <kbd>F5</kbd>) : il utilise vos images et vos sons. <kbd>Échap</kbd> l'arrête.</li><li>Tapez <code>LIST</code> pour le lire. Remontez avec les flèches jusqu'à la ligne 150, remplacez <code>-76</code> par <code>-100</code>, puis Entrée : la ligne est corrigée. <code>RUN</code> : le héros saute beaucoup plus haut.</li><li>Sauvez votre programme : <code>SAVE "MONJEU"</code>. La prochaine fois, <code>LOAD "MONJEU"</code> le reprendra (il est aussi rechargé tout seul au démarrage).</li></ol>
+<figure class="tv"><div class="bezel"><img src="images/atelier_basic_liste.png"></div><figcaption>MONOBASIC après EXEMPLE et LIST : le jeu entier tient sur un écran.</figcaption></figure>
+<div class="box tip"><div class="box-t">Et maintenant ?</div><p>Changez la vitesse des ennemis (ligne 180), le nombre de vies (ligne 60), ajoutez un deuxième niveau dans MONOPIXEL (DECOR 1) ou une nouvelle sorte d'objet. Les chapitres 3 à 6 décrivent chaque outil en détail.</p></div>
+<section class="chap-open c3"><div class="chap-num">3</div><div class="chap-band"></div><h1 id="ch3">MONOPIXEL : les images</h1><p class="lead">La planche de tuiles et de personnages, les palettes, les lutins animés, les décors, ce que sont les tuiles et où sont les objets.</p></section>
+<h2>Les mots de MONOPIXEL</h2>
+<table class=""><thead><tr><th>Mot</th><th>Ce que c'est</th></tr></thead><tbody><tr><td><b>planche</b></td><td>toutes les images d'une banque, en <b>cellules</b> de 8 × 8 pixels : 4 pages de 16 × 16 cellules (128 × 128 pixels chacune)</td></tr><tr><td><b>palette</b></td><td>16 couleurs ; la couleur 0 est toujours transparente. Une banque a 16 palettes</td></tr><tr><td><b>tuile</b></td><td>un morceau de décor : une cellule (8 pixels) ou un carré de 2 × 2 cellules (16 pixels)</td></tr><tr><td><b>lutin</b></td><td>un personnage ou un objet : un rectangle de la planche (1 à 8 cellules de côté), une palette, une animation, un <b>nom</b></td></tr><tr><td><b>décor</b></td><td>un niveau : une grille de tuiles de 32, 64 ou 128 cases de côté (4096 cases au plus)</td></tr><tr><td><b>attribut</b></td><td>ce qu'est une tuile pour le jeu : solide, plateforme, échelle, eau, danger</td></tr><tr><td><b>objet</b></td><td>un lutin posé dans un décor : le départ du héros, une pièce, un ennemi… avec un paramètre de 0 à 255</td></tr><tr><td><b>banque</b></td><td>tout cela ensemble, sauvé dans un emplacement</td></tr></tbody></table>
+<p>Les pages s'ouvrent par <kbd>F1</kbd> DESSIN, <kbd>F2</kbd> LUTINS, <kbd>F3</kbd> DECORS, <kbd>F4</kbd> BANQUE et <kbd>F5</kbd> AIDE, ou par les boutons du haut. <kbd>Ctrl</kbd> <kbd>S</kbd> sauve et <kbd>Ctrl</kbd> <kbd>Z</kbd> annule la dernière modification (une seconde fois : la refait).</p>
+<h2>La page DESSIN</h2>
+<p>À gauche, la <b>zone</b> en cours, agrandie (8 à 64 pixels de côté). À droite, la <b>page de la planche</b> : un clic y choisit la zone, un clic droit y recopie la zone en cours (pratique pour l'image suivante d'une animation). En bas, le nuancier de la palette en cours et les compteurs R, V, B (0 à 31) de la couleur A.</p>
+<table class=""><thead><tr><th>Souris / touche</th><th>Rôle</th></tr></thead><tbody><tr><td>clic, clic droit</td><td>dessine avec la couleur A, B ; sur le nuancier : choisit A, B ; molette : couleur A ; <kbd>Tab</kbd> : couleur suivante</td></tr><tr><td><kbd>C</kbd> <kbd>T</kbd> <kbd>R</kbd> <kbd>P</kbd> <kbd>S</kbd> <kbd>I</kbd></td><td>crayon, trait, cadre, pavé (rectangle plein), seau (remplir), pipette (prendre une couleur)</td></tr><tr><td><kbd>X</kbd> <kbd>Y</kbd> <kbd>O</kbd></td><td>miroir horizontal, vertical, pivoter d'un quart de tour (zone carrée)</td></tr><tr><td>flèches</td><td>déplacent la zone dans la planche ; avec <kbd>Maj</kbd> : décalent ses pixels (en boucle)</td></tr><tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></td><td>zone de 8, 16, 32 ou 64 pixels (ou les compteurs L et H)</td></tr><tr><td><kbd>Page préc.</kbd> <kbd>Page suiv.</kbd></td><td>page de la planche (aussi les boutons 1 à 4)</td></tr><tr><td><kbd>Suppr</kbd>, <kbd>Ctrl</kbd> <kbd>C</kbd>, <kbd>Ctrl</kbd> <kbd>V</kbd></td><td>efface, copie, colle la zone</td></tr><tr><td><kbd>G</kbd></td><td>grille des pixels et des cellules</td></tr></tbody></table>
+<h2>La page LUTINS</h2>
+<figure class="tv small"><div class="bezel"><img src="images/atelier_pixel_lutins.png"></div><figcaption>La page LUTINS : la liste des 64 lutins, les réglages de celui choisi, son aperçu animé.</figcaption></figure>
+<p>Un lutin est ce que le jeu affiche et déplace. On le crée sur un emplacement vide avec NOUVEAU (ou <kbd>Entrée</kbd>) : il prend la zone de la page DESSIN. PRENDRE lui redonne la zone en cours, DESSINER ramène à son image 0. Les compteurs règlent sa place dans la planche (COLONNE, LIGNE), sa taille, sa PALETTE, le nombre d'IMAGES de son animation (côte à côte dans la planche) et sa VITESSE (images vidéo par image ; 0 : immobile). ALLER-RETOUR joue l'animation dans les deux sens. Un clic sur le nom, ou <kbd>Entrée</kbd>, permet de le changer.</p>
+<div class="box warn"><div class="box-t">Les noms comptent</div><p>Le jeu et le BASIC reconnaissent les lutins <b>par leur nom</b> : <code>HEROS</code>, <code>PIECE</code>, <code>BLOB</code>, <code>DRAPEAU</code> pour PLATEFORMES. Gardez ces noms quand vous redessinez, et donnez des noms clairs à vos nouveaux lutins.</p></div>
+<h2>La page DECORS</h2>
+<p>À gauche, la vue du décor (on le fait défiler au bouton du milieu, aux flèches — <kbd>Maj</kbd> : par 8 tuiles — ou à la molette). À droite, la planche, où l'on choisit la tuile à poser, ou un bloc de tuiles en glissant.</p>
+<table class=""><thead><tr><th>Outil / réglage</th><th>Rôle</th></tr></thead><tbody><tr><td>POSER (<kbd>C</kbd>)</td><td>clic : pose la tuile ou le bloc ; clic droit : efface</td></tr><tr><td>PAVE (<kbd>P</kbd>), SEAU (<kbd>S</kbd>), PIPETTE (<kbd>I</kbd>)</td><td>un rectangle rempli, remplir une zone, prendre la tuile d'une case</td></tr><tr><td>H, V, PAL</td><td>miroirs de la tuile posée, sa palette</td></tr><tr><td>DECOR, L, H, TUILES</td><td>le décor 1 à 4, sa largeur et sa hauteur (32, 64, 128 ; 4096 cases au plus), des tuiles de 8 ou 16 pixels</td></tr><tr><td>SOLIDE, PLATEF., ECHELLE, EAU, DANGER</td><td>ce que sont les tuiles du pinceau : un mur, une plateforme qu'on traverse par-dessous, une échelle, de l'eau, un danger (piques, lave…)</td></tr><tr><td><kbd>A</kbd></td><td>montre ou cache les attributs sur la planche : <code>#</code> solide, <code>=</code> plateforme, <code>H</code> échelle, <code>~</code> eau, <code>!</code> danger</td></tr><tr><td>OBJETS (<kbd>O</kbd>)</td><td>pose le lutin choisi (flèches à droite du bouton) sur la grille ; un clic sur un objet le prend (on le glisse) ; clic droit ou <kbd>Suppr</kbd> : l'enlève ; P : son paramètre</td></tr><tr><td>TOUT EFFACER</td><td>vide le décor et ses objets (après confirmation)</td></tr></tbody></table>
+<p>On peut poser 64 objets par décor. Le paramètre P sert à varier les objets d'une même sorte : dans PLATEFORMES, c'est la vitesse de chaque ennemi.</p>
+<h2>La page BANQUE</h2>
+<figure class="tv small"><div class="bezel"><img src="images/atelier_pixel_banque.png"></div><figcaption>La page BANQUE : les 8 emplacements de MONOPIXEL dans l'atelier.</figcaption></figure>
+<p>Elle montre les 8 emplacements, le nom de la banque (un clic ou <kbd>Entrée</kbd> pour le changer), sa taille compacte et la place libre. Les boutons sont SAUVER (<kbd>Ctrl</kbd> <kbd>S</kbd>), CHARGER (<kbd>Ctrl</kbd> <kbd>L</kbd>), EFFACER l'emplacement (<kbd>Ctrl</kbd> <kbd>D</kbd>), NOUVELLE banque, DEMO et la disposition du CLAVIER (AZERTY ou QWERTY, commune à tout l'atelier). Les actions qui feraient perdre du travail demandent un second clic.</p>
+<section class="chap-open c4"><div class="chap-num">4</div><div class="chap-band"></div><h1 id="ch4">MONOSFX : les bruitages</h1><p class="lead">Des sons courts calculés soixante fois par seconde : un saut, une pièce, une explosion. Des générateurs les fabriquent en un clic.</p></section>
+<figure class="tv"><div class="bezel"><img src="images/atelier_sfx_effets.png"></div><figcaption>MONOSFX : la liste des bruitages, la courbe du son choisi (la note en bleu, le volume en orange), ses réglages et les générateurs.</figcaption></figure>
+<p>Une banque contient 32 bruitages. Un clic dans la liste choisit un bruitage et le joue, et <kbd>Espace</kbd> le rejoue. Avec ÉCOUTE AUTO, chaque changement s'entend aussitôt. <kbd>Entrée</kbd> ou un clic sur le nom permet de le renommer : le jeu et le BASIC jouent les sons <b>par leur nom</b> (<code>SON "SAUT"</code>).</p>
+<table class=""><thead><tr><th>Réglage</th><th>Effet</th></tr></thead><tbody><tr><td>CARRE, TRIANGLE, DENTS, BRUIT</td><td>l'onde : franche, douce, brillante, ou un souffle (explosions, coups)</td></tr><tr><td>FREQ HZ, GLISSE, ACCEL</td><td>la note de départ, ce qu'elle monte ou descend à chaque image (en 1/16 de Hz), et la courbure de cette pente</td></tr><tr><td>ATTAQUE, TENUE, CHUTE</td><td>le volume monte, reste, puis descend : la durée est leur somme, en images (60 par seconde)</td></tr><tr><td>VOLUME</td><td>0 à 255</td></tr><tr><td>RAPPORT, BALAYAGE</td><td>la forme du carré (128 : moitié) et son changement à chaque image</td></tr><tr><td>VIBR. HZ, VIBR. IMG</td><td>un vibrato : son écart et sa période</td></tr><tr><td>ARPEGE, A L'IMAGE</td><td>un saut de quelques demi-tons à une image donnée : le « ding-ding » d'une pièce</td></tr><tr><td>REPETE</td><td>la note repart toutes les n images (bonus, alarmes)</td></tr></tbody></table>
+<p>Les générateurs SAUT, PIECE, TIR, BOUM, BONUS et AIE fabriquent un son de ce genre au hasard. HASARD fait n'importe quoi, et MUTER change un peu le son en cours. La bonne méthode : cliquer plusieurs fois sur un générateur jusqu'à un son proche de l'idée, l'affiner, puis le nommer. Les compteurs se règlent au clic (plus), au clic droit (moins), avec <kbd>Maj</kbd> par 10, ou à la molette. <kbd>Ctrl</kbd> <kbd>C</kbd> et <kbd>Ctrl</kbd> <kbd>V</kbd> copient et collent un bruitage, <kbd>Suppr</kbd> l'efface. La page <kbd>F2</kbd> BANQUE fonctionne comme celle de MONOPIXEL.</p>
+<section class="chap-open c5"><div class="chap-num">5</div><div class="chap-band"></div><h1 id="ch5">MONOTRACKER : la musique</h1><p class="lead">Le tracker de la MONOCORE-1 : seize pistes, des sons synthétiques et des échantillons, au clavier, à la souris ou au clavier MIDI.</p></section>
+<figure class="tv small"><div class="bezel"><img src="images/tracker_motifs.png"></div><figcaption>MONOTRACKER, page des motifs, pendant la lecture de la démonstration.</figcaption></figure>
+<p>MONOTRACKER a son propre manuel complet, <code>manual/MONOTRACKER_Manuel.pdf</code>. Dans l'atelier, il fonctionne de la même façon, avec quatre pages : <kbd>F1</kbd> MOTIFS (les notes), <kbd>F2</kbd> SONS (les instruments), <kbd>F3</kbd> MORCEAU (l'ordre des motifs, le tempo et les 8 emplacements) et <kbd>F4</kbd> AIDE. Le morceau sauvé (<kbd>Ctrl</kbd> <kbd>S</kbd>) devient la musique du jeu et du BASIC (instruction <code>MUSIQUE</code>).</p>
+<div class="box tip"><div class="box-t">Une seule différence</div><p>Seul, MONOTRACKER utilise <kbd>F12</kbd> pour passer à l'instrument suivant. Dans l'atelier, <kbd>F12</kbd> ramène au lanceur, et l'instrument suivant se choisit avec le <kbd>+</kbd> du pavé numérique (<kbd>F11</kbd> ou le <kbd>−</kbd> du pavé : le précédent).</p></div>
+<p>Le jeu laisse les canaux PSG 6 et 7 aux bruitages : la musique de l'atelier se joue sur les autres pistes. Une musique qui en a besoin perd ces deux pistes pendant le jeu.</p>
+<section class="chap-open c6"><div class="chap-num">6</div><div class="chap-band"></div><h1 id="ch6">MONOBASIC : programmer</h1><p class="lead">Un BASIC comme sur les ordinateurs des années 80, avec des instructions en français pour les objets, les collisions, les sons et la musique.</p></section>
+<h2>L'éditeur</h2>
+<p>L'écran est un éditeur plein écran, à la manière du MO5 ou du Commodore 64. On tape une ligne puis <kbd>Entrée</kbd>. Une ligne qui commence par un <b>numéro</b> (<code>120 PRINT "BONJOUR"</code>) est rangée dans le programme, à sa place ; un numéro seul efface sa ligne. Une ligne sans numéro est exécutée tout de suite. Les flèches déplacent le curseur partout : on remonte sur une ligne listée, on la corrige, puis <kbd>Entrée</kbd> la range à nouveau. <kbd>Échap</kbd> efface la ligne du curseur et arrête un programme en cours.</p>
+<table class=""><thead><tr><th>Commande</th><th>Rôle</th></tr></thead><tbody><tr><td><code>RUN</code> [ligne], <kbd>F5</kbd></td><td>lance le programme (depuis le début, ou cette ligne)</td></tr><tr><td><code>LIST</code> [a][-b], <kbd>F2</kbd></td><td>montre le programme, ou les lignes a à b</td></tr><tr><td><code>NEW</code></td><td>efface le programme</td></tr><tr><td><code>SAVE "NOM"</code>, <code>LOAD "NOM"</code>, <code>LOAD 3</code>, <code>DIR</code></td><td>les 8 programmes de l'atelier ; le dernier sauvé est rechargé au démarrage</td></tr><tr><td><code>AIDE</code></td><td>le résumé de toutes les instructions, à l'écran</td></tr><tr><td><code>EXEMPLE</code></td><td>le petit jeu de plateformes, à lire et à modifier</td></tr><tr><td><kbd>F12</kbd></td><td>retour à l'atelier</td></tr></tbody></table>
+<figure class="tv small"><div class="bezel"><img src="images/atelier_basic_aide.png"></div><figcaption>L'aide-mémoire de MONOBASIC (commande AIDE), après l'arrêt d'un programme par Échap.</figcaption></figure>
+<h2>Le langage</h2>
+<p>Les nombres sont des <b>entiers</b>. Un nom de variable fait jusqu'à 8 lettres et chiffres (<code>A</code>, <code>SCORE</code>, <code>VX</code>) ; <code>NOM$</code> est une chaîne (80 caractères au plus). Plusieurs instructions vont sur une ligne, séparées par <code>:</code>. Les mots clés ne sont reconnus que comme mots entiers : <code>TOTAL</code> est une variable.</p>
+<table class=""><thead><tr><th>Instruction</th><th>Rôle</th></tr></thead><tbody><tr><td><code>PRINT a; b, c</code></td><td><code>;</code> colle, <code>,</code> va à la colonne suivante, un <code>;</code> final garde la ligne</td></tr><tr><td><code>A = 3</code>, <code>A$ = "TEXTE" + B$</code>, <code>T(I) = 5</code></td><td>affectations (<code>LET</code> est facultatif)</td></tr><tr><td><code>IF c THEN … ELSE …</code></td><td>sur une seule ligne ; <code>THEN 120</code> saute à la ligne 120</td></tr><tr><td><code>FOR I = 1 TO 10 STEP 2</code> … <code>NEXT I</code></td><td>une boucle comptée</td></tr><tr><td><code>WHILE c</code> … <code>WEND</code></td><td>une boucle tant que c est vrai</td></tr><tr><td><code>GOTO n</code>, <code>GOSUB n</code> … <code>RETURN</code></td><td>sauter, appeler un sous-programme</td></tr><tr><td><code>DIM T(100)</code></td><td>un tableau de 0 à 100 (sans DIM : 0 à 10)</td></tr><tr><td><code>END</code>, <code>STOP</code>, <code>REM</code>, <code>CLS</code></td><td>fin, arrêt avec son numéro de ligne, commentaire, effacer le texte</td></tr><tr><td><code>+ - * / MOD</code>, <code>= &lt;&gt; &lt; &gt; &lt;= &gt;=</code>, <code>AND OR NOT</code></td><td>calculs, comparaisons et logique (vrai vaut 1, faux 0)</td></tr><tr><td><code>RND(n)</code>, <code>ABS(n)</code>, <code>LEN(A$)</code>, <code>STR$(n)</code>, <code>CHR$(n)</code></td><td>hasard de 0 à n−1, valeur absolue, longueur, nombre en texte, caractère</td></tr></tbody></table>
+<h2>Les instructions de jeu</h2>
+<p><code>DECOR n</code> affiche le décor n de la banque d'images de l'atelier et crée ses <b>objets</b>, numérotés de 0 à <code>OBJETS - 1</code> dans l'ordre où ils ont été posés dans MONOPIXEL. On reconnaît un objet au nom de son lutin, et on lui parle par son numéro.</p>
+<table class=""><thead><tr><th>Instruction / fonction</th><th>Rôle</th></tr></thead><tbody><tr><td><code>CHERCHE("HEROS")</code>, <code>CHERCHE("PIECE", I)</code></td><td>le premier objet de ce lutin, ou le suivant après I (−1 : aucun)</td></tr><tr><td><code>EST(I, "BLOB")</code>, <code>NOM$(I)</code>, <code>ACTIF(I)</code></td><td>ce qu'est l'objet I, s'il existe encore</td></tr><tr><td><code>CREE("TIR", X, Y)</code></td><td>un nouvel objet ; donne son numéro</td></tr><tr><td><code>POSX(I)</code>, <code>POSY(I)</code>, <code>VITX(I)</code>, <code>VITY(I)</code></td><td>sa position en pixels, sa vitesse en 1/16 de pixel par image</td></tr><tr><td><code>PLACE I, X, Y</code>, <code>VITESSE I, VX, VY</code></td><td>les changer</td></tr><tr><td><code>GRAVITE I, 1</code>, <code>BOITE I, X, Y, L, H</code></td><td>il tombe ; sa boîte de collision (depuis le coin de son lutin)</td></tr><tr><td><code>BOUGE I</code> (<code>BOUGE</code> : tous)</td><td>le déplace selon sa vitesse, arrêté par les murs, porté par les plateformes</td></tr><tr><td><code>PATROUILLE I, V</code></td><td>le fait marcher, avec demi-tour aux murs et au bord du vide</td></tr><tr><td><code>SOL(I)</code>, <code>PLAFOND(I)</code>, <code>MUR(I)</code></td><td>ce que son dernier mouvement a touché</td></tr><tr><td><code>DANGER(I)</code>, <code>EAU(I)</code>, <code>ECHELLE(I)</code></td><td>une tuile de cet attribut est sous lui</td></tr><tr><td><code>CHOC(I, J)</code></td><td>les objets I et J se touchent</td></tr><tr><td><code>ENLEVE I</code>, <code>CACHE I, 1</code>, <code>MIROIR I, 1</code>, <code>ANIME I, 1</code>, <code>IMAGE I, N</code></td><td>disparaître, ne plus être dessiné, regarder à gauche, s'animer, montrer l'image N</td></tr><tr><td><code>CAMERA I</code></td><td>la caméra le suit dans le décor</td></tr><tr><td><code>GAUCHE</code>, <code>DROITE</code>, <code>HAUT</code>, <code>BAS</code>, <code>BOUTON(N)</code>, <code>APPUI(N)</code></td><td>la manette 1 (et les flèches, Espace = bouton 1) ; APPUI : le bouton vient d'être enfoncé</td></tr><tr><td><code>ATTENDS</code> [n]</td><td>dessine les objets et attend l'image suivante : une fois par tour de boucle</td></tr><tr><td><code>TEXTE X, Y, …</code>, <code>PRINT</code></td><td>écrire sur l'écran du jeu (40 colonnes, 30 lignes)</td></tr><tr><td><code>SON "SAUT"</code>, <code>MUSIQUE</code>, <code>SILENCE</code></td><td>un bruitage par son nom, la musique de l'atelier, le silence</td></tr><tr><td><code>FOND R, V, B</code>, <code>TEMPS</code></td><td>la couleur du ciel ; les images écoulées depuis RUN</td></tr></tbody></table>
+<h2>La forme d'un jeu</h2>
+<p>Presque tous les jeux ont la même forme : une préparation, puis une <b>boucle</b> qui lit la manette, déplace les objets, regarde ce qui se touche, puis dessine une image avec <code>ATTENDS</code> et recommence. Voici le cœur de <code>EXEMPLE</code> :</p>
+<div class="listing nonum"><div class="lst-cap"><span>LISTING</span> les lignes essentielles du jeu EXEMPLE</div><pre>20 DECOR 0 : MUSIQUE : FOND 120, 200, 240
+30 H = CHERCHE("HEROS") : GRAVITE H, 1 : BOITE H, 3, 2, 10, 14
+110 VX = 0
+120 IF GAUCHE THEN VX = -28 : MIROIR H, 1
+130 IF DROITE THEN VX = 28 : MIROIR H, 0
+140 VITESSE H, VX, VITY(H)
+150 IF SOL(H) AND APPUI(1) THEN VITESSE H, VX, -76 : SON "SAUT"
+160 BOUGE H : ANIME H, VX &lt;&gt; 0
+170 FOR I = 0 TO OBJETS - 1
+190 IF EST(I, "PIECE") THEN IF CHOC(H, I) THEN ENLEVE I : S = S + 10 : SON "PIECE"
+210 NEXT I
+230 CAMERA H : TEXTE 1, 1, "SCORE "; S
+240 ATTENDS : GOTO 110</pre></div>
+<figure class="tv small"><div class="bezel"><img src="images/atelier_basic_jeu.png"></div><figcaption>Le jeu EXEMPLE en marche, avec les images, les sons et la musique de l'atelier.</figcaption></figure>
+<h2>Les erreurs</h2>
+<p>Une erreur arrête le programme et s'affiche avec sa ligne, suivie de la ligne elle-même : <code>? SYNTAXE EN 150</code>. Les plus fréquentes sont <code>SYNTAXE</code> (un mot mal écrit, une virgule oubliée), <code>LIGNE INEXISTANTE</code> (un GOTO vers une ligne absente), <code>OBJET INEXISTANT</code> (un numéro d'objet trop grand : vérifiez <code>CHERCHE</code>, qui donne −1 si le lutin n'est pas dans le décor), <code>PAS DE DECOR</code> (une instruction de jeu avant <code>DECOR</code>) et <code>TYPE</code> (un nombre là où il faut une chaîne, ou l'inverse). <code>ARRET</code> signale simplement un arrêt par <kbd>Échap</kbd>.</p>
+<p>MONOBASIC n'a ni nombres à virgule, ni <code>INPUT</code>, ni <code>DATA</code> / <code>READ</code>. Un programme fait au plus 20 Ko.</p>
+<section class="chap-open c7"><div class="chap-num">7</div><div class="chap-band"></div><h1 id="ch7">PLATEFORMES : le jeu tout fait</h1><p class="lead">Un vrai jeu dont tout le contenu vient de l'atelier : on le refait sans écrire une ligne, rien qu'en dessinant.</p></section>
+<figure class="tv small"><div class="bezel"><img src="images/atelier_jeu_titre.png"></div><figcaption>L'écran titre de PLATEFORMES dans l'atelier.</figcaption></figure>
+<p>PLATEFORMES prend le <b>décor 0</b> de la banque d'images, ses attributs et ses objets, les bruitages et la musique choisis dans le lanceur. Il reconnaît les objets par le nom de leur lutin :</p>
+<table class=""><thead><tr><th>Lutin</th><th>Rôle dans le jeu</th></tr></thead><tbody><tr><td><code>HEROS</code></td><td>le joueur : il court, saute (plus haut en tenant <kbd>B1</kbd>), descend des plateformes (bas + <kbd>B1</kbd>) ; l'eau, une tuile DANGER ou une chute lui font perdre une vie</td></tr><tr><td><code>PIECE</code></td><td>10 points</td></tr><tr><td><code>BLOB</code></td><td>un ennemi qui marche et fait demi-tour au bord du vide ; sa vitesse est le paramètre P de l'objet ; sauté dessus, il disparaît (50 points)</td></tr><tr><td><code>DRAPEAU</code></td><td>la fin du niveau</td></tr></tbody></table>
+<p>Les bruitages joués sont <code>SAUT</code>, <code>PIECE</code>, <code>ECRASE</code>, <code>AIE</code>, <code>BRAVO</code>, <code>PERDU</code> et <code>MENU</code>. Un nom absent est simplement muet. Le jeu a 3 vies et garde le record dans la sauvegarde de l'atelier.</p>
+<div class="box tip"><div class="box-t">Un niveau à soi</div><p>Dans MONOPIXEL : dessinez le décor 0, réglez les attributs (SOLIDE pour les murs et le sol, PLATEF. pour ce qu'on traverse en sautant, EAU ou DANGER pour ce qui fait perdre une vie), posez un HEROS, des PIECE, des BLOB (P = vitesse) et un DRAPEAU. Sauvez, F12, F5.</p></div>
+<section class="chap-open c8"><div class="chap-num">8</div><div class="chap-band"></div><h1 id="ch8">Sauvegardes et échanges</h1><p class="lead">Où vont les créations, comment les passer à l'ordinateur, les reprendre des outils seuls, et les mettre dans un jeu écrit en C.</p></section>
+<h2>La sauvegarde de l'atelier</h2>
+<p>Tout est dans la NVRAM de 32 Ko, écrite sur la carte SD sous <code>saves/MONOCORE/MONOATELIER.sav</code> (le nom suit celui du fichier de la ROM) quand on ouvre le menu de la MiSTer. Chaque outil y a 8 emplacements, et le lanceur affiche la place libre. Pour se faire une idée, la banque d'images de la démonstration fait 6 Ko, son morceau 4 Ko, ses bruitages 352 octets et le programme EXEMPLE un peu plus d'un Ko.</p>
+<h2>Sur l'ordinateur</h2>
+<p>Les outils Python du dépôt lisent et écrivent cette sauvegarde :</p>
+<div class="terminal"><div class="lst-cap sh"><span>TERMINAL</span> les outils de l'atelier</div><pre>python3 tools/atelier/atelier.py MONOATELIER.sav                  # ce qu'elle contient
+python3 tools/atelier/atelier.py MONOATELIER.sav --export jeu/      # images_1.mgf, bruits_1.mfx, musique_1.mts, programme_1.mbs
+python3 tools/atelier/atelier.py MONOATELIER.sav --import MONOPIXEL.sav MONOSFX.sav MONOTRACKER.sav
+python3 tools/basic/basic.py MONOATELIER.sav 1 -o jeu.bas            # un programme BASIC en texte
+python3 tools/basic/basic.py jeu.bas --to-sav MONOATELIER.sav 2      # et dans l'autre sens
+python3 tools/mgfx/mgfx.py MONOATELIER.sav 1 --png images/            # la planche, les lutins (GIF animés), les décors</pre></div>
+<p><code>--import</code> reprend dans l'atelier ce qui a été fait avec les outils seuls (<code>outils/MONOPIXEL.mnc</code>…), aux mêmes numéros d'emplacement. Les outils <code>mgfx.py</code>, <code>msfx.py</code>, <code>sav2song.py</code> et <code>basic.py</code> lisent aussi bien la sauvegarde de l'atelier que celle d'un outil seul.</p>
+<h2>Dans le simulateur</h2>
+<p>Le simulateur (<code>dist/monocore.html</code>, à ouvrir dans un navigateur) contient MONOATELIER et chaque outil dans sa liste de ROM. La souris et le clavier de la console s'y activent tout seuls (<kbd>F9</kbd> rend le clavier au navigateur). <b>Exporter .sav</b> et <b>Importer .sav…</b> échangent la sauvegarde avec la MiSTer, et <b>Morceaux .mts</b>, <b>Banques .mgf</b>, <b>Bruitages .mfx</b> téléchargent directement les créations.</p>
+<h2>Dans un jeu écrit en C</h2>
+<p>Les mêmes formats servent aux jeux écrits avec le SDK. Les modules sont <code>mgfx</code> (les banques d'images, <code>sdk/MGFX.md</code>), <code>mjeu</code> (objets, collisions, caméra, <code>sdk/MJEU.md</code>), <code>msfx</code> (les bruitages, <code>sdk/MSFX.md</code>) et <code>mtrack</code> (la musique). <code>examples/plateformes</code> est le modèle d'un tel jeu, et <code>sdk/ATELIER.md</code> explique comment ajouter son jeu à l'atelier (<code>tools/mkatelier.py</code>).</p>
+<section class="chap-open c9"><div class="chap-num">9</div><div class="chap-band"></div><h1 id="ch9">Aide-mémoire et dépannage</h1><p class="lead">Les raccourcis de chaque programme sur une page, et que faire quand quelque chose ne marche pas.</p></section>
+<table class=""><thead><tr><th>Programme</th><th>Raccourcis</th></tr></thead><tbody><tr><td><b>Partout</b></td><td><kbd>F12</kbd> : lanceur ; <kbd>Ctrl</kbd> <kbd>S</kbd> : sauver (puis ouvrir le menu de la MiSTer) ; <kbd>Ctrl</kbd> <kbd>Z</kbd> : annuler (MONOPIXEL)</td></tr><tr><td><b>Lanceur</b></td><td><kbd>F1</kbd> images, <kbd>F2</kbd> bruitages, <kbd>F3</kbd> musique, <kbd>F4</kbd> BASIC, <kbd>F5</kbd> ou <kbd>Entrée</kbd> jouer ; clic sur un emplacement : le donner au jeu</td></tr><tr><td><b>MONOPIXEL</b></td><td><kbd>F1</kbd>–<kbd>F5</kbd> pages ; dessin : <kbd>C</kbd> <kbd>T</kbd> <kbd>R</kbd> <kbd>P</kbd> <kbd>S</kbd> <kbd>I</kbd>, <kbd>X</kbd> <kbd>Y</kbd> <kbd>O</kbd>, <kbd>1</kbd>–<kbd>4</kbd>, <kbd>G</kbd>, flèches ; décors : <kbd>C</kbd> <kbd>P</kbd> <kbd>S</kbd> <kbd>I</kbd> <kbd>O</kbd>, <kbd>H</kbd> <kbd>V</kbd>, <kbd>A</kbd></td></tr><tr><td><b>MONOSFX</b></td><td><kbd>F1</kbd> effets, <kbd>F2</kbd> banque, <kbd>F3</kbd> aide ; <kbd>Espace</kbd> jouer ; <kbd>Entrée</kbd> nommer ; <kbd>Ctrl</kbd> <kbd>C</kbd> <kbd>Ctrl</kbd> <kbd>V</kbd> <kbd>Suppr</kbd></td></tr><tr><td><b>MONOTRACKER</b></td><td><kbd>F1</kbd> motifs, <kbd>F2</kbd> sons, <kbd>F3</kbd> morceau, <kbd>F4</kbd> aide ; instrument : <kbd>+</kbd> et <kbd>−</kbd> du pavé ; voir son manuel</td></tr><tr><td><b>MONOBASIC</b></td><td><kbd>F5</kbd> RUN, <kbd>F2</kbd> LIST, <kbd>Échap</kbd> arrêt ; <code>AIDE</code>, <code>EXEMPLE</code>, <code>SAVE</code>, <code>LOAD</code>, <code>DIR</code></td></tr><tr><td><b>PLATEFORMES</b></td><td>gauche/droite, <kbd>B1</kbd> sauter, bas + <kbd>B1</kbd> descendre ; <kbd>START</kbd> + <kbd>COIN</kbd> : lanceur</td></tr></tbody></table>
+<h2>Dépannage</h2>
+<table class=""><thead><tr><th>Ce qui se passe</th><th>Que faire</th></tr></thead><tbody><tr><td>« demande le core version 5 »</td><td>mettre le core de <code>releases/v5_haute_resolution/</code> (ou plus récent) dans <code>_Console</code></td></tr><tr><td>les créations ont disparu après avoir éteint</td><td>la NVRAM n'est écrite sur la carte SD qu'à l'ouverture du menu : <kbd>Ctrl</kbd> <kbd>S</kbd>, puis ouvrir et fermer le menu</td></tr><tr><td>les lettres A et Q (ou Z et W) sont inversées</td><td>changer CLAVIER (AZERTY / QWERTY) sur la page BANQUE de MONOPIXEL ou de MONOSFX : le réglage vaut pour tout l'atelier</td></tr><tr><td>pas de pointeur de souris</td><td>brancher la souris avant de lancer le core ; dans le simulateur, cocher « souris de la console »</td></tr><tr><td>« NVRAM PLEINE »</td><td>effacer des emplacements inutiles (page BANQUE, <code>DIR</code> du BASIC), ou exporter les créations sur l'ordinateur</td></tr><tr><td>le jeu n'affiche pas mon héros</td><td>le lutin doit s'appeler exactement <code>HEROS</code> et un objet HEROS doit être posé dans le décor 0</td></tr><tr><td>un son ne joue pas</td><td>son nom doit être exactement celui que le jeu attend (<code>SAUT</code>…), et la banque de bruitages doit être sauvée</td></tr><tr><td>le jeu prend la démo au lieu de mes créations</td><td>regarder le cadre « LE JEU PREND » du lanceur ; cliquer sur l'emplacement voulu</td></tr><tr><td>MONOBASIC : <code>OBJET INEXISTANT</code></td><td><code>CHERCHE</code> a donné −1 : le lutin n'est pas dans le décor, ou son nom diffère</td></tr></tbody></table>
+<p>Pour aller plus loin, la documentation technique se trouve dans le dépôt : <code>sdk/ATELIER.md</code>, <code>sdk/MGFX.md</code>, <code>sdk/MJEU.md</code>, <code>sdk/MSFX.md</code>, <code>examples/monobasic/LISEZMOI.md</code>, ainsi que le manuel du programmeur (<code>manual/MONOCORE-1_Manuel_du_programmeur.pdf</code>).</p></body></html>

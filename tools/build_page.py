@@ -16,6 +16,7 @@ roms = {
     'hello': base64.b64encode(open(os.path.join(ROOT, 'examples/hello/build/hello.mnc'), 'rb').read()).decode(),
     'tracker': base64.b64encode(open(os.path.join(ROOT, 'examples/monotracker/build/monotracker.mnc'), 'rb').read()).decode(),
     'plateformes': base64.b64encode(open(os.path.join(ROOT, 'examples/plateformes/build/plateformes.mnc'), 'rb').read()).decode(),
+    'basic': base64.b64encode(open(os.path.join(ROOT, 'examples/monobasic/build/monobasic.mnc'), 'rb').read()).decode(),
     'atelier': base64.b64encode(open(os.path.join(ROOT, 'examples/atelier/build/monoatelier.mnc'), 'rb').read()).decode(),
     'sfx': base64.b64encode(open(os.path.join(ROOT, 'examples/monosfx/build/monosfx.mnc'), 'rb').read()).decode(),
     'pixel': base64.b64encode(open(os.path.join(ROOT, 'examples/monopixel/build/monopixel.mnc'), 'rb').read()).decode(),

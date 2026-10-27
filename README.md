@@ -23,6 +23,7 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 | `examples/monosfx/` | MONOSFX, l'éditeur de bruitages en 640 × 480 (souris et clavier, à la manière de sfxr) : 32 bruitages PSG par banque, générateurs (saut, pièce, tir, boum…), courbe de la note et du volume ; joués dans les jeux par le module `msfx` (`sdk/MSFX.md`) |
 | `examples/monobasic/` | MONOBASIC, le BASIC de la console : éditeur plein écran à numéros de ligne (à la MO5), cœur classique et instructions en français pour les jeux (`DECOR`, `BOUGE`, `CHOC`, `SON`, `MUSIQUE`, `ATTENDS`…) sur `mgfx`, `mjeu`, `msfx` et `mtrack` ; programmes en NVRAM ; `tools/basic/basic.py` |
 | `examples/atelier/` | MONOATELIER : une seule ROM avec MONOPIXEL, MONOSFX, MONOTRACKER, MONOBASIC et PLATEFORMES, qui partagent une NVRAM : on fait un jeu (niveau, bruitages, musique) et on y joue sans ordinateur ; construite par `tools/mkatelier.py` (`sdk/ATELIER.md`) |
+| `outils/` | les outils prêts à copier dans `games/MONOCORE` : `MONOATELIER.mnc` (tout en un) et chaque outil seul (`MONOPIXEL.mnc`, `MONOSFX.mnc`, `MONOTRACKER.mnc`, `MONOBASIC.mnc`, `PLATEFORMES.mnc`), faits par `tools/mkoutils.py` ; mode d'emploi : `manual/MONOATELIER_Manuel.pdf` |
 | `examples/cascade/` | CASCADE, le jeu des notes qui tombent, à jouer sur un clavier MIDI : les morceaux de MONOTRACKER deviennent des niveaux |
 | `examples/defender/` | PIANO DEFENDER, shoot'em up au clavier MIDI : les envahisseurs descendent sur les touches, on joue leur note pour tirer |
 | `examples/solfege/` | SOLFEGE, apprendre à lire les notes en 640 × 480 entrelacé : une portée (clé de sol ou de fa), le clavier MIDI, une nouvelle note dès que les précédentes sont connues, et une lecture déroulante |
@@ -41,7 +42,7 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 | `tools/cart/` | `cart_split.py` : découpe une ROM en images pour une ou deux Flash SPI W25Q64 (cartouche sur le port USER) |
 | `rtl/` | le core FPGA en Verilog (CPU, mémoires, E/S, DMA, rendu vidéo, son) et ses bancs de test Verilator |
 | `tools/quartus_trial/` | essai de compilation du core seul dans Quartus (ressources, fréquence maximale), voir son `LISEZMOI.md` |
-| `manual/` | le manuel du programmeur (`MONOCORE-1_Manuel_du_programmeur.pdf`), ses exemples (`examples/`, un dossier par chapitre) et l'outil qui le régénère (`tools/manual.py`) ; le manuel de MONOTRACKER (`MONOTRACKER_Manuel.pdf`) et le guide pour brancher un clavier MIDI (`MONOCORE-1_Guide_MIDI.pdf`) |
+| `manual/` | le manuel du programmeur (`MONOCORE-1_Manuel_du_programmeur.pdf`), ses exemples (`examples/`, un dossier par chapitre) et l'outil qui le régénère (`tools/manual.py`) ; le manuel de MONOTRACKER (`MONOTRACKER_Manuel.pdf`) le guide pour brancher un clavier MIDI (`MONOCORE-1_Guide_MIDI.pdf`) et le manuel de l'atelier (`MONOATELIER_Manuel.pdf`, `tools/atelier_manual.py`) |
 | `mister/` | le core MiSTer (framework `Template_MiSTer`, projet `MONOCORE.qpf`), voir son `LISEZMOI.md` ; ses modules propres sont dans `rtl/mister/` (contrôleur SDRAM, balayage vidéo, chargement) |
 | `tools/apu/` | journaux d'écritures son, modèle de référence et comparaison au bit près du moteur son |
 | `tools/vidfuzz/` | ROM de test vidéo aléatoire et scripts de comparaison simulateur / RTL image par image |

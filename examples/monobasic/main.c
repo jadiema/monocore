@@ -851,20 +851,20 @@ static void cmd_dir(void) {
 }
 static void cmd_help(void) {
   static const char *const h[] = {
-    "BASIC   PRINT, IF ... THEN ... ELSE, FOR ... TO ... STEP / NEXT, WHILE / WEND, GOTO,",
-    "        GOSUB / RETURN, DIM A(N), END, STOP, REM, CLS ; RND(N) ABS(N) LEN(A$) STR$(N) CHR$(N)",
-    "        NOMBRES ENTIERS ; A$ = \"TEXTE\" ; AND OR NOT MOD ; = <> < > <= >=",
-    "JEU     DECOR N : LE DECOR N DE LA BANQUE D'IMAGES, ET SES OBJETS (0 A OBJETS-1)",
-    "        CHERCHE(\"HEROS\") : LE PREMIER OBJET DE CE LUTIN ; CHERCHE(\"PIECE\", I) : LE SUIVANT",
-    "        EST(I, \"BLOB\")  NOM$(I)  CREE(\"TIR\", X, Y)  ACTIF(I)  POSX(I) POSY(I) VITX(I) VITY(I)",
-    "        PLACE I,X,Y  VITESSE I,VX,VY (1/16 DE PIXEL)  GRAVITE I,1  BOITE I,X,Y,L,H",
-    "        BOUGE I (OU BOUGE : TOUS)  PATROUILLE I,V  ENLEVE I  CACHE I,1  MIROIR I,1",
-    "        ANIME I,1  IMAGE I,N  CAMERA I ; SOL(I) PLAFOND(I) MUR(I) DANGER(I) EAU(I) CHOC(I,J)",
-    "        GAUCHE DROITE HAUT BAS BOUTON(N) APPUI(N) (MANETTE 1, FLECHES, ESPACE) ; TEMPS",
-    "        ATTENDS [N] : DESSINE UNE IMAGE ; TEXTE X,Y,... ; SON \"SAUT\" ; MUSIQUE ; SILENCE",
-    "        FOND R,V,B : LA COULEUR DU CIEL",
-    "EDITEUR RUN, LIST [A-B], NEW, SAVE \"NOM\", LOAD \"NOM\", DIR, EXEMPLE ; 120 SEUL EFFACE",
-    "        LA LIGNE 120 ; F5 RUN, F2 LIST ; ECHAP ARRETE LE PROGRAMME ; F12 : L'ATELIER" };
+    "BASIC  PRINT  IF..THEN..ELSE  FOR..TO..STEP/NEXT  WHILE/WEND  GOTO  GOSUB/RETURN",
+    "       DIM A(N)  END  STOP  REM  CLS   RND(N) ABS(N) LEN(A$) STR$(N) CHR$(N)",
+    "       ENTIERS ; A$ = \"TEXTE\" ; + - * / MOD ; = <> < > <= >= ; AND OR NOT",
+    "DECOR  DECOR N : LE DECOR N ET SES OBJETS, NUMEROTES DE 0 A OBJETS-1",
+    "OBJETS CHERCHE(\"HEROS\")  CHERCHE(\"PIECE\", I)  EST(I, \"BLOB\")  NOM$(I)  ACTIF(I)",
+    "       CREE(\"TIR\", X, Y)  POSX(I) POSY(I)  VITX(I) VITY(I) (1/16 DE PIXEL)",
+    "       PLACE I,X,Y  VITESSE I,VX,VY  GRAVITE I,1  BOITE I,X,Y,L,H  ENLEVE I",
+    "       BOUGE I (BOUGE : TOUS)  PATROUILLE I,V  CAMERA I  CACHE/MIROIR/ANIME I,1",
+    "       IMAGE I,N  SOL(I) PLAFOND(I) MUR(I) DANGER(I) EAU(I) ECHELLE(I) CHOC(I,J)",
+    "MANETTE GAUCHE DROITE HAUT BAS  BOUTON(N)  APPUI(N) (FLECHES, ESPACE = BOUTON 1)",
+    "ECRAN  ATTENDS [N] : UNE IMAGE   TEXTE X,Y,...   FOND R,V,B   TEMPS",
+    "SON    SON \"SAUT\"   MUSIQUE   SILENCE",
+    "EDITER RUN  LIST [A-B]  NEW  SAVE \"NOM\"  LOAD \"NOM\"  DIR  EXEMPLE ; \"120\" EFFACE",
+    "       F5 RUN, F2 LIST, ECHAP : ARRETE LE PROGRAMME, F12 : RETOUR A L'ATELIER" };
   for (unsigned i = 0; i < sizeof h / sizeof h[0]; i++) con_line(h[i]);
 }
 static const char example[] =

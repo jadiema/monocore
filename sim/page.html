@@ -226,7 +226,8 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
               <option value="tracker" data-i18n="optTracker">MONOTRACKER (musique, clavier)</option>
               <option value="pixel" data-i18n="optPixel">MONOPIXEL (graphismes, souris)</option>
               <option value="sfx" data-i18n="optSfx">MONOSFX (bruitages, souris)</option>
-              <option value="atelier" data-i18n="optAtelier">MONOATELIER (les trois éditeurs et le jeu)</option>
+              <option value="atelier" data-i18n="optAtelier">MONOATELIER (tous les outils et le jeu)</option>
+              <option value="basic" data-i18n="optBasic">MONOBASIC (programmer, clavier)</option>
               <option value="plateformes" data-i18n="optPlateformes">PLATEFORMES (modèle de jeu, mjeu)</option>
               <option value="cascade" data-i18n="optCascade">CASCADE (jeu, clavier MIDI)</option>
               <option value="defender" data-i18n="optDefender">PIANO DEFENDER (jeu, clavier MIDI)</option>
@@ -394,7 +395,8 @@ __CORE_JS__
     optTracker: ['MONOTRACKER (musique, clavier)', 'MONOTRACKER (music, keyboard)'],
     optPixel: ['MONOPIXEL (graphismes, souris)', 'MONOPIXEL (graphics, mouse)'],
     optSfx: ['MONOSFX (bruitages, souris)', 'MONOSFX (sound effects, mouse)'],
-    optAtelier: ['MONOATELIER (les trois éditeurs et le jeu)', 'MONOATELIER (the three editors and the game)'],
+    optAtelier: ['MONOATELIER (tous les outils et le jeu)', 'MONOATELIER (all the tools and the game)'],
+    optBasic: ['MONOBASIC (programmer, clavier)', 'MONOBASIC (programming, keyboard)'],
     atelierKbd: ['MONOATELIER : souris et clavier de la console activés (F9 coupe le clavier). F1 images, F2 bruitages, F3 musique, F5 le jeu ; F12 dans chacun : retour à l\'atelier. Tout est dans une seule NVRAM (Exporter .sav).',
                  'MONOATELIER: console mouse and keyboard on (F9 turns the keyboard off). F1 images, F2 sound effects, F3 music, F5 the game; F12 in each: back to the atelier. Everything is in one NVRAM (Export .sav).'],
     sfxKbd: ['MONOSFX se joue à la souris et au clavier : « souris de la console » et « clavier de la console » activés (F9 coupe le clavier). Espace : écouter ; F3 : l\'aide.',
@@ -566,7 +568,7 @@ __CORE_JS__
     setPill('runPill', 'ok', running ? 'running' : 'ready');
     peakWin.length = 0;
     // MONOTRACKER needs the console keyboard: switched on for it, and off again after it
-    const atelier = m.header.title === 'MONOATELIER';
+    const atelier = m.header.title === 'MONOATELIER' || m.header.title === 'MONOBASIC';
     const pixel = m.header.title === 'MONOPIXEL' || m.header.title === 'MONOSFX' || atelier, sfxEd = m.header.title === 'MONOSFX';
     const tracker = m.header.title === 'MONOTRACKER' || pixel, cascade = ['CASCADE', 'PIANO DEFENDER', 'SOLFEGE'].includes(m.header.title);
     if ((tracker || cascade) && !$('kbdMode').checked) { setKbd(true); autoKbd = true; log(t(cascade ? 'cascadeKbd' : atelier ? 'atelierKbd' : sfxEd ? 'sfxKbd' : pixel ? 'pixelKbd' : 'trackerKbd') + '\n'); }
@@ -697,7 +699,7 @@ __CORE_JS__
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   }
   function savName() {   // the MiSTer names the save after the ROM file
-    const base = /\.mnc$/i.test(romKey) ? romKey.replace(/\.mnc$/i, '') : romKey === 'tracker' ? 'monotracker' : romKey === 'pixel' ? 'monopixel' : romKey === 'sfx' ? 'monosfx' : romKey === 'atelier' ? 'monoatelier' : (m.header.title || romKey);
+    const base = /\.mnc$/i.test(romKey) ? romKey.replace(/\.mnc$/i, '') : romKey === 'tracker' ? 'monotracker' : romKey === 'pixel' ? 'monopixel' : romKey === 'sfx' ? 'monosfx' : romKey === 'atelier' ? 'monoatelier' : romKey === 'basic' ? 'monobasic' : (m.header.title || romKey);
     return base.toLowerCase().replace(/[^a-z0-9_.-]+/g, '_') + '.sav';
   }
   // songs of MONOTRACKER in the NVRAM: "MTNV", then 8 x {offset, size} from byte 16 (sdk/MTRACK.md)
