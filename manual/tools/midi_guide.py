@@ -47,7 +47,7 @@ A('@@TOC@@')
 A('<section class="foreword">' + h2('En bref') +
   p("Depuis la version 4 de son matériel, la MONOCORE-1 a une <b>entrée MIDI</b>. Un clavier MIDI USB, comme un Novation Launchkey, peut ainsi jouer et écrire de la musique dans <b>MONOTRACKER</b>, et toute ROM peut lire ses notes. Ce guide explique comment le brancher, sur la MiSTer comme dans le simulateur, et quoi vérifier si rien ne se passe.") +
   table(['Il vous faut', 'Détail'], [
-    ['Le core MONOCORE en version 4', c('releases/MONOCORE_20261026c_midi.rbf') + " ou plus récent, copié dans " + c('_Console')],
+    ['Le core MONOCORE en version 4', c('releases/v4_midi_20261026c/MONOCORE_20261026c_midi.rbf') + " ou plus récent, copié dans " + c('_Console')],
     ['Un clavier MIDI USB', "un clavier « class compliant », qui fonctionne sans pilote : c'est le cas de la plupart, dont les Launchkey"],
     ['Une MiSTer à jour', "avec MidiLink, le service MIDI de la MiSTer, installé par l'updater habituel ; rien à acheter"],
     ['Une ROM qui lit le MIDI', "MONOTRACKER à jour (" + c('monotracker.mnc') + "), ou votre propre ROM (chapitre 4)"]]) +
