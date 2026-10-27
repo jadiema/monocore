@@ -56,7 +56,7 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, always added by buil
 #define CELL_BALL  10
 #define CELL_SPARK 11
 #define CELL_RING  12                      // serve ring, 2 x 2 cells
-#define CELL_TRAIL 16                      // 16 bright, 17 dim: the puck's comet tail
+#define CELL_TRAIL 16                      // 16 bright, 17 dim, 18 white hot: the puck's comet tail
 #define CELL_FONT  (CHR_FONT / 32)
 
 #define PAL_HUD     1                      // 1-4 players, 5 virus, 6 gold, 7 grey
@@ -77,7 +77,7 @@ extern const uint8_t font_chr[], font_pal[];   // SDK font, always added by buil
 #define S_RING     1
 #define S_PAD      2                       // 2-5
 #define S_TRAIL    6                       // 6-13: comet tail, behind the puck and the paddles
-#define N_TRAIL    8
+#define N_TRAIL    12
 #define S_FX       (S_TRAIL + N_TRAIL)
 #define N_FX       64
 #define S_CROW     (S_FX + N_FX)              // crows, then mist (behind everything else)
@@ -109,7 +109,9 @@ static int paddle_pixel(int x, int y) {          // vertical paddle, 8 x 40
   if (y == PAD_LEN - 1) return 1;
   if ((y == 5 || y == 8 || y == PAD_LEN - 9 || y == PAD_LEN - 6) && x > 1 && x < 6) return 1;   // grips
   static const int8_t shade[8] = {0, 4, 3, 3, 2, 2, 1, 0};
-  if (y > 14 && y < PAD_LEN - 15 && (x == 3 || x == 4)) return 5;                             // centre light
+  if (y > 14 && y < PAD_LEN - 15 && (x == 3 || x == 4)) return 6;                             // the heart
+  if ((y == 14 || y == PAD_LEN - 15) && (x == 3 || x == 4)) return 7;                          // its glow
+  if (y > 15 && y < PAD_LEN - 16 && (x == 2 || x == 5)) return 7;
   return shade[x];
 }
 
@@ -117,9 +119,10 @@ static const char *const art_ball[8] = {
   "........", "..1111..", ".155331.", ".153331.", ".133331.", ".133321.", "..1111..", "........"};
 static const char *const art_spark[8] = {
   "........", "........", "...21...", "..2112..", "..2112..", "...12...", "........", "........"};
-static const char *const art_trail[2][8] = {
+static const char *const art_trail[3][8] = {
   {"........", "...33...", "..3443..", ".344443.", ".344443.", "..3443..", "...33...", "........"},
-  {"........", "...22...", "..2332..", ".233332.", ".233332.", "..2332..", "...22...", "........"}};
+  {"........", "...22...", "..2332..", ".233332.", ".233332.", "..2332..", "...22...", "........"},
+  {"........", "...44...", "..4554..", ".455554.", ".455554.", "..4554..", "...44...", "........"}};
 static const char *const art_ring[16] = {
   "................", ".....555555.....", "...55......55...", "..5..........5..",
   ".5............5.", ".5............5.", "5..............5", "5..............5",
@@ -127,7 +130,7 @@ static const char *const art_ring[16] = {
   "..5..........5..", "...55......55...", ".....555555.....", "................"};
 
 static void make_sprites(void) {
-  static uint8_t sheet[18 * 32];
+  static uint8_t sheet[19 * 32];
   memset(sheet, 0, sizeof sheet);
   for (int y = 0; y < PAD_LEN; y++)
     for (int x = 0; x < 8; x++) {
@@ -140,7 +143,7 @@ static void make_sprites(void) {
       put4(sheet + CELL_BALL * 32, 1, x, y, a == '.' ? 0 : a - '0');
       put4(sheet + CELL_SPARK * 32, 1, x, y, s == '.' ? 0 : s - '0');
     }
-  for (int k = 0; k < 2; k++)
+  for (int k = 0; k < 3; k++)
     for (int y = 0; y < 8; y++)
       for (int x = 0; x < 8; x++)
         put4(sheet + (CELL_TRAIL + k) * 32, 1, x, y, art_trail[k][y][x] == '.' ? 0 : art_trail[k][y][x] - '0');
@@ -464,7 +467,7 @@ static void music_play(void) {
 }
 
 // ---------------------------------------------------------------- particles
-typedef struct { int x, y, vx, vy, life; } particle_t;
+typedef struct { int x, y, vx, vy, life, pal, cell, z0; } particle_t;
 static particle_t fx[N_FX];
 static int fx_next;
 
@@ -474,6 +477,12 @@ static void spark(int x, int y, int speed) {     // x, y in screen pixels
   p->x = x << FP; p->y = y << FP;
   p->vx = (mc_cos(a) * s) >> 16; p->vy = (mc_sin(a) * s) >> 16;
   p->life = 14 + rnd(14);
+  p->pal = PAL_FX; p->cell = CELL_SPARK; p->z0 = 0x60;
+}
+static void ember(int x, int y, int vx, int vy, int pal) {   // a glowing bit left by the comet
+  particle_t *p = &fx[fx_next]; fx_next = (fx_next + 1) % N_FX;
+  p->x = x << FP; p->y = y << FP; p->vx = vx + rnd(97) - 48; p->vy = vy + rnd(97) - 48;
+  p->life = 10 + rnd(10); p->pal = pal; p->cell = CELL_TRAIL + 1; p->z0 = 0x20;
 }
 static void fx_clear(void) { memset(fx, 0, sizeof fx); for (int i = 0; i < N_FX; i++) mc_sprite_hide(S_FX + i); }
 
@@ -483,8 +492,8 @@ static void update_fx(void) {
     if (p->life <= 0) { mc_sprite_hide(S_FX + i); continue; }
     p->life--; p->x += p->vx; p->y += p->vy;
     p->vx = p->vx * 14 / 16; p->vy = p->vy * 14 / 16;
-    int z = 0x60 + p->life * 10;
-    mc_sprite(S_FX + i, PX(p->x) - 4, PX(p->y) - 4, CELL_SPARK, 1, 1, PAL_FX, 4);
+    int z = p->z0 + p->life * 10, h = 4 * z / 256;
+    mc_sprite(S_FX + i, PX(p->x) - h, PX(p->y) - h, p->cell, 1, 1, p->pal, 4);
     mc_sprite_zoom(S_FX + i, z, z);
   }
 }
@@ -681,7 +690,7 @@ typedef struct {
   bool human;
   int pos, vel;                                  // paddle start along its axis, 8.8
   int prev_paddle, analog;                       // analog paddle (0-255) once it has moved
-  int score, flash;
+  int score, flash, beat;
   int ai_err, ai_speed;
 } seat_t;
 static seat_t seat[4];                           // 0 left, 1 top, 2 bottom, 3 right = J1..J4
@@ -732,8 +741,29 @@ static void control_ai(int s) {
   st->pos += v;
 }
 
+// the heart of a paddle beats: lub-dub, about once a second (slower and dimmer for a console
+// player), and leaps when the paddle hits the puck
+static int heart_level(int s, uint32_t t) {
+  int period = seat[s].human ? 56 : 90, ph = (int)((t + (uint32_t)s * 23) % (uint32_t)period);
+  int k = 0;
+  if (ph < 10) k = 256 - ph * 22;                          // lub
+  else if (ph >= 12 && ph < 20) k = 170 - (ph - 12) * 20;  // dub
+  if (!seat[s].human) k = k * 3 / 5;
+  if (seat[s].beat > k) k = seat[s].beat;
+  if (seat[s].beat > 0) seat[s].beat -= 16;
+  return clampi(k, 0, 256);
+}
+static void heart_colours(int pal, const uint8_t *q, int k) {   // at rest a little darker, white at the beat
+  int r0 = q[0] * 3 / 4, g0 = q[1] * 3 / 4, b0 = q[2] * 3 / 4;
+  set_rgb(pal, 6, r0 + (255 - r0) * k / 256, g0 + (255 - g0) * k / 256, b0 + (255 - b0) * k / 256);
+  set_rgb(pal, 7, r0 + (255 - r0) * k / 512, g0 + (255 - g0) * k / 512, b0 + (255 - b0) * k / 512);
+}
+
 static void place_paddles(void) {
+  static const uint8_t grey[3] = {200, 200, 210};
+  heart_colours(PAL_NEUTRAL, grey, 256);
   for (int s = 0; s < 4; s++) {
+    heart_colours(PAL_PLAYER + s, player_rgb[s], heart_level(s, mc_frames));
     seat[s].pos = clampi(seat[s].pos, PAD_MIN, PAD_MAX);
     int a = PX(seat[s].pos), f = pad_fixed(s) - 1;                  // sprite has a 1-pixel border
     int pal = PAL_PLAYER + s;
@@ -815,7 +845,7 @@ static void paddle_bounce(int s) {
   launch(s, off * 170 / 256);                    // up to 60 degrees off the normal
   int f = s == 0 || s == 1 ? (PAD_IN + PAD_T + BALL_R) << FP : (AW - PAD_IN - PAD_T - BALL_R) << FP;
   if (vertical(s)) bx = f; else by = f;
-  owner = s;
+  owner = s; st->beat = 256;
   for (int k = 0; k < 4; k++) seat[k].ai_err = (rnd(2 * AI_ERR + 1) - AI_ERR) << FP;   // console players aim roughly
   sfx_pad = 6; sfx_pad_f = 520 + s * 130;
   score_points(s, 1);
@@ -849,9 +879,12 @@ static int move_puck(void) {
   return -1;
 }
 
-// comet tail: the last positions of the puck (screen pixels), one per frame
-#define TRAIL_LEN 16
-static int16_t trail_x[TRAIL_LEN], trail_y[TRAIL_LEN];
+// comet tail: the last positions of the puck (screen pixels, 1/16 pixel), one per frame. The tail
+// is laid out along the path by distance, so it stretches with the speed of the puck; from the
+// head to the end it goes white hot, then the colour of the puck, then dark, it shrinks, flickers
+// and swings like a flame, and sheds embers. The faster the puck, the longer and hotter the tail.
+#define TRAIL_LEN 32
+static int trail_x[TRAIL_LEN], trail_y[TRAIL_LEN];
 static int trail_head, trail_fill;
 
 static void trail_reset(void) {
@@ -878,17 +911,40 @@ static void draw_puck(uint32_t t) {
   }
   mc_sprite_hide(S_RING);
   trail_head = (trail_head + 1) % TRAIL_LEN;
-  trail_x[trail_head] = (int16_t)cx; trail_y[trail_head] = (int16_t)cy;
+  trail_x[trail_head] = AX * 16 + bx / 16; trail_y[trail_head] = AY * 16 + by / 16;
   if (trail_fill < TRAIL_LEN) trail_fill++;
-  for (int i = 0; i < N_TRAIL; i++) {            // older and older positions, smaller and darker
-    int age = 1 + i;
-    if (age >= trail_fill) { mc_sprite_hide(S_TRAIL + i); continue; }
-    int k = (trail_head - age + TRAIL_LEN) % TRAIL_LEN;
-    int z = 0xE8 - i * 0x18;                     // 0.9 down to 0.25
-    int half = 4 * z / 256;
-    mc_sprite(S_TRAIL + i, trail_x[k] - half, trail_y[k] - half, i < 4 ? CELL_TRAIL : CELL_TRAIL + 1, 1, 1, pal, 4);
-    mc_sprite_zoom(S_TRAIL + i, z, z);
+  int speed = bspeed;                            // 576 .. 1152 (1/256 px per frame)
+  int heat = clampi((speed - 576) * 256 / 576, 0, 256);           // 0 slow .. 256 at full speed
+  int length = (18 + 22 * heat / 256) * 16;                       // 18 to 40 pixels
+  int n = N_TRAIL * (128 + heat / 2) / 256;                       // 6 to 12 segments
+  int step = length / n;
+  // perpendicular to the motion, for the swing of the flame
+  int ax = abs(bvx), ay = abs(bvy), norm = (ax > ay ? ax + ay / 2 : ay + ax / 2) + 1;
+  int px = -bvy * 256 / norm, py = bvx * 256 / norm;
+  int seg = 0, walked = 0, k = trail_head;
+  for (int age = 1; age < trail_fill && seg < n; age++) {          // walk back along the path
+    int j = (trail_head - age + TRAIL_LEN) % TRAIL_LEN;
+    int dx = trail_x[k] - trail_x[j], dy = trail_y[k] - trail_y[j];
+    int d = abs(dx) > abs(dy) ? abs(dx) + abs(dy) / 2 : abs(dy) + abs(dx) / 2;
+    while (d > 0 && walked + d >= (seg + 1) * step && seg < n) {   // segment seg falls on this stretch
+      int f = ((seg + 1) * step - walked) * 256 / d;
+      int sx = trail_x[k] - dx * f / 256, sy = trail_y[k] - dy * f / 256;
+      int u = seg * 256 / n;                                       // 0 at the head .. 256 at the end
+      int wob = mc_sin((int)t * 28 - seg * 70) * u / 256 * 2 >> 12; // swing, 1/16 px, grows to the end
+      sx += px * wob / 256; sy += py * wob / 256;
+      int z = 0xF0 - u * 0xB8 / 256 + (mc_sin((int)t * 61 + seg * 97) >> 13);   // shrinks, flickers
+      int hot = 40 + heat / 3;                                     // white-hot part grows with the speed
+      int cell = u < hot ? CELL_TRAIL + 2 : u < 150 ? CELL_TRAIL : CELL_TRAIL + 1;
+      int half = 4 * z / 256;
+      mc_sprite(S_TRAIL + seg, sx / 16 - half, sy / 16 - half, cell, 1, 1, pal, 4);
+      mc_sprite_zoom(S_TRAIL + seg, z, z);
+      if (seg == n - 1 && (t % (heat > 128 ? 2 : 4)) == 0)         // embers from the end of the tail
+        ember(sx / 16, sy / 16, -bvx / 6, -bvy / 6, pal);
+      seg++;
+    }
+    walked += d; k = j;
   }
+  for (; seg < N_TRAIL; seg++) mc_sprite_hide(S_TRAIL + seg);
 }
 
 // ---------------------------------------------------------------- HUD

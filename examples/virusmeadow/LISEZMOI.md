@@ -8,7 +8,10 @@ Un seul palet, qui prend la couleur du dernier joueur qui l'a touché, casse les
 - le palet sort : un palet perdu, le virus fait une poussée, le joueur qui l'a raté sert à nouveau ;
 - toutes les briques détruites : niveau suivant (plus de colonies, croissance plus rapide).
 
-Le palet laisse une traînée de comète de sa couleur. L'intérieur des cellules est vivant : une
+Le cœur de chaque raquette bat (plus lentement et plus faiblement pour un joueur console) et
+bondit quand elle frappe le palet. Le palet laisse une traînée de comète de sa couleur, posée le
+long de sa trajectoire : chauffée à blanc près du palet, puis de sa couleur, puis sombre, elle
+ondule comme une flamme et sème des braises ; plus le palet va vite, plus elle s'allonge et chauffe. L'intérieur des cellules est vivant : une
 spore qui rampe dans les jeunes cellules, un anneau qui tourne autour d'un œil qui cligne dans les
 cellules moyennes, un noyau hérissé qui bat comme un cœur dans les plus résistantes.
 
@@ -70,7 +73,8 @@ l'écran d'accueil, une démonstration à quatre joueurs console se lance (dans 
 | Prairie procédurale en tuiles 8 × 8 avec partage des tuiles identiques, carte gardée pour revenir de l'écran d'accueil | `build_meadow`, `show_meadow` | `mc_chr_upload`, `mc_tilemap_load` |
 | Virus sur un plan de tuiles, palette pulsante | `infect`, `heal`, `virus_colours` | `mc_tile`, `mc_color` |
 | Cellules animées : les 12 tuiles du virus redessinées 10 fois par seconde en CHR RAM, sans toucher à la carte | `virus_brick`, `virus_animate` | `mc_chr_upload` |
-| Traînée de comète : 8 sprites réduits sur les dernières positions du palet | `draw_puck` | `mc_sprite_zoom` |
+| Traînée de comète : jusqu'à 12 sprites répartis le long de la trajectoire, braises | `draw_puck`, `ember` | `mc_sprite_zoom` |
+| Cœur battant des raquettes (deux couleurs de leur palette animées) | `heart_level`, `heart_colours` | `mc_color` |
 | Encarts sombres derrière le texte, sur un plan dédié | `panel` | `mc_layer` (plan 3) |
 | Quatre joueurs, entrées numériques et analogiques | `control_human` | `mc_pad`, `mc_stick_x/y`, `mc_spinner_delta`, `mc_paddle` |
 | Joueurs console | `control_ai` | — |
