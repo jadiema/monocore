@@ -218,6 +218,7 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
               <option value="tracker" data-i18n="optTracker">MONOTRACKER (musique, clavier)</option>
               <option value="cascade" data-i18n="optCascade">CASCADE (jeu, clavier MIDI)</option>
               <option value="defender" data-i18n="optDefender">PIANO DEFENDER (jeu, clavier MIDI)</option>
+              <option value="solfege" data-i18n="optSolfege">SOLFEGE (lire les notes, clavier MIDI)</option>
             </select>
             <label class="btn primary" for="romFile" data-i18n="loadRom">Charger une ROM…</label>
             <input type="file" id="romFile" accept=".mnc,.bin" hidden>
@@ -373,6 +374,7 @@ __CORE_JS__
     optTracker: ['MONOTRACKER (musique, clavier)', 'MONOTRACKER (music, keyboard)'],
     optCascade: ['CASCADE (jeu, clavier MIDI)', 'CASCADE (game, MIDI keyboard)'],
     optDefender: ['PIANO DEFENDER (jeu, clavier MIDI)', 'PIANO DEFENDER (game, MIDI keyboard)'],
+    optSolfege: ['SOLFEGE (lire les notes, clavier MIDI)', 'SOLFEGE (reading notes, MIDI keyboard)'],
     cascadeKbd: ['Ce jeu se joue sur un clavier MIDI (cochez « clavier MIDI ») ou sur les lettres du clavier : « clavier de la console » activé (F9 pour le couper).',
                  'This game is played on a MIDI keyboard (tick “MIDI keyboard”) or on the letters of the keyboard: “console keyboard” is on (F9 turns it off).'],
     nvram: ['NVRAM de la ROM', 'ROM NVRAM'], nvExport: ['Exporter .sav', 'Export .sav'], nvImport: ['Importer .sav…', 'Import .sav…'],
@@ -526,7 +528,7 @@ __CORE_JS__
     setPill('runPill', 'ok', running ? 'running' : 'ready');
     peakWin.length = 0;
     // MONOTRACKER needs the console keyboard: switched on for it, and off again after it
-    const tracker = m.header.title === 'MONOTRACKER', cascade = m.header.title === 'CASCADE' || m.header.title === 'PIANO DEFENDER';
+    const tracker = m.header.title === 'MONOTRACKER', cascade = ['CASCADE', 'PIANO DEFENDER', 'SOLFEGE'].includes(m.header.title);
     if ((tracker || cascade) && !$('kbdMode').checked) { setKbd(true); autoKbd = true; log(t(cascade ? 'cascadeKbd' : 'trackerKbd') + '\n'); }
     else if (!tracker && !cascade && autoKbd) { setKbd(false); autoKbd = false; }
     if (tracker && !$('mouseMode').checked) { $('mouseMode').checked = true; autoMouse = true; }

@@ -17,6 +17,7 @@ roms = {
     'tracker': base64.b64encode(open(os.path.join(ROOT, 'examples/monotracker/build/monotracker.mnc'), 'rb').read()).decode(),
     'cascade': base64.b64encode(open(os.path.join(ROOT, 'examples/cascade/build/cascade.mnc'), 'rb').read()).decode(),
     'defender': base64.b64encode(open(os.path.join(ROOT, 'examples/defender/build/defender.mnc'), 'rb').read()).decode(),
+    'solfege': base64.b64encode(open(os.path.join(ROOT, 'examples/solfege/build/solfege.mnc'), 'rb').read()).decode(),
 }
 page = open(os.path.join(ROOT, 'sim/page.html'), encoding='utf-8').read()
 core = open(os.path.join(ROOT, 'sim/core.js'), encoding='utf-8').read()

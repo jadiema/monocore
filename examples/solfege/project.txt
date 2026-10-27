@@ -1,0 +1,7 @@
+# SOLFEGE: learning to read the notes on the staff, with a MIDI keyboard (or the computer keyboard)
+name    = solfege
+title   = SOLFEGE
+library = mc
+modules = mtrack
+sources = main.c
+data    = ../monotracker/mtbank.bin

@@ -10,6 +10,7 @@
 !examples/monotracker/build/monotracker.mnc
 !examples/cascade/build/cascade.mnc
 !examples/defender/build/defender.mnc
+!examples/solfege/build/solfege.mnc
 *.o
 *.elf
 __pycache__/
