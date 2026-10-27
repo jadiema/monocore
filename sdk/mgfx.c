@@ -83,6 +83,22 @@ int mg_open(mg_bank_t *b, const void *data, uint32_t max) {
     b->map_len[m] = rd32(p + o); b->map_data[m] = p + o + 4; o += 4 + b->map_len[m];
     if (o > end) return -1;
   }
+  if (h->flags & MG_HF_ATTRS) {            // version 2: attributes of the cells
+    if (o + 4 > end) return -1;
+    uint32_t n = rd32(p + o);
+    if (o + 4 + n > end || mg_unpack(p + o + 4, n, b->attr, h->n_pages * MG_PAGE_CELLS)) return -1;
+    o += 4 + n;
+  }
+  if (h->flags & MG_HF_OBJECTS) {          // version 2: objects of the maps, from a multiple of 4
+    o = (o + 3) & ~3u;
+    for (int m = 0; m < h->n_maps; m++) {
+      if (o + 4 > end) return -1;
+      uint32_t n = p[o] | (p[o + 1] << 8);
+      if (n > MG_OBJECTS || o + 4 + n * sizeof(mg_object_t) > end) return -1;
+      b->n_obj[m] = (uint16_t)n; b->obj[m] = (const mg_object_t *)(p + o + 4);
+      o += 4 + n * sizeof(mg_object_t);
+    }
+  }
   for (int s = 0; s < h->n_sprites; s++) {
     const mg_sprite_t *sp = &b->spr[s];
     if (sp->w < 1 || sp->w > 8 || sp->h < 1 || sp->h > 8 || sp->x >= MG_SHEET_W || sp->frames < 1 || sp->frames > MG_FRAMES) return -1;
@@ -248,6 +264,22 @@ void mg_layer_set(int n, int tx, int ty, uint32_t e) {
   int sh, w, h;
   layer_geom(n, &sh, &w, &h);
   TILEMAP(n & 3)[(ty & (h - 1)) * w + (tx & (w - 1))] = e;
+}
+int mg_object_count(const mg_bank_t *b, int m) { return m >= 0 && m < b->h->n_maps ? b->n_obj[m] : 0; }
+const mg_object_t *mg_object(const mg_bank_t *b, int m, int i) {
+  return i >= 0 && i < mg_object_count(b, m) ? &b->obj[m][i] : 0;
+}
+static int attr16(const mg_bank_t *b, int tile16, int t) {
+  int cell = tile16 ? (t % 8) * 2 + (t / 8) * 32 : t;
+  return cell >= 0 && cell < b->h->n_pages * MG_PAGE_CELLS ? b->attr[cell] : 0;
+}
+int mg_tile_attr(const mg_bank_t *b, int m, int t) {
+  return m >= 0 && m < b->h->n_maps ? attr16(b, b->maps[m].tile16, t & 0x3FF) : 0;
+}
+int mg_attr_at(const mg_bank_t *b, int n, int px, int py) {
+  int sh, w, h;
+  layer_geom(n, &sh, &w, &h);
+  return attr16(b, sh == 4, (int)(mg_layer_entry(n, px >> sh, py >> sh) & 0x3FF));
 }
 int mg_tile_at(int n, int px, int py) {
   int sh, w, h;

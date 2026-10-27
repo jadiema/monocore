@@ -17,7 +17,7 @@ OSD is opened after a save in MONOPIXEL. In the simulator: Exporter .sav / Banqu
 """
 import argparse, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from mgbank import Bank, Sprite, read_nvram, write_nvram, rgb888
+from mgbank import Bank, Sprite, read_nvram, write_nvram, rgb888, ATTR_NAMES
 
 
 def dump(b):
@@ -29,7 +29,15 @@ def dump(b):
               % (i, s.name, s.x, s.y, s.w, s.h, s.pal, s.frames, s.speed, '  aller-retour' if s.flags & 1 else ''))
     for i, m in enumerate(b.maps):
         used = sum(1 for e in m.cells if e)
-        print('decor %d: %dx%d tuiles de %d pixels, %d cases non vides' % (i, m.w, m.h, 16 if m.tile16 else 8, used))
+        print('decor %d: %dx%d tuiles de %d pixels, %d cases non vides, %d objet(s)' % (i, m.w, m.h, 16 if m.tile16 else 8, used, len(m.objects)))
+        for o in m.objects:
+            nm = b.sprites[o.sprite].name if o.sprite < len(b.sprites) else '?'
+            print('  objet %-8s x %4d y %4d  param %3d%s' % (nm, o.x, o.y, o.param, '  miroir' if o.flags & 1 else ''))
+    tiles16 = any(m.tile16 for m in b.maps) or not b.maps
+    for t in range(len(b.attrs) // 4 if tiles16 else len(b.attrs)):
+        a = b.tile_attr(t, tiles16)
+        if a:
+            print('tuile %s %3d : %s' % ('16' if tiles16 else '8', t, ', '.join(n for bit, n in ATTR_NAMES.items() if a & bit)))
 
 
 def main():

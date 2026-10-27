@@ -19,7 +19,8 @@ project.txt (one setting per line, # starts a comment):
     data    = level1.dat music.bin  raw files, embedded as is   -> level1_file, level1_size
     library = mc                    "easy" (default) or "mc", the low-level SDK (mc.h, libc)
     modules = mtrack                extra SDK modules (mc only): mtrack = music player (mtrack.h),
-                                    mgfx = MONOPIXEL graphics banks (mgfx.h), ui480 = 640 x 480 editor interface (ui480.h)
+                                    mgfx = MONOPIXEL graphics banks (mgfx.h), mjeu = game library on mgfx (mjeu.h),
+                                    ui480 = 640 x 480 editor interface (ui480.h)
 
 The SDK font is always included. The names above are declared in build/assets.h, which every
 C file of the program includes by itself. With easy, init() loads the sprite sheets and the first

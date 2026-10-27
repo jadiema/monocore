@@ -19,6 +19,7 @@
 #define CANVAS_OFF  0x10000u
 #define PREVIEW_OFF 0x10800u
 #define MISC_OFF    0x11000u
+#define OBJ_OFF     0x12000u   // cells of the sprites shown as objects of the map (1024 cells, to 0x1A000)
 #define UI_OFF      0x1A000u
 #define SHEET ((volatile uint8_t *)(CHRRAM_BASE + SHEET_OFF))
 #define CELL(off) ((int)((off) / 32))
@@ -49,6 +50,9 @@ static uint16_t pals[MG_PALS][16];
 static mg_sprite_t spr[MG_SPRITES];          // empty when name[0] == 0
 static uint16_t mapc[MG_MAPS][MG_MAP_CELLS];
 static uint8_t map_wc[MG_MAPS], map_hc[MG_MAPS], map_t16[MG_MAPS];
+static uint8_t attr[MG_PAGES * MG_PAGE_CELLS];                 // what the tiles are (MG_SOLID...)
+static mg_object_t objs[MG_MAPS][MG_OBJECTS];                  // objects placed in the maps
+static int n_objs[MG_MAPS];
 static int bank_slot = -1, dirty;
 
 static int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
@@ -81,8 +85,9 @@ static int stroke, sx, sy, lx, ly;             // stroke: 0 none, 1 left button,
 // sprites
 static int spr_sel, spr_scroll;
 // maps
-enum { M_PUT, M_BOX, M_FILL, M_PICK, M_COUNT };
+enum { M_PUT, M_BOX, M_FILL, M_PICK, M_COUNT, M_OBJ = M_COUNT };
 static const char *const mtool_name[M_COUNT] = { "POSER", "PAVE", "SEAU", "PIPETTE" };
+static int obj_spr, obj_param, obj_sel = -1, obj_drag, show_attr = 1;
 static int map_sel, mview_x, mview_y, mtool, brush = 1, brush_w = 1, brush_h = 1, brush_hf, brush_vf;
 static int mstroke, msx, msy, mlx, mly, pick_drag, pick_x0, pick_y0, mid_drag, mid_x, mid_y;
 // bank page
@@ -99,6 +104,8 @@ static uint8_t undo_px[64 * 32];               // the cells of the region before
 static int undo_rx, undo_ry, undo_rw, undo_rh, undo_px_ok;
 static uint16_t undo_map[MG_MAP_CELLS];
 static int undo_map_ok, undo_map_m, undo_map_wc, undo_map_hc, undo_kind;   // 1 pixels, 2 map
+static mg_object_t undo_objs[MG_OBJECTS];
+static int undo_nobj;
 
 static void cells_read(uint8_t *dst, int x, int y, int w, int h) {
   for (int cy = 0; cy < h; cy++) mc_copy(dst + cy * w * 32, (const void *)(CHRRAM_BASE + SHEET_OFF + ((y + cy) * MG_SHEET_W + x) * 32), w * 32);
@@ -113,6 +120,7 @@ static void px_snapshot(void) {
 static void px_preview_restore(void) { cells_write(undo_px, undo_rx, undo_ry, undo_rw, undo_rh); }
 static void map_snapshot(void) {
   memcpy(undo_map, mapc[map_sel], sizeof undo_map);
+  memcpy(undo_objs, objs[map_sel], sizeof undo_objs); undo_nobj = n_objs[map_sel];
   undo_map_m = map_sel; undo_map_wc = map_wc[map_sel]; undo_map_hc = map_hc[map_sel]; undo_map_ok = 1; undo_kind = 2;
 }
 static uint8_t tmp_cells[64 * 32];
@@ -129,6 +137,10 @@ static void undo(void) {
     memcpy(mapc[m], undo_map, sizeof t);
     memcpy(undo_map, t, sizeof t);
     map_wc[m] = (uint8_t)undo_map_wc; map_hc[m] = (uint8_t)undo_map_hc; undo_map_wc = wc; undo_map_hc = hc;
+    static mg_object_t to[MG_OBJECTS];
+    int tn = n_objs[m];
+    memcpy(to, objs[m], sizeof to); memcpy(objs[m], undo_objs, sizeof to); memcpy(undo_objs, to, sizeof to);
+    n_objs[m] = undo_nobj; undo_nobj = tn; obj_sel = -1;
     ui_message("DECOR : ANNULE (CTRL+Z ENCORE : REFAIT)");
   } else { ui_message("RIEN A ANNULER"); return; }
   dirty = 1;
@@ -181,7 +193,7 @@ static int pages_used(void) {
   return n;
 }
 static int sprites_used(void) { int n = 0; for (int s = 0; s < MG_SPRITES; s++) if (spr[s].name[0]) n = s + 1; return n; }
-static bool map_empty(int m) { for (int i = 0; i < map_w(m) * map_h(m); i++) if (mapc[m][i]) return false; return true; }
+static bool map_empty(int m) { if (n_objs[m]) return false; for (int i = 0; i < map_w(m) * map_h(m); i++) if (mapc[m][i]) return false; return true; }
 static int maps_used(void) { int n = 0; for (int m = 0; m < MG_MAPS; m++) if (!map_empty(m)) n = m + 1; return n; }
 static int pals_used(int ns, int nm) {
   int n = 1;
@@ -224,6 +236,24 @@ static uint32_t bank_encode(uint8_t *dst) {
     if (dst) put32(dst + o, n);
     o += 4 + n;
   }
+  bool has_attr = false, has_obj = false;               // version 2: attributes, objects
+  for (int i = 0; i < np * MG_PAGE_CELLS; i++) if (attr[i]) has_attr = true;
+  for (int m = 0; m < nm; m++) if (n_objs[m]) has_obj = true;
+  if (has_attr) {
+    n = mg_pack(attr, (uint32_t)np * MG_PAGE_CELLS, dst ? dst + o + 4 : 0);
+    if (dst) put32(dst + o, n);
+    o += 4 + n;
+    h.flags |= MG_HF_ATTRS;
+  }
+  if (has_obj) {
+    while (o & 3) { if (dst) dst[o] = 0; o++; }
+    for (int m = 0; m < nm; m++) {
+      if (dst) { put32(dst + o, (uint32_t)n_objs[m]); memcpy(dst + o + 4, objs[m], n_objs[m] * sizeof(mg_object_t)); }
+      o += 4 + n_objs[m] * sizeof(mg_object_t);
+    }
+    h.flags |= MG_HF_OBJECTS;
+  }
+  if (h.flags) h.version = 2;
   h.size = o;
   if (dst) memcpy(dst, &h, sizeof h);
   return o;
@@ -233,6 +263,7 @@ static void bank_clear(void) {
   for (int p = 0; p < MG_PALS; p++) for (int i = 0; i < 16; i++) pals[p][i] = default_colour(i);
   memset(spr, 0, sizeof spr);
   memset(mapc, 0, sizeof mapc);
+  memset(attr, 0, sizeof attr); memset(objs, 0, sizeof objs); memset(n_objs, 0, sizeof n_objs); obj_sel = -1;
   for (int m = 0; m < MG_MAPS; m++) { map_wc[m] = 1; map_hc[m] = 0; map_t16[m] = 1; }   // 64 x 32 tiles of 16
   memset(bank_name, 0, sizeof bank_name);
   undo_px_ok = undo_map_ok = undo_kind = 0;
@@ -252,7 +283,10 @@ static bool bank_load(const void *data, uint32_t max) {
   for (int m = 0; m < b.h->n_maps; m++) {
     map_wc[m] = b.maps[m].wcode; map_hc[m] = b.maps[m].hcode; map_t16[m] = b.maps[m].tile16 ? 1 : 0;
     mg_map_read(&b, m, mapc[m]);
+    n_objs[m] = b.n_obj[m];
+    memcpy(objs[m], b.obj[m], b.n_obj[m] * sizeof(mg_object_t));
   }
+  memcpy(attr, b.attr, sizeof attr);
   memcpy(bank_name, b.h->name, 16); bank_name[16] = 0;
   dirty = 0;
   return true;
@@ -494,6 +528,46 @@ static void map_view_clamp(void) {
   mview_x = clampi(mview_x, 0, map_w(map_sel) * t > MV_W ? map_w(map_sel) * t - MV_W : 0);
   mview_y = clampi(mview_y, 0, map_h(map_sel) * t > MV_H ? map_h(map_sel) * t - MV_H : 0);
 }
+// objects: a click places the chosen sprite on the grid of the tiles, or picks the one under the
+// pointer (then dragged); a right click removes it
+static int object_at(int px, int py) {
+  for (int i = n_objs[map_sel] - 1; i >= 0; i--) {
+    const mg_object_t *o = &objs[map_sel][i];
+    const mg_sprite_t *e = &spr[o->sprite];
+    int w = e->name[0] ? e->w * 8 : 8, h = e->name[0] ? e->h * 8 : 8;
+    if (px >= o->x && py >= o->y && px < o->x + w && py < o->y + h) return i;
+  }
+  return -1;
+}
+static void objects_mouse(int mx, int my, bool in, int tx, int ty) {
+  uint32_t pr = mc_mouse_pressed(), held = mc_mouse_buttons();
+  int t = tile_px(), m = map_sel;
+  if (obj_drag) {
+    if (!(held & MOUSE_LEFT) || obj_sel < 0) obj_drag = 0;
+    else if (in && (objs[m][obj_sel].x != tx * t || objs[m][obj_sel].y != ty * t)) {
+      objs[m][obj_sel].x = (uint16_t)(tx * t); objs[m][obj_sel].y = (uint16_t)(ty * t); dirty = 1;
+    }
+    return;
+  }
+  if (!in || !(pr & (MOUSE_LEFT | MOUSE_RIGHT))) return;
+  int hit = object_at(mview_x + mx - MV_X, mview_y + my - MV_Y);
+  if (pr & MOUSE_RIGHT) {
+    if (hit < 0) return;
+    map_snapshot();
+    for (int i = hit; i < n_objs[m] - 1; i++) objs[m][i] = objs[m][i + 1];
+    n_objs[m]--; obj_sel = -1; dirty = 1;
+    return;
+  }
+  if (hit >= 0) { map_snapshot(); obj_sel = hit; obj_spr = objs[m][hit].sprite; obj_param = objs[m][hit].param; obj_drag = 1; return; }
+  if (!spr[obj_spr].name[0]) { ui_message("CHOISISSEZ D'ABORD UN LUTIN (FLECHES DE LUTIN)"); return; }
+  if (n_objs[m] >= MG_OBJECTS) { ui_message("64 OBJETS AU PLUS PAR DECOR"); return; }
+  map_snapshot();
+  mg_object_t *o = &objs[m][n_objs[m]];
+  memset(o, 0, sizeof *o);
+  o->x = (uint16_t)(tx * t); o->y = (uint16_t)(ty * t); o->sprite = (uint8_t)obj_spr; o->param = (uint8_t)obj_param;
+  o->flags = brush_hf ? MG_OF_HFLIP : 0;
+  obj_sel = n_objs[m]++; obj_drag = 1; dirty = 1;
+}
 static void map_mouse(int mx, int my) {
   uint32_t pr = mc_mouse_pressed(), held = mc_mouse_buttons();
   int tx, ty, t;
@@ -517,6 +591,7 @@ static void map_mouse(int mx, int my) {
     return;
   }
   bool in = map_tile_under(mx, my, &tx, &ty);
+  if (mtool == M_OBJ) { objects_mouse(mx, my, in, tx, ty); return; }
   if (!mstroke && in && (pr & (MOUSE_LEFT | MOUSE_RIGHT))) {
     int b = (pr & MOUSE_LEFT) ? 1 : 2;
     if (mtool == M_PICK) {
@@ -578,10 +653,10 @@ static void layer3_map(void) {
 
 // ================================================================ drawing the pages
 enum { Z_PAGE = 1, Z_TOOL, Z_SPIN, Z_BTN, Z_SWATCH, Z_SPR, Z_SLOT, Z_NAME, Z_HELP, Z_MTOOL };
-enum { SP_PAL, SP_R, SP_G, SP_B, SP_RW, SP_RH, SP_SX, SP_SY, SP_SW, SP_SH, SP_SPAL, SP_SFR, SP_SSPD, SP_MAP, SP_MW, SP_MH, SP_MT, SP_MPAL };
+enum { SP_PAL, SP_R, SP_G, SP_B, SP_RW, SP_RH, SP_SX, SP_SY, SP_SW, SP_SH, SP_SPAL, SP_SFR, SP_SSPD, SP_MAP, SP_MW, SP_MH, SP_MT, SP_MPAL, SP_OSPR, SP_OPAR };
 enum { A_MIRH, A_MIRV, A_ROT, A_CLEAR, A_COPY, A_PASTE, A_GRID, A_UNDO, A_SAVE, A_PAGE0, A_PAGE1, A_PAGE2, A_PAGE3,
        A_SNEW, A_STAKE, A_SDRAW, A_SDEL, A_SPING, A_BSAVE, A_BLOAD, A_BDEL, A_BNEW, A_BDEMO, A_LAYOUT,
-       A_MFLIPH, A_MFLIPV, A_MCLEAR };
+       A_MFLIPH, A_MFLIPV, A_MCLEAR, A_ATTR0 };   // A_ATTR0 + k: attribute k of the tiles of the brush
 static char line[UI_COLS + 1];
 
 static void draw_top(void) {
@@ -757,6 +832,34 @@ static void draw_sprites(void) {
   draw_status(naming == 1 ? "ECRIVEZ LE NOM, ENTREE POUR FINIR" : "LES JEUX : MG_SPRITE_FIND(&BANK, \"NOM\")  -  FLECHES : CHOISIR, ENTREE : NOMMER");
 }
 
+static int tile_cell(int t) { return map_t16[map_sel] ? (t % 8) * 2 + (t / 8) * 32 : t; }
+// the objects of the map, as sprites of priority 0 (behind the panels: only the view shows them)
+static void draw_objects(bool over_map, int tx, int ty) {
+  static int16_t cell[MG_SPRITES];
+  uint32_t off = OBJ_OFF;
+  for (int s = 0; s < MG_SPRITES; s++) cell[s] = -1;
+  int m = map_sel, t = tile_px();
+  for (int i = -1; i < n_objs[m]; i++) {
+    mg_object_t ghost = { (uint16_t)(tx * t), (uint16_t)(ty * t), (uint8_t)obj_spr, 0, (uint8_t)(brush_hf ? 1 : 0), 0 };
+    const mg_object_t *o = i < 0 ? &ghost : &objs[m][i];
+    if (i < 0 && !(mtool == M_OBJ && over_map && !obj_drag && object_at(mview_x + mc_mouse_x() - MV_X, mview_y + mc_mouse_y() - MV_Y) < 0)) continue;
+    const mg_sprite_t *e = &spr[o->sprite];
+    if (!e->name[0]) continue;
+    if (cell[o->sprite] < 0) {                // the cells of image 0, contiguous, once per sprite
+      if (off + e->w * e->h * 32 > UI_OFF) continue;
+      for (int y = 0; y < e->h; y++)
+        if (e->y + y < MG_PAGES * 16) mc_copy(MC_CHRRAM + off + y * e->w * 32, (const void *)(CHRRAM_BASE + SHEET_OFF + ((e->y + y) * MG_SHEET_W + e->x) * 32), e->w * 32);
+      cell[o->sprite] = (int16_t)CELL(off); off += e->w * e->h * 32;
+    }
+    int hw = 10 + i + 1, x = MV_X + o->x - mview_x, y = MV_Y + o->y - mview_y;
+    if (x < -64 || y < -64 || x > 400 || y > 400) continue;
+    mc_sprite(hw, x, y, cell[o->sprite], e->w, e->h, P_BANK + e->pal, 0);
+    mc_sprite_zoom(hw, 0x100, 0x100);
+    mc_sprite_flip(hw, o->flags & MG_OF_HFLIP, false);
+    if (i == obj_sel && map_t16[m] && x >= MV_X && y >= MV_Y && x + e->w * 8 <= MV_X + MV_W && y + e->h * 8 <= MV_Y + MV_H)
+      ui_frame(x / 8, y / 16, (x + e->w * 8) / 8 - 1, (y + e->h * 8 + 15) / 16 - 1, P_SEL);
+  }
+}
 static void draw_maps(void) {
   int m = map_sel;
   map_view_clamp();
@@ -772,14 +875,25 @@ static void draw_maps(void) {
     int b = brush % per_page, bx = b % ta, by = b / ta;
     ui_frame(44 + bx * s, 3 + by * s / 2, 44 + (bx + brush_w) * s - 1, 3 + (by + brush_h) * s / 2 - 1, P_SEL);
   }
-  int mx = mc_mouse_x(), my = mc_mouse_y(), tx, ty, t;
+  if (show_attr)                                // what the tiles are, in the corner of each
+    for (int b = 0; b < per_page; b++) {
+      int a = attr[tile_cell(sheet_page * per_page + b)];
+      if (!a) continue;
+      int k = 0;
+      while (!(a & (1 << k))) k++;
+      static const char sym[8] = { '#', '=', 'H', '~', '!', 'A', 'B', 'C' };
+      static const int col[8] = { UI_RED, UI_YELLOW, UI_ORANGE, UI_CYAN, UI_RED, UI_GREEN, UI_GREEN, UI_GREEN };
+      ui_put(44 + (b % ta) * s, 3 + (b / ta) * s / 2, sym[k] - 32, col[k]);
+    }
+  int mx = mc_mouse_x(), my = mc_mouse_y(), tx = 0, ty = 0, t;
   bool over_map = mc_mouse_present() && map_tile_under(mx, my, &tx, &ty);
+  draw_objects(over_map, tx, ty);
   if (mc_mouse_present() && picker_tile(mx, my, &t)) {
     int b = t % per_page;
     ui_frame(44 + (b % ta) * s, 3 + (b / ta) * s / 2, 44 + (b % ta) * s + s - 1, 3 + (b / ta) * s / 2 + s / 2 - 1, P_HOVER);
   }
   // the brush under the pointer, as a frame over the map (in characters, so only for 16-pixel tiles)
-  if (over_map && map_t16[m]) {
+  if (over_map && map_t16[m] && mtool != M_OBJ) {
     int X = MV_X + tx * 16 - mview_x, Y = MV_Y + ty * 16 - mview_y;
     if (X >= 0 && Y >= 0) ui_frame(X / 8, Y / 16, X / 8 + 2 * brush_w - 1, Y / 16 + brush_h - 1, mstroke == 2 ? P_GRID : P_HOVER);
   }
@@ -793,18 +907,29 @@ static void draw_maps(void) {
   ui_button(68, 23, 4, "H", brush_hf, Z_BTN, A_MFLIPH);
   ui_button(72, 23, 4, "V", brush_vf, Z_BTN, A_MFLIPV);
   for (int k = 0; k < M_COUNT; k++) ui_button(44 + k * 8, 25, 8, mtool_name[k], mtool == k, Z_MTOOL, k);
+  ui_button(44, 27, 8, "OBJETS", mtool == M_OBJ, Z_MTOOL, M_OBJ);
+  ui_spin(53, 27, "", 0, spr[obj_spr].name[0] ? spr[obj_spr].name : "-", 8, Z_SPIN, SP_OSPR);
+  snprintf(line, sizeof line, "%3d", obj_param);      ui_spin(64, 27, "P", 2, line, 3, Z_SPIN, SP_OPAR);
+  snprintf(line, sizeof line, "%d/64", n_objs[m]);    ui_print(72, 27, line, UI_INK_DIM);
   ui_box(0, 24, 41, 27, UI_RAISED);
   ui_print(1, 24, "PAGE", UI_INK);
   for (int p = 0; p < MG_PAGES; p++) { snprintf(line, sizeof line, "%d", p + 1); ui_button(6 + p * 4, 24, 4, line, sheet_page == p, Z_BTN, A_PAGE0 + p); }
   ui_button(26, 24, 14, "TOUT EFFACER", false, Z_BTN, A_MCLEAR);
-  snprintf(line, sizeof line, "TUILE %d  %dx%d", brush, brush_w, brush_h);
-  ui_print(1, 26, line, UI_INK);
+  // the attributes of the tile chosen (all the tiles of the brush change together)
+  static const char *const an[5] = { "SOLIDE", "PLATEF.", "ECHELLE", "EAU", "DANGER" };
+  int a = attr[tile_cell(brush)];
+  for (int k = 0; k < 5; k++) ui_button(2 + k * 8, 26, 8, an[k], (a >> k) & 1, Z_BTN, A_ATTR0 + k);
   if (over_map) {
     uint16_t e = mapc[m][ty * map_w(m) + tx];
-    snprintf(line, sizeof line, "CASE %d,%d : TUILE %d PAL %d", tx, ty, MG_E_TILE(e), MG_E_PAL(e));
-    ui_print(18, 26, line, UI_INK_BLUE);
-  }
-  draw_status("CLIC : POSE, CLIC DROIT : EFFACE, BOUTON DU MILIEU OU FLECHES : DEFILE, MOLETTE : MONTE/DESCEND");
+    int ea = attr[tile_cell(MG_E_TILE(e))];
+    snprintf(line, sizeof line, "CASE %d,%d  TUILE %d  PAL %d%s%s%s%s%s  (PINCEAU : TUILE %d, %dX%d)", tx, ty, MG_E_TILE(e), MG_E_PAL(e),
+             ea & MG_SOLID ? " SOLIDE" : "", ea & MG_PLATFORM ? " PLATEFORME" : "", ea & MG_LADDER ? " ECHELLE" : "",
+             ea & MG_WATER ? " EAU" : "", ea & MG_DANGER ? " DANGER" : "", brush, brush_w, brush_h);
+    draw_status(line);
+  } else if (mtool == M_OBJ)
+    draw_status("OBJETS : CLIC POSE LE LUTIN OU PREND CELUI DESSOUS (GLISSER), CLIC DROIT L'ENLEVE");
+  else
+    draw_status("CLIC : POSE, CLIC DROIT : EFFACE, MILIEU OU FLECHES : DEFILE ; A : VOIR LES ATTRIBUTS");
 }
 
 static void layer3_off(void) { layer3_checker(); mc_tilemap_fill(3, 0); }
@@ -868,13 +993,14 @@ static void draw_help(void) {
     "",
     "DECORS     clic : pose la tuile, ou le bloc choisi en glissant sur la planche",
     "           clic droit : efface ; milieu, fleches : defile ; H, V : miroirs",
-    "",
+    "  SOLIDE.. ce que sont les tuiles du pinceau (# = H ~ ! sur la planche, A)",
+    "  OBJETS   (O) pose le lutin choisi (P : son parametre), glisse, clic droit",
+    "           l'enleve : le depart du heros, les pieces, les ennemis...",
     "CTRL+Z     annule la derniere modification (une seconde fois : la refait)",
     "CTRL+S     sauve dans la NVRAM ; ouvrir l'OSD l'ecrit sur la carte SD",
     "",
     "POUR UN JEU : tools/mgfx/mgfx.py monopixel.sav 1 -o banque.mgf",
     "  puis dans project.txt : modules = mgfx, data = banque.mgf (sdk/MGFX.md)",
-    "",
     "                    (F5, ECHAP OU UN CLIC POUR REVENIR)" };
   ui_box(0, 1, 79, 27, UI_SUNK);
   for (unsigned i = 0; i < sizeof help / sizeof help[0]; i++) {
@@ -919,13 +1045,26 @@ static void spin(int k, int d) {
     case SP_SPAL: if (e->name[0]) { e->pal = (uint8_t)clampi(e->pal + (d > 0 ? 1 : -1), 0, MG_PALS - 1); dirty = 1; } return;
     case SP_SFR: if (e->name[0]) { e->frames = (uint8_t)clampi(e->frames + (d > 0 ? 1 : -1), 1, MG_FRAMES); dirty = 1; } return;
     case SP_SSPD: if (e->name[0]) { e->speed = (uint8_t)clampi(e->speed + d, 0, 99); dirty = 1; } return;
-    case SP_MAP: map_sel = clampi(map_sel + (d > 0 ? 1 : -1), 0, MG_MAPS - 1); mview_x = mview_y = 0; return;
+    case SP_MAP: map_sel = clampi(map_sel + (d > 0 ? 1 : -1), 0, MG_MAPS - 1); mview_x = mview_y = 0; obj_sel = -1; return;
     case SP_MW: map_resize(map_sel, clampi(map_wc[map_sel] + (d > 0 ? 1 : -1), 0, 2), map_hc[map_sel]); return;
     case SP_MH: map_resize(map_sel, map_wc[map_sel], clampi(map_hc[map_sel] + (d > 0 ? 1 : -1), 0, 2)); return;
     case SP_MT:
       if (!map_empty(map_sel) && !ui_confirm(0x1000, "LES TUILES CHANGENT DE TAILLE")) return;
       map_t16[map_sel] ^= 1; brush = brush_w = brush_h = 1; dirty = 1; mview_x = mview_y = 0; return;
     case SP_MPAL: pal_sel = clampi(pal_sel + (d > 0 ? 1 : -1), 0, MG_PALS - 1); return;
+    case SP_OSPR: {                            // the next sprite that has a name
+      for (int k = 1; k <= MG_SPRITES; k++) {
+        int c = (obj_spr + (d > 0 ? k : MG_SPRITES - k)) % MG_SPRITES;
+        if (spr[c].name[0]) { obj_spr = c; break; }
+      }
+      mtool = M_OBJ;
+      if (obj_sel >= 0 && obj_sel < n_objs[map_sel]) { objs[map_sel][obj_sel].sprite = (uint8_t)obj_spr; dirty = 1; }
+      return;
+    }
+    case SP_OPAR:
+      obj_param = clampi(obj_param + d, 0, 255);
+      if (obj_sel >= 0 && obj_sel < n_objs[map_sel]) { objs[map_sel][obj_sel].param = (uint8_t)obj_param; dirty = 1; }
+      return;
     default: return;
   }
   pals[pal_sel][col_a] = (uint16_t)(r << 10 | g << 5 | b);
@@ -992,7 +1131,18 @@ static void action(int a) {
     case A_SPING: spr[spr_sel].flags ^= MG_SF_PINGPONG; dirty = 1; break;
     case A_MFLIPH: brush_hf = !brush_hf; break;
     case A_MFLIPV: brush_vf = !brush_vf; break;
-    case A_MCLEAR: if (ui_confirm('M', "EFFACER TOUT LE DECOR")) { map_snapshot(); memset(mapc[map_sel], 0, sizeof mapc[0]); dirty = 1; } break;
+    case A_ATTR0: case A_ATTR0 + 1: case A_ATTR0 + 2: case A_ATTR0 + 3: case A_ATTR0 + 4: {
+      int bit = 1 << (a - A_ATTR0), on = !(attr[tile_cell(brush)] & bit), ta = tiles_across();
+      for (int dy = 0; dy < brush_h; dy++)
+        for (int dx = 0; dx < brush_w; dx++) {
+          int t = brush + dy * ta + dx;
+          if (t > max_tile()) continue;
+          if (on) attr[tile_cell(t)] |= (uint8_t)bit; else attr[tile_cell(t)] &= (uint8_t)~bit;
+        }
+      dirty = 1;
+      break;
+    }
+    case A_MCLEAR: if (ui_confirm('M', "EFFACER TOUT LE DECOR (ET SES OBJETS)")) { map_snapshot(); memset(mapc[map_sel], 0, sizeof mapc[0]); n_objs[map_sel] = 0; obj_sel = -1; dirty = 1; } break;
     default: bank_action(a); break;
   }
 }
@@ -1056,6 +1206,13 @@ static void map_key(int k) {
     case KEY_DOWN: mview_y += t * (ui_shift() ? 8 : 1); break;
     case KEY_PGUP: action(A_PAGE0 + clampi(sheet_page - 1, 0, 3)); break;
     case KEY_PGDN: action(A_PAGE0 + clampi(sheet_page + 1, 0, 3)); break;
+    case KEY_DELETE:
+      if (obj_sel >= 0 && obj_sel < n_objs[map_sel]) {
+        map_snapshot();
+        for (int i = obj_sel; i < n_objs[map_sel] - 1; i++) objs[map_sel][i] = objs[map_sel][i + 1];
+        n_objs[map_sel]--; obj_sel = -1; dirty = 1;
+      }
+      break;
   }
   if (!ui_ctrl()) {
     if (c == 'H') brush_hf = !brush_hf;
@@ -1064,6 +1221,8 @@ static void map_key(int k) {
     if (c == 'S') mtool = M_FILL;
     if (c == 'P') mtool = M_BOX;
     if (c == 'C') mtool = M_PUT;
+    if (c == 'O') mtool = M_OBJ;
+    if (c == 'A') show_attr = !show_attr;
   }
   map_view_clamp();
 }
@@ -1243,7 +1402,7 @@ int main(void) {
     int k;
     while ((k = ui_key()) >= 0) key(k);
     mouse();
-    for (int i = 1; i <= 8; i++) mc_sprite_hide(i);    // drawn again by their page
+    for (int i = 1; i <= 10 + MG_OBJECTS; i++) mc_sprite_hide(i);    // drawn again by their page
     sync_palettes();
     if (page == PG_MAP) ui_box(0, 0, 79, 29, UI_BACK);   // the map layer shows only through the view
     if (page != PG_HELP) draw_top();

@@ -6,7 +6,7 @@ The default palette of a new bank is DEFAULT_PALETTE of mgbank.py (the same as d
 """
 import os, random, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from mgbank import Bank, Sprite, Map, rgb555, DEFAULT_PALETTE
+from mgbank import (Bank, Sprite, Map, Object, rgb555, DEFAULT_PALETTE, SOLID, PLATFORM, WATER, DANGER)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '../../examples/monopixel/demo.mgf')
@@ -17,7 +17,8 @@ HERO = [(0, 0, 0), (18, 20, 34), (40, 150, 150), (120, 220, 210), (30, 34, 60), 
 GOLD = [(0, 0, 0), (60, 34, 10), (200, 120, 20), (250, 200, 50), (255, 250, 200), (255, 255, 255)] + [(0, 0, 0)] * 10
 
 b = Bank('DEMO', 1)
-b.pals = [[rgb555(*c) if i else 0 for i, c in enumerate(p)] for p in (DEFAULT, HERO, GOLD)]
+BLOB = [(0, 0, 0), (40, 16, 56), (130, 60, 190), (200, 130, 240), (255, 255, 255), (20, 20, 30), (240, 90, 120)] + [(0, 0, 0)] * 9
+b.pals = [[rgb555(*c) if i else 0 for i, c in enumerate(p)] for p in (DEFAULT, HERO, GOLD, BLOB)]
 rnd = random.Random(7)
 
 
@@ -112,8 +113,32 @@ for f in range(2):                          # star: two sizes
                 b.set_pixel(f * 16 + x, 80 + y, 1 if a < 150 else 4 if (x + y < 12 and a > 200) else 3)
 put(32, 80, ['.11..11.', '1FF11FF1', '1FBFFFF1', '1FFFFFF1', '.1FFFF1.', '..1FF1..', '...11...', '........'])
 
+for f in range(2):                          # a blob that squashes: the enemy
+    for y in range(16):
+        for x in range(16):
+            rx, ry = (7.0 + f, 6.0 - f) if True else (0, 0)
+            dx, dy = (x - 7.5) / rx, (y - 15.5 + ry) / ry
+            d = dx * dx + dy * dy
+            if d < 1 and y <= 15:
+                c = 1 if d > 0.7 else 3 if (x < 7 and y < 12 - f) else 2
+                b.set_pixel(48 + f * 16 + x, 80 + y, c)
+    for ex in (5, 9):                       # eyes
+        for yy in range(2):
+            b.set_pixel(48 + f * 16 + ex + f // 2, 80 + 9 + f + yy, 4)
+            b.set_pixel(48 + f * 16 + ex + 1 + f // 2, 80 + 9 + f + yy, 5)
+put(80, 80, ['..1.............', '..1FFFFFFF......', '..1FFFFFFFFF....', '..1FFFBBFFFFFF..', '..1FFFFFFFFF....',
+             '..1FFFFFFF......', '..1.............', '..1.............', '..1.............', '..1.............',
+             '..1.............', '..1.............', '..1.............', '..1.............', '.111............', '11111...........'],
+    '0123456789ABCDEF')
 b.sprites = [Sprite(0, 8, 2, 2, 1, 4, 8, 0, 'HEROS'), Sprite(8, 8, 2, 2, 2, 4, 6, 0, 'PIECE'),
-             Sprite(0, 10, 2, 2, 2, 2, 15, 0, 'ETOILE'), Sprite(4, 10, 1, 1, 0, 1, 0, 0, 'COEUR')]
+             Sprite(0, 10, 2, 2, 2, 2, 15, 0, 'ETOILE'), Sprite(4, 10, 1, 1, 0, 1, 0, 0, 'COEUR'),
+             Sprite(6, 10, 2, 2, 3, 2, 12, 0, 'BLOB'), Sprite(10, 10, 2, 2, 0, 1, 0, 0, 'DRAPEAU')]
+# what the tiles are, for the games (tools/mgfx/mgbank.py: SOLID...)
+for t in (1, 2, 3, 6):
+    b.set_tile_attr(t, SOLID)
+b.set_tile_attr(4, PLATFORM)                # the stone blocks: one jumps through them from below
+b.set_tile_attr(7, PLATFORM)                # the leaves of the trees too
+b.set_tile_attr(5, WATER | DANGER)
 
 # ---------------------------------------------------------------- a decor of 64 x 32 tiles of 16 pixels
 m = Map(64, 32, True)
@@ -134,6 +159,15 @@ for x in (3, 22, 30, 52):
     m.set(x, 10, 9)
 for x, y in ((5, 2), (6, 2), (30, 3), (31, 3), (47, 1), (48, 1), (60, 3)):
     m.set(x, y, 10)
+# objects: where the hero starts, the coins, the enemies (param: their speed), the goal
+HEROS, PIECE, BLOB, DRAPEAU = 0, 1, 4, 5
+m.objects = [Object(32, 160, HEROS)]
+m.objects += [Object(x * 16, 96, PIECE) for x in range(10, 15)]
+m.objects += [Object(x * 16, 112, PIECE) for x in range(25, 28)]
+m.objects += [Object(x * 16, 80, PIECE) for x in range(50, 56)]
+m.objects += [Object(x * 16, 128, PIECE) for x in (34, 35, 36, 37)]
+m.objects += [Object(352, 160, BLOB, 4), Object(720, 160, BLOB, 3), Object(960, 160, BLOB, 2, 1)]
+m.objects += [Object(62 * 16, 160, DRAPEAU)]
 b.maps = [m]
 
 data = b.to_bytes()

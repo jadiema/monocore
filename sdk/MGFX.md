@@ -13,6 +13,8 @@ le jeu exactement comme dans l'éditeur. C'est le pendant graphique de `mtrack` 
 | palettes | 1 à 16 palettes de 16 couleurs RGB555 ; la couleur 0 est toujours transparente |
 | lutins | jusqu'à 64 : un rectangle de la planche (1 à 8 cellules de côté), une palette, une animation de 1 à 16 images, un nom de 8 lettres |
 | décors | jusqu'à 4 cartes de 32, 64 ou 128 tuiles de côté (4096 cases au plus, comme un plan matériel), en tuiles de 8 ou de 16 pixels |
+| attributs | ce que sont les tuiles, un octet par cellule (une tuile de 16 a ceux de sa cellule haut gauche) : `MG_SOLID`, `MG_PLATFORM` (solide par-dessus seulement), `MG_LADDER`, `MG_WATER`, `MG_DANGER`, `MG_USER_A` à `C` (libres) |
+| objets | jusqu'à 64 par décor : un lutin posé à une position (pixels), avec un paramètre de 0 à 255 et un miroir ; c'est le jeu qui décide ce que fait chacun (le module `mjeu` les crée d'un coup, `MJEU.md`) |
 
 Les images d'une animation sont **côte à côte** dans la planche : l'image 1 est à droite de
 l'image 0, et ainsi de suite. Quand une image ne tient plus dans les 16 colonnes, elle passe au
@@ -75,6 +77,8 @@ Les palettes de la banque vont dans les palettes matérielles `first_pal` à `fi
 | `mg_map_layer(b, m, plan, prio)` | met le décor m sur un plan matériel (graphismes, taille, cases) |
 | `mg_map_read(b, m, out)` | décompresse les cases d'un décor dans un tableau de `u16` |
 | `mg_tile_at(plan, px, py)` | numéro de la tuile sous un pixel du plan, en bouclant comme le matériel : pour les collisions |
+| `mg_attr_at(b, plan, px, py)`, `mg_tile_attr(b, m, tuile)` | les attributs (`MG_SOLID`…) de la tuile sous un pixel, ou d'une tuile d'un décor |
+| `mg_object_count(b, m)`, `mg_object(b, m, i)` | les objets d'un décor (`x`, `y`, `sprite`, `param`, `flags` : `MG_OF_HFLIP`) |
 | `mg_layer_entry`, `mg_layer_set` | lire ou changer une case d'un plan (une porte qui s'ouvre…) |
 
 Une case de décor (`u16`) contient le numéro de tuile (bits 0–9), la palette de la banque
@@ -93,13 +97,15 @@ dans un fichier `.mgf`. Il est lu et écrit en C par `sdk/mgfx.c` et en Python p
 | 0 | 4 | `MGF1` |
 | 4 | 4 | taille de toute la banque |
 | 8 | 4 | pages (1–4), palettes (1–16), lutins (0–64), décors (0–4) |
-| 12 | 4 | drapeaux (0), version (1), réservé |
+| 12 | 4 | drapeaux (bit 0 : attributs, bit 1 : objets), version (1 sans eux, 2 avec), réservé |
 | 16 | 16 | nom (ASCII, complété par des zéros) |
 | 32 | 32 × palettes | les couleurs (RGB555) |
 | … | 16 × lutins | x, y (cellule de l'image 0), largeur, hauteur (cellules), palette, images, vitesse, drapeaux (bit 0 aller-retour), nom (8 octets) |
 | … | 8 × décors | code de largeur, code de hauteur (0 = 32, 1 = 64, 2 = 128), tuiles de 16 (0/1), 5 octets réservés |
 | … | 4 + n | la planche compressée : sa longueur n, puis les données (pages × 8 Ko une fois décompressées) |
 | … | 4 + n par décor | les cases compressées (largeur × hauteur × 2 octets) |
+| … | 4 + n | si drapeau 0 : les attributs compressés (pages × 256 octets) |
+| … | 4 + 8 k par décor | si drapeau 1, à partir d'un multiple de 4 : le nombre k d'objets du décor (u16, puis 2 octets nuls), puis k × {x, y (u16, pixels), lutin, paramètre, drapeaux (bit 0 miroir), 0} |
 
 La compression ressemble à PackBits. Un octet de contrôle c < 128 est suivi de c + 1 octets
 recopiés tels quels. Un octet c ≥ 128 est suivi d'un octet répété c − 125 fois (3 à 130). Une

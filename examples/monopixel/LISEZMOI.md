@@ -64,6 +64,18 @@ Une carte fait 32, 64 ou 128 tuiles de côté, 4096 cases au plus, comme un plan
 tuile de 16 pixels est un carré de 2 × 2 cellules de la planche, aligné, et le dessin indique son
 numéro (« TUILE 16 : »).
 
+Les boutons **SOLIDE**, **PLATEF.**, **ECHELLE**, **EAU** et **DANGER** disent ce que sont les
+tuiles du pinceau, pour toutes à la fois. Ces attributs s'affichent en symboles (`#` `=` `H` `~` `!`)
+dans le coin des tuiles de la planche, et A les montre ou les cache. Les jeux les lisent avec
+`mg_attr_at`, et la bibliothèque `mjeu` s'en sert pour les collisions.
+
+L'outil **OBJETS** (O) pose dans le décor le lutin choisi à droite du bouton (▲▼ : le lutin suivant
+qui a un nom), sur la grille des tuiles, avec son paramètre **P** (0 à 255) et le miroir H. Un clic
+sur un objet le prend : on le fait glisser, et P ou le lutin choisis ensuite le modifient. Un clic
+droit ou Suppr l'enlève. On peut en poser 64 par décor. Ils servent au départ du héros, aux pièces,
+aux ennemis ou à l'arrivée : le jeu décide ce que fait chacun d'après le nom de son lutin
+(`examples/plateformes`). Ctrl+Z annule aussi les objets.
+
 La vue de la carte est au pixel près. En 640 × 480, une carte est donc deux fois plus petite qu'en
 jeu en 320 × 240.
 
@@ -79,8 +91,9 @@ banque (la démo fait 5,3 Ko) et la place libre dans les 32 Ko de NVRAM. Les act
 
     python3 ../../tools/mgfx/mgfx.py monopixel.sav 1 -o ../monjeu/banque.mgf
 
-puis `modules = mgfx` et `data = banque.mgf` dans le `project.txt` du jeu. L'exemple est
-`examples/test_mgfx`. Dans l'autre sens, `mgfx.py --new … --import image.png:x,y:pal` fait une banque
+puis `modules = mgfx` et `data = banque.mgf` dans le `project.txt` du jeu. Les exemples sont
+`examples/test_mgfx` (la bibliothèque seule) et `examples/plateformes` (un jeu fait de sa banque,
+avec la bibliothèque `mjeu`). Dans l'autre sens, `mgfx.py --new … --import image.png:x,y:pal` fait une banque
 à partir d'images, et `--to-sav` la place dans un emplacement pour la retoucher ici.
 
 ## Mémoire

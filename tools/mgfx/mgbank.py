@@ -9,6 +9,12 @@ PAGES, SHEET_W, PAGE_CELLS, CELL_BYTES = 4, 16, 256, 32
 PAGE_BYTES = PAGE_CELLS * CELL_BYTES
 PALS, SPRITES, MAPS, MAP_CELLS, FRAMES = 16, 64, 4, 4096, 16
 SF_PINGPONG = 1
+OBJECTS = 64
+HF_ATTRS, HF_OBJECTS = 1, 2
+# tile attributes (one byte per cell; a 16-pixel tile has those of its top-left cell)
+SOLID, PLATFORM, LADDER, WATER, DANGER, USER_A, USER_B, USER_C = 1, 2, 4, 8, 16, 32, 64, 128
+ATTR_NAMES = {SOLID: 'solide', PLATFORM: 'plateforme', LADDER: 'echelle', WATER: 'eau', DANGER: 'danger',
+              USER_A: 'A', USER_B: 'B', USER_C: 'C'}
 
 
 def pack(src):
@@ -91,11 +97,18 @@ class Sprite:
         return x, y
 
 
+class Object:
+    """a sprite of the bank placed in a map (pixels from the top left of the map)"""
+    def __init__(self, x, y, sprite, param=0, flags=0):
+        self.x, self.y, self.sprite, self.param, self.flags = x, y, sprite, param, flags
+
+
 class Map:
     def __init__(self, w=32, h=32, tile16=False, cells=None):
         assert w in (32, 64, 128) and h in (32, 64, 128) and w * h <= MAP_CELLS
         self.w, self.h, self.tile16 = w, h, tile16
         self.cells = list(cells) if cells else [0] * (w * h)
+        self.objects = []
 
     @staticmethod
     def entry(tile, pal=0, hflip=False, vflip=False):
@@ -115,6 +128,21 @@ class Bank:
         self.pals = [[rgb555(*c) if i else 0 for i, c in enumerate(DEFAULT_PALETTE)]]
         self.sprites = []
         self.maps = []
+        self.attrs = bytearray(PAGE_CELLS * pages)
+
+    def tile_attr(self, tile, tile16=True):
+        cell = (tile % 8) * 2 + (tile // 8) * 32 if tile16 else tile
+        return self.attrs[cell] if cell < len(self.attrs) else 0
+
+    def set_tile_attr(self, tile, a, tile16=True):
+        cell = (tile % 8) * 2 + (tile // 8) * 32 if tile16 else tile
+        self.attrs[cell] = a
+
+    def sprite_number(self, name):
+        for i, s in enumerate(self.sprites):
+            if s.name == name:
+                return i
+        raise KeyError(name)
 
     # ------------------------------------------------------------ pixels of the sheet
     @property
@@ -124,6 +152,7 @@ class Bank:
     def set_pages(self, n):
         n = max(1, min(PAGES, n))
         self.sheet = (self.sheet + bytes(PAGE_BYTES * n))[:PAGE_BYTES * n]
+        self.attrs = (self.attrs + bytes(PAGE_CELLS * n))[:PAGE_CELLS * n]
 
     def _addr(self, x, y):
         cell = (y >> 3) * SHEET_W + (x >> 3)
@@ -156,8 +185,21 @@ class Bank:
         for m in self.maps:
             d = pack(struct.pack('<%dH' % len(m.cells), *m.cells))
             body += struct.pack('<I', len(d)) + d
+        flags = 0
+        if any(self.attrs):
+            flags |= HF_ATTRS
+            d = pack(self.attrs)
+            body += struct.pack('<I', len(d)) + d
+        if any(m.objects for m in self.maps):
+            flags |= HF_OBJECTS
+            body += bytes((-(32 + len(body))) % 4)          # from a multiple of 4
+            for m in self.maps:
+                body += struct.pack('<HH', len(m.objects), 0)
+                for o in m.objects[:OBJECTS]:
+                    body += struct.pack('<HHBBBx', o.x, o.y, o.sprite, o.param, o.flags)
         size = 32 + len(body)
-        hdr = MAGIC + struct.pack('<I4BBBH', size, self.pages, len(self.pals), len(self.sprites), len(self.maps), 0, 1, 0)
+        hdr = MAGIC + struct.pack('<I4BBBH', size, self.pages, len(self.pals), len(self.sprites), len(self.maps),
+                                  flags, 2 if flags else 1, 0)
         hdr += self.name.encode('ascii', 'replace')[:16].ljust(16, b'\0')
         return bytes(hdr + body)
 
@@ -165,7 +207,7 @@ class Bank:
     def from_bytes(cls, b):
         if b[:4] != MAGIC:
             raise ValueError('not a MONOPIXEL bank (MGF1)')
-        size, npg, npal, nspr, nmap, _fl, _ver, _r = struct.unpack_from('<I4BBBH', b, 4)
+        size, npg, npal, nspr, nmap, flags, _ver, _r = struct.unpack_from('<I4BBBH', b, 4)
         if not (1 <= npg <= PAGES and 1 <= npal <= PALS and nspr <= SPRITES and nmap <= MAPS):
             raise ValueError('bank header out of range')
         bank = cls(b[16:32].split(b'\0')[0].decode('ascii', 'replace'), npg)
@@ -180,6 +222,16 @@ class Bank:
             n = struct.unpack_from('<I', b, o)[0]
             d = unpack(b[o + 4:o + 4 + n], w * h * 2); o += 4 + n
             bank.maps.append(Map(w, h, bool(t16), struct.unpack('<%dH' % (w * h), d)))
+        if flags & HF_ATTRS:
+            n = struct.unpack_from('<I', b, o)[0]
+            bank.attrs = unpack(b[o + 4:o + 4 + n], npg * PAGE_CELLS); o += 4 + n
+        if flags & HF_OBJECTS:
+            o += (-o) % 4
+            for m in bank.maps:
+                n = struct.unpack_from('<H', b, o)[0]; o += 4
+                for i in range(n):
+                    x, y, sp, pa, fl = struct.unpack_from('<HHBBB', b, o); o += 8
+                    m.objects.append(Object(x, y, sp, pa, fl))
         if o != size:
             raise ValueError('bank size mismatch (%d, header says %d)' % (o, size))
         return bank
@@ -233,6 +285,13 @@ class Bank:
                         c = self.pixel(ox + sx, oy + sy)
                         if c:
                             px[tx * t + x, ty * t + y] = self.colour(pal, c)
+        for o in mp.objects:
+            if o.sprite < len(self.sprites):
+                spr = self.sprite_image(o.sprite)
+                if o.flags & 1:
+                    from PIL import ImageOps
+                    spr = ImageOps.mirror(spr)
+                im.paste(spr, (o.x, o.y), spr)
         return im
 
     def import_image(self, path, x0=0, y0=0, pal=0):

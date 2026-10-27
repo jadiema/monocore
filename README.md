@@ -25,6 +25,7 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 | `examples/solfege/` | SOLFEGE, apprendre à lire les notes en 640 × 480 entrelacé : une portée (clé de sol ou de fa), le clavier MIDI, une nouvelle note dès que les précédentes sont connues, et une lecture déroulante |
 | `examples/test_mtrack/` | le lecteur de musique `mtrack` dans un jeu : morceau et bruitages |
 | `examples/test_mgfx/` | les graphismes `mgfx` dans un jeu : le décor, un héros animé qui court et saute sur les tuiles, des pièces à ramasser |
+| `examples/plateformes/` | modèle de jeu de plateformes fait de sa banque MONOPIXEL (décor, attributs des tuiles, objets posés dans l'éditeur) avec la bibliothèque `mjeu` (`sdk/MJEU.md`) : héros, pièces, ennemis, vies, record, bruitages |
 | `examples/test_inputs/` | affiche toutes les entrées (manettes, sticks, paddles, spinners, clavier, souris) |
 | `examples/test_sdk/` | test du SDK `mc` (raster, timers, `malloc`, `printf`) |
 | `tools/run.js` | exécution sans écran : captures et enregistrement du son, pour les tests automatiques |

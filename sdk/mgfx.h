@@ -30,17 +30,21 @@
 #define MG_MAPS         4
 #define MG_MAP_CELLS    4096          // entries of a map at most (as a hardware layer)
 #define MG_FRAMES       16            // images of an animation at most
+#define MG_OBJECTS      64            // objects of a map at most
 
 // ---------------------------------------------------------------- file layout
 typedef struct {
   uint32_t magic, size;               // size of the whole bank in bytes
   uint8_t  n_pages, n_pals, n_sprites, n_maps;
-  uint8_t  flags, version;            // flags: 0; version: 1
+  uint8_t  flags, version;            // flags: MG_HF_ATTRS | MG_HF_OBJECTS; version: 1 or 2
   uint16_t reserved;
   char     name[16];
 } mg_header_t;                        // 32 bytes, then: palettes (n_pals x 16 x u16 RGB555),
                                       // sprites (n_sprites x 16 bytes), maps (n_maps x 8 bytes),
                                       // the packed sheet, the packed maps (each: u32 length, data)
+
+#define MG_HF_ATTRS   1               // the bank has tile attributes (version 2)
+#define MG_HF_OBJECTS 2               // the maps have objects (version 2)
 
 typedef struct {
   uint8_t x, y;                       // first cell of image 0, in the sheet (x 0-15, y 0-63)
@@ -60,6 +64,27 @@ typedef struct {
 } mg_map_t;                           // 8 bytes
 #define MG_MAP_W(m) (32 << (m)->wcode)
 #define MG_MAP_H(m) (32 << (m)->hcode)
+
+// tile attributes: one byte per cell of the sheet; a 16-pixel tile has those of its top-left cell
+#define MG_SOLID     0x01             // a wall: nothing goes through
+#define MG_PLATFORM  0x02             // solid from above only (one goes through it from below, jumping)
+#define MG_LADDER    0x04
+#define MG_WATER     0x08
+#define MG_DANGER    0x10             // spikes, lava...
+#define MG_USER_A    0x20             // free for the game
+#define MG_USER_B    0x40
+#define MG_USER_C    0x80
+
+// an object of a map: a sprite of the bank placed in the decor (the start of the hero, a coin, an
+// enemy...); the game decides what each sprite does, usually by its name
+typedef struct {
+  uint16_t x, y;                      // pixels, from the top left of the map
+  uint8_t  sprite;                    // number of the sprite in the bank
+  uint8_t  param;                     // free value set in the editor (0-255)
+  uint8_t  flags;                     // MG_OF_HFLIP
+  uint8_t  reserved;
+} mg_object_t;                        // 8 bytes
+#define MG_OF_HFLIP 1
 
 // map entries (u16): tile, palette of the bank, mirrors. Tile: a cell of the sheet (0-1023) for
 // 8-pixel tiles; for 16-pixel tiles, t covers the cells (t % 8) * 2 and (t / 8) * 2 (0-255).
@@ -92,6 +117,9 @@ typedef struct {
   uint32_t chr, chr16, chr_spr;       // CHR RAM offsets: sheet, 16 x 16 tiles, sprite cells
   int pal;                            // first hardware palette
   uint16_t cell[MG_SPRITES];          // first cell of each sprite (from the start of the CHR RAM)
+  // set by mg_open (version 2)
+  uint8_t attr[MG_PAGES * MG_PAGE_CELLS];          // attributes of the cells (0 for a version 1 bank)
+  const mg_object_t *obj[MG_MAPS]; uint16_t n_obj[MG_MAPS];
 } mg_bank_t;
 
 int  mg_check(const void *data, uint32_t max);     // 0 if the bank is valid
@@ -131,6 +159,13 @@ int  mg_map_tile(const mg_bank_t *b, int m);                    // 8 or 16 (pixe
 int  mg_map_layer(const mg_bank_t *b, int m, int layer, int prio);
 // unpacks the entries of map m (MG_MAP_W x MG_MAP_H u16, row by row); 0 if fine
 int  mg_map_read(const mg_bank_t *b, int m, uint16_t *out);
+// objects of map m
+int  mg_object_count(const mg_bank_t *b, int m);
+const mg_object_t *mg_object(const mg_bank_t *b, int m, int i);   // NULL if out of range
+// attributes (MG_SOLID...) of a tile of map m; of the tile under the pixel (px, py) of a layer
+// showing a map of this bank (layer: as mg_tile_at)
+int  mg_tile_attr(const mg_bank_t *b, int m, int tile);
+int  mg_attr_at(const mg_bank_t *b, int layer, int px, int py);
 // tile number under the pixel (px, py) of the map shown on layer n (it wraps around, as the
 // hardware does); for collisions. mg_layer_entry gives the whole hardware entry.
 int  mg_tile_at(int layer, int px, int py);

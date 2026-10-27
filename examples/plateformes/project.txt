@@ -1,0 +1,7 @@
+# plateformes: a model of platform game, made from a MONOPIXEL bank (decor, tile attributes, objects)
+name    = plateformes
+title   = PLATEFORMES
+library = mc
+modules = mgfx mjeu
+sources = main.c
+data    = niveau.mgf
