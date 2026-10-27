@@ -1,0 +1,7 @@
+# MONOPIXEL: graphics editor for MONOCORE-1, mouse and keyboard (sheet, palettes, sprites, maps)
+name    = monopixel
+title   = MONOPIXEL
+library = mc
+modules = mgfx ui480
+sources = main.c
+data    = demo.mgf

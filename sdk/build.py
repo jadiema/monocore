@@ -18,7 +18,8 @@ project.txt (one setting per line, # starts a comment):
     maps8   = title.png             256-colour maps (8 bpp, 16 x 16 tiles)
     data    = level1.dat music.bin  raw files, embedded as is   -> level1_file, level1_size
     library = mc                    "easy" (default) or "mc", the low-level SDK (mc.h, libc)
-    modules = mtrack                extra SDK modules (mc only): mtrack = music player (mtrack.h)
+    modules = mtrack                extra SDK modules (mc only): mtrack = music player (mtrack.h),
+                                    mgfx = MONOPIXEL graphics banks (mgfx.h), ui480 = 640 x 480 editor interface (ui480.h)
 
 The SDK font is always included. The names above are declared in build/assets.h, which every
 C file of the program includes by itself. With easy, init() loads the sprite sheets and the first

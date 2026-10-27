@@ -99,6 +99,10 @@ canvas#screen { image-rendering: auto; max-width: 100%; max-height: 100%; backgr
 .nvlabel { font: 500 13px var(--f-mono); color: var(--silk-dim); }
 #songTools { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 #songTools[hidden] { display: none; }
+#bankTools { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#bankTools[hidden] { display: none; }
+#bankList { display: inline-flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--silk-dim); }
+#bankList a.btn { text-decoration: none; text-transform: none; }
 #songList { display: inline-flex; flex-wrap: wrap; gap: 6px; font-size: 13px; color: var(--silk-dim); }
 #songList a.btn { text-decoration: none; text-transform: none; }
 body.dragging .bezel { outline: 2px dashed var(--pad); outline-offset: 6px; }
@@ -216,6 +220,7 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
               <option value="test" data-i18n="optTest">ROM de test</option>
               <option value="hello" data-i18n="optHello">Exemple « Bonjour »</option>
               <option value="tracker" data-i18n="optTracker">MONOTRACKER (musique, clavier)</option>
+              <option value="pixel" data-i18n="optPixel">MONOPIXEL (graphismes, souris)</option>
               <option value="cascade" data-i18n="optCascade">CASCADE (jeu, clavier MIDI)</option>
               <option value="defender" data-i18n="optDefender">PIANO DEFENDER (jeu, clavier MIDI)</option>
               <option value="solfege" data-i18n="optSolfege">SOLFEGE (lire les notes, clavier MIDI)</option>
@@ -232,6 +237,10 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
             <span id="songTools" hidden>
               <button class="btn" id="songsBtn" data-i18n="nvSongs" data-i18n-title="nvSongsTitle" title="Les morceaux de MONOTRACKER, en fichiers .mts pour les jeux (data = …, module mtrack)">Morceaux .mts</button>
               <span id="songList"></span>
+            </span>
+            <span id="bankTools" hidden>
+              <button class="btn" id="banksBtn" data-i18n="nvBanks" data-i18n-title="nvBanksTitle" title="Les banques de MONOPIXEL, en fichiers .mgf pour les jeux (data = …, module mgfx)">Banques .mgf</button>
+              <span id="bankList"></span>
             </span>
           </div>
 
@@ -372,6 +381,13 @@ __CORE_JS__
     romSel: ['ROM intégrée', 'Built-in ROM'],
     optAube: ['AUBE (démarrage)', 'AUBE (boot)'], optTest: ['ROM de test', 'Test ROM'], optHello: ['Exemple « Bonjour »', '“Hello” example'],
     optTracker: ['MONOTRACKER (musique, clavier)', 'MONOTRACKER (music, keyboard)'],
+    optPixel: ['MONOPIXEL (graphismes, souris)', 'MONOPIXEL (graphics, mouse)'],
+    nvBanks: ['Banques .mgf', '.mgf banks'],
+    nvBanksTitle: ['Les banques de MONOPIXEL, en fichiers .mgf pour les jeux (data = …, module mgfx)',
+                   'The MONOPIXEL banks, as .mgf files for the games (data = …, mgfx module)'],
+    nvNoBanks: ['aucune banque sauvée (Ctrl+S dans MONOPIXEL)', 'no bank saved (Ctrl+S in MONOPIXEL)'],
+    pixelKbd: ['MONOPIXEL se joue à la souris et au clavier : « souris de la console » et « clavier de la console » activés (F9 coupe le clavier). F5 dans MONOPIXEL : l\'aide.',
+               'MONOPIXEL is used with the mouse and the keyboard: “console mouse” and “console keyboard” are on (F9 turns the keyboard off). F5 in MONOPIXEL: help.'],
     optCascade: ['CASCADE (jeu, clavier MIDI)', 'CASCADE (game, MIDI keyboard)'],
     optDefender: ['PIANO DEFENDER (jeu, clavier MIDI)', 'PIANO DEFENDER (game, MIDI keyboard)'],
     optSolfege: ['SOLFEGE (lire les notes, clavier MIDI)', 'SOLFEGE (reading notes, MIDI keyboard)'],
@@ -529,14 +545,17 @@ __CORE_JS__
     setPill('runPill', 'ok', running ? 'running' : 'ready');
     peakWin.length = 0;
     // MONOTRACKER needs the console keyboard: switched on for it, and off again after it
-    const tracker = m.header.title === 'MONOTRACKER', cascade = ['CASCADE', 'PIANO DEFENDER', 'SOLFEGE'].includes(m.header.title);
-    if ((tracker || cascade) && !$('kbdMode').checked) { setKbd(true); autoKbd = true; log(t(cascade ? 'cascadeKbd' : 'trackerKbd') + '\n'); }
+    const pixel = m.header.title === 'MONOPIXEL';
+    const tracker = m.header.title === 'MONOTRACKER' || pixel, cascade = ['CASCADE', 'PIANO DEFENDER', 'SOLFEGE'].includes(m.header.title);
+    if ((tracker || cascade) && !$('kbdMode').checked) { setKbd(true); autoKbd = true; log(t(cascade ? 'cascadeKbd' : pixel ? 'pixelKbd' : 'trackerKbd') + '\n'); }
     else if (!tracker && !cascade && autoKbd) { setKbd(false); autoKbd = false; }
     if (tracker && !$('mouseMode').checked) { $('mouseMode').checked = true; autoMouse = true; }
     else if (!tracker && autoMouse) { $('mouseMode').checked = false; autoMouse = false; }
     mouseHome = true;
     $('songList').textContent = '';
-    $('songTools').hidden = !tracker && !hasSongs();
+    $('songTools').hidden = !hasSongs() && !(tracker && !pixel);
+    $('bankList').textContent = '';
+    $('bankTools').hidden = !pixel && !hasBanks();
   }
   let autoKbd = false, autoMouse = false;
 
@@ -653,7 +672,7 @@ __CORE_JS__
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   }
   function savName() {   // the MiSTer names the save after the ROM file
-    const base = /\.mnc$/i.test(romKey) ? romKey.replace(/\.mnc$/i, '') : romKey === 'tracker' ? 'monotracker' : (m.header.title || romKey);
+    const base = /\.mnc$/i.test(romKey) ? romKey.replace(/\.mnc$/i, '') : romKey === 'tracker' ? 'monotracker' : romKey === 'pixel' ? 'monopixel' : (m.header.title || romKey);
     return base.toLowerCase().replace(/[^a-z0-9_.-]+/g, '_') + '.sav';
   }
   // songs of MONOTRACKER in the NVRAM: "MTNV", then 8 x {offset, size} from byte 16 (sdk/MTRACK.md)
@@ -672,6 +691,22 @@ __CORE_JS__
     return out;
   }
   function hasSongs() { return trackerSongs().length > 0; }
+  // banks of MONOPIXEL in the NVRAM: "MGNV", the same slot table (sdk/MGFX.md); name at +16 of a bank
+  function pixelBanks() {
+    if (!m) return [];
+    const n = m.nvram, dv = new DataView(n.buffer, n.byteOffset, n.byteLength);
+    if (String.fromCharCode(n[0], n[1], n[2], n[3]) !== 'MGNV') return [];
+    const out = [];
+    for (let k = 0; k < 8; k++) {
+      const off = dv.getUint32(16 + 8 * k, true), size = dv.getUint32(20 + 8 * k, true);
+      if (!size || off + size > n.length || String.fromCharCode(n[off], n[off + 1], n[off + 2], n[off + 3]) !== 'MGF1') continue;
+      let name = '';
+      for (let i = 0; i < 16 && n[off + 16 + i]; i++) name += String.fromCharCode(n[off + 16 + i]);
+      out.push({ slot: k + 1, name: name.trim() || 'banque', bytes: n.slice(off, off + size) });
+    }
+    return out;
+  }
+  function hasBanks() { return pixelBanks().length > 0; }
   $('nvExportBtn').addEventListener('click', () => { if (m) { saveNv(); download(m.nvram.slice(), savName()); } });
   $('nvFile').addEventListener('change', (e) => {
     const f = e.target.files[0]; e.target.value = '';
@@ -685,6 +720,8 @@ __CORE_JS__
       log('— ' + t('nvImported') + ' (' + f.name + ')\n');
       $('songList').textContent = '';
       if (hasSongs()) $('songTools').hidden = false;
+      $('bankList').textContent = '';
+      if (hasBanks()) $('bankTools').hidden = false;
     };
     r.readAsArrayBuffer(f);
   });
@@ -697,6 +734,20 @@ __CORE_JS__
       a.className = 'btn';
       a.href = URL.createObjectURL(new Blob([s.bytes], { type: 'application/octet-stream' }));
       a.download = s.name.toLowerCase().replace(/[^a-z0-9_-]+/g, '_') + '.mts';
+      a.textContent = s.slot + ' · ' + s.name;
+      list.appendChild(a);
+    }
+  });
+
+  $('banksBtn').addEventListener('click', () => {
+    const list = $('bankList'), banks = pixelBanks();
+    list.textContent = '';
+    if (!banks.length) { list.textContent = t('nvNoBanks'); return; }
+    for (const s of banks) {
+      const a = document.createElement('a');
+      a.className = 'btn';
+      a.href = URL.createObjectURL(new Blob([s.bytes], { type: 'application/octet-stream' }));
+      a.download = s.name.toLowerCase().replace(/[^a-z0-9_-]+/g, '_') + '.mgf';
       a.textContent = s.slot + ' · ' + s.name;
       list.appendChild(a);
     }

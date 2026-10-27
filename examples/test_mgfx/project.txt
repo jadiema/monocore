@@ -1,0 +1,7 @@
+# test_mgfx: a MONOPIXEL bank in a game (module mgfx): the demo decor, an animated hero, coins
+name    = test_mgfx
+title   = TEST MGFX
+library = mc
+modules = mgfx
+sources = main.c
+data    = ../monopixel/demo.mgf
