@@ -12,7 +12,7 @@ module mc_sprites (
 	input  wire         start_draw,
 	input  wire         active,
 	input  wire [9:0]   y,
-	input  wire [8:0]   width,
+	input  wire [9:0]   width,       // up to 640 (high resolution)
 	input  wire [9:0]   count,       // entries to scan (0..512)
 	input  wire [31:0]  base,
 	output wire         eval_done,
@@ -31,10 +31,10 @@ module mc_sprites (
 	input  wire [31:0]  r_data,
 	// line buffer {pri[3:0], colour[11:0]}
 	output wire         lb_rd,
-	output wire [8:0]   lb_raddr,
+	output wire [9:0]   lb_raddr,
 	input  wire [15:0]  lb_q,
 	output wire         lb_we,
-	output wire [8:0]   lb_waddr,
+	output wire [9:0]   lb_waddr,
 	output wire [15:0]  lb_wdata
 );
 	// ---------------------------------------------------------------- entry fields
@@ -100,7 +100,7 @@ module mc_sprites (
 	reg [7:0]  s_pal, s_attr, s_w, s_h;
 	reg [15:0] s_zx, s_zy;
 	reg [18:0] s_dyv, s_dw;
-	reg [8:0]  s_x0, s_x1;
+	reg [9:0]  s_x0, s_x1;
 	reg [18:0] s_i0;
 	reg        s_zoomx, s_zoomy;
 	reg [10:0] s_srcy;
@@ -118,7 +118,7 @@ module mc_sprites (
 		.n(27'd256), .d(s_zx), .q(dq_s), .r(dr_s), .busy(db_s));
 
 	// parameter block handed to the generator
-	reg [8:0]  p_x0, p_x1;
+	reg [9:0]  p_x0, p_x1;
 	reg [10:0] p_q, p_qs;
 	reg [15:0] p_r, p_rs;
 	reg signed [16:0] p_rk;           // p_rs - zoom: the remainder step minus the divisor
@@ -135,7 +135,7 @@ module mc_sprites (
 	// ---------------------------------------------------------------- drawing: generator
 	// G: source column and new-word flag -> A: cell and word address -> B: request / record
 	reg        gen;
-	reg [8:0]  gx, gx1;
+	reg [9:0]  gx, gx1;
 	reg [10:0] gq, gqs;
 	reg [15:0] gr, grs;
 	reg signed [16:0] grk;
@@ -146,13 +146,13 @@ module mc_sprites (
 	reg [7:0]  gpal;
 	reg [8:0]  glastw;                // word id of the previous pixel of this sprite
 	reg        a_valid, a_new, a_b8;
-	reg [8:0]  a_x;
+	reg [9:0]  a_x;
 	reg [10:0] a_srcx;
 	reg [31:0] a_base;
 	reg [2:0]  a_cy, a_prio;
 	reg [7:0]  a_pal;
 	reg        b_valid, b_new, b_b8;
-	reg [8:0]  b_x;
+	reg [9:0]  b_x;
 	reg [2:0]  b_sub, b_prio;
 	reg [7:0]  b_pal;
 	reg [31:0] b_waddr;
@@ -176,13 +176,13 @@ module mc_sprites (
 	wire        a_free = !a_valid || a_move;
 	wire        g_step = gen && a_free;
 
-	// record: {x 9, sub 3, newword, b8, prio 3, pal 8} = 25 bits
-	wire [24:0] rec_in = {b_x, b_sub, b_new, b_b8, b_prio, b_pal};
-	wire [24:0] rec;
+	// record: {x 10, sub 3, newword, b8, prio 3, pal 8} = 26 bits
+	wire [25:0] rec_in = {b_x, b_sub, b_new, b_b8, b_prio, b_pal};
+	wire [25:0] rec;
 	wire        rec_empty, resp_empty;
 	wire [31:0] resp;
 	wire        c_go;
-	mc_fifo #(.W(25), .LOGD(4)) rec_fifo (.clk(clk), .rst_n(rst_n), .flush(start_eval),
+	mc_fifo #(.W(26), .LOGD(4)) rec_fifo (.clk(clk), .rst_n(rst_n), .flush(start_eval),
 		.push(b_push), .din(rec_in), .pop(c_go), .dout(rec), .empty(rec_empty), .full(rec_full), .count());
 	wire rec_new = rec[12];
 	mc_fifo #(.W(32), .LOGD(3)) resp_fifo (.clk(clk), .rst_n(rst_n), .flush(start_eval),
@@ -192,7 +192,7 @@ module mc_sprites (
 	reg [31:0] cword;
 	assign c_go = !rec_empty && (!rec_new || !resp_empty);
 	wire [31:0] word = rec_new ? resp : cword;
-	wire [8:0]  r_x    = rec[24:16];
+	wire [9:0]  r_x    = rec[25:16];
 	wire [2:0]  r_sub  = rec[15:13];
 	wire        r_b8   = rec[11];
 	wire [2:0]  r_prio = rec[10:8];
@@ -204,7 +204,7 @@ module mc_sprites (
 	assign lb_raddr = r_x;
 
 	reg        c2, w_prev_en;
-	reg [8:0]  c2_x, w_prev_x;
+	reg [9:0]  c2_x, w_prev_x;
 	reg [15:0] c2_d, w_prev_d;
 	wire [15:0] lbv = (w_prev_en && w_prev_x == c2_x) ? w_prev_d : lb_q;
 	assign lb_we = c2 && c2_d[15:12] >= lbv[15:12];
@@ -261,7 +261,7 @@ module mc_sprites (
 			SU_C1: begin
 				s_x <= f_x; s_tile <= f_tile; s_pal <= f_pal; s_attr <= f_attr; s_w <= f_w; s_h <= f_h;
 				s_zx <= f_zx; s_zy <= f_zy; s_dyv <= f_dy[17:0]; s_dw <= f_dw;
-				s_x0 <= f_x[15] ? 9'd0 : (f_x > $signed({7'd0, width}) ? width : f_x[8:0]);
+				s_x0 <= f_x[15] ? 10'd0 : (f_x > $signed({6'd0, width}) ? width : f_x[9:0]);
 				s_i0 <= f_x[15] ? 19'd0 - {{3{f_x[15]}}, f_x} : 19'd0;
 				s_zoomx <= f_zx != 16'd256;
 				s_zoomy <= f_zy != 16'd256;
@@ -272,7 +272,7 @@ module mc_sprites (
 				begin : clip
 					reg signed [20:0] xe;
 					xe = $signed({{5{s_x[15]}}, s_x}) + $signed({2'd0, s_dw});
-					s_x1 <= xe <= 0 ? 9'd0 : (xe > $signed({12'd0, width}) ? width : xe[8:0]);
+					s_x1 <= xe <= 0 ? 10'd0 : (xe > $signed({11'd0, width}) ? width : xe[9:0]);
 				end
 				div_go <= 1'b1; su_wait1 <= 1'b1;
 				su <= SU_WAIT;
@@ -319,10 +319,10 @@ module mc_sprites (
 			end else if (g_step) begin
 				gfirst <= 1'b0;
 				glastw <= wordid;
-				gx <= gx + 9'd1;
+				gx <= gx + 10'd1;
 				gq <= gq + gqs + (gcarry ? 11'd1 : 11'd0);
 				gr <= gcarry ? grdif[15:0] : grsum[15:0];
-				if (gx + 9'd1 == gx1) gen <= 1'b0;
+				if (gx + 10'd1 == gx1) gen <= 1'b0;
 			end
 			// stage A
 			if (g_step) begin

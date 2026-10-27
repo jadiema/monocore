@@ -14,7 +14,7 @@ module mc_layer (
 	input  wire [1:0]  lprio,
 	input  wire [10:0] px0,          // first map pixel column, already wrapped to the map width
 	input  wire [10:0] py,           // map pixel row, already wrapped
-	input  wire [8:0]  width,
+	input  wire [9:0]  width,
 	// tilemap read port (1 cycle latency, private to this layer)
 	output wire        tm_rd,
 	output wire [11:0] tm_addr,
@@ -45,7 +45,7 @@ module mc_layer (
 	// ---------------------------------------------------------------- fetch
 	// A: tilemap read issued -> B: entry on tm_q, copied to E -> E: graphics address computed into R
 	// -> R: request held until granted. One word per cycle when granted every cycle.
-	reg  [6:0]  j, nwords;            // words issued / needed (<= 97)
+	reg  [7:0]  j, nwords;            // words issued / needed (<= 162)
 	reg  [10:0] col;                  // map column of the next word's first pixel
 	reg  [10:0] b_col;
 	reg         b_valid, b_first;
@@ -104,7 +104,7 @@ module mc_layer (
 			r_valid <= 0; r_addr <= 0; r_meta <= 0;
 		end else if (start) begin
 			j <= 0;
-			nwords <= ({3'd0, skip0} + {2'd0, width} + {3'd0, ppw} - 11'd1) >> lppw;
+			nwords <= ({3'd0, skip0} + {1'd0, width} + {3'd0, ppw} - 11'd1) >> lppw;
 			col <= px0 & ~{7'd0, ppw - 4'd1};
 			b_valid <= 0; e_valid <= 0; r_valid <= 0; inflight <= 0;
 		end else begin
@@ -122,7 +122,7 @@ module mc_layer (
 				b_valid <= 1'b1;
 				b_col <= col;
 				b_first <= j == 0;
-				j <= j + 7'd1;
+				j <= j + 8'd1;
 				col <= (col + {7'd0, ppw}) & pmask;
 			end
 			inflight <= inflight + ((r_valid && g_gnt) ? 4'd1 : 4'd0) - (load ? 4'd1 : 4'd0);

@@ -1,6 +1,6 @@
 # MONOCORE-1 — spécification de la console virtuelle
 
-Version 0.6 — octobre 2026 (4 manettes, entrées analogiques, clavier, souris et entrée MIDI ; horloge unique de 50 MHz)
+Version 0.7 — octobre 2026 (4 manettes, entrées analogiques, clavier, souris, entrée MIDI, haute résolution et mode entrelacé ; horloge unique de 50 MHz)
 
 ## 1. Principe
 
@@ -52,6 +52,8 @@ Tous les espaces acceptent des accès 8, 16 et 32 bits, petit-boutiste. Les grap
 ### 4.1 Format d'image
 
 - Résolution native réglable : largeur 224 à 384 pixels, hauteur 192 à 288 lignes (`SCREEN_W`, `SCREEN_H`, pris en compte à l'image suivante). Défaut : 320 × 240.
+- **Haute résolution** : la largeur peut monter jusqu'à 640 pixels si l'image compte au plus 270 lignes (ses lignes durent alors au moins 2 832 cycles, assez pour calculer 640 pixels) ; sinon, une largeur au-delà de 384 est ramenée à 384. Les pixels sont plus étroits et l'image reste en 4:3 ; 640 × 270 donne exactement 4 fois l'écran en hauteur sur un téléviseur 1080p.
+- **Mode entrelacé** (bit 10 de `DISP_CTRL`, pris en compte au début de l'image) : `SCREEN_H` donne alors la hauteur de l'image complète, de 384 à 512 lignes (0 vaut 480 ; une valeur impaire est arrondie au nombre pair inférieur). Chaque image n'affiche qu'une ligne sur deux : une *trame* de `SCREEN_H / 2` lignes, dont la ligne de trame v montre la ligne d'image `2v + p`, où p est la parité de la trame (bit 2 de `STATUS`). La parité change à chaque image tant que le mode reste entrelacé, et vaut 0 à la première image entrelacée. Le minutage est celui d'une image progressive de `SCREEN_H / 2` lignes (60,01 Hz par trame en 640 × 480) : le budget de rendu par ligne est donc entier et la largeur peut toujours monter à 640. Sur MiSTer, le signal de trame est transmis au framework, dont le scaler reconstitue l'image complète en HDMI.
 - Nombre total de lignes par image : `SCREEN_H + 24` (24 lignes de blanking vertical).
 - Une ligne dure `4 × ⌊50 000 000 / (240 × lignes totales)⌋` cycles CPU (un nombre entier de pixels à 12,5 MHz), soit 3 156 cycles et 60,01 Hz en 240 lignes (2 668 cycles en 288 lignes, la ligne la plus courte). La hauteur est prise en compte au début de chaque image.
 - Rotation de sortie 0°, 90°, 180°, 270° pour les jeux verticaux (Pac-Man, Galaga… se décrivent en 224 × 288 puis se tournent de 90°). La rotation est faite par le scaler de sortie du framework MiSTer.
@@ -61,14 +63,14 @@ Tous les espaces acceptent des accès 8, 16 et 32 bits, petit-boutiste. Les grap
 
 | Offset | Nom | Description |
 |---|---|---|
-| 0x000 | `DISP_CTRL` | bit 0 affichage ; bits 1–4 plans 0–3 ; bit 5 sprites ; bits 8–9 rotation (0, 90, 180, 270° horaire) |
-| 0x004 | `SCREEN_W` | largeur visible (224–384) |
-| 0x008 | `SCREEN_H` | hauteur visible (192–288) |
+| 0x000 | `DISP_CTRL` | bit 0 affichage ; bits 1–4 plans 0–3 ; bit 5 sprites ; bits 8–9 rotation (0, 90, 180, 270° horaire) ; bit 10 entrelacé |
+| 0x004 | `SCREEN_W` | largeur visible (224–384, jusqu'à 640 en haute résolution) |
+| 0x008 | `SCREEN_H` | hauteur visible (192–288 ; 384–512 en entrelacé) |
 | 0x00C | `BG_COLOR` | index de palette de la couleur de fond |
 | 0x010 | `LINE_CMP` | ligne qui déclenche l'interruption LINE (comparée sur 32 bits : une valeur hors écran, par exemple 0x7FFF, la désactive) |
-| 0x014 | `VCOUNT` | ligne en cours (lecture seule) ; 0 à `SCREEN_H−1` visibles |
+| 0x014 | `VCOUNT` | ligne en cours (lecture seule) ; 0 à `SCREEN_H−1` visibles (en entrelacé, ligne de la trame : 0 à `SCREEN_H / 2 − 1`) |
 | 0x018 | `FRAME` | compteur d'images (lecture seule) |
-| 0x01C | `STATUS` | bit 0 dans le blanking vertical ; bit 1 débordement de sprites pendant l'image précédente |
+| 0x01C | `STATUS` | bit 0 dans le blanking vertical ; bit 1 débordement de sprites pendant l'image précédente ; bit 2 parité de la trame en cours (toujours 0 en progressif) |
 | 0x020 | `SPR_CHR` | adresse de base des graphismes de sprites |
 | 0x024 | `SPR_COUNT` | nombre d'entrées de la table de sprites parcourues (0–512) |
 | 0x028 | `SPR_PEAK` | statistique : maximum de sprites sur une ligne pendant l'image précédente |
@@ -100,13 +102,13 @@ La carte boucle dans les deux directions.
 
 ### 4.5 Moment du rendu
 
-Chaque ligne visible y est calculée au début de sa propre période (quand `VCOUNT` passe à y), puis affichée pendant la ligne suivante ; ce décalage d'une ligne est invisible pour le logiciel. Le calcul utilise l'état des registres et des mémoires vidéo (palette comprise) **au début de la ligne** : pendant ce calcul, une écriture du CPU ou du DMA dans le bloc vidéo (`0x2000_0000`) est mise en attente jusqu'à sa fin. Une écriture faite pendant la ligne y prend donc toujours effet à la ligne y + 1, que ce soit un défilement, une couleur de palette ou une tuile. Les lectures ne sont jamais retardées.
+Chaque ligne visible y est calculée au début de sa propre période (quand `VCOUNT` passe à y), puis affichée pendant la ligne suivante ; ce décalage d'une ligne est invisible pour le logiciel. En entrelacé, la période de la ligne de trame v calcule la ligne d'image `2v + p` : les coordonnées des plans, des sprites et des tables de défilement sont toujours celles de l'image complète. Une carte de tuiles couvre au plus 4096 cellules : pour couvrir 640 × 480, un plan utilise des tuiles 16 × 16 (carte 64 × 32, soit 1024 × 512 pixels) ; en tuiles 8 × 8, une carte 128 × 32 couvre 1024 × 256 pixels. Le calcul utilise l'état des registres et des mémoires vidéo (palette comprise) **au début de la ligne** : pendant ce calcul, une écriture du CPU ou du DMA dans le bloc vidéo (`0x2000_0000`) est mise en attente jusqu'à sa fin. Une écriture faite pendant la ligne y prend donc toujours effet à la ligne y + 1, que ce soit un défilement, une couleur de palette ou une tuile. Les lectures ne sont jamais retardées.
 
 La durée du calcul dépend du contenu : environ 400 cycles pour une ligne de texte simple, un peu moins de 900 pour le menu de la ROM de test (deux plans, un sprite 8 bpp zoomé). Elle reste toujours inférieure à la durée d'une ligne : le pire cas mesuré (4 plans 16 × 16 en 8 bpp lus en ROM et sprites 8 bpp réduits au budget maximal) prend environ 1 550 cycles, pour 2 668 cycles dans la ligne la plus courte.
 
 ### 4.6 Défilement par ligne
 
-Si le bit 6 de `Ln_CTRL` est actif, la ligne d'écran y du plan n ajoute deux décalages lus en `0x2008_0000 + n × 0x800 + y × 4` : un `int16` horizontal puis un `int16` vertical. C'est ce qui sert pour les routes de jeux de course, les vagues, les « rowscroll » des cartes Capcom ou Konami. Pour les effets plus exotiques, l'interruption LINE permet de modifier n'importe quel registre entre deux lignes.
+Si le bit 6 de `Ln_CTRL` est actif, la ligne d'écran y du plan n (ligne de l'image complète en entrelacé) ajoute deux décalages lus en `0x2008_0000 + n × 0x800 + y × 4` : un `int16` horizontal puis un `int16` vertical. C'est ce qui sert pour les routes de jeux de course, les vagues, les « rowscroll » des cartes Capcom ou Konami. Pour les effets plus exotiques, l'interruption LINE permet de modifier n'importe quel registre entre deux lignes.
 
 ### 4.7 Sprites
 
@@ -212,7 +214,7 @@ Chaque côté de la sortie vaut `⌊somme × MASTER_VOL × 77 / 65 536⌋`, born
 | 0x48 | `DMA_LEN` | longueur en octets |
 | 0x4C | `DMA_CTRL` | écriture bit 0 lancer, bit 1 mode remplissage ; lecture bit 0 occupé |
 | 0x60 | `DEBUG_OUT` | un octet écrit = un caractère sur la console de debug (absent du FPGA final) |
-| 0x70 | `HW_VERSION` | version du matériel : 2 depuis l'ajout des joueurs 3 et 4, de l'analogique et du clavier (1 avant), 3 depuis l'ajout de la souris, 4 depuis l'ajout de l'entrée MIDI |
+| 0x70 | `HW_VERSION` | version du matériel : 2 depuis l'ajout des joueurs 3 et 4, de l'analogique et du clavier (1 avant), 3 depuis l'ajout de la souris, 4 depuis l'ajout de l'entrée MIDI, 5 depuis l'ajout de la haute résolution et du mode entrelacé |
 | 0x80 | `IN_P3` | joueur 3, même format que `IN_P1` |
 | 0x84 | `IN_P4` | joueur 4 |
 | 0x90 + 4n | `ANALOG_Pn` | manette n (0-3 = joueurs 1-4) : stick gauche X (bits 7–0) et Y (15–8), stick droit X (23–16) et Y (31–24), signés de −127 à +127, 0 au repos ; Y positif vers le bas |
@@ -223,9 +225,9 @@ Chaque côté de la sortie vaut `⌊somme × MASTER_VOL × 77 / 65 536⌋`, born
 | 0xD8 | `MOUSE_BTN` | bit 0 bouton gauche, 1 droit, 2 milieu (1 = appuyé) ; bits 15–8 : compteur de la molette (8 bits, accumule les crans signés, positifs quand on la tourne vers l'avant, comme sous Linux) ; bit 31 : au moins un paquet reçu depuis le reset (une souris est branchée) |
 | 0xDC | `MIDI_IN` | entrée MIDI : lecture : bit 31 un octet attend, bit 30 des octets ont été perdus (file pleine) depuis la dernière écriture, bits 22–16 nombre d'octets en attente, bits 7–0 le plus ancien ; écriture (valeur quelconque) : retire cet octet. File de 64 octets, reçus tels quels (messages MIDI bruts, horloge et sysex compris) |
 
-Les joueurs 3 et 4, l'analogique et le clavier viennent du framework MiSTer : manettes 3 et 4 de `hps_io`, sticks analogiques, paddles et spinners des manettes 1 à 4, clavier USB de la carte (codes PS/2). Une ROM qui veut les utiliser vérifie que `HW_VERSION` ≥ 2. La souris (USB, ou souris PS/2 de la carte) vient elle aussi de `hps_io` (`ps2_mouse`) ; une ROM qui veut l'utiliser vérifie que `HW_VERSION` ≥ 3. L'entrée MIDI reçoit la liaison série du framework (UART, 31 250 bauds, 8 bits, 1 bit de stop) : sur MiSTer, MidiLink y envoie un clavier MIDI USB quand le menu du core est réglé sur *UART : MIDI* ; une ROM qui veut l'utiliser vérifie que `HW_VERSION` ≥ 4. La lecture de ces registres n'a aucun effet de bord : seule l'écriture dans `KEY_EVENT` fait avancer la file.
+Les joueurs 3 et 4, l'analogique et le clavier viennent du framework MiSTer : manettes 3 et 4 de `hps_io`, sticks analogiques, paddles et spinners des manettes 1 à 4, clavier USB de la carte (codes PS/2). Une ROM qui veut les utiliser vérifie que `HW_VERSION` ≥ 2. La souris (USB, ou souris PS/2 de la carte) vient elle aussi de `hps_io` (`ps2_mouse`) ; une ROM qui veut l'utiliser vérifie que `HW_VERSION` ≥ 3. L'entrée MIDI reçoit la liaison série du framework (UART, 31 250 bauds, 8 bits, 1 bit de stop) : sur MiSTer, MidiLink y envoie un clavier MIDI USB quand le menu du core est réglé sur *UART : MIDI* ; une ROM qui veut l'utiliser vérifie que `HW_VERSION` ≥ 4. Une ROM qui veut une largeur au-delà de 384 ou le mode entrelacé vérifie que `HW_VERSION` ≥ 5. La lecture de ces registres n'a aucun effet de bord : seule l'écriture dans `KEY_EVENT` fait avancer la file.
 
-VBLANK se déclenche au début de la ligne `SCREEN_H`, LINE au début de la ligne `LINE_CMP`. La ligne d'interruption du CPU vaut `(IRQ_STATUS & IRQ_ENABLE) != 0`.
+VBLANK se déclenche au début de la ligne `SCREEN_H` (`SCREEN_H / 2` en entrelacé), LINE au début de la ligne `LINE_CMP` (comparée à `VCOUNT`, donc à la ligne de trame en entrelacé). La ligne d'interruption du CPU vaut `(IRQ_STATUS & IRQ_ENABLE) != 0`.
 
 Les timers servent typiquement à cadencer le pilote son traduit à la fréquence d'origine (souvent 60 à 250 Hz). Le DMA sert aux transferts ROM → VRAM ou à l'effacement de la mémoire. Le CPU reste suspendu sur l'écriture de `DMA_CTRL` jusqu'à la fin du transfert, ce qui évite toute course entre les deux. Il transfère des mots de 32 bits quand la source (en copie) et la destination sont alignées, sinon des octets. Coût mesuré : remplissage 1 cycle par mot ; copie 3 cycles par mot, plus environ 2,5 par mot lu en ROM (soit environ 0,7 octet par cycle depuis la ROM et 1,3 octet par cycle entre mémoires internes).
 
@@ -271,7 +273,7 @@ Le code commence en `0x100`. Une ROM traduite contient typiquement : le code 680
 
 Bande passante SDRAM (16 bits, ~200 Mo/s) : au pire, 4 plans 8 bpp en 384 pixels + 512 mots de sprites par ligne ≈ 3,5 Ko par ligne × 18 700 lignes/s ≈ 65 Mo/s pour la vidéo, le reste pour le CPU (amorti par ses caches) et le son.
 
-Le rendu d'une ligne trace les sprites à un pixel par cycle : 1280 pixels de sprites, plus les plans et la palette, tiennent dans une période de ligne (au moins 2 668 cycles ; le pire cas mesuré prend environ 1 550 cycles), d'où les limites de §4.7.
+Le rendu d'une ligne trace les sprites à un pixel par cycle : 1280 pixels de sprites, plus les plans et la palette, tiennent dans une période de ligne (au moins 2 668 cycles ; le pire cas mesuré prend environ 1 550 cycles), d'où les limites de §4.7. En haute résolution (640 pixels), les lignes durent au moins 2 832 cycles ; le pire cas mesuré prend environ 2 060 cycles, et la ROM aléatoire jusqu'à 2 600 cycles en 640 × 480 entrelacé (lignes de 3 156 cycles).
 
 ## 10. Hors périmètre de la v0.1
 

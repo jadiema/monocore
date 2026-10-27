@@ -18,7 +18,7 @@ const ctrl = g.getUint32(0, true);
 function renderWith(c) {
   g.setUint32(0, c, true);
   const out = new Uint32Array(W * H);
-  for (let y = 0; y < H; y++) { m.renderLine(y); out.set(m.frameBuf.subarray(y * W, y * W + W), y * W); }
+  for (let y = 0; y < H; y++) { m.renderLine(y); out.set(m.pic.subarray(y * 640, y * 640 + W), y * W); }
   g.setUint32(0, ctrl, true);
   return out;
 }

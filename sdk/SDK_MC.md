@@ -52,7 +52,7 @@ des morceaux du tracker MONOTRACKER (`#include "mtrack.h"`, documentation : `MTR
 | Système | `mc_init`, `mc_frame`, `mc_frames`, `mc_cycles`, `mc_micros` | `mc_frame` attend la pause verticale, copie la table de sprites par DMA, lit les manettes et fait avancer la musique |
 | Interruptions | `mc_on_vblank`, `mc_on_timer`, `mc_irq_off/on` | gestionnaires en C ; timers 0 et 1 à la fréquence voulue |
 | Effets raster | `mc_raster_add`, `mc_raster_clear`, `mc_raster_line` | jusqu'à 64 effets par image ; l'écriture faite dans l'effet s'applique **exactement** à partir de la ligne demandée (vérifié en simulation) |
-| Vidéo | `mc_video_mode`, `mc_display`, `mc_layer`, `mc_layer_scroll`, `mc_layer_linescroll`, `mc_tile`, `mc_tilemap_fill/load` | résolution de 224 à 384 × 192 à 288 ; 4 plans en tuiles 8 ou 16, 4 ou 8 bpp |
+| Vidéo | `mc_video_mode`, `mc_display`, `mc_interlaced`, `mc_field`, `mc_layer`, `mc_layer_scroll`, `mc_layer_linescroll`, `mc_tile`, `mc_tilemap_fill/load` | résolution de 224 à 384 × 192 à 288 ; matériel version 5 : jusqu'à 640 de large avec 270 lignes au plus, et 640 × 480 entrelacé (hauteur de 384 à 512) ; 4 plans en tuiles 8 ou 16, 4 ou 8 bpp |
 | Couleurs | `mc_color`, `mc_palette`, `mc_background`, `MC_RGB` | 4096 couleurs RGB555 = 256 palettes de 16 |
 | Graphismes dynamiques | `mc_chr_upload`, `MC_CHR`, `MC_CHRRAM` | 128 Ko de CHR RAM utilisables par les plans et les sprites, à la place de la ROM |
 | Sprites | `mc_sprite`, `mc_sprite_zoom`, `mc_sprite_flip`, `mc_sprite_8bpp`, `mc_sprite_hide`, `mc_sprites_used` | 512 sprites de 8 × 8 à 256 × 256, table fantôme `mc_spr[]` en WRAM |

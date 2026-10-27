@@ -58,6 +58,8 @@ Durée mesurée de la fenêtre, pour 2 668 à 3 856 cycles par ligne (50 MHz) :
 | écran des sprites de la ROM de test, au budget de 64 sprites par ligne | 1 992 au plus |
 | ROM aléatoire, 30 images | 1 967 au plus |
 | pire cas construit : 4 plans 16 × 16 en 8 bpp et 256 sprites 8 bpp réduits, tout en SDRAM | 1 544 |
+| ROM aléatoire haute résolution (`vidfuzz_hr.mnc`, 640 × 480i, 640 × 512i, 640 × 270…), 161 images | 2 593 au plus (lignes de 2 832 à 3 156 cycles) |
+| pire cas haute résolution (`vfs_hr.mnc`), sprites étalés sur 640 pixels | 2 056 |
 
 Le pire cas tient grâce au budget de 512 mots de graphismes par ligne pour les sprites (SPEC §4.7) : sans lui, des sprites 8 bpp très réduits liraient un mot par pixel et dépasseraient la durée d'une ligne. La marge restante (au moins 670 cycles sur la ligne la plus courte) est pour le partage de la SDRAM avec le CPU à l'étape 4 : le contrôleur devra donner la priorité aux lectures graphiques.
 

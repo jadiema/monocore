@@ -22,6 +22,10 @@ static uint32_t pick_base(void) {
 }
 
 static const uint16_t modes[][2] = {{320, 240}, {256, 224}, {384, 224}, {224, 288}, {384, 192}};
+// high resolution (DIP 512, hardware version 5): wider than 384 with 270 lines or fewer, one request the core
+// brings back to 384, then interlaced pictures (SCREEN_H = full height) including a narrow and an odd one
+static const uint16_t hires[][2] = {{640, 270}, {640, 240}, {512, 256}, {448, 224}, {640, 288},
+                                    {640, 480}, {512, 448}, {640, 512}, {320, 384}, {384, 401}};
 
 int main(void) {
   s = 0x12345678;
@@ -33,7 +37,7 @@ int main(void) {
   IRQ_ENABLE = IRQ_VBLANK;
   irq_global_enable();
   DEBUG_OUT = 'G';
-  uint32_t f = 0;
+  uint32_t f = 0, ilace = 0;
   for (;;) {
     uint32_t v = vbl;
     while (vbl == v) wfi();
@@ -42,17 +46,26 @@ int main(void) {
     rnd(); rnd();
 
     if ((f & 7) == 1) {
-      uint32_t m = rnd() % 5;
-      SCREEN_W = modes[m][0];
-      SCREEN_H = modes[m][1];
+      if (DIPSW & 512) {
+        uint32_t m = rnd() % 10;
+        SCREEN_W = hires[m][0];
+        SCREEN_H = hires[m][1];
+        ilace = m >= 5 ? DISP_INTERLACE : 0;
+      } else {
+        uint32_t m = rnd() % 5;
+        SCREEN_W = modes[m][0];
+        SCREEN_H = modes[m][1];
+      }
     }
     // DIP switches restrict the test: 1 no sprites, 2 no layers, 4 no sprite zoom, 8 no sprite flips,
-    // 16 layers from CHR RAM only, 32 sprites from CHR RAM only, 64 4 bpp only, 128 one sprite per line max
+    // 16 layers from CHR RAM only, 32 sprites from CHR RAM only, 64 4 bpp only, 128 one sprite per line max,
+    // 256 worst case for the render window, 512 high resolution and interlaced modes
     uint32_t dip = DIPSW;
+    uint32_t hr = dip & 512;
     uint32_t dc = (rnd() & 0x3E) | ((rnd() % 16) ? DISP_ON : 0);
     if (dip & 1) dc &= ~DISP_SPRITES;
     if (dip & 2) dc &= ~(DISP_LAYER(0) | DISP_LAYER(1) | DISP_LAYER(2) | DISP_LAYER(3));
-    DISP_CTRL = dc;
+    DISP_CTRL = dc | ilace;
     BG_COLOR = rnd();
     for (int l = 0; l < 4; l++) {
       static const uint8_t maps[] = {0x00, 0x04, 0x10, 0x08, 0x20, 0x14, 0x0C, 0x30};   // last two invalid
@@ -65,19 +78,22 @@ int main(void) {
     }
     // bulk random data from the CHR RAM (fast block RAM source)
     // (half of the tilemaps per frame, alternately, to stay within the blanking)
-    dma_copy((void *)(TILEMAP_BASE + (f & 1) * 0x8000), (const void *)(CHRRAM_BASE + 0x8000 + ((rnd() % 0x8000) & ~3u)), 0x8000);
+    // (high resolution: a quarter per frame, so that the work also ends inside the blanking)
+    if (hr) dma_copy((void *)(TILEMAP_BASE + (f & 3) * 0x4000), (const void *)(CHRRAM_BASE + 0x8000 + ((rnd() % 0x8000) & ~3u)), 0x4000);
+    else dma_copy((void *)(TILEMAP_BASE + (f & 1) * 0x8000), (const void *)(CHRRAM_BASE + 0x8000 + ((rnd() % 0x8000) & ~3u)), 0x8000);
     dma_copy((void *)LINETAB_BASE, (const void *)(CHRRAM_BASE + ((rnd() % 0x10000) & ~3u)), 0x2000);
     dma_copy((void *)PALETTE_BASE, (const void *)(CHRRAM_BASE + ((rnd() % 0x10000) & ~3u)), 0x2000);
 
     // sprites: sizes, zooms, flips and positions; some frames pile them on one line
     uint32_t count = rnd() % 257;
+    if (hr && (dip & 256)) count = 0;   // overwritten by the worst case below: time saved in the blanking
     int crowd = (f % 5) == 0;
-    int crowd_y = rnd() % 200;
+    int crowd_y = rnd() % (hr ? 400 : 200);
     for (uint32_t i = 0; i < count; i++) {
       volatile sprite_t *sp = &SPRITES[i];
       uint32_t a = rnd(), b = rnd(), c = rnd();
-      sp->x = (int16_t)((a % 480) - 64);
-      sp->y = crowd ? (int16_t)(crowd_y - (int)(b % 16)) : (int16_t)((b % 360) - 48);
+      sp->x = (int16_t)((a % (hr ? 736 : 480)) - 64);
+      sp->y = crowd ? (int16_t)(crowd_y - (int)(b % 16)) : (int16_t)((b % (hr ? 600 : 360)) - 48);
       sp->tile = c & 0x3FF;
       sp->pal = c >> 16;
       sp->attr = (uint8_t)((a >> 9) | ((a >> 20) % 8 ? SA_ON : 0));
@@ -96,11 +112,11 @@ int main(void) {
     if (dip & 256) {
       // worst case for the render window: 4 layers 16x16 8 bpp and shrunk 8 bpp sprites, all read
       // from the ROM (SDRAM), every sprite crossing the same lines
-      DISP_CTRL = DISP_ON | DISP_SPRITES | DISP_LAYER(0) | DISP_LAYER(1) | DISP_LAYER(2) | DISP_LAYER(3);
+      DISP_CTRL = DISP_ON | DISP_SPRITES | DISP_LAYER(0) | DISP_LAYER(1) | DISP_LAYER(2) | DISP_LAYER(3) | ilace;
       for (int l = 0; l < 4; l++) { LAYER_CTRL(l) = LC_TILE16 | LC_8BPP | LC_MAPW(1) | LC_MAPH(1); LAYER_CHR(l) = (uint32_t)blob; }
       for (int i = 0; i < 256; i++) {
         volatile sprite_t *sp = &SPRITES[i];
-        sp->x = (int16_t)(i * 3 % 384); sp->y = 100; sp->attr = SA_ON | SA_8BPP; sp->w = 8; sp->h = 2;
+        sp->x = (int16_t)(i * 3 % (hr ? 640 : 384)); sp->y = 100; sp->attr = SA_ON | SA_8BPP; sp->w = 8; sp->h = 2;
         sp->zoomx = 0x40 + (i & 31); sp->zoomy = 0x100; sp->tile = i * 5; sp->pal = i;
       }
       SPR_CHR = (uint32_t)blob;

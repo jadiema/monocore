@@ -20,8 +20,11 @@ module mc_gpu (
 	input  wire        in_vblank,
 	input  wire        line_start,
 	input  wire [9:0]  new_line,
+	input  wire [9:0]  new_pline,       // picture line rendered in that line period
 	input  wire [9:0]  new_height,
-	input  wire [8:0]  new_width,
+	input  wire [9:0]  new_width,
+	input  wire        field,           // parity of the current field (STATUS bit 2)
+	output wire        ilace_reg,       // DISP_CTRL bit 10: interlaced
 	input  wire        vblank_pulse,
 	input  wire [31:0] rom_size,
 	// registers used by the timing generator
@@ -36,7 +39,7 @@ module mc_gpu (
 	input  wire [31:0] g_data,
 	// rendered pixels
 	output wire        px_valid,
-	output wire [8:0]  px_x,
+	output wire [9:0]  px_x,
 	output wire [9:0]  px_y,
 	output wire [14:0] px_rgb,
 	output wire [15:0] window_cycles,
@@ -44,6 +47,7 @@ module mc_gpu (
 );
 	reg [31:0] disp_ctrl, bg_color, spr_chr, spr_count;
 	assign rotation = disp_ctrl[9:8];
+	assign ilace_reg = disp_ctrl[10];
 	reg [31:0] l_ctrl [0:3], l_chr [0:3], l_sx [0:3], l_sy [0:3];
 	wire [127:0] layer_ctrl, layer_chr, layer_scrollx, layer_scrolly;
 	genvar g;
@@ -172,7 +176,7 @@ module mc_gpu (
 		10'h004: reg_q <= line_cmp;
 		10'h005: reg_q <= {22'd0, vcount};
 		10'h006: reg_q <= frame;
-		10'h007: reg_q <= {30'd0, spr_overflow, in_vblank};
+		10'h007: reg_q <= {29'd0, field, spr_overflow, in_vblank};
 		10'h008: reg_q <= spr_chr;
 		10'h009: reg_q <= spr_count;
 		10'h00A: reg_q <= {24'd0, spr_peak};
@@ -197,7 +201,7 @@ module mc_gpu (
 	// ---------------------------------------------------------------- renderer
 	mc_render render (
 		.clk(clk), .rst_n(rst_n),
-		.line_start(line_start), .new_line(new_line), .new_height(new_height), .new_width(new_width),
+		.line_start(line_start), .new_line(new_line), .new_pline(new_pline), .new_height(new_height), .new_width(new_width),
 		.vblank_pulse(vblank_pulse),
 		.disp_ctrl(disp_ctrl), .bg_color(bg_color), .spr_chr(spr_chr), .spr_count(spr_count),
 		.layer_ctrl(layer_ctrl), .layer_chr(layer_chr), .layer_scrollx(layer_scrollx), .layer_scrolly(layer_scrolly),

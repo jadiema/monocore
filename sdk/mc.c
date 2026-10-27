@@ -167,10 +167,17 @@ void mc_frame(void) {
 }
 
 // ---------------------------------------------------------------- video
-void mc_video_mode(int w, int h) { SCREEN_W = (uint32_t)w; SCREEN_H = (uint32_t)h; }
+static uint32_t video_flags;                 // DISP_INTERLACE when the mode is interlaced
+void mc_video_mode(int w, int h) {
+  video_flags = h > 288 ? DISP_INTERLACE : 0;
+  SCREEN_W = (uint32_t)w; SCREEN_H = (uint32_t)h;
+  DISP_CTRL = (DISP_CTRL & ~DISP_INTERLACE) | video_flags;
+}
 int  mc_screen_w(void) { return SCREEN_W ? (int)SCREEN_W : 320; }
-int  mc_screen_h(void) { return SCREEN_H ? (int)SCREEN_H : 240; }
-void mc_display(uint32_t flags) { DISP_CTRL = flags; }
+int  mc_screen_h(void) { return SCREEN_H ? (int)SCREEN_H : video_flags ? 480 : 240; }
+int  mc_interlaced(void) { return video_flags != 0; }
+int  mc_field(void) { return (GPU_STATUS & STATUS_FIELD) ? 1 : 0; }
+void mc_display(uint32_t flags) { DISP_CTRL = flags | video_flags; }
 
 void mc_color(int index, uint16_t c) { PALETTE[index & 4095] = c; }
 void mc_palette(int pal, const uint16_t *colors, int count) { dma_copy(PALETTE + pal * 16, colors, (uint32_t)count * 2); }

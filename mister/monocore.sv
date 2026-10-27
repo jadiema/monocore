@@ -24,7 +24,6 @@ assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
 assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN, DDRAM_BE, DDRAM_RD, DDRAM_WE} = '0;
 
 assign VGA_SL = 0;
-assign VGA_F1 = 0;
 assign VGA_SCALER  = 0;
 assign VGA_DISABLE = 0;
 assign HDMI_FREEZE = 0;
@@ -157,7 +156,7 @@ wire reset = RESET | status[0] | buttons[1];
 
 ///////////////////////   CONSOLE   //////////////////////////////
 
-wire        ce_pix, hs, vs, hblank, vblank, running;
+wire        ce_pix, hs, vs, hblank, vblank, f1, running;
 wire        cart_present, cart_busy, cart_error;
 wire  [7:0] r, g, b;
 wire [15:0] snd_l, snd_r;
@@ -237,7 +236,7 @@ mc_system system
 	.ce_pix(ce_pix),
 	.vga_r(r), .vga_g(g), .vga_b(b),
 	.vga_hs(hs), .vga_vs(vs),
-	.vga_hblank(hblank), .vga_vblank(vblank),
+	.vga_hblank(hblank), .vga_vblank(vblank), .vga_f1(f1),
 	.rotation(),
 	.width(),
 	.height(),
@@ -258,6 +257,7 @@ mc_system system
 	.dbg_char(),
 	.dbg_vcount(),
 	.dbg_window(),
+	.dbg_interlace(),
 
 	.sd_a(SDRAM_A),
 	.sd_ba(SDRAM_BA),
@@ -308,6 +308,7 @@ assign CE_PIXEL  = ce_pix;
 assign VGA_DE = ~(hblank | vblank);
 assign VGA_HS = hs;
 assign VGA_VS = vs;
+assign VGA_F1 = f1;              // field parity in interlaced mode (DISP_CTRL bit 10), 0 otherwise
 assign VGA_R  = r;
 assign VGA_G  = g;
 assign VGA_B  = b;

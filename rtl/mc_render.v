@@ -12,8 +12,9 @@ module mc_render (
 	// timing
 	input  wire         line_start,
 	input  wire [9:0]   new_line,
+	input  wire [9:0]   new_pline,      // picture line to render (2 new_line + field when interlaced)
 	input  wire [9:0]   new_height,
-	input  wire [8:0]   new_width,
+	input  wire [9:0]   new_width,
 	input  wire         vblank_pulse,
 	// registers
 	input  wire [31:0]  disp_ctrl,
@@ -54,14 +55,14 @@ module mc_render (
 	output reg  [15:0]  window_cycles,   // length of the last render window (statistics)
 	// rendered pixels (to the scan-out line buffers; also captured by the testbench)
 	output reg          px_valid,
-	output reg  [8:0]   px_x,
+	output reg  [9:0]   px_x,
 	output reg  [9:0]   px_y,
 	output reg  [14:0]  px_rgb
 );
 	localparam P_IDLE = 3'd0, P_LT = 3'd1, P_PARAM = 3'd2, P_LAYERS = 3'd3, P_SPR = 3'd4, P_RES = 3'd5;
 	reg [2:0] phase;
 	reg [9:0] y;
-	reg [8:0] W;
+	reg [9:0] W;
 	reg [31:0] r_disp, r_bg, r_sprchr, r_sprcount;
 	reg [127:0] r_lctrl, r_lchr, r_lsx, r_lsy;
 	reg [2:0]  lt_i;               // line table reads issued
@@ -167,7 +168,7 @@ module mc_render (
 	wire [7:0]  s_nsel;
 	wire        s_ovf;
 	wire        s_lb_rd, s_lb_we;
-	wire [8:0]  s_lb_raddr, s_lb_waddr;
+	wire [9:0]  s_lb_raddr, s_lb_waddr;
 	wire [15:0] s_lb_wdata, lb_q;
 	mc_sprites spr (
 		.clk(clk), .rst_n(rst_n), .start_eval(l_start), .start_draw(s_start_draw), .active(s_active),
@@ -247,14 +248,14 @@ module mc_render (
 	end endgenerate
 
 	// ---------------------------------------------------------------- composition (layers -> line buffer)
-	reg  [8:0]  cx;
+	reg  [9:0]  cx;
 	wire        comp_go = phase == P_LAYERS && !l_start && cx < W && &pv;
 	assign ltake = {4{comp_go}};
 	// three stages: C1 registers the four layer pixels, C2 the winner, C3 its colour, written to the line buffer.
 	// The winner is the non-transparent layer of highest priority, the lowest layer number on a tie;
 	// the background colour (priority code 0) when all four are transparent.
 	reg         c1_v, c2_v, cw_v;
-	reg  [8:0]  c1_x, c2_x, cw_x;
+	reg  [9:0]  c1_x, c2_x, cw_x;
 	reg         c2_any;
 	reg  [7:0]  c2_pal, c2_pix;
 	reg  [2:0]  c2_p;
@@ -285,15 +286,15 @@ module mc_render (
 	wire        comp_busy = c1_v || c2_v || cw_v;
 
 	// ---------------------------------------------------------------- line buffer
-	reg  [8:0]  rx;                 // resolve read index
+	reg  [9:0]  rx;                 // resolve read index
 	wire        res_rd = phase == P_RES && rx < W;
 	wire        lb_we = cw_v || s_lb_we;
-	wire [8:0]  lb_wa = cw_v ? cw_x : s_lb_waddr;
+	wire [9:0]  lb_wa = cw_v ? cw_x : s_lb_waddr;
 	wire [15:0] lb_wd = cw_v ? cw_d : s_lb_wdata;
 	wire        lb_re = res_rd || s_lb_rd;
-	wire [8:0]  lb_ra = res_rd ? rx : s_lb_raddr;
+	wire [9:0]  lb_ra = res_rd ? rx : s_lb_raddr;
 	// same-cycle read and write of one address is covered by the sprite bypass (w_prev_*)
-	(* ramstyle = "M10K, no_rw_check" *) reg  [15:0] lbuf [0:511];
+	(* ramstyle = "M10K, no_rw_check" *) reg  [15:0] lbuf [0:1023];
 	reg  [15:0] lb_q_r;
 	always @(posedge clk) begin
 		if (lb_we) lbuf[lb_wa] <= lb_wd;
@@ -303,7 +304,7 @@ module mc_render (
 
 	// ---------------------------------------------------------------- resolve (palette)
 	reg        r1, r2;
-	reg [8:0]  r1_x, r2_x;
+	reg [9:0]  r1_x, r2_x;
 	reg        r2_hi;
 	assign pal_rd   = r1;
 	assign pal_addr = lb_q_r[11:1];
@@ -325,7 +326,7 @@ module mc_render (
 			case (phase)
 			P_IDLE: if (start_line) begin
 				busy_r <= 1'b1;
-				y <= new_line; W <= new_width;
+				y <= new_pline; W <= new_width;
 				r_disp <= disp_ctrl; r_bg <= bg_color; r_sprchr <= spr_chr; r_sprcount <= spr_count;
 				r_lctrl <= layer_ctrl; r_lchr <= layer_chr; r_lsx <= layer_scrollx; r_lsy <= layer_scrolly;
 				s_src <= chr_region(spr_chr);
@@ -342,7 +343,7 @@ module mc_render (
 			end
 			P_PARAM: phase <= P_LAYERS;
 			P_LAYERS: begin
-				if (comp_go) cx <= cx + 9'd1;
+				if (comp_go) cx <= cx + 10'd1;
 				if (cx == W && !comp_busy && s_eval_done && !l_start) begin
 					s_start_draw <= 1'b1;
 					phase <= P_SPR;
@@ -350,7 +351,7 @@ module mc_render (
 			end
 			P_SPR: if (!s_start_draw && s_draw_done) phase <= P_RES;
 			P_RES: begin
-				if (res_rd) rx <= rx + 9'd1;
+				if (res_rd) rx <= rx + 10'd1;
 				if (rx == W && !r1 && !r2) begin
 					phase <= P_IDLE;
 					busy_r <= 1'b0;

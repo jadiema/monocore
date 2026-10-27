@@ -2,18 +2,26 @@
 // A line lasts LINE_CYCLES CPU cycles, a multiple of 4 (pixel clock = 50 MHz / 4) chosen so that
 // a frame of SCREEN_H + 24 lines lasts as close to 1/60 s as possible (60.01 Hz at 240 lines).
 // The visible height is latched at the start of each frame.
+// Interlaced mode (DISP_CTRL bit 10, latched at frame start): SCREEN_H is the full picture height
+// (384..512, 0 means 480) and a frame is a field of SCREEN_H / 2 lines, timed like a progressive frame
+// of that height; field line v shows picture line 2v + field. A width above 384 (up to 640) is only
+// allowed with 270 field lines or fewer.
 module mc_vtiming (
 	input  wire        clk,
 	input  wire        rst_n,
 	input  wire [31:0] screen_h_reg,   // SCREEN_H register: 0 means 240, else clamped to 192..288
-	input  wire [31:0] screen_w_reg,   // SCREEN_W register: 0 means 320, else clamped to 224..384
+	input  wire [31:0] screen_w_reg,   // SCREEN_W register: 0 means 320, else clamped to 224..384 (640)
+	input  wire        ilace_reg,      // DISP_CTRL bit 10: interlaced
 	input  wire [31:0] line_cmp,
 	output reg  [9:0]  vcount,
-	output reg  [9:0]  height,         // latched visible height for the current frame
-	output reg  [8:0]  width,          // latched visible width for the current frame
+	output reg  [9:0]  height,         // latched visible lines (of the field when interlaced) for the current frame
+	output reg  [9:0]  width,          // latched visible width for the current frame
+	output reg         interlace,      // latched interlaced mode for the current frame
+	output reg         field,          // field parity of the current frame (0 when progressive)
 	output wire [9:0]  new_line,       // line that starts this cycle (valid with line_start)
+	output wire [9:0]  new_pline,      // picture line rendered in that line period (2 new_line + field when interlaced)
 	output wire [9:0]  new_height,
-	output wire [8:0]  new_width,
+	output wire [9:0]  new_width,
 	output reg  [31:0] frame,
 	output reg         in_vblank,
 	output wire        line_start,     // first cycle of a line
@@ -24,18 +32,26 @@ module mc_vtiming (
 	// requested size, clamped, kept in registers (two cycles behind the CPU registers; used at frame start):
 	// first the comparisons, then the choice
 	reg  [9:0] h_clamped;
-	reg  [8:0] w_clamped;
-	reg        h0, hlo, hhi, w0, wlo, whi;
+	reg  [9:0] w_clamped;
+	reg        il_clamped;
+	reg        h0, hlo, hhi, ilo, ihi, w0, wlo, whi, wxhi, il;
 	reg  [9:0] hv;
-	reg  [8:0] wv;
-	wire [9:0] h_req = h0 ? 10'd240 : hlo ? 10'd192 : hhi ? 10'd288 : hv;
-	wire [8:0] w_req = w0 ? 9'd320 : wlo ? 9'd224 : whi ? 9'd384 : wv;
+	reg  [9:0] wv;
+	// field lines: progressive 192..288, interlaced SCREEN_H / 2 in 192..256 (0 gives 240 in both)
+	wire [9:0] h_req = h0 ? 10'd240 : il ? (ilo ? 10'd192 : ihi ? 10'd256 : {1'b0, hv[9:1]})
+	                                     : (hlo ? 10'd192 : hhi ? 10'd288 : hv);
+	wire       wide_ok = h_req <= 10'd270;
+	wire [9:0] w_req = w0 ? 10'd320 : wlo ? 10'd224 : wxhi ? (wide_ok ? 10'd640 : 10'd384) :
+	                   (whi && !wide_ok) ? 10'd384 : wv;
 	always @(posedge clk or negedge rst_n) begin
 		if (!rst_n) begin
-			h0 <= 1'b1; hlo <= 1'b0; hhi <= 1'b0; w0 <= 1'b1; wlo <= 1'b0; whi <= 1'b0; hv <= 10'd0; wv <= 9'd0;
+			h0 <= 1'b1; hlo <= 1'b0; hhi <= 1'b0; ilo <= 1'b0; ihi <= 1'b0; hv <= 10'd0; il <= 1'b0;
+			w0 <= 1'b1; wlo <= 1'b0; whi <= 1'b0; wxhi <= 1'b0; wv <= 10'd0;
 		end else begin
 			h0 <= screen_h_reg == 0; hlo <= screen_h_reg < 32'd192; hhi <= screen_h_reg > 32'd288; hv <= screen_h_reg[9:0];
-			w0 <= screen_w_reg == 0; wlo <= screen_w_reg < 32'd224; whi <= screen_w_reg > 32'd384; wv <= screen_w_reg[8:0];
+			ilo <= screen_h_reg < 32'd384; ihi <= screen_h_reg > 32'd512; il <= ilace_reg;
+			w0 <= screen_w_reg == 0; wlo <= screen_w_reg < 32'd224; whi <= screen_w_reg > 32'd384;
+			wxhi <= screen_w_reg > 32'd640; wv <= screen_w_reg[9:0];
 		end
 	end
 	reg [15:0] line_cycles_m2;          // LINE_CYCLES - 2 for the latched height
@@ -155,14 +171,17 @@ module mc_vtiming (
 	wire   nl_zero  = !started || next_zero;
 	assign new_height = nl_zero ? h_clamped : height;
 	assign new_width = nl_zero ? w_clamped : width;
+	wire   new_ilace = nl_zero ? il_clamped : interlace;
+	wire   new_field = nl_zero ? (il_clamped && interlace && !field) : field;
+	assign new_pline = new_ilace ? {new_line[8:0], new_field} : new_line;
 	assign vblank_pulse = line_start && new_line == new_height;
 	assign line_pulse = line_start && {22'd0, new_line} == line_cmp;
 	always @(posedge clk or negedge rst_n) begin
 		if (!rst_n) begin
 			last_q <= 1'b0; lcm2 <= 16'd3154; next_line <= 10'd1; next_zero <= 1'b0;
-			h_clamped <= 10'd240; w_clamped <= 9'd320;
+			h_clamped <= 10'd240; w_clamped <= 10'd320; il_clamped <= 1'b0;
 		end else begin
-			h_clamped <= h_req; w_clamped <= w_req;
+			h_clamped <= h_req; w_clamped <= w_req; il_clamped <= il;
 			lcm2 <= line_cycles_m2;
 			last_q <= started && !line_start && lcount == lcm2;
 			next_line <= (vcount == height + 10'd23) ? 10'd0 : vcount + 10'd1;
@@ -172,7 +191,8 @@ module mc_vtiming (
 
 	always @(posedge clk or negedge rst_n) begin
 		if (!rst_n) begin
-			started <= 1'b0; vcount <= 10'd0; height <= 10'd240; width <= 9'd320; frame <= 32'd0;
+			started <= 1'b0; vcount <= 10'd0; height <= 10'd240; width <= 10'd320; frame <= 32'd0;
+			interlace <= 1'b0; field <= 1'b0;
 			in_vblank <= 1'b0; lcount <= 16'd0;
 		end else begin
 			started <= 1'b1;
@@ -181,6 +201,8 @@ module mc_vtiming (
 				vcount <= new_line;
 				height <= new_height;
 				width <= new_width;
+				interlace <= new_ilace;
+				field <= new_field;
 				if (new_line == 10'd0) in_vblank <= 1'b0;
 				if (vblank_pulse) begin in_vblank <= 1'b1; frame <= frame + 32'd1; end
 			end else lcount <= lcount + 16'd1;

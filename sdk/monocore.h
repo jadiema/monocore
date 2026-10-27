@@ -36,6 +36,11 @@
 #define DISP_LAYER(n) (1u << (1 + (n)))
 #define DISP_SPRITES  (1u << 5)
 #define DISP_ROT(r)   ((uint32_t)(r) << 8)
+#define DISP_INTERLACE (1u << 10)   // hardware version 5: SCREEN_H = full height 384-512, fields of SCREEN_H / 2 lines
+
+#define STATUS_VBLANK   (1u << 0)
+#define STATUS_SPR_OVF  (1u << 1)
+#define STATUS_FIELD    (1u << 2)    // parity of the current field (interlaced): picture line = 2 * VCOUNT + field
 
 #define LAYER_CTRL(n)    REG32(GPU_BASE + 0x100 + (n) * 0x20)
 #define LAYER_CHR(n)     REG32(GPU_BASE + 0x104 + (n) * 0x20)
@@ -122,7 +127,7 @@ typedef struct {
 #define DMA_LEN     REG32(IO_BASE + 0x48)
 #define DMA_CTRL    REG32(IO_BASE + 0x4C)
 #define DEBUG_OUT   REG32(IO_BASE + 0x60)
-#define HW_VERSION  REG32(IO_BASE + 0x70)   // 2: pads 3-4, analog inputs, keyboard (1 before); 3: mouse; 4: MIDI
+#define HW_VERSION  REG32(IO_BASE + 0x70)   // 2: pads 3-4, analog inputs, keyboard (1 before); 3: mouse; 4: MIDI; 5: high resolution, interlaced
 #define IN_P3       REG32(IO_BASE + 0x80)
 #define IN_P4       REG32(IO_BASE + 0x84)
 #define ANALOG_P(n) REG32(IO_BASE + 0x90 + 4 * (n))   // n = 0..3: left X, left Y, right X, right Y (int8)

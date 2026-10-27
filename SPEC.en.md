@@ -1,6 +1,6 @@
 # MONOCORE-1 — virtual console specification
 
-Version 0.6 — October 2026 (4 pads, analog inputs, keyboard, mouse and MIDI input; single 50 MHz clock)
+Version 0.7 — October 2026 (4 pads, analog inputs, keyboard, mouse, MIDI input, high resolution and interlaced mode; single 50 MHz clock)
 
 *English translation of `SPEC.md`; the French text is the reference.*
 
@@ -54,6 +54,8 @@ All spaces accept 8-, 16- and 32-bit accesses, little-endian. Graphics are read 
 ### 4.1 Picture format
 
 - Adjustable native resolution: width 224 to 384 pixels, height 192 to 288 lines (`SCREEN_W`, `SCREEN_H`, taken into account at the next frame). Default: 320 × 240.
+- **High resolution**: the width can go up to 640 pixels if the frame has at most 270 lines (its lines then last at least 2,832 cycles, enough to compute 640 pixels); otherwise, a width above 384 is brought back to 384. Pixels are narrower and the picture stays 4:3; 640 × 270 gives exactly 4 times the screen height on a 1080p TV.
+- **Interlaced mode** (bit 10 of `DISP_CTRL`, taken into account at the start of the frame): `SCREEN_H` then gives the height of the full picture, 384 to 512 lines (0 means 480; an odd value is rounded down to the even number below). Each frame shows only every other line: a *field* of `SCREEN_H / 2` lines, whose field line v shows picture line `2v + p`, where p is the field parity (bit 2 of `STATUS`). The parity changes at every frame as long as the mode stays interlaced, and is 0 on the first interlaced frame. Timing is that of a progressive frame of `SCREEN_H / 2` lines (60.01 Hz per field in 640 × 480): the rendering budget per line is therefore intact and the width can always go up to 640. On MiSTer, the field signal is passed to the framework, whose scaler rebuilds the full picture over HDMI.
 - Total number of lines per frame: `SCREEN_H + 24` (24 lines of vertical blanking).
 - A line lasts `4 × ⌊50 000 000 / (240 × total lines)⌋` CPU cycles (a whole number of pixels at 12.5 MHz), i.e. 3,156 cycles and 60.01 Hz with 240 lines (2,668 cycles with 288 lines, the shortest line). The height is taken into account at the start of each frame.
 - Output rotation 0°, 90°, 180°, 270° for vertical games (Pac-Man, Galaga… are described as 224 × 288 then rotated by 90°). The rotation is done by the output scaler of the MiSTer framework.
@@ -63,14 +65,14 @@ All spaces accept 8-, 16- and 32-bit accesses, little-endian. Graphics are read 
 
 | Offset | Name | Description |
 |---|---|---|
-| 0x000 | `DISP_CTRL` | bit 0 display; bits 1–4 layers 0–3; bit 5 sprites; bits 8–9 rotation (0, 90, 180, 270° clockwise) |
-| 0x004 | `SCREEN_W` | visible width (224–384) |
-| 0x008 | `SCREEN_H` | visible height (192–288) |
+| 0x000 | `DISP_CTRL` | bit 0 display; bits 1–4 layers 0–3; bit 5 sprites; bits 8–9 rotation (0, 90, 180, 270° clockwise); bit 10 interlaced |
+| 0x004 | `SCREEN_W` | visible width (224–384, up to 640 in high resolution) |
+| 0x008 | `SCREEN_H` | visible height (192–288; 384–512 interlaced) |
 | 0x00C | `BG_COLOR` | palette index of the background colour |
 | 0x010 | `LINE_CMP` | line that triggers the LINE interrupt (compared on 32 bits: an off-screen value, e.g. 0x7FFF, disables it) |
-| 0x014 | `VCOUNT` | current line (read only); 0 to `SCREEN_H−1` visible |
+| 0x014 | `VCOUNT` | current line (read only); 0 to `SCREEN_H−1` visible (interlaced: field line, 0 to `SCREEN_H / 2 − 1`) |
 | 0x018 | `FRAME` | frame counter (read only) |
-| 0x01C | `STATUS` | bit 0 in vertical blanking; bit 1 sprite overflow during the previous frame |
+| 0x01C | `STATUS` | bit 0 in vertical blanking; bit 1 sprite overflow during the previous frame; bit 2 parity of the current field (always 0 when progressive) |
 | 0x020 | `SPR_CHR` | base address of the sprite graphics |
 | 0x024 | `SPR_COUNT` | number of sprite table entries scanned (0–512) |
 | 0x028 | `SPR_PEAK` | statistic: maximum number of sprites on one line during the previous frame |
@@ -102,13 +104,13 @@ The map wraps around in both directions.
 
 ### 4.5 When rendering happens
 
-Each visible line y is computed at the start of its own period (when `VCOUNT` becomes y), then displayed during the next line; this one-line delay is invisible to software. The computation uses the state of the video registers and memories (palette included) **at the start of the line**: during this computation, a CPU or DMA write to the video block (`0x2000_0000`) is held until it ends. A write made during line y therefore always takes effect at line y + 1, whether it is a scroll, a palette colour or a tile. Reads are never delayed.
+Each visible line y is computed at the start of its own period (when `VCOUNT` becomes y), then displayed during the next line; this one-line delay is invisible to software. When interlaced, the period of field line v computes picture line `2v + p`: layer, sprite and scroll-table coordinates are always those of the full picture. A tile map covers at most 4096 cells: to cover 640 × 480, a layer uses 16 × 16 tiles (64 × 32 map, i.e. 1024 × 512 pixels); with 8 × 8 tiles, a 128 × 32 map covers 1024 × 256 pixels. The computation uses the state of the video registers and memories (palette included) **at the start of the line**: during this computation, a CPU or DMA write to the video block (`0x2000_0000`) is held until it ends. A write made during line y therefore always takes effect at line y + 1, whether it is a scroll, a palette colour or a tile. Reads are never delayed.
 
 The duration of the computation depends on the contents: about 400 cycles for a line of plain text, a little under 900 for the menu of the test ROM (two layers, one zoomed 8 bpp sprite). It always stays below the duration of a line: the worst case measured (4 layers of 16 × 16 tiles in 8 bpp read from ROM and 8 bpp shrunk sprites at the maximum budget) takes about 1,550 cycles, for 2,668 cycles in the shortest line.
 
 ### 4.6 Per-line scroll
 
-If bit 6 of `Ln_CTRL` is set, screen line y of layer n adds two offsets read at `0x2008_0000 + n × 0x800 + y × 4`: a horizontal `int16` then a vertical `int16`. This is what racing-game roads, waves and the "rowscroll" of Capcom or Konami boards use. For more exotic effects, the LINE interrupt lets you change any register between two lines.
+If bit 6 of `Ln_CTRL` is set, screen line y of layer n (line of the full picture when interlaced) adds two offsets read at `0x2008_0000 + n × 0x800 + y × 4`: a horizontal `int16` then a vertical `int16`. This is what racing-game roads, waves and the "rowscroll" of Capcom or Konami boards use. For more exotic effects, the LINE interrupt lets you change any register between two lines.
 
 ### 4.7 Sprites
 
@@ -214,7 +216,7 @@ Each side of the output is `⌊sum × MASTER_VOL × 77 / 65 536⌋`, clamped to 
 | 0x48 | `DMA_LEN` | length in bytes |
 | 0x4C | `DMA_CTRL` | write bit 0 start, bit 1 fill mode; read bit 0 busy |
 | 0x60 | `DEBUG_OUT` | each byte written = one character on the debug console (absent from the final FPGA) |
-| 0x70 | `HW_VERSION` | hardware version: 2 since players 3 and 4, analog and keyboard were added (1 before), 3 since the mouse was added, 4 since the MIDI input was added |
+| 0x70 | `HW_VERSION` | hardware version: 2 since players 3 and 4, analog and keyboard were added (1 before), 3 since the mouse was added, 4 since the MIDI input was added, 5 since high resolution and interlaced mode were added |
 | 0x80 | `IN_P3` | player 3, same format as `IN_P1` |
 | 0x84 | `IN_P4` | player 4 |
 | 0x90 + 4n | `ANALOG_Pn` | pad n (0-3 = players 1-4): left stick X (bits 7–0) and Y (15–8), right stick X (23–16) and Y (31–24), signed from −127 to +127, 0 at rest; positive Y is down |
@@ -225,9 +227,9 @@ Each side of the output is `⌊sum × MASTER_VOL × 77 / 65 536⌋`, clamped to 
 | 0xD8 | `MOUSE_BTN` | bit 0 left button, 1 right, 2 middle (1 = pressed); bits 15–8: wheel counter (8 bits, accumulates the signed notches, positive when turned away from the user, as in Linux); bit 31: at least one packet received since reset (a mouse is plugged in) |
 | 0xDC | `MIDI_IN` | MIDI input: read: bit 31 a byte is waiting, bit 30 bytes were lost (queue full) since the last write, bits 22–16 number of bytes waiting, bits 7–0 the oldest one; write (any value): removes that byte. Queue of 64 bytes, received as they are (raw MIDI messages, clock and sysex included) |
 
-Players 3 and 4, analog and keyboard come from the MiSTer framework: pads 3 and 4 from `hps_io`, analog sticks, paddles and spinners of pads 1 to 4, the board's USB keyboard (PS/2 codes). A ROM that wants to use them checks that `HW_VERSION` ≥ 2. The mouse (USB, or the board's PS/2 mouse) also comes from `hps_io` (`ps2_mouse`); a ROM that wants it checks that `HW_VERSION` ≥ 3. The MIDI input receives the framework's serial line (UART, 31,250 bauds, 8 bits, 1 stop bit): on MiSTer, MidiLink sends a USB MIDI keyboard to it when the core's menu is set to *UART: MIDI*; a ROM that wants it checks that `HW_VERSION` ≥ 4. Reading these registers has no side effect: only writing to `KEY_EVENT` advances the queue.
+Players 3 and 4, analog and keyboard come from the MiSTer framework: pads 3 and 4 from `hps_io`, analog sticks, paddles and spinners of pads 1 to 4, the board's USB keyboard (PS/2 codes). A ROM that wants to use them checks that `HW_VERSION` ≥ 2. The mouse (USB, or the board's PS/2 mouse) also comes from `hps_io` (`ps2_mouse`); a ROM that wants it checks that `HW_VERSION` ≥ 3. The MIDI input receives the framework's serial line (UART, 31,250 bauds, 8 bits, 1 stop bit): on MiSTer, MidiLink sends a USB MIDI keyboard to it when the core's menu is set to *UART: MIDI*; a ROM that wants it checks that `HW_VERSION` ≥ 4. A ROM that wants a width above 384 or interlaced mode checks that `HW_VERSION` ≥ 5. Reading these registers has no side effect: only writing to `KEY_EVENT` advances the queue.
 
-VBLANK fires at the start of line `SCREEN_H`, LINE at the start of line `LINE_CMP`. The CPU interrupt line is `(IRQ_STATUS & IRQ_ENABLE) != 0`.
+VBLANK fires at the start of line `SCREEN_H` (`SCREEN_H / 2` interlaced), LINE at the start of line `LINE_CMP` (compared with `VCOUNT`, hence with the field line when interlaced). The CPU interrupt line is `(IRQ_STATUS & IRQ_ENABLE) != 0`.
 
 Timers are typically used to clock the translated sound driver at the original rate (often 60 to 250 Hz). DMA is used for ROM → VRAM transfers or to clear memory. The CPU stays suspended on the write to `DMA_CTRL` until the transfer ends, which avoids any race between the two. It transfers 32-bit words when the source (for a copy) and the destination are aligned, otherwise bytes. Measured cost: fill 1 cycle per word; copy 3 cycles per word, plus about 2.5 per word read from ROM (about 0.7 byte per cycle from ROM and 1.3 bytes per cycle between internal memories).
 
@@ -273,7 +275,7 @@ The code starts at `0x100`. A translated ROM typically holds: the recompiled 680
 
 SDRAM bandwidth (16 bits, ~200 MB/s): at worst, 4 layers in 8 bpp at 384 pixels + 512 words of sprites per line ≈ 3.5 KB per line × 18,700 lines/s ≈ 65 MB/s for the video, the rest for the CPU (smoothed by its caches) and the sound.
 
-Rendering a line draws the sprites at one pixel per cycle: 1280 sprite pixels, plus the layers and the palette, fit in one line period (at least 2,668 cycles; the worst case measured takes about 1,550 cycles), hence the limits of §4.7.
+Rendering a line draws the sprites at one pixel per cycle: 1280 sprite pixels, plus the layers and the palette, fit in one line period (at least 2,668 cycles; the worst case measured takes about 1,550 cycles), hence the limits of §4.7. In high resolution (640 pixels), lines last at least 2,832 cycles; the worst case measured takes about 2,060 cycles, and the random ROM up to 2,600 cycles in 640 × 480 interlaced (lines of 3,156 cycles).
 
 ## 10. Out of scope for v0.1
 

@@ -58,8 +58,9 @@ module mc_system #(
 	output wire        vga_hblank,
 	output wire        vga_vblank,
 	output wire [1:0]  rotation,
-	output wire [8:0]  width,
+	output wire [9:0]  width,
 	output wire [9:0]  height,
+	output wire        vga_f1,         // field of an interlaced picture (VGA_F1)
 	// sound
 	output reg  [15:0] audio_l,
 	output reg  [15:0] audio_r,
@@ -78,6 +79,7 @@ module mc_system #(
 	output wire [7:0]  dbg_char,
 	output wire [9:0]  dbg_vcount,     // line period in progress (simulation)
 	output wire [15:0] dbg_window,     // length of the last render window (simulation)
+	output wire        dbg_interlace,  // this frame is a field of an interlaced picture (simulation)
 	// SDRAM
 	output wire [12:0] sd_a,
 	output wire [1:0]  sd_ba,
@@ -176,9 +178,11 @@ module mc_system #(
 	wire [31:0] rom_data, gfx_data;
 	wire [9:0]  vcount;
 	assign dbg_vcount = vcount;
+	assign dbg_interlace = interlace;
 	wire [15:0] lcount;
 	wire        px_valid;
-	wire [8:0]  px_x;
+	wire        interlace, field;
+	wire [9:0]  px_x;
 	wire [9:0]  px_y;
 	wire [14:0] px_rgb;
 	wire        audio_valid;
@@ -263,7 +267,7 @@ module mc_system #(
 		.dbg_valid(dbg_valid), .dbg_char(dbg_char),
 		.vcount(vcount), .vblank_pulse(), .line_start(),
 		.px_valid(px_valid), .px_x(px_x), .px_y(px_y), .px_rgb(px_rgb), .window_cycles(dbg_window),
-		.lcount(lcount), .height(height), .width(width), .rotation(rotation),
+		.lcount(lcount), .height(height), .width(width), .interlace(interlace), .field(field), .rotation(rotation),
 		.audio_valid(audio_valid), .audio_l(a_l), .audio_r(a_r),
 		.dbg_apu_wr(), .dbg_apu_addr(), .dbg_apu_data(), .dbg_apu_be());
 
@@ -292,8 +296,8 @@ module mc_system #(
 	// ---------------------------------------------------------------- video
 	mc_scanout scanout (
 		.clk(clk), .rst_n(core_rst_n),
-		.lcount(lcount), .vcount(vcount), .height(height), .width(width),
+		.lcount(lcount), .vcount(vcount), .height(height), .width(width), .interlace(interlace), .field(field),
 		.px_valid(px_valid), .px_x(px_x), .px_y(px_y), .px_rgb(px_rgb),
 		.ce_pix(ce_pix), .r(vga_r), .g(vga_g), .b(vga_b), .hs(vga_hs), .vs(vga_vs),
-		.hblank(vga_hblank), .vblank(vga_vblank));
+		.hblank(vga_hblank), .vblank(vga_vblank), .f1(vga_f1));
 endmodule

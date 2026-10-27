@@ -214,7 +214,7 @@ module mc_io (
 		10'h010: rdata <= dma_src;
 		10'h011: rdata <= dma_dst;
 		10'h012: rdata <= dma_len;
-		10'h01C: rdata <= 32'h00000004;   // 0x70: hardware version 4 (2: pads 3-4, analog, keyboard; 3: mouse; 4: MIDI)
+		10'h01C: rdata <= 32'h00000005;   // 0x70: hardware version 5 (2: pads 3-4, analog, keyboard; 3: mouse; 4: MIDI; 5: high resolution, interlaced)
 		default: rdata <= 32'd0;
 		endcase
 	end

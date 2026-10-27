@@ -30,6 +30,16 @@ for d in fz fs; do
 	echo "images identiques : $ok sur $n"
 done
 
+# High resolution and interlaced output (scan-out with 640-pixel lines, VGA_F1): frames of the
+# random ROM in 512 x 448i, 640 x 512i, 640 x 480i and 640 x 270 (see tools/vidfuzz/vidfuzz.c, DIP 512)
+echo "== haute resolution et entrelace"
+mkdir -p $W/hr/js $W/hr/sys
+HR=""; for f in 11 13 59 61 107 109 155 157; do HR="$HR $f:shot=v$f"; done
+node tools/run.js tools/vidfuzz/vidfuzz_hr.mnc $W/hr/js "$HR" > /dev/null
+rtl/obj_sys/Vmc_system tools/vidfuzz/vidfuzz_hr.mnc $W/hr/sys "$HR" > $W/hr.log 2>&1
+grep "frames" $W/hr.log
+for f in 11 13 59 61 107 109 155 157; do python3 tools/cmp_ppm.py $W/hr/js/v$f.ppm $W/hr/sys/v$f.ppm $W/hr/d_v$f.png; done
+
 # Loading a ROM over a running one (OSD): the test ROM plays its music, then hello is loaded.
 # Nothing of the first game may remain: same picture as hello alone, sound silent apart from a click.
 echo "== chargement par-dessus une autre ROM"

@@ -1,6 +1,6 @@
 # MONOCORE-1 — notes de travail (pour Claude et pour les contributeurs)
 
-Console virtuelle figée pour MiSTer (DE10-Nano, Cyclone V 5CSEBA6U23I7). Un seul bitstream ; les jeux d'arcade sont **traduits** vers elle (recompilation statique vers RV32IM), ils ne sont pas émulés. Voir `README.md` pour la carte du dépôt, `SPEC.md` (v0.4) pour la référence matérielle.
+Console virtuelle figée pour MiSTer (DE10-Nano, Cyclone V 5CSEBA6U23I7). Un seul bitstream ; les jeux d'arcade sont **traduits** vers elle (recompilation statique vers RV32IM), ils ne sont pas émulés. Voir `README.md` pour la carte du dépôt, `SPEC.md` (v0.7) pour la référence matérielle.
 
 ## Conventions
 
@@ -13,6 +13,7 @@ Console virtuelle figée pour MiSTer (DE10-Nano, Cyclone V 5CSEBA6U23I7). Un seu
 
 - **Une seule horloge de 50 MHz** pour toute la console. Le CPU Hazard3 RV32IM (Apache 2.0, non modifié, `rtl/hazard3`) plafonne vers 53 MHz sur ce FPGA ; chemin critique décodage → x_stall_on_raw → d_htrans → bus. Les mémoires bloc GPU/WRAM/NVRAM sont lues de façon spéculative dès que `hready_nc` est haut pour sortir `d_htrans` du chemin critique.
 - Ligne = 4 × ⌊5e7 / (240 × lignes totales)⌋ cycles (3156 à 240 lignes, 2668 à 288). Un pixel tous les 4 cycles (12,5 MHz). Échantillon son au cycle ⌈k × 5e7 / 48000⌉.
+- Haute résolution (matériel version 5) : largeur jusqu'à 640 si la trame a au plus 270 lignes (tampons de ligne de 1024 pixels, coordonnées sur 10 bits) ; mode entrelacé par le bit 10 de `DISP_CTRL` (`SCREEN_H` = hauteur complète 384–512, trames de `SCREEN_H / 2` lignes, ligne de trame v → ligne d'image 2v + parité, parité au bit 2 de `STATUS`). Le simulateur garde l'image complète (`pic`, pas de 640) d'une trame à l'autre, comme les bancs Verilator ; `VGA_F1` = 1 sur les trames paires (convention de `sys/ascal.vhd`). Vérification : `tools/vidfuzz/vidfuzz_hr.mnc` (DIP 512) et `vfs_hr.mnc` (pire cas, DIP 768).
 - Budgets par ligne : 64 sprites, 1280 pixels de sprites, 512 mots de graphismes. Son : 8 voix PCM/ADPCM + 8 canaux PSG. ROM ≤ 32 Mo. Bloc FM (YM2151) réservé en `0x3000_1000`, **pas encore fait**.
 - SDRAM à 100 MHz (horloge 2× en phase) : une rangée ouverte par banque, BL2, CL2 ; priorité rafraîchissement > écriture > graphismes > ROM (ROM servie après 8 mots graphiques d'affilée). Option OSD « Lecture SDRAM » Normale/Retardée = capture décalée d'un cycle (`sd_rd_late`).
 - Sortie : double tampon de ligne, HDMI via le framework MiSTer (scaler), son en HDMI.

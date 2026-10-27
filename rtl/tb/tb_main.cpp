@@ -103,8 +103,9 @@ int main(int argc, char **argv) {
         for (int i = 0; i < 4; i++) { top->in_analog[i] = an[i]; top->in_paddle[i] = pd[i]; }
     };
     // frame capture (pixels come from the renderer's palette stage)
-    std::vector<uint32_t> fb(384 * 288, 0);
+    std::vector<uint32_t> fb(640 * 512, 0);   // largest picture (640 pixels, 512 lines interlaced)
     int fb_w = 0, fb_h = 0;
+    bool fb_il = false;          // the frame was a field: the picture has an even number of lines
     auto shot = [&](int f) {
         auto r = events.equal_range(f);
         for (auto it = r.first; it != r.second; ++it) {
@@ -112,10 +113,11 @@ int main(int argc, char **argv) {
             if (a.rfind("shot", 0) != 0) continue;
             std::string name = a.size() > 5 ? a.substr(5) : ("f" + std::to_string(f));
             std::ofstream o(outdir + "/" + name + ".ppm", std::ios::binary);
-            o << "P6\n" << fb_w << " " << fb_h << "\n255\n";
-            for (int yy = 0; yy < fb_h; yy++)
+            int hh = fb_il ? (fb_h + 1) & ~1 : fb_h;
+            o << "P6\n" << fb_w << " " << hh << "\n255\n";
+            for (int yy = 0; yy < hh; yy++)
                 for (int xx = 0; xx < fb_w; xx++) {
-                    uint32_t c = fb[yy * 384 + xx];
+                    uint32_t c = fb[yy * 640 + xx];
                     int rr = (c >> 10) & 31, gg = (c >> 5) & 31, bb = c & 31;
                     unsigned char px[3] = {(unsigned char)((rr << 3) | (rr >> 2)), (unsigned char)((gg << 3) | (gg >> 2)), (unsigned char)((bb << 3) | (bb >> 2))};
                     o.write((const char *)px, 3);
@@ -225,7 +227,8 @@ int main(int argc, char **argv) {
         if (top->px_valid) npx++;
         if (top->px_valid) {
             int xx = top->px_x, yy = top->px_y;
-            if (xx < 384 && yy < 288) { fb[yy * 384 + xx] = top->px_rgb; if (xx + 1 > fb_w) fb_w = xx + 1; if (yy + 1 > fb_h) fb_h = yy + 1; }
+            if (top->interlace) fb_il = true;
+            if (xx < 640 && yy < 512) { fb[yy * 640 + xx] = top->px_rgb; if (xx + 1 > fb_w) fb_w = xx + 1; if (yy + 1 > fb_h) fb_h = yy + 1; }
         }
         {
             static int prev_wc = -1;
@@ -241,7 +244,7 @@ int main(int argc, char **argv) {
             shot(frame);
             if (win_frame_max > win_max) win_max = win_frame_max;
             win_hist.push_back(win_frame_max);
-            win_frame_max = 0; fb_w = 0; fb_h = 0;
+            win_frame_max = 0; fb_w = 0; fb_h = 0; fb_il = false;
             frame++;
             if (frame > last) break;
             apply(frame);

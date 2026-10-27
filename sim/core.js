@@ -12,6 +12,7 @@
   const PCM_VOICES = 8;
   const SPR_PIX_MAX = 1280;
   const SPR_WORD_MAX = 512;    // graphics words per line (bound: min(width on screen, source row words))
+  const PIC_W = 640, PIC_H = 512; // largest picture: 640 pixels wide, 512 lines (interlaced)
 
   const WRAM_BASE = 0x10000000, WRAM_SIZE = 0x20000;      // 128 KB (FPGA block RAM)
   const RESET_PC = 0x100;
@@ -104,9 +105,15 @@
       this.apuDV.setUint32(0xF00, 255, true);
       // DISP_CTRL resets to 0: the header rotation only orients the display until the ROM sets it
       this.scrW = 320; this.scrH = 240;
+      // interlaced mode (DISP_CTRL bit 10): scrH is the full picture height, fieldH the lines of a field
+      this.fieldH = 240; this.interlace = false; this.field = 0;
       this.frame = 0; this.vcount = 0; this.inVblank = false;
       this.sprOverflow = false; this.sprOverflowCur = false; this.sprPeak = 0; this.sprPeakCur = 0;
-      this.frameBuf = new Uint32Array(384 * 288);
+      // picture lines are rendered into pic (fixed 640-pixel stride, like the RTL testbench), then
+      // copied to frameBuf (stride scrW) at the end of each frame; in interlaced mode the lines of the
+      // other field stay from the previous frame
+      this.pic = new Uint32Array(PIC_W * PIC_H);
+      this.frameBuf = new Uint32Array(PIC_W * PIC_H);
       // I/O
       this.inputs = [0, 0, 0, 0, 0];          // IN_P1, IN_P2, IN_SYS, IN_P3, IN_P4
       this.analog = [0, 0, 0, 0];             // ANALOG_P1-4 (32 bits each)
@@ -265,7 +272,7 @@
       let v;
       if (w === 0x014) v = this.vcount;
       else if (w === 0x018) v = this.frame;
-      else if (w === 0x01C) v = (this.inVblank ? 1 : 0) | (this.sprOverflow ? 2 : 0);
+      else if (w === 0x01C) v = (this.inVblank ? 1 : 0) | (this.sprOverflow ? 2 : 0) | (this.field ? 4 : 0);
       else if (w === 0x028) v = this.sprPeak;
       else return this.dvRead(this.gpuDV, o, size);
       const sh = (o & 3) * 8;
@@ -291,7 +298,7 @@
         case 0x44: return this.dma.dst;
         case 0x48: return this.dma.len;
         case 0x4C: return 0;
-        case 0x70: return 0x00000004; // hardware version 4 (2: pads 3-4, analog, keyboard; 3: mouse; 4: MIDI)
+        case 0x70: return 0x00000005; // hardware version 5 (2: pads 3-4, analog, keyboard; 3: mouse; 4: MIDI; 5: high resolution, interlaced)
         case 0xDC: return ((this.midiQueue.length ? 0x80000000 : 0) | (this.midiLost ? 0x40000000 : 0) |
                            (this.midiQueue.length << 16) | (this.midiQueue.length ? this.midiQueue[0] : 0)) | 0;
         case 0xD4: return ((this.mouse.y & 0xFFFF) << 16) | (this.mouse.x & 0xFFFF);
@@ -479,12 +486,12 @@
     // ---------------------------------------------------------------- GPU
     renderLine(y) {
       const g = this.gpuDV, W = this.scrW;
-      const out = this.frameBuf, rowOff = y * W;
+      const out = this.pic, rowOff = y * PIC_W;
       const ctrl = g.getUint32(0, true);
       const pal = this.palRGBA;
       if (!(ctrl & 1)) { for (let x = 0; x < W; x++) out[rowOff + x] = 0xff000000; return; }
-      const col = this.lineCol || (this.lineCol = new Uint16Array(384));
-      const pri = this.linePri || (this.linePri = new Int8Array(384));
+      const col = this.lineCol || (this.lineCol = new Uint16Array(PIC_W));
+      const pri = this.linePri || (this.linePri = new Int8Array(PIC_W));
       col.fill(g.getUint32(0x0C, true) & 0xfff, 0, W);
       pri.fill(-1, 0, W);
 
@@ -588,9 +595,17 @@
     // ---------------------------------------------------------------- frame loop
     runFrame() {
       const w = this.gpuDV.getUint32(4, true), h = this.gpuDV.getUint32(8, true);
-      this.scrW = Math.max(224, Math.min(384, w || 320));
-      this.scrH = Math.max(192, Math.min(288, h || 240));
-      const total = this.scrH + VBLANK_LINES;
+      const il = ((this.gpuDV.getUint32(0, true) >>> 10) & 1) === 1;
+      // field lines: progressive 192..288 (0: 240); interlaced SCREEN_H / 2 in 192..256 (0: 480 lines)
+      const F = il ? (h === 0 ? 240 : h < 384 ? 192 : h > 512 ? 256 : h >>> 1)
+                   : (h === 0 ? 240 : h < 192 ? 192 : h > 288 ? 288 : h);
+      // a width above 384 needs lines of at least 2832 cycles: 270 field lines or fewer
+      const wmax = F <= 270 ? 640 : 384;
+      this.scrW = w === 0 ? 320 : w < 224 ? 224 : w > wmax ? wmax : w;
+      this.field = il && this.interlace ? this.field ^ 1 : 0;
+      this.interlace = il; this.fieldH = F;
+      this.scrH = il ? 2 * F : F;
+      const total = F + VBLANK_LINES;
       // a line lasts a whole number of 4-cycle pixels (12.5 MHz, see rtl/mc_vtiming.v)
       const cpl = 4 * Math.floor(CPU_HZ / (FPS * 4 * total));
       this.audioN = 0;
@@ -603,23 +618,30 @@
           this.inVblank = false;
           this.sprOverflowCur = false; this.sprPeakCur = 0;
         }
-        if (line === this.scrH) {
+        if (line === F) {
           this.inVblank = true;
           this.sprOverflow = this.sprOverflowCur; this.sprPeak = this.sprPeakCur;
           this.frame = (this.frame + 1) >>> 0;
           this.irqStatus |= 1; this.brk = true;
         }
         if (line === this.gpuDV.getUint32(0x10, true)) { this.irqStatus |= 2; }
-        if (line < this.scrH) this.renderLine(line);
+        if (line < F) this.renderLine(il ? 2 * line + this.field : line);
         this.cycleAcc += cpl;
         const target = Math.round(startCycles + this.cycleAcc); // integer cycle counts
         this.runUntil(target);
       }
+      this.present();
       this.cycleAcc -= cpl * total;
       const fc = cpl * total;
       this.stats.load = Math.min(1, this.stats.busy / fc);
       this.stats.instr = this.instret - startInstr;
       return this.audioN;
+    }
+
+    // copy the picture (stride PIC_W) to frameBuf (stride scrW, scrH lines)
+    present() {
+      const W = this.scrW, H = this.scrH, src = this.pic, dst = this.frameBuf;
+      for (let y = 0; y < H; y++) dst.set(src.subarray(y * PIC_W, y * PIC_W + W), y * W);
     }
 
     // run CPU (and timers) until absolute cycle target

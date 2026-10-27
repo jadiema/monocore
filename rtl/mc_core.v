@@ -57,14 +57,16 @@ module mc_core (
 	output wire        line_start,
 	// rendered pixels (scan-out comes with the MiSTer integration)
 	output wire        px_valid,
-	output wire [8:0]  px_x,
-	output wire [9:0]  px_y,
+	output wire [9:0]  px_x,
+	output wire [9:0]  px_y,          // picture line (of the full picture when interlaced)
 	output wire [14:0] px_rgb,
 	output wire [15:0] window_cycles,
 	// video timing for the scan-out (rtl/mister/mc_scanout.v)
 	output wire [15:0] lcount,        // cycle within the line
-	output wire [9:0]  height,        // visible lines of this frame
-	output wire [8:0]  width,         // visible pixels of this frame
+	output wire [9:0]  height,        // visible lines of this frame (of the field when interlaced)
+	output wire [9:0]  width,         // visible pixels of this frame
+	output wire        interlace,     // this frame is a field of an interlaced picture
+	output wire        field,         // its parity (picture lines 2v + field)
 	output wire [1:0]  rotation,
 	// sound output, one stereo sample at 48 kHz
 	output wire        audio_valid,
@@ -308,8 +310,9 @@ module mc_core (
 
 	// video
 	wire [31:0] screen_w, screen_h, line_cmp;
-	wire [9:0]  new_line, new_height;
-	wire [8:0]  new_width;
+	wire [9:0]  new_line, new_pline, new_height;
+	wire [9:0]  new_width;
+	wire        ilace_reg;
 	wire [31:0] frame;
 	wire        in_vblank, line_pulse;
 
@@ -318,16 +321,17 @@ module mc_core (
 		.rd(s_rd[S_GPU]), .raddr(s_raddr[19:0]), .wr(s_wr[S_GPU]), .waddr(s_waddr[19:0]),
 		.wdata(s_wdata), .be(s_be), .rdata(s_rdata[S_GPU]), .ready(s_ready[S_GPU]), .wr_ok(s_wrok[S_GPU]),
 		.vcount(vcount), .frame(frame), .in_vblank(in_vblank),
-		.line_start(line_start), .new_line(new_line), .new_height(new_height), .new_width(new_width),
-		.vblank_pulse(vblank_pulse), .rom_size(rom_size),
+		.line_start(line_start), .new_line(new_line), .new_pline(new_pline), .new_height(new_height), .new_width(new_width),
+		.field(field), .ilace_reg(ilace_reg), .vblank_pulse(vblank_pulse), .rom_size(rom_size),
 		.screen_w(screen_w), .screen_h(screen_h), .line_cmp(line_cmp),
 		.g_req(gfx_req), .g_addr(gfx_addr), .g_rdy(gfx_rdy), .g_valid(gfx_valid), .g_data(gfx_data),
 		.px_valid(px_valid), .px_x(px_x), .px_y(px_y), .px_rgb(px_rgb), .window_cycles(window_cycles),
 		.rotation(rotation));
 
 	mc_vtiming vtiming (
-		.clk(clk), .rst_n(rst_n), .screen_h_reg(screen_h), .screen_w_reg(screen_w), .line_cmp(line_cmp),
-		.vcount(vcount), .height(height), .width(width), .new_line(new_line), .new_height(new_height), .new_width(new_width),
+		.clk(clk), .rst_n(rst_n), .screen_h_reg(screen_h), .screen_w_reg(screen_w), .ilace_reg(ilace_reg), .line_cmp(line_cmp),
+		.vcount(vcount), .height(height), .width(width), .interlace(interlace), .field(field),
+		.new_line(new_line), .new_pline(new_pline), .new_height(new_height), .new_width(new_width),
 		.frame(frame), .in_vblank(in_vblank),
 		.line_start(line_start), .vblank_pulse(vblank_pulse), .line_pulse(line_pulse), .lcount(lcount));
 

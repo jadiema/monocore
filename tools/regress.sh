@@ -26,6 +26,16 @@ tools/vidfuzz/run_cmp.sh tools/vidfuzz/vfs.mnc $W/fuzzs 21 > $W/fuzzs.txt 2>&1
 echo "images identiques : $(grep -c ' 0 pixels' $W/fuzzs.txt) sur $(grep -c 'pixels' $W/fuzzs.txt)"
 grep -v " 0 pixels" $W/fuzzs.txt
 echo "fenetre de rendu max (image, cycles) : $(sort -k2 -n $W/fuzzs/rtl/windows.txt | tail -1)"
+echo "== ROM video aleatoire haute resolution et entrelacee (DIP 512)"
+tools/vidfuzz/run_cmp.sh tools/vidfuzz/vidfuzz_hr.mnc $W/fuzzh ${FUZZ_HR_LAST:-161} > $W/fuzzh.txt 2>&1
+echo "images identiques : $(grep -c ' 0 pixels' $W/fuzzh.txt) sur $(grep -c 'pixels' $W/fuzzh.txt)"
+grep -v " 0 pixels" $W/fuzzh.txt
+echo "fenetre de rendu max (image, cycles) : $(sort -k2 -n $W/fuzzh/rtl/windows.txt | tail -1)"
+echo "== ROM video pire cas haute resolution (DIP 768 ; 2 832 cycles par ligne en 640 x 270)"
+tools/vidfuzz/run_cmp.sh tools/vidfuzz/vfs_hr.mnc $W/fuzzhs ${FUZZ_HR_LAST:-161} > $W/fuzzhs.txt 2>&1
+echo "images identiques : $(grep -c ' 0 pixels' $W/fuzzhs.txt) sur $(grep -c 'pixels' $W/fuzzhs.txt)"
+grep -v " 0 pixels" $W/fuzzhs.txt
+echo "fenetre de rendu max (image, cycles) : $(sort -k2 -n $W/fuzzhs/rtl/windows.txt | tail -1)"
 echo "== Son"
 # register write logs (tools/apu/logs: sessions of the test ROM and random writes), replayed by the
 # simulator's sound engine and by the RTL one; PCM data is read from the current test ROM

@@ -894,7 +894,7 @@ __CORE_JS__
     const t0 = m.timers[0];
     $('timer0').textContent = t0.on && t0.reload ? (1e8 / t0.reload).toFixed(1) + ' Hz' : t('stopped');
     const rot = (m.gpuDV.getUint32(0, true) >> 8) & 3;
-    $('res').textContent = m.scrW + ' × ' + m.scrH;
+    $('res').textContent = m.scrW + ' × ' + m.scrH + (m.interlace ? 'i' : '');
     $('rot').textContent = (rot * 90) + '°';
     $('frameNo').textContent = m.frame;
     let np = 0, ns = 0;

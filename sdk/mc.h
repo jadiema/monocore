@@ -37,10 +37,15 @@ void mc_debug_putc(char c);
 void mc_debug(const char *fmt, ...);        // reduced printf: %d %u %x %X %s %c %p %%, width and 0
 
 // ================================================================ video
-void mc_video_mode(int width, int height);  // 224-384 x 192-288; 0, 0 = 320 x 240
+// 224-384 x 192-288; 0, 0 = 320 x 240. Hardware version 5: width up to 640 with 270 lines or fewer, and a
+// height of 384-512 selects the interlaced mode (fields of height / 2 lines, e.g. 640 x 480): VCOUNT, LINE_CMP
+// and mc_raster_add then count field lines, everything else uses lines of the full picture.
+void mc_video_mode(int width, int height);
 int  mc_screen_w(void);
-int  mc_screen_h(void);
-void mc_display(uint32_t flags);            // DISP_ON | DISP_LAYER(n) | DISP_SPRITES | DISP_ROT(r)
+int  mc_screen_h(void);                     // full picture height, also when interlaced
+int  mc_interlaced(void);
+int  mc_field(void);                        // parity of the current field: picture line = 2 * VCOUNT + mc_field()
+void mc_display(uint32_t flags);            // DISP_ON | DISP_LAYER(n) | DISP_SPRITES | DISP_ROT(r); keeps the mode's DISP_INTERLACE
 
 // colours: 256 palettes of 16 colours (4096 RGB555 entries); in 8 bpp, one palette = 16 x 16
 #define MC_RGB(r, g, b) RGB555(r, g, b)
