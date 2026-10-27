@@ -22,3 +22,11 @@ de la ROM aléatoire haute résolution et le banc système (vraie sortie vidéo)
 2. HDMI : l'ordre des trames. Si les textes d'AUBE paraissent dédoublés ou tremblants, remplacer
    `f1 <= interlace && !field;` par `f1 <= interlace && field;` dans `rtl/mister/mc_scanout.v`.
 3. Laisser le désentrelacement de `MiSTer.ini` sur son réglage par défaut (le mode « bob » fait trembler l'image).
+
+## Projet Quartus de cette version
+
+`quartus/` contient le projet Quartus complet tel qu'il était au commit `f687e56` : `quartus/mister/` (projet,
+framework MiSTer `sys/`, contraintes) et `quartus/rtl/` (sources Verilog du core et processeur Hazard3), rangés
+comme dans le dépôt pour que les chemins `../rtl/...` de `files.qip` restent valables. Pour recompiler
+exactement cette version : ouvrir `quartus/mister/MONOCORE.qpf` avec Quartus Prime 17.0.2 Lite, puis
+*Processing > Start Compilation* ; le core sort dans `quartus/mister/output_files/MONOCORE.rbf`.

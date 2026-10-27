@@ -12,3 +12,5 @@ Prenez le plus récent qui fonctionne : un core fait tourner toutes les ROM des 
 | `v3_souris_20261026b/` | version 3 | 4 manettes, analogique, clavier, **souris** (molette positive vers l'avant), NVRAM sur la carte SD, cartouche SPI | testée |
 
 Chaque dossier a son `LISEZMOI.md` : commit des sources, date et outil de compilation, tests, SHA-256.
+Il contient aussi `quartus/`, le projet Quartus complet de cette version (`quartus/mister/MONOCORE.qpf`),
+pour la recompiler à l'identique sans revenir en arrière dans l'historique du dépôt.

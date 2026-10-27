@@ -11,3 +11,11 @@ un Novation Launchkey 49 branché en USB (MidiLink en mode USB) et MONOTRACKER. 
 
 Ce core ne connaît pas la haute résolution : garder ce `boot.rom` avec lui (l'AUBE de la version 5 est en
 640 × 480 entrelacé et serait coupée).
+
+## Projet Quartus de cette version
+
+`quartus/` contient le projet Quartus complet tel qu'il était au commit `eba9fa0` : `quartus/mister/` (projet,
+framework MiSTer `sys/`, contraintes) et `quartus/rtl/` (sources Verilog du core et processeur Hazard3), rangés
+comme dans le dépôt pour que les chemins `../rtl/...` de `files.qip` restent valables. Pour recompiler
+exactement cette version : ouvrir `quartus/mister/MONOCORE.qpf` avec Quartus Prime 17.0.2 Lite, puis
+*Processing > Start Compilation* ; le core sort dans `quartus/mister/output_files/MONOCORE.rbf`.
