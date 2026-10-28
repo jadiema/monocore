@@ -9,7 +9,7 @@
 
 // ---------------------------------------------------------------- layout
 // The game world is 320 x 240 (the physics and the levels); it is drawn twice as fine, on a
-// 640 x 480 interlaced picture: text in 16 x 16 tiles (the SDK font enlarged with EPX), the two
+// 640 x 480 interlaced picture: text in 16 x 16 tiles (an anti-aliased vector font, font16.h), the two
 // bitmaps in 16 x 16 tiles allocated only where something is drawn (most of the screen is black),
 // sprites drawn at twice their size.
 #define SCR_W 320                          // world
