@@ -33,8 +33,8 @@ static const gv_wall a8w[] = { { 230, 130, 230, 200, W_SOLID }, { 290, 130, 290,
                                { 90, 24, 319, 24, W_BOUNCE } };
 static const gv_pod a8p[] = { { 150, 150, 1, 80 } };
 // 9: the slingshot
-static const gv_wall a9w[] = { { 0, 100, 110, 100, W_SOLID } };
-static const gv_pod a9p[] = { { 111, 105, 1, 231 } };
+static const gv_wall a9w[] = { { 0, 100, 120, 100, W_SOLID } };
+static const gv_pod a9p[] = { { 60, 159, 1, 239 }, { 101, 64, 1, 226 } };
 // 10: the star field
 static const gv_pod a10p[] = { { 90, 60, 1, P }, { 90, 180, 1, P }, { 160, 120, 1, P }, { 230, 60, 1, P }, { 230, 180, 1, P } };
 static const gv_wall a10w[] = { { 300, 90, 300, 150, W_SOLID } };

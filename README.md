@@ -26,7 +26,7 @@ Console virtuelle pour MiSTer (DE10-Nano) : un core FPGA unique et figé sur leq
 | `outils/` | les outils prêts à copier dans `games/MONOCORE` : `MONOATELIER.mnc` (tout en un) et chaque outil seul (`MONOPIXEL.mnc`, `MONOSFX.mnc`, `MONOTRACKER.mnc`, `MONOBASIC.mnc`, `PLATEFORMES.mnc`), faits par `tools/mkoutils.py` ; mode d'emploi : `manual/MONOATELIER_Manuel.pdf` |
 | `examples/cascade/` | CASCADE, le jeu des notes qui tombent, à jouer sur un clavier MIDI : les morceaux de MONOTRACKER deviennent des niveaux |
 | `examples/defender/` | PIANO DEFENDER, shoot'em up au clavier MIDI : les envahisseurs descendent sur les touches, on joue leur note pour tirer |
-| `examples/graviton/` | GRAVITON, casse-tête gravitationnel : poser des puits qui attirent ou repoussent pour courber le tir jusqu'à la cible ; 20 niveaux (12 de visée au dixième de degré, 8 où l'on pose ses puits), tous vérifiés sur PC avec la physique du jeu (`physics.h`, entiers seuls) |
+| `examples/graviton/` | GRAVITON, casse-tête gravitationnel en 640 × 480 : poser des puits qui attirent ou repoussent pour courber le tir jusqu'à la cible ; 20 niveaux (12 de visée au dixième de degré, 8 où l'on pose ses puits), tous vérifiés sur PC avec la physique du jeu (`physics.h`, entiers seuls) |
 | `examples/solfege/` | SOLFEGE, apprendre à lire les notes en 640 × 480 entrelacé : une portée (clé de sol ou de fa), le clavier MIDI, une nouvelle note dès que les précédentes sont connues, et une lecture déroulante |
 | `examples/test_mtrack/` | le lecteur de musique `mtrack` dans un jeu : morceau et bruitages |
 | `examples/test_mgfx/` | les graphismes `mgfx` dans un jeu : le décor, un héros animé qui court et saute sur les tuiles, des pièces à ramasser |

@@ -8,34 +8,40 @@
 #include "levels.h"
 
 // ---------------------------------------------------------------- layout
-#define SCR_W 320
+// The game world is 320 x 240 (the physics and the levels); it is drawn twice as fine, on a
+// 640 x 480 interlaced picture: text in 16 x 16 tiles (the SDK font enlarged with EPX), the two
+// bitmaps in 16 x 16 tiles allocated only where something is drawn (most of the screen is black),
+// sprites drawn at twice their size.
+#define SCR_W 320                          // world
 #define SCR_H 240
-#define BM_COLS 40
+#define HW    640                          // screen
+#define HH    480
+#define BM_COLS 40                         // 16 x 16 cells
 #define BM_ROWS 30
-#define BM_SIZE (BM_COLS * BM_ROWS * 32)   // 38400 bytes, 4 bpp
 
-#define CHR_STAT 0x00000                   // scenery bitmap (layer 3)
-#define CHR_DYN  0x09600                   // shot traces bitmap (layer 2)
-#define CHR_SPR  0x13000                   // sprite cells
+#define CHR_FONT 0x00000                   // 96 characters of 16 x 16 (128 bytes each)
+#define CHR_SPR  0x03000                   // sprite cells, up to 0x06000
+#define CHR_POOL 0x06000                   // bitmap tiles, 128 bytes each, up to the end of CHR RAM
+#define POOL_N   ((0x20000 - CHR_POOL) / 128)   // 832; tile 0 stays blank
+
+#define CHR_STAT 0                         // bitmap ids
+#define CHR_DYN  1
 
 #define L_TEXT 0
 #define L_DYN  2
 #define L_STAT 3
 
-// sprite cells (32 bytes each, from CHR_SPR)
-#define CELL_POD     0                     // 16 x 16 asterisk (pull)
-#define CELL_PODPUSH 4                     // asterisk in a ring (push)
-#define CELL_PODFIX  8                     // fixed pull: asterisk in a square
-#define CELL_PODFIXP 12                    // fixed push: ring in a square
-#define CELL_TARGET  16                    // 16 x 16 hatched circle
-#define CELL_SHOT    20                    // 8 x 8
-#define CELL_SPARK   21
-#define CELL_DOT     22                    // 2 x 2 dot
-#define CELL_CURSOR  24                    // 16 x 16
-#define CELL_BIGPOD  28                    // 32 x 32 planet: 16 cells
-#define CELL_BIGPUSH 44                    // 32 x 32
-#define CELL_TGT     60                    // 4 frames of the spinning target, 4 cells each
-#define N_CELLS      76
+// sprite cells (32 bytes each, from CHR_SPR), drawn at twice the size of the 320 x 240 version
+#define CELL_POD     0                     // 32 x 32 asterisk (pull): 16 cells
+#define CELL_PODPUSH 16                    // asterisk in a ring (push)
+#define CELL_TGT     32                    // 4 frames of the spinning target, 16 cells each
+#define CELL_SHOT    96                    // 8 x 8
+#define CELL_SPARK   97
+#define CELL_DOT     98                    // 4 x 4 dot
+#define CELL_CURSOR  100                   // 32 x 32
+#define CELL_BIGPOD  116                   // 64 x 64 planet: 64 cells
+#define CELL_BIGPUSH 180                   // 64 x 64
+#define N_CELLS      244
 
 // palettes
 #define PAL_FONT    0
@@ -98,55 +104,129 @@ static void text(int col, int row, const char *s, int ink) { mc_text(L_TEXT, col
 static void text_c(int row, const char *s, int ink) { text((40 - (int)strlen(s)) / 2, row, s, ink); }
 static void text_clear(void) { mc_text_clear(L_TEXT); }
 
-// ---------------------------------------------------------------- bitmaps
-static void bm_setup(int layer, uint32_t base, int pal, int prio) {
-  mc_layer(layer, MC_CHR(base), MC_TILE8 | MC_4BPP, 64, 32, prio);
-  for (int r = 0; r < 32; r++)
-    for (int c = 0; c < 64; c++)
-      mc_tile(layer, c, r, (c < BM_COLS && r < BM_ROWS) ? TILE(r * BM_COLS + c, pal) : TILE(0, pal) | 0);
+// ---------------------------------------------------------------- bitmaps (screen pixels)
+static uint16_t cell_tile[2][BM_ROWS][BM_COLS];    // tile of each cell, 0 = none
+static uint8_t cell_shared[2][BM_ROWS][BM_COLS];   // the cell shows the shared hatching tile
+static uint16_t pool_free[POOL_N]; static int n_free;
+static int hatch_tile;
+static const int bm_layer[2] = { L_STAT, L_DYN }, bm_pal[2] = { PAL_STAT, PAL_DYN };
+
+static void pool_reset(void) {
+  n_free = 0;
+  for (int t = POOL_N - 1; t >= 1; t--) pool_free[n_free++] = (uint16_t)t;
+  memset(cell_tile, 0, sizeof cell_tile); memset(cell_shared, 0, sizeof cell_shared);
+  hatch_tile = 0;
+  for (int b = 0; b < 2; b++) mc_tilemap_fill(bm_layer[b], TILE(0, bm_pal[b]));
+}
+static void bm_setup(int layer, int pal, int prio) {
+  mc_layer(layer, MC_CHR(CHR_POOL), MC_TILE16 | MC_4BPP, 64, 32, prio);
+  mc_tilemap_fill(layer, TILE(0, pal));
   mc_layer_scroll(layer, 0, 0);
 }
-static void bm_clear(uint32_t base) { mc_fill(MC_CHRRAM + base, 0, BM_SIZE); }
-
-static inline void bm_plot(uint32_t base, int x, int y, int c) {
-  if ((unsigned)x >= SCR_W || (unsigned)y >= SCR_H) return;
-  volatile uint8_t *p = MC_CHRRAM + base + ((y >> 3) * BM_COLS + (x >> 3)) * 32 + (y & 7) * 4 + ((x & 7) >> 1);
+static int tile_new(void) {
+  if (!n_free) return 0;
+  int t = pool_free[--n_free];
+  mc_fill(MC_CHRRAM + CHR_POOL + t * 128, 0, 128);
+  return t;
+}
+static void bm_clear(int b) {                       // frees every tile of one bitmap
+  for (int r = 0; r < BM_ROWS; r++) for (int c = 0; c < BM_COLS; c++) {
+    if (cell_tile[b][r][c] && !cell_shared[b][r][c]) pool_free[n_free++] = cell_tile[b][r][c];
+    cell_tile[b][r][c] = 0; cell_shared[b][r][c] = 0;
+  }
+  mc_tilemap_fill(bm_layer[b], TILE(0, bm_pal[b]));
+}
+static inline volatile uint8_t *bm_cell(int b, int x, int y, bool make) {
+  if ((unsigned)x >= HW || (unsigned)y >= HH) return 0;
+  int c = x >> 4, r = y >> 4, t = cell_tile[b][r][c];
+  if (t && cell_shared[b][r][c] && make) {          // copy on write
+    int n = tile_new(); if (!n) return 0;
+    for (int i = 0; i < 128; i++) MC_CHRRAM[CHR_POOL + n * 128 + i] = MC_CHRRAM[CHR_POOL + t * 128 + i];
+    t = n; cell_tile[b][r][c] = (uint16_t)t; cell_shared[b][r][c] = 0;
+    mc_tile(bm_layer[b], c, r, TILE(t, bm_pal[b]));
+  }
+  if (!t) {
+    if (!make) return 0;
+    t = tile_new(); if (!t) return 0;
+    cell_tile[b][r][c] = (uint16_t)t;
+    mc_tile(bm_layer[b], c, r, TILE(t, bm_pal[b]));
+  }
+  return MC_CHRRAM + CHR_POOL + t * 128 + (y & 15) * 8 + ((x & 15) >> 1);
+}
+static inline void bm_plot(int b, int x, int y, int c) {
+  volatile uint8_t *p = bm_cell(b, x, y, c != 0);
+  if (!p) return;
   uint8_t v = *p;
   *p = (x & 1) ? (uint8_t)((v & 0x0F) | (c << 4)) : (uint8_t)((v & 0xF0) | c);
 }
-static inline int bm_get(uint32_t base, int x, int y) {
-  if ((unsigned)x >= SCR_W || (unsigned)y >= SCR_H) return 0;
-  uint8_t v = MC_CHRRAM[base + ((y >> 3) * BM_COLS + (x >> 3)) * 32 + (y & 7) * 4 + ((x & 7) >> 1)];
-  return (x & 1) ? v >> 4 : v & 15;
+static inline int bm_get(int b, int x, int y) {
+  volatile uint8_t *p = bm_cell(b, x, y, false);
+  if (!p) return 0;
+  return (x & 1) ? *p >> 4 : *p & 15;
 }
-static void bm_disc(uint32_t base, int x, int y, int r, int c) {
+static void bm_disc(int b, int x, int y, int r, int c) {
   for (int dy = -r; dy <= r; dy++)
     for (int dx = -r; dx <= r; dx++)
-      if (dx * dx + dy * dy <= r * r + r) bm_plot(base, x + dx, y + dy, c);
+      if (dx * dx + dy * dy <= r * r + r) bm_plot(b, x + dx, y + dy, c);
 }
-// a line stamped with a disc of radius r (r = 0: one pixel)
-static void bm_line(uint32_t base, int x0, int y0, int x1, int y1, int r, int c) {
+static void bm_line(int b, int x0, int y0, int x1, int y1, int r, int c) {
   int dx = x1 - x0, dy = y1 - y0, n = iabs(dx) > iabs(dy) ? iabs(dx) : iabs(dy);
   if (n == 0) n = 1;
   for (int i = 0; i <= n; i++) {
     int x = x0 + (dx * i + (dx >= 0 ? n / 2 : -n / 2)) / n, y = y0 + (dy * i + (dy >= 0 ? n / 2 : -n / 2)) / n;
-    if (r) bm_disc(base, x, y, r, c); else bm_plot(base, x, y, c);
+    if (r) bm_disc(b, x, y, r, c); else bm_plot(b, x, y, c);
+  }
+}
+// wipes the pixels of one colour from a bitmap, freeing the tiles left empty
+static void bm_wipe(int b, int col) {
+  for (int r = 0; r < BM_ROWS; r++) for (int c = 0; c < BM_COLS; c++) {
+    int t = cell_tile[b][r][c];
+    if (!t || cell_shared[b][r][c]) continue;
+    volatile uint8_t *p = MC_CHRRAM + CHR_POOL + t * 128;
+    uint8_t any = 0;
+    for (int i = 0; i < 128; i++) {
+      uint8_t v = p[i];
+      if (v) { if ((v & 15) == col) v &= 0xF0; if ((v >> 4) == col) v &= 0x0F; p[i] = v; any |= v; }
+    }
+    if (!any) { pool_free[n_free++] = (uint16_t)t; cell_tile[b][r][c] = 0; mc_tile(bm_layer[b], c, r, TILE(0, bm_pal[b])); }
+  }
+}
+// a rectangle of hatching (screen pixels): whole cells share one tile, the edges are drawn
+static void bm_hatch(int b, int x0, int y0, int x1, int y1, int col) {
+  if (!hatch_tile) {
+    hatch_tile = tile_new();
+    if (hatch_tile) for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) if (((x + y) & 7) == 0) {
+      volatile uint8_t *p = MC_CHRRAM + CHR_POOL + hatch_tile * 128 + y * 8 + (x >> 1);
+      *p = (x & 1) ? (uint8_t)((*p & 0x0F) | (col << 4)) : (uint8_t)((*p & 0xF0) | col);
+    }
+  }
+  for (int r = 0; r < BM_ROWS; r++) for (int c = 0; c < BM_COLS; c++) {
+    int cx0 = c * 16, cy0 = r * 16;
+    if (cx0 >= x0 && cx0 + 15 <= x1 && cy0 >= y0 && cy0 + 15 <= y1 && !cell_tile[b][r][c] && hatch_tile) {
+      cell_tile[b][r][c] = (uint16_t)hatch_tile; cell_shared[b][r][c] = 1;
+      mc_tile(bm_layer[b], c, r, TILE(hatch_tile, bm_pal[b]));
+    } else if (cx0 + 15 >= x0 && cx0 <= x1 && cy0 + 15 >= y0 && cy0 <= y1) {
+      for (int y = (cy0 > y0 ? cy0 : y0); y <= cy0 + 15 && y <= y1; y++)
+        for (int x = (cx0 > x0 ? cx0 : x0); x <= cx0 + 15 && x <= x1; x++)
+          if (((x + y) & 7) == 0) bm_plot(b, x, y, col);
+    }
   }
 }
 
 // ---------------------------------------------------------------- sprite graphics
-static uint8_t gfx[32 * 32];               // one picture being drawn, 1 byte a pixel
+#define GW 64
+static uint8_t gfx[GW * GW];               // one picture being drawn, 1 byte a pixel
 
 static void gfx_begin(void) { memset(gfx, 0, sizeof gfx); }
-static void gfx_put(int x, int y, int c, int w) { if ((unsigned)x < (unsigned)w && (unsigned)y < (unsigned)w) gfx[y * 32 + x] = (uint8_t)c; }
-static void gfx_upload(int cell, int size) {   // size 8, 16 or 32: picture -> cells, row-major
-  static uint8_t buf[32 * 16];
+static void gfx_put(int x, int y, int c, int w) { if ((unsigned)x < (unsigned)w && (unsigned)y < (unsigned)w) gfx[y * GW + x] = (uint8_t)c; }
+static void gfx_upload(int cell, int size) {   // size 8 to 64: picture -> cells, row-major
+  static uint8_t buf[GW * GW / 2];
   int n = size / 8, k = 0;
   for (int cy = 0; cy < n; cy++)
     for (int cx = 0; cx < n; cx++)
       for (int y = 0; y < 8; y++)
         for (int x = 0; x < 8; x += 2) {
-          int a = gfx[(cy * 8 + y) * 32 + cx * 8 + x], b = gfx[(cy * 8 + y) * 32 + cx * 8 + x + 1];
+          int a = gfx[(cy * 8 + y) * GW + cx * 8 + x], b = gfx[(cy * 8 + y) * GW + cx * 8 + x + 1];
           buf[k++] = (uint8_t)(a | (b << 4));
         }
   mc_chr_upload(CHR_SPR + cell * 32, buf, (uint32_t)k);
@@ -159,47 +239,79 @@ static void gfx_ring(int c2, int r2, int thick2, int col, int size) {   // in ha
       if (iabs(d - r2) <= thick2) gfx_put(x, y, col, size);
     }
 }
-
 static void gfx_line(int x0, int y0, int x1, int y1, int c, int size) {
   int dx = x1 - x0, dy = y1 - y0, n = iabs(dx) > iabs(dy) ? iabs(dx) : iabs(dy);
   if (!n) n = 1;
   for (int i = 0; i <= n; i++) gfx_put(x0 + (dx * i + (dx >= 0 ? n / 2 : -n / 2)) / n, y0 + (dy * i + (dy >= 0 ? n / 2 : -n / 2)) / n, c, size);
 }
+// an asterisk of 8 branches, centre (c, c) of a picture, branches 2 pixels thick
 static void gfx_asterisk(int c, int r, int col, int size) {
-  gfx_line(c - r, c, c + r, c, col, size); gfx_line(c, c - r, c, c + r, col, size);
-  int d = r * 3 / 4; gfx_line(c - d, c - d, c + d, c + d, col, size); gfx_line(c - d, c + d, c + d, c - d, col, size);
-}
-static void gfx_square(int a, int b, int col, int size) {
-  gfx_line(a, a, b, a, col, size); gfx_line(b, a, b, b, col, size); gfx_line(b, b, a, b, col, size); gfx_line(a, b, a, a, col, size);
+  int d = r * 3 / 4;
+  for (int k = 0; k < 2; k++) {
+    gfx_line(c - r, c - k, c + r, c - k, col, size); gfx_line(c - k, c - r, c - k, c + r, col, size);
+    gfx_line(c - d - k, c - d, c + d - k, c + d, col, size); gfx_line(c - d - k, c + d, c + d - k, c - d, col, size);
+  }
 }
 
 static void make_sprites(void) {
-  gfx_begin(); gfx_asterisk(8, 5, 1, 16); gfx_upload(CELL_POD, 16);
-  gfx_begin(); gfx_asterisk(8, 3, 1, 16); gfx_ring(17, 12, 1, 1, 16); gfx_upload(CELL_PODPUSH, 16);
-  gfx_begin(); gfx_asterisk(8, 4, 1, 16); gfx_square(1, 15, 2, 16); gfx_upload(CELL_PODFIX, 16);
-  gfx_begin(); gfx_asterisk(8, 3, 1, 16); gfx_ring(17, 10, 1, 1, 16); gfx_square(1, 15, 2, 16); gfx_upload(CELL_PODFIXP, 16);
+  gfx_begin(); gfx_asterisk(16, 10, 1, 32); gfx_upload(CELL_POD, 32);
+  gfx_begin(); gfx_asterisk(16, 6, 1, 32); gfx_ring(31, 23, 1, 1, 32); gfx_upload(CELL_PODPUSH, 32);
   for (int f = 0; f < 4; f++) {                    // hatching turned by 22.5 degrees a frame
-    gfx_begin(); gfx_ring(17, 14, 1, 1, 16);
+    gfx_begin(); gfx_ring(31, 27, 2, 1, 32);
     int32_t c = mc_cos(f * 64), sn = mc_sin(f * 64);
-    for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
-      int dx = 2 * x + 1 - 17, dy = 2 * y + 1 - 17;
-      if (dx * dx + dy * dy >= 11 * 11) continue;
+    for (int y = 0; y < 32; y++) for (int x = 0; x < 32; x++) {
+      int dx = 2 * x + 1 - 31, dy = 2 * y + 1 - 31;
+      if (dx * dx + dy * dy >= 22 * 22) continue;
       int u = (dx * c + dy * sn) >> 16;            // half pixels across the hatching
-      if (((u + 64) % 6) < 1) gfx_put(x, y, 1, 16);
+      if (((u + 64) % 8) < 2) gfx_put(x, y, 1, 32);
     }
-    gfx_upload(CELL_TGT + f * 4, 16);
+    gfx_upload(CELL_TGT + f * 16, 32);
   }
-  gfx_begin(); gfx_put(3, 3, 1, 8); gfx_put(4, 3, 2, 8); gfx_put(3, 4, 2, 8); gfx_put(2, 3, 2, 8); gfx_put(3, 2, 2, 8);
+  gfx_begin();
+  for (int y = 2; y <= 4; y++) for (int x = 2; x <= 4; x++) gfx_put(x, y, (x == 3 && y == 3) ? 1 : 2, 8);
+  gfx_put(3, 1, 2, 8); gfx_put(3, 5, 2, 8); gfx_put(1, 3, 2, 8); gfx_put(5, 3, 2, 8); gfx_put(3, 3, 1, 8);
   gfx_upload(CELL_SHOT, 8);
   gfx_begin(); gfx_put(3, 3, 1, 8); gfx_put(3, 2, 2, 8); gfx_put(3, 4, 2, 8); gfx_put(2, 3, 2, 8); gfx_put(4, 3, 2, 8);
   gfx_upload(CELL_SPARK, 8);
-  gfx_begin(); gfx_put(3, 3, 1, 8); gfx_put(4, 3, 1, 8); gfx_put(3, 4, 1, 8); gfx_put(4, 4, 1, 8); gfx_upload(CELL_DOT, 8);
+  gfx_begin(); for (int y = 2; y < 6; y++) for (int x = 2; x < 6; x++) gfx_put(x, y, 1, 8); gfx_upload(CELL_DOT, 8);
   gfx_begin();
-  for (int i = 0; i < 16; i++) if (i < 5 || i > 10) { gfx_put(i, 8, 1, 16); gfx_put(8, i, 1, 16); }
-  gfx_upload(CELL_CURSOR, 16);
-  gfx_begin(); gfx_ring(32, 26, 1, 1, 32); gfx_asterisk(16, 6, 1, 32); gfx_upload(CELL_BIGPOD, 32);
-  gfx_begin(); gfx_ring(32, 26, 1, 1, 32); gfx_ring(32, 18, 1, 1, 32); gfx_asterisk(16, 4, 1, 32); gfx_upload(CELL_BIGPUSH, 32);
+  for (int i = 0; i < 32; i++) if (i < 11 || i > 20) { gfx_put(i, 16, 1, 32); gfx_put(16, i, 1, 32); }
+  gfx_upload(CELL_CURSOR, 32);
+  gfx_begin(); gfx_ring(64, 54, 1, 1, 64); gfx_asterisk(32, 12, 1, 64); gfx_upload(CELL_BIGPOD, 64);
+  gfx_begin(); gfx_ring(64, 54, 1, 1, 64); gfx_ring(64, 36, 1, 1, 64); gfx_asterisk(32, 8, 1, 64); gfx_upload(CELL_BIGPUSH, 64);
   mc_sprite_sheet(MC_CHR(CHR_SPR));
+}
+
+// the 16 x 16 font: the SDK font (8 x 8, 4 bpp) enlarged with EPX, as text tiles
+extern const uint8_t font_chr[], font_pal[];
+static int font_px(const uint8_t *g, int x, int y) {
+  if ((unsigned)x > 7 || (unsigned)y > 7) return 0;
+  uint8_t v = g[y * 4 + (x >> 1)];
+  return (x & 1) ? v >> 4 : v & 15;
+}
+static void make_font(void) {
+  static uint8_t t[128];
+  for (int ch = 0; ch < 96; ch++) {
+    const uint8_t *g = &font_chr[ch * 32];
+    memset(t, 0, sizeof t);
+    for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) {
+      int e = font_px(g, x, y), ea = font_px(g, x, y - 1), eb = font_px(g, x + 1, y), ec = font_px(g, x - 1, y), ed = font_px(g, x, y + 1);
+      int q[4] = { e, e, e, e };                    // EPX: up a, right b, left c, down d
+      if (ec == ea && ec != ed && ea != eb) q[0] = ea;
+      if (ea == eb && ea != ec && eb != ed) q[1] = eb;
+      if (ed == ec && ed != eb && ec != ea) q[2] = ec;
+      if (eb == ed && eb != ea && ed != ec) q[3] = ed;
+      for (int k = 0; k < 4; k++) {
+        int X = 2 * x + (k & 1), Y = 2 * y + (k >> 1);
+        uint8_t *p = &t[Y * 8 + (X >> 1)];
+        *p = (X & 1) ? (uint8_t)((*p & 0x0F) | (q[k] << 4)) : (uint8_t)((*p & 0xF0) | q[k]);
+      }
+    }
+    mc_chr_upload(CHR_FONT + ch * 128, t, 128);
+  }
+  for (int i = 0; i < 16; i++) PALETTE[i] = font_pal[2 * i] | (font_pal[2 * i + 1] << 8);
+  mc_layer(L_TEXT, MC_CHR(CHR_FONT), MC_TILE16 | MC_4BPP, 64, 32, 3);
+  mc_text_clear(L_TEXT);
 }
 
 // ---------------------------------------------------------------- palettes
@@ -296,7 +408,7 @@ static void fx_update(void) {
     if (p->life <= 0) { mc_sprite_hide(S_FX + i); continue; }
     p->life--; p->x += p->vx; p->y += p->vy; p->vx -= p->vx >> 5; p->vy -= p->vy >> 5;
     int k = 3 - (p->life * 4) / (p->max + 1);
-    mc_sprite(S_FX + i, (p->x >> 8) - 4, (p->y >> 8) - 4, CELL_SPARK, 1, 1, PAL_SPARK + clampi(k, 0, 3), 5);
+    mc_sprite(S_FX + i, (p->x >> 7) - 4, (p->y >> 7) - 4, CELL_SPARK, 1, 1, PAL_SPARK + clampi(k, 0, 3), 5);
   }
 }
 static void fx_clear(void) { memset(fx, 0, sizeof fx); for (int i = 0; i < N_FX; i++) mc_sprite_hide(S_FX + i); }
@@ -373,33 +485,34 @@ static void build_world(int skip) {
 }
 
 // ---------------------------------------------------------------- scenery
-// the frame of the playfield, with a gap where a launcher sits on it
+// the frame of the playfield (screen pixels), with a gap where a launcher sits on it (world lx, ly)
 static void draw_frame(int lx, int ly) {
-  int y0 = GV_TOP - 1;
-  for (int x = 0; x < SCR_W; x++) { bm_plot(CHR_STAT, x, y0, C_FRAME); bm_plot(CHR_STAT, x, SCR_H - 1, C_FRAME); }
-  for (int y = y0; y < SCR_H; y++) { bm_plot(CHR_STAT, 0, y, C_FRAME); bm_plot(CHR_STAT, SCR_W - 1, y, C_FRAME); }
+  int y0 = 2 * GV_TOP - 2;
+  for (int x = 0; x < HW; x++) { bm_plot(CHR_STAT, x, y0, C_FRAME); bm_plot(CHR_STAT, x, HH - 1, C_FRAME); }
+  for (int y = y0; y < HH; y++) { bm_plot(CHR_STAT, 0, y, C_FRAME); bm_plot(CHR_STAT, HW - 1, y, C_FRAME); }
   if (lx < -100) return;
-  for (int y = ly - 9; y <= ly + 9; y++) for (int x = lx - 9; x <= lx + 9; x++) {
-    int dx = x - lx, dy = y - ly;
-    if (dx * dx + dy * dy <= 81) bm_plot(CHR_STAT, x, y, 0);
+  int cx = 2 * lx, cy = 2 * ly;
+  for (int y = cy - 18; y <= cy + 18; y++) for (int x = cx - 18; x <= cx + 18; x++) {
+    int dx = x - cx, dy = y - cy;
+    if (dx * dx + dy * dy <= 18 * 18 && bm_get(CHR_STAT, x, y)) bm_plot(CHR_STAT, x, y, 0);
   }
 }
-// launcher: the half of a circle that faces the playfield (all of it away from the edges)
+// launcher: the part of a circle inside the playfield
 static void draw_launcher(void) {
-  int lx = lv->lx, ly = lv->ly;
-  for (int a = 0; a < 1024; a += 2) {
-    int x = lx + FIX_INT(mc_cos(a) * 9 + 32768), y = ly + FIX_INT(mc_sin(a) * 9 + 32768);
-    if (x < 0 || x >= SCR_W || y < GV_TOP - 1 || y >= SCR_H) continue;
+  int cx = 2 * lv->lx, cy = 2 * lv->ly;
+  for (int a = 0; a < 1024; a++) {
+    int x = cx + FIX_INT(mc_cos(a) * 18 + 32768), y = cy + FIX_INT(mc_sin(a) * 18 + 32768);
+    if (x < 0 || x >= HW || y < 2 * GV_TOP - 2 || y >= HH) continue;
     bm_plot(CHR_STAT, x, y, C_BASE);
   }
 }
-// a wall: the outline of a 5-pixel-wide bar around the segment
+// a wall: the outline of a bar 5 world pixels wide around the segment
 static void draw_wall(const gv_wall *w) {
   int dx = w->x2 - w->x1, dy = w->y2 - w->y1;
   int len = (int)mc_isqrt((uint32_t)(dx * dx + dy * dy)); if (!len) len = 1;
-  int nx = (-dy * 2 + (dy > 0 ? -len / 2 : len / 2)) / len, ny = (dx * 2 + (dx > 0 ? len / 2 : -len / 2)) / len;
-  int ex = (dx * 2 + (dx > 0 ? len / 2 : -len / 2)) / len, ey = (dy * 2 + (dy > 0 ? len / 2 : -len / 2)) / len;
-  int ax = w->x1 - ex, ay = w->y1 - ey, bx = w->x2 + ex, by = w->y2 + ey;
+  int nx = (-dy * 4 + (dy > 0 ? -len / 2 : len / 2)) / len, ny = (dx * 4 + (dx > 0 ? len / 2 : -len / 2)) / len;
+  int ex = (dx * 4 + (dx > 0 ? len / 2 : -len / 2)) / len, ey = (dy * 4 + (dy > 0 ? len / 2 : -len / 2)) / len;
+  int ax = 2 * w->x1 - ex, ay = 2 * w->y1 - ey, bx = 2 * w->x2 + ex, by = 2 * w->y2 + ey;
   int c = w->kind == W_BOUNCE ? C_BOUNCE : C_WALL;
   bm_line(CHR_STAT, ax + nx, ay + ny, bx + nx, by + ny, 0, c);
   bm_line(CHR_STAT, ax - nx, ay - ny, bx - nx, by - ny, 0, c);
@@ -407,30 +520,28 @@ static void draw_wall(const gv_wall *w) {
   bm_line(CHR_STAT, bx + nx, by + ny, bx - nx, by - ny, 0, c);
 }
 static void draw_level(void) {
-  bm_clear(CHR_STAT);
+  pool_reset();
   for (int i = 0; i < lv->n_nopod; i++) {          // forbidden zones: hatching
     const gv_rect *r = &lv->nopod[i];
-    for (int y = r->y0; y <= r->y1; y++)
-      for (int x = r->x0; x <= r->x1; x++)
-        if (((x + y) % 6) == 0) bm_plot(CHR_STAT, x, y, C_NOPOD);
+    bm_hatch(CHR_STAT, 2 * r->x0, 2 * r->y0, 2 * r->x1 + 1, 2 * r->y1 + 1, C_NOPOD);
   }
   draw_frame(lv->lx, lv->ly);
   for (int i = 0; i < lv->n_walls; i++) draw_wall(&lv->walls[i]);
   draw_launcher();
 }
 
-// aim line and barrel, on the trace bitmap: their pixels are remembered to be wiped later, and the
-// aim line never covers a trace
-#define AIM_PIX 1200
-static uint16_t aim_px[AIM_PIX]; static uint8_t aim_py[AIM_PIX];
+// aim line and barrel, on the trace bitmap (screen pixels): their pixels are remembered to be wiped
+// later, and the aim line never covers a trace
+#define AIM_PIX 1600
+static uint16_t aim_px[AIM_PIX], aim_py[AIM_PIX];
 static int aim_n, aim_drawn = -9999;
 static void aim_put(int x, int y, int c, bool over) {
-  if ((unsigned)x >= SCR_W || (unsigned)y >= SCR_H || aim_n >= AIM_PIX) return;
+  if ((unsigned)x >= HW || (unsigned)y >= HH || aim_n >= AIM_PIX) return;
   int v = bm_get(CHR_DYN, x, y);
   if (v && !over) return;
   if (v == 5 || v == 4) return;
   bm_plot(CHR_DYN, x, y, c);
-  aim_px[aim_n] = (uint16_t)x; aim_py[aim_n] = (uint8_t)y; aim_n++;
+  aim_px[aim_n] = (uint16_t)x; aim_py[aim_n] = (uint16_t)y; aim_n++;
 }
 static void aim_erase(void) {
   for (int i = 0; i < aim_n; i++) { int v = bm_get(CHR_DYN, aim_px[i], aim_py[i]); if (v == 4 || v == 5) bm_plot(CHR_DYN, aim_px[i], aim_py[i], 0); }
@@ -440,24 +551,25 @@ static void aim_draw(void) {
   if (aim_drawn == angle) return;
   aim_erase();
   int32_t c, s; gv_dir(angle, &c, &s);
-  int32_t x = (lv->lx << 16) + c * 18, y = (lv->ly << 16) + s * 18;
-  for (int i = 0; i < 520; i++) {                  // the long guide, a dimmed line
+  int32_t ox = (2 * lv->lx) << 16, oy = (2 * lv->ly) << 16;
+  int32_t x = ox + c * 36, y = oy + s * 36;
+  for (int i = 0; i < 900; i++) {                  // the long guide, a dimmed line
     x += c; y += s;
     int px = x >> 16, py = y >> 16;
-    if (px < 1 || px >= SCR_W - 1 || py < GV_TOP || py >= SCR_H - 1) break;
+    if (px < 1 || px >= HW - 1 || py < 2 * GV_TOP || py >= HH - 1) break;
     aim_put(px, py, 4, false);
   }
-  // the barrel: a 14 x 5 outline from the centre outwards
-  int nx = -s * 2, ny = c * 2;
+  // the barrel: a 28 x 10 outline from the centre outwards
+  int32_t nx = -s * 5, ny = c * 5;
+  int32_t x0 = ox + c * 8, y0 = oy + s * 8, x1 = ox + c * 36, y1 = oy + s * 36;
   for (int k = 0; k < 4; k++) {
     int32_t ax, ay, bx, by;
-    int32_t x0 = (lv->lx << 16) + c * 4, y0 = (lv->ly << 16) + s * 4, x1 = (lv->lx << 16) + c * 18, y1 = (lv->ly << 16) + s * 18;
     if (k == 0) { ax = x0 + nx; ay = y0 + ny; bx = x1 + nx; by = y1 + ny; }
     else if (k == 1) { ax = x0 - nx; ay = y0 - ny; bx = x1 - nx; by = y1 - ny; }
     else if (k == 2) { ax = x1 + nx; ay = y1 + ny; bx = x1 - nx; by = y1 - ny; }
     else { ax = x0 + nx; ay = y0 + ny; bx = x0 - nx; by = y0 - ny; }
-    for (int i = 0; i <= 16; i++)
-      aim_put((ax + (int32_t)(((int64_t)(bx - ax) * i) >> 4) + 32768) >> 16, (ay + (int32_t)(((int64_t)(by - ay) * i) >> 4) + 32768) >> 16, 5, true);
+    for (int i = 0; i <= 32; i++)
+      aim_put((ax + (int32_t)(((int64_t)(bx - ax) * i) >> 5) + 32768) >> 16, (ay + (int32_t)(((int64_t)(by - ay) * i) >> 5) + 32768) >> 16, 5, true);
   }
   aim_drawn = angle;
 }
@@ -486,18 +598,14 @@ static void trace_colours(void) {
     set_rgb(PAL_DYN, 1 + s, c[age][0], c[age][1], c[age][2]);
   }
 }
+static void trace_dot(int32_t x, int32_t y, int col) {   // world 16.16 -> a 2 x 2 dot on the screen
+  int px = x >> 15, py = y >> 15;
+  bm_plot(CHR_DYN, px, py, col); bm_plot(CHR_DYN, px + 1, py, col); bm_plot(CHR_DYN, px, py + 1, col); bm_plot(CHR_DYN, px + 1, py + 1, col);
+}
 static void trace_new(void) {                      // next slot, wiping the shot it held
   trace_slot = (trace_slot + 1) % 3;
   if (trace_count < 3) trace_count++;
-  int s = 1 + trace_slot;
-  volatile uint8_t *p = MC_CHRRAM + CHR_DYN;
-  for (int i = 0; i < BM_SIZE; i++) {
-    uint8_t v = p[i];
-    if (!v) continue;
-    if ((v & 15) == s) v &= 0xF0;
-    if ((v >> 4) == s) v &= 0x0F;
-    p[i] = v;
-  }
+  bm_wipe(CHR_DYN, 1 + trace_slot);
   trace_colours();
 }
 
@@ -506,12 +614,12 @@ static void pod_sprite(int n, int x, int y, int sign, bool fixed, int power, boo
   (void)t;
   int pal = bad ? PAL_BAD : fixed ? (sign > 0 ? PAL_PULLFIX : PAL_PUSHFIX) : (sign > 0 ? PAL_PULL : PAL_PUSH);
   bool big = power > GV_POD_POWER + 40;
-  if (big) mc_sprite(S_POD + n, x - 16, y - 16, sign > 0 ? CELL_BIGPOD : CELL_BIGPUSH, 4, 4, pal, 4);
-  else mc_sprite(S_POD + n, x - 8, y - 8, sign > 0 ? CELL_POD : CELL_PODPUSH, 2, 2, pal, 4);
+  if (big) mc_sprite(S_POD + n, 2 * x - 32, 2 * y - 32, sign > 0 ? CELL_BIGPOD : CELL_BIGPUSH, 8, 8, pal, 4);
+  else mc_sprite(S_POD + n, 2 * x - 16, 2 * y - 16, sign > 0 ? CELL_POD : CELL_PODPUSH, 4, 4, pal, 4);
   mc_sprite_hide(S_RING + n);
 }
 static void draw_target(uint32_t t) {
-  mc_sprite(S_TARGET, lv->tx - 8, lv->ty - 8, CELL_TGT + (int)((t / 6) % 4) * 4, 2, 2, PAL_TARGET, 4);
+  mc_sprite(S_TARGET, 2 * lv->tx - 16, 2 * lv->ty - 16, CELL_TGT + (int)((t / 6) % 4) * 16, 4, 4, PAL_TARGET, 4);
   mc_sprite_hide(S_TRING);
 }
 static void draw_pods(uint32_t t) {
@@ -537,7 +645,7 @@ static const char *const level_hint[GV_LEVELS] = {
   "DEUX PUITS, UN MUR.\nLE DIXIEME DE DEGRE COMPTE.",
   "CET ASTRE ATTIRE TRES FORT.",
   "UN REBOND, PUIS LE PUITS VOUS\nPOSE DANS LA COUPE.",
-  "FAITES LE TOUR DE L'ASTRE.",
+  "TIREZ VERS LE BAS : LES PUITS FERONT\nFAIRE AU TIR LE TOUR DE L'ETAGERE.",
   "TOUTE UNE CONSTELLATION A TRAVERSER.",
   "CONTOURNEZ LE MUR PAR LA DROITE\nET REVENEZ PAR-DESSOUS.",
   "DEUX TROUS D'AIGUILLE.",
@@ -555,7 +663,7 @@ static void inventory(void) {                       // dots for the pods left: y
   for (int pass = 0; pass < 2; pass++) {
     int sign = pass == 0 ? 1 : -1, k = left_of(sign);
     for (int i = 0; i < k && n < N_INV; i++, n++, x += 6)
-      mc_sprite(S_INV + n, x - 3, SCR_H - 10, CELL_DOT, 1, 1, sel == sign ? (sign > 0 ? PAL_PULL : PAL_PUSH) : PAL_DIM, 6);
+      mc_sprite(S_INV + n, 2 * x - 4, HH - 22, CELL_DOT, 1, 1, sel == sign ? (sign > 0 ? PAL_PULL : PAL_PUSH) : PAL_DIM, 6);
     if (k) x += 6;
   }
   for (; n < N_INV; n++) mc_sprite_hide(S_INV + n);
@@ -609,11 +717,11 @@ static void vector_word(const int8_t *const *letters, int n, int x0, int y0, int
 }
 static void draw_title(void) {
   static const int8_t *const word[8] = { L_G, L_R, L_A, L_V, L_I, L_T, L_O, L_N };
-  bm_clear(CHR_STAT);
+  pool_reset();
   draw_frame(-999, 0);
-  int sc = 7, w = 8 * (5 * sc - sc / 2) - sc, x0 = (SCR_W - w) / 2, y0 = 34;
-  vector_word(word, 8, x0, y0, sc, 1, C_TITLE1);
-  vector_word(word, 8, x0, y0, sc, 0, C_TITLE3);
+  int sc = 14, w = 8 * (5 * sc - sc / 2) - sc, x0 = (HW - w) / 2, y0 = 68;
+  vector_word(word, 8, x0, y0, sc, 2, C_TITLE1);
+  vector_word(word, 8, x0, y0, sc, 1, C_TITLE3);
 }
 
 // ---------------------------------------------------------------- display set-up
@@ -648,13 +756,10 @@ static void title_screen(void) {
     mc_frame(); sfx_update(); fx_update();
     if ((t / 30) & 1) text_c(22, "APPUYEZ SUR UN BOUTON", INK_YELLOW); else text_c(22, "                     ", INK_YELLOW);
     for (int s = 0; s < GV_SUB; s++) gv_step(&dw, &b);
-    bm_plot(CHR_DYN, b.x >> 16, b.y >> 16, 1 + slot);
+    trace_dot(b.x, b.y, 1 + slot);
     if (t % 160 == 159) {                          // rotate the trace colours
       slot = (slot + 1) % 3;
-      volatile uint8_t *p = MC_CHRRAM + CHR_DYN;
-      int s = 1 + slot;
-      for (int i = 0; i < BM_SIZE; i++) { uint8_t v = p[i]; if (!v) continue;
-        if ((v & 15) == s) v &= 0xF0; if ((v >> 4) == s) v &= 0x0F; p[i] = v; }
+      bm_wipe(CHR_DYN, 1 + slot);
       for (int k = 0; k < 3; k++) {
         static const uint8_t c[3][3] = { {235, 235, 235}, {130, 130, 130}, {70, 70, 70} };
         int age = (slot - k + 3) % 3;
@@ -662,7 +767,7 @@ static void title_screen(void) {
       }
     }
     pod_sprite(0, 160, 176, 1, true, 150, false, t);
-    mc_sprite(S_SHOT, (b.x >> 16) - 4, (b.y >> 16) - 4, CELL_SHOT, 1, 1, PAL_SHOT, 5);
+    mc_sprite(S_SHOT, (b.x >> 15) - 3, (b.y >> 15) - 3, CELL_SHOT, 1, 1, PAL_SHOT, 5);
     if (t > 20 && any_button()) { click(880); break; }
   }
   music_off();
@@ -723,7 +828,7 @@ static void level_start(int n) {
   aim_n = 0; aim_drawn = -9999;
   hud(); level_text(); angle_text(); mode_text();
   display_play();
-  if (mc_mouse_present()) mc_mouse_set(cur_x, cur_y);
+  if (mc_mouse_present()) mc_mouse_set(2 * cur_x, 2 * cur_y);
 }
 
 static int near_player_pod(int x, int y) {
@@ -753,12 +858,12 @@ static void move_cursor(void) {
   if (iabs(sy) > 24) cur_y += sy / 24;
   static int mx = -1, my = -1;
   if (mc_mouse_present()) {
-    int nx = mc_mouse_x(), ny = mc_mouse_y();
+    int nx = mc_mouse_x() / 2, ny = mc_mouse_y() / 2;
     if (nx != mx || ny != my) { cur_x = nx; cur_y = ny; }
     mx = nx; my = ny;
   }
   cur_x = clampi(cur_x, 0, SCR_W - 1); cur_y = clampi(cur_y, GV_TOP, SCR_H - 1);
-  if (mc_mouse_present()) { mc_mouse_set(cur_x, cur_y); mx = cur_x; my = cur_y; }
+  if (mc_mouse_present()) { mc_mouse_set(2 * cur_x, 2 * cur_y); mx = cur_x; my = cur_y; }
 }
 
 static void mode_text(void) {
@@ -828,7 +933,7 @@ static int edit_frame(uint32_t t) {
     pod_sprite(15, cur_x, cur_y, pp[held].sign, false, GV_POD_POWER, !ok, t);
     mc_sprite_hide(S_CURSOR);
   } else if (pod_mode) {
-    mc_sprite(S_CURSOR, cur_x - 8, cur_y - 8, CELL_CURSOR, 2, 2, PAL_CURSOR, 7);
+    mc_sprite(S_CURSOR, 2 * cur_x - 16, 2 * cur_y - 16, CELL_CURSOR, 4, 4, PAL_CURSOR, 7);
     if (near_player_pod(cur_x, cur_y) >= 0) hint("B1 PRENDRE  B5 RETIRER  B2 VISEE");
     else if (left_of(sel) > 0) hint(sel > 0 ? "B1 POSER  B4 TYPE  B2 VISEE  B3 TIR" : "B1 REPOUSSOIR  B4 TYPE  B2 VISEE");
     else hint("B2 VISEE   B3 TIR");
@@ -860,14 +965,14 @@ static int fly(void) {
       ev = EV_NONE;
       for (int s = 0; s < GV_SUB; s++) {
         int e = gv_step(&world, &b);
-        if (s == 0) bm_plot(CHR_DYN, b.x >> 16, b.y >> 16, col);
+        if (s == 0) trace_dot(b.x, b.y, col);
         if (e == EV_BOUNCE) { sfx_bounce = 8; burst(b.x >> 16, b.y >> 16, 4, 80); ev = EV_BOUNCE; }
         else if (e != EV_NONE) { ev = e; break; }
       }
       if (ev == EV_NONE || ev == EV_BOUNCE) { if (++b.frame >= GV_LIFE) ev = EV_LOST; }
     }
     int x = b.x >> 16, y = b.y >> 16;
-    mc_sprite(S_SHOT, x - 4, y - 4, CELL_SHOT, 1, 1, PAL_SHOT, 5);
+    mc_sprite(S_SHOT, (b.x >> 15) - 3, (b.y >> 15) - 3, CELL_SHOT, 1, 1, PAL_SHOT, 5);
     draw_pods(t_frame + t); draw_target(t_frame + t);
     mc_frame(); sfx_update(); fx_update();
     if (ev != EV_NONE && ev != EV_BOUNCE) {
@@ -985,12 +1090,13 @@ static void ending(void) {
 // ---------------------------------------------------------------- main
 int main(void) {
   mc_init();
-  mc_video_mode(SCR_W, SCR_H);
-  mc_text_layer(L_TEXT, 3);
+  mc_video_mode(HW, HH);                          // 640 x 480 interlaced
+  make_font();
   make_palettes();
   mc_background(BG_ENTRY);
-  bm_setup(L_STAT, CHR_STAT, PAL_STAT, 0);
-  bm_setup(L_DYN, CHR_DYN, PAL_DYN, 1);
+  bm_setup(L_STAT, PAL_STAT, 0);
+  bm_setup(L_DYN, PAL_DYN, 1);
+  pool_reset();
   make_sprites();
   mc_sprites_used(S_USED);
   mc_srand(0xC0FFEE);

@@ -11,6 +11,10 @@ Chaque tir laisse une trace en pointillés (les trois derniers restent, du plus 
 sombre) : on corrige l'angle d'un dixième de degré et on recommence. Il y a 20 tirs par série ;
 une fois épuisés, une nouvelle série commence, les puits posés restant en place.
 
+Le jeu s'affiche en **640 × 480 entrelacé** (haute résolution du matériel version 5) : le monde
+du jeu fait 320 × 240, mais tout est dessiné deux fois plus fin (traits d'un pixel, police agrandie
+en EPX, sprites dessinés au double).
+
 Style d'écran vectoriel monochrome à la manière des jeux Flash de tir gravitationnel des années
 2000 ; nom, niveaux, graphismes et sons sont originaux.
 
@@ -49,7 +53,8 @@ La progression et le record de chaque niveau (le moins de tirs) sont gardés en 
 | `physics.h` | la physique, en entiers seulement (angle au dixième de degré, virgule fixe 16.16, 4 sous-pas par image, attraction en 1/r² adoucie sous 6 px, murs, rebonds, règles de pose) ; aucune division 64 bits |
 | `sintab.h` | table de sinus (quart de tour, 1024 pas par tour) |
 | `levels.h` | les niveaux (canon, plage d'angles, vitesse, cible, puits à poser, puits fixes, murs, zones interdites) |
-| `main.c` | le jeu : deux plans en mode « bitmap » dans la CHR RAM (décor au trait, traces en pointillés, ligne de visée et tube du canon), sprites générés au démarrage, titre en lettres vectorielles, sons PSG |
+| `main.c` | le jeu : deux plans « bitmap » de 640 × 480 en tuiles 16 × 16 allouées à la demande dans une réserve de 832 tuiles (l'écran est noir à plus de 90 % ; les tuiles vidées retournent à la réserve, les zones hachurées partagent une seule tuile), police 16 × 16 tirée de celle du SDK par EPX, sprites générés au démarrage, titre en lettres vectorielles, sons PSG |
+| `tools/clear.c` | niveaux de visée : pour chaque angle gagnant, à quelle distance le tir passe du puits le plus proche (une solution qui frôle un puits est injouable) |
 | `tools/aim.c` | niveaux de visée : essaie tous les angles au dixième de degré, compte ceux qui touchent (la tolérance du niveau) |
 | `tools/tune.c` | règle les puits fixes d'un niveau de visée jusqu'à obtenir quelques angles gagnants |
 | `tools/solve.c` | niveaux à poser : tirages au hasard (mesure de difficulté) puis optimisation locale (preuve qu'une solution existe) |
