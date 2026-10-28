@@ -6,7 +6,7 @@ painting of the black monolith at sunset) reduced to 640 x 480 and split in thre
 make the dawn rise through the palette without redrawing a pixel:
     1-140    sky and hills (140 colours, dithered)
     141-230  water (90 colours, dithered)
-    231-242  monolith: rim light level 0-11 (its edges light up when the logo appears)
+    231-242  monolith: only 231 is used (black, edges included; 232-242 were the rim light of the first AUBE)
   scene_colors.h gives, for every index, the colour of the painting, its colour at night, how early
   it catches the dawn (bright colours near the sun first) and how much the flash of the sun lights it.
 logo.png, prompt.png (4 bpp): MONOCORE-1 and the prompt, anti-aliased in 15 grey levels. There is no
@@ -36,6 +36,9 @@ lum = full.astype(int).sum(2)
 dark = (lum < 70) & (xx > 150 * S) & (xx < 210 * S) & (yy > 60 * S) & (yy < HOR)
 ys, xs = np.nonzero(dark)
 MX0, MX1, MY0, MY1 = xs.min() - OX, xs.max() - OX + 1, ys.min() - OY, ys.max() - OY + 1
+# the painting outlines the monolith with a brown, half-lit fringe (3 pixels on the left, 2 on the right, 1 on
+# top once reduced): it becomes part of the monolith, so that its edges stay black
+MX0, MX1, MY0 = MX0 - 3, MX1 + 2, MY0 - 1
 mono = (xx >= MX0) & (xx < MX1) & (yy >= MY0) & (yy < MY1)
 print('monolith: x %d-%d, y %d-%d' % (MX0, MX1 - 1, MY0, MY1 - 1))
 
@@ -54,11 +57,7 @@ def quantize(mask, n, first):
 quantize(sky, N_SKY, 1)
 quantize(water, N_WATER, 1 + N_SKY)
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0
-for y in range(MY0, MY1):                       # rim light level, as in the first AUBE
-    for x in range(MX0, MX1):
-        e = min(x - MX0, MX1 - 1 - x)
-        lit = max(np.exp(-e / (1.6 * S)), 0.7 * np.exp(-(y - MY0) / (1.5 * S))) * (0.55 + 0.45 * (y - MY0) / (MY1 - MY0))
-        idx[y + OY, x + OX] = FIRST_MONO + int(np.clip(lit * 11 + BAYER[(y + 8) % 4, (x + 8) % 4] * 0.8, 0, 11))
+idx[mono] = FIRST_MONO                          # the monolith stays black, edges included (no rim light)
 
 img = Image.fromarray(idx.astype(np.uint8), 'P')
 pal = []

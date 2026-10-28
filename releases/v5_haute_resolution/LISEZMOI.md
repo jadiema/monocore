@@ -2,7 +2,7 @@
 
 | Fichier | Rôle | SHA-256 |
 |---|---|---|
-| `boot.rom` | AUBE en 640 × 480 entrelacé (`examples/aube`), à copier dans `games/MONOCORE` | `e9f2d7ba177e4626a8db37248e9dcaf4340f46abdf663ee48bd050498f55e85a` |
+| `boot.rom` | AUBE en 640 × 480 entrelacé (`examples/aube`), à copier dans `games/MONOCORE` | `3f6f0609d62fccc561c78d26a0fb8f10ec00b0d765318f9122da05a334a6ef29` |
 | `MONOCORE_20261027_HiResb.rbf` | core, à copier dans `_Console` | `326ee2c60e0d767feb19a2fe6b495e9133fb07cec394e46b3a2085b25bc50bb7` |
 
 Sources : commits « Haute resolution et mode entrelace (materiel version 5) » et « VGA_F1 : ordre des trames corrige » (projet Quartus de `quartus/` à jour). Nouveautés (SPEC v0.7, §4.1) :

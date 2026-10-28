@@ -12,7 +12,8 @@ La musique est une courte pièce orchestrale (cordes, chœur, cors, célesta, ha
   proportions (facteur 16/9). Sur un core plus ancien (version 4 ou moins), la hauteur est ramenée à
   288 lignes et l'image est coupée. La scène est la peinture `monolithe.png`, réduite et
   ramenée à 230 couleurs par `make_assets.py` (165 pour le ciel et les collines, 65 pour le lac),
-  plus 12 niveaux pour le bord du monolithe. Tout passe par la palette : `scene_colors.h` donne pour
+  plus le noir du monolithe, bords compris (la frange brune de la peinture autour du monolithe est
+  repeinte en noir, et il n'y a plus de lumière de bord). Tout passe par la palette : `scene_colors.h` donne pour
   chaque couleur sa teinte de nuit et le moment où elle prend la lumière (les couleurs vives près du
   soleil d'abord) ; `main.c` recalcule les couleurs à chaque image, d'où le lever de soleil sans
   redessiner un pixel. Le texte n'ayant pas de transparence, chaque tuile de texte a sa propre
