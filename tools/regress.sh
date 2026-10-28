@@ -36,6 +36,10 @@ tools/vidfuzz/run_cmp.sh tools/vidfuzz/vfs_hr.mnc $W/fuzzhs ${FUZZ_HR_LAST:-161}
 echo "images identiques : $(grep -c ' 0 pixels' $W/fuzzhs.txt) sur $(grep -c 'pixels' $W/fuzzhs.txt)"
 grep -v " 0 pixels" $W/fuzzhs.txt
 echo "fenetre de rendu max (image, cycles) : $(sort -k2 -n $W/fuzzhs/rtl/windows.txt | tail -1)"
+echo "== Sauvegardes d'etat du simulateur (sauver, continuer, recharger ailleurs : memes images et meme son)"
+for r in rom/build/testrom.mnc tools/vidfuzz/vidfuzz_hr.mnc examples/monotracker/build/monotracker.mnc examples/graviton/build/graviton.mnc; do
+  node tools/state_test.js $r 300 200
+done
 echo "== Son"
 # register write logs (tools/apu/logs: sessions of the test ROM and random writes), replayed by the
 # simulator's sound engine and by the RTL one; PCM data is read from the current test ROM

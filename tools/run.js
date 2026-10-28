@@ -7,6 +7,8 @@
 //            ms=<dx>,<dy>,<buttons>,<wheel>  (one mouse packet, decimal; dy positive downwards,
 //            buttons: bit 0 left, 1 right, 2 middle)  |  mi=hh,hh,...  (MIDI bytes, hexadecimal)
 //            dip=<hex>  (the 16 DIP switches)
+//            save=<name>  (after this frame: save state <name>.mcs in the output directory)
+//            load=<file>  (before this frame: load a save state, .mcs file of the same ROM)
 // Prints, every 600 frames, the busiest line of sprites in that window and whether one overflowed.
 const fs = require('fs');
 const path = require('path');
@@ -44,6 +46,7 @@ for (let f = 0; f <= last; f++) {
     else if (/^a[1-4]=/.test(a)) m.analog[+a[1] - 1] = parseInt(a.slice(3), 16) | 0;
     else if (/^d[1-4]=/.test(a)) m.paddle[+a[1] - 1] = parseInt(a.slice(3), 16) | 0;
     else if (a.startsWith('dip=')) m.dip = parseInt(a.slice(4), 16);
+    else if (a.startsWith('load=')) m.loadState(new Uint8Array(fs.readFileSync(a.slice(5))));
     else if (a.startsWith('mi=')) { for (const x of a.slice(3).split(',')) m.midiByte(parseInt(x, 16)); }
     else if (a.startsWith('ms=')) { const [dx, dy, bt, wh] = a.slice(3).split(',').map((x) => parseInt(x, 10) || 0); m.mouseEvent(dx, dy, bt, wh); }
     else if (/^k[du]=/.test(a)) { const v = parseInt(a.slice(3), 16); m.keyEvent(v & 0xff, !!(v & 0x100), a[1] === 'd'); }
@@ -64,6 +67,7 @@ for (let f = 0; f <= last; f++) {
       regs.frame = m.frame;
       fs.writeFileSync(path.join(outDir, a.slice(5) + '.json'), JSON.stringify(regs));
     }
+    if (a.startsWith('save=')) fs.writeFileSync(path.join(outDir, a.slice(5) + '.mcs'), Buffer.from(m.saveState()));
     if (a.startsWith('shot')) {
       const W = m.scrW, H = m.scrH;
       const buf = Buffer.alloc(W * H * 3);

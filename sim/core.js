@@ -24,12 +24,28 @@
     noHandler: ['Exception %1 à pc=0x%2 sans gestionnaire (mtvec = 0)', 'Exception %1 at pc=0x%2 with no handler (mtvec = 0)'],
     outOfMemory: ['Exécution hors mémoire à pc=0x%1', 'Execution outside memory at pc=0x%1'],
     misaligned: ['pc mal aligné : 0x%1', 'misaligned pc: 0x%1'],
+    stateMagic: ['Ce fichier n\'est pas une sauvegarde d\'état MONOCORE-1 (.mcs)', 'This file is not a MONOCORE-1 save state (.mcs)'],
+    stateVersion: ['Sauvegarde d\'état d\'un autre format (version %1)', 'Save state of another format (version %1)'],
+    stateRom: ['Cette sauvegarde d\'état vient d\'une autre ROM (« %1 ») ou d\'une autre version de celle-ci', 'This save state comes from another ROM (“%1”) or another version of it'],
   };
   function msg(key, ...args) {
     let s = MSG[key][Monocore.lang === 'en' ? 1 : 0];
     args.forEach((a, i) => { s = s.replace('%' + (i + 1), a); });
     return s;
   }
+
+  // save states (see saveState): what they contain
+  const STATE_VERSION = 1;
+  const STATE_BLOBS = ['regs', 'wram', 'nvram', 'gpuRegs', 'palette', 'palRGBA', 'sprites', 'tilemaps', 'lineTab',
+    'chrram', 'apuRegs', 'keyState', 'pic'];
+  const STATE_SCALARS = ['pc', 'mstatus', 'mie', 'mtvec', 'mepc', 'mcause', 'mscratch', 'mtval', 'cycles', 'instret',
+    'wfi', 'halted', 'brk', 'scrW', 'scrH', 'fieldH', 'interlace', 'field', 'frame', 'vcount', 'inVblank',
+    'sprOverflow', 'sprOverflowCur', 'sprPeak', 'sprPeakCur', 'dip', 'irqStatus', 'irqEnable', 'midiLost',
+    'cycleAcc', 'sampleCount', 'nextSample'];
+  const STATE_OBJECTS = ['inputs', 'analog', 'paddle', 'keyQueue', 'mouse', 'midiQueue', 'timers', 'dma', 'voices', 'psg', 'stats'];
+  const CRC_TABLE = new Int32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; CRC_TABLE[n] = c; }
+  function crc32(b) { let c = -1; for (let i = 0; i < b.length; i++) c = CRC_TABLE[(c ^ b[i]) & 0xff] ^ (c >>> 8); return (c ^ -1) >>> 0; }
 
   // OKI MSM6295 ADPCM tables
   const OKI_STEP = [];
@@ -636,6 +652,64 @@
       this.stats.load = Math.min(1, this.stats.busy / fc);
       this.stats.instr = this.instret - startInstr;
       return this.audioN;
+    }
+
+    // ---------------------------------------------------------------- save states
+    // A save state is the whole machine between two frames: CPU, memories (NVRAM included), video and
+    // sound registers, the internal state of the voices, timers and input queues, and the picture on
+    // screen. Format (little endian): 'MCS1', u32 format version, u32 length of a UTF-8 JSON header,
+    // the JSON, then the memories one after the other (each at a multiple of 4 bytes). The header
+    // holds the scalars and small objects, and identifies the ROM (title and CRC-32): a state only
+    // loads into the ROM that made it. Taken between two calls to runFrame(), like the page does.
+    saveState() {
+      const S = {
+        format: STATE_VERSION, title: this.header.title, romSize: this.romSize, romCrc: crc32(this.rom),
+        scalars: {}, objects: {}, blobs: [],
+      };
+      for (const k of STATE_SCALARS) S.scalars[k] = this[k];
+      for (const k of STATE_OBJECTS) S.objects[k] = JSON.parse(JSON.stringify(this[k]));
+      let off = 0;
+      const parts = [];
+      for (const k of STATE_BLOBS) {
+        const b = new Uint8Array(this[k].buffer, this[k].byteOffset, this[k].byteLength);
+        S.blobs.push({ name: k, offset: off, length: b.length });
+        parts.push(b);
+        off += (b.length + 3) & ~3;
+      }
+      const json = new TextEncoder().encode(JSON.stringify(S));
+      const head = 12 + ((json.length + 3) & ~3);
+      const out = new Uint8Array(head + off);
+      const dv = new DataView(out.buffer);
+      out.set([0x4D, 0x43, 0x53, 0x31], 0);          // 'MCS1'
+      dv.setUint32(4, STATE_VERSION, true);
+      dv.setUint32(8, json.length, true);
+      out.set(json, 12);
+      S.blobs.forEach((d, i) => out.set(parts[i], head + d.offset));
+      return out;
+    }
+
+    // Reads a state made by saveState(); throws (with a readable message) if it is not one, comes
+    // from another ROM or another version of the format. The machine is unchanged in that case.
+    loadState(bytes) {
+      const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      if (u8.length < 12 || u8[0] !== 0x4D || u8[1] !== 0x43 || u8[2] !== 0x53 || u8[3] !== 0x31) throw new Error(msg('stateMagic'));
+      const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+      if (dv.getUint32(4, true) !== STATE_VERSION) throw new Error(msg('stateVersion', dv.getUint32(4, true)));
+      const jl = dv.getUint32(8, true);
+      const S = JSON.parse(new TextDecoder().decode(u8.subarray(12, 12 + jl)));
+      if (S.romSize !== this.romSize || S.romCrc !== crc32(this.rom)) throw new Error(msg('stateRom', S.title));
+      const head = 12 + ((jl + 3) & ~3);
+      for (const d of S.blobs)
+        if (!this[d.name] || this[d.name].byteLength !== d.length || head + d.offset + d.length > u8.length) throw new Error(msg('stateMagic'));
+      for (const d of S.blobs) {
+        const t = this[d.name];
+        new Uint8Array(t.buffer, t.byteOffset, t.byteLength).set(u8.subarray(head + d.offset, head + d.offset + d.length));
+      }
+      for (const k of STATE_SCALARS) if (k in S.scalars) this[k] = S.scalars[k];
+      for (const k of STATE_OBJECTS) if (k in S.objects) this[k] = S.objects[k];
+      this.nvDirty = true;                            // the NVRAM of the state replaces the current one
+      this.audioN = 0;
+      this.present();
     }
 
     // copy the picture (stride PIC_W) to frameBuf (stride scrW, scrH lines)

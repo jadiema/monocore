@@ -255,6 +255,18 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
               <span id="bankList"></span>
             </span>
           </div>
+          <div class="transport nvbar">
+            <span class="nvlabel" data-i18n="states">États de la machine</span>
+            <select id="stateSlot" aria-label="Emplacement" data-i18n-title="stateSlotTitle" title="Emplacement (Alt+1 à Alt+4)">
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+            </select>
+            <button class="btn" id="stateSaveBtn" data-i18n="stateSave" data-i18n-title="stateSaveTitle" title="Fige toute la machine (processeur, mémoires, NVRAM, son, image) dans l'emplacement choisi (Alt+S)">Sauver l'état</button>
+            <button class="btn" id="stateLoadBtn" data-i18n="stateLoad" data-i18n-title="stateLoadTitle" title="Remet la machine exactement dans l'état de l'emplacement choisi (Alt+R)">Recharger</button>
+            <button class="btn" id="stateExportBtn" data-i18n="stateExport" data-i18n-title="stateExportTitle" title="Enregistre l'état de l'emplacement choisi dans un fichier .mcs">Exporter .mcs</button>
+            <label class="btn" for="stateFile" data-i18n="stateImport" data-i18n-title="stateImportTitle" title="Charge un fichier .mcs de la même ROM dans la machine (et dans l'emplacement choisi)">Importer .mcs…</label>
+            <input type="file" id="stateFile" accept=".mcs" hidden>
+            <span class="nvlabel" id="stateInfo"></span>
+          </div>
 
           <div class="keys">
             <section>
@@ -416,6 +428,22 @@ __CORE_JS__
     optSolfege: ['SOLFEGE (lire les notes, clavier MIDI)', 'SOLFEGE (reading notes, MIDI keyboard)'],
     cascadeKbd: ['Ce jeu se joue sur un clavier MIDI (cochez « clavier MIDI ») ou sur les lettres du clavier : « clavier de la console » activé (F9 pour le couper).',
                  'This game is played on a MIDI keyboard (tick “MIDI keyboard”) or on the letters of the keyboard: “console keyboard” is on (F9 turns it off).'],
+    states: ['États de la machine', 'Machine states'],
+    stateSlotTitle: ['Emplacement (Alt+1 à Alt+4)', 'Slot (Alt+1 to Alt+4)'],
+    stateSave: ['Sauver l\'état', 'Save state'], stateLoad: ['Recharger', 'Load state'],
+    stateSaveTitle: ['Fige toute la machine (processeur, mémoires, NVRAM, son, image) dans l\'emplacement choisi (Alt+S)',
+                     'Freezes the whole machine (processor, memories, NVRAM, sound, picture) into the chosen slot (Alt+S)'],
+    stateLoadTitle: ['Remet la machine exactement dans l\'état de l\'emplacement choisi (Alt+R)',
+                     'Puts the machine back exactly in the state of the chosen slot (Alt+R)'],
+    stateExport: ['Exporter .mcs', 'Export .mcs'], stateImport: ['Importer .mcs…', 'Import .mcs…'],
+    stateExportTitle: ['Enregistre l\'état de l\'emplacement choisi dans un fichier .mcs', 'Saves the state of the chosen slot to a .mcs file'],
+    stateImportTitle: ['Charge un fichier .mcs de la même ROM dans la machine (et dans l\'emplacement choisi)',
+                       'Loads a .mcs file of the same ROM into the machine (and into the chosen slot)'],
+    stateSaved: ['état sauvé dans l\'emplacement %1 (image n° %2)', 'state saved in slot %1 (frame %2)'],
+    stateLoaded: ['état de l\'emplacement %1 rechargé (image n° %2)', 'state of slot %1 loaded (frame %2)'],
+    stateEmpty: ['emplacement %1 vide', 'slot %1 is empty'],
+    stateSlotInfo: ['emplacement %1 : image n° %2, %3', 'slot %1: frame %2, %3'],
+    stateRejected: ['État refusé', 'State rejected'],
     nvram: ['NVRAM de la ROM', 'ROM NVRAM'], nvExport: ['Exporter .sav', 'Export .sav'], nvImport: ['Importer .sav…', 'Import .sav…'],
     nvExportTitle: ['Enregistre la NVRAM dans un fichier .sav, le même que celui de la MiSTer (saves/MONOCORE)',
                     'Saves the NVRAM to a .sav file, the same as the MiSTer one (saves/MONOCORE)'],
@@ -562,7 +590,7 @@ __CORE_JS__
     try { const s = localStorage.getItem(nvKey()); if (s) m.nvram.set(b64(s).subarray(0, m.nvram.length)); } catch (e) { /* no storage */ }
     romKey = label;
     romInfo = { title: m.header.title || label, origin: m.header.origin || '', size: bytes.length };
-    showRomName();
+    showRomName(); showStateInfo();
     log('— ' + (m.header.title || label) + ' (' + bytes.length + ' ' + t('romLog') + ' 0x' + m.header.entry.toString(16) + ')\n');
     syncDips(true);
     setPill('runPill', 'ok', running ? 'running' : 'ready');
@@ -727,6 +755,84 @@ __CORE_JS__
   function sfxBanks() { return nvItems('MSNV', 2, 'MFX1', 12, 'bruits'); }     // sdk/MSFX.md
   function hasSfx() { return sfxBanks().length > 0; }
   $('nvExportBtn').addEventListener('click', () => { if (m) { saveNv(); download(m.nvram.slice(), savName()); } });
+
+  // ---------------------------------------------------------------- save states (sim/core.js saveState)
+  // Four slots per ROM, kept in the browser (IndexedDB, so they survive a reload of the page) and
+  // exportable as .mcs files. A state holds the NVRAM too: loading it also puts the NVRAM back.
+  const stateMem = new Map();                   // ROM title -> { slot: { bytes, frame, date } }
+  let stateDb = null;
+  try {
+    const rq = indexedDB.open('monocore-states', 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore('states');
+    rq.onsuccess = () => { stateDb = rq.result; showStateInfo(); };
+  } catch (e) { /* no IndexedDB: slots only last as long as the page */ }
+  function stateKey(slot) { return (m ? m.header.title : '') + ':' + slot; }
+  function stateSlot() { return +$('stateSlot').value; }
+  function fmt(key, ...a) { let x = t(key); a.forEach((v, i) => { x = x.replace('%' + (i + 1), v); }); return x; }
+  function stateGet(slot, done) {
+    const rom = stateMem.get(m.header.title);
+    if (rom && rom[slot]) { done(rom[slot]); return; }
+    if (!stateDb) { done(null); return; }
+    const rq = stateDb.transaction('states').objectStore('states').get(stateKey(slot));
+    rq.onsuccess = () => done(rq.result || null); rq.onerror = () => done(null);
+  }
+  function statePut(slot, rec) {
+    if (!stateMem.has(m.header.title)) stateMem.set(m.header.title, {});
+    stateMem.get(m.header.title)[slot] = rec;
+    if (stateDb) try { stateDb.transaction('states', 'readwrite').objectStore('states').put(rec, stateKey(slot)); } catch (e) { /* full */ }
+  }
+  function showStateInfo() {
+    if (!m) { $('stateInfo').textContent = ''; return; }
+    const slot = stateSlot();
+    stateGet(slot, (rec) => {
+      if (slot !== stateSlot()) return;
+      $('stateInfo').textContent = rec ? fmt('stateSlotInfo', slot, rec.frame, new Date(rec.date).toLocaleTimeString(lang)) : fmt('stateEmpty', slot);
+    });
+  }
+  relabel.push(showStateInfo);
+  function stateSave() {
+    if (!m) return;
+    const slot = stateSlot();
+    statePut(slot, { bytes: m.saveState(), frame: m.frame, date: Date.now() });
+    log('— ' + fmt('stateSaved', slot, m.frame) + '\n');
+    showStateInfo();
+  }
+  function stateApply(bytes, what) {
+    try { m.loadState(bytes); } catch (e) { log(t('stateRejected') + sep() + e.message + '\n', 'err'); return false; }
+    saveNv(); kbdRelease(); draw(); updateMonitor();
+    setPill('runPill', paused ? 'warn' : 'ok', paused ? 'pause' : running ? 'running' : 'ready');
+    log('— ' + what + '\n');
+    return true;
+  }
+  function stateLoad() {
+    if (!m) return;
+    const slot = stateSlot();
+    stateGet(slot, (rec) => {
+      if (!rec) { log('— ' + fmt('stateEmpty', slot) + '\n'); return; }
+      stateApply(rec.bytes, fmt('stateLoaded', slot, rec.frame));
+    });
+  }
+  $('stateSlot').addEventListener('change', () => { $('stateSlot').blur(); showStateInfo(); });
+  $('stateSaveBtn').addEventListener('click', stateSave);
+  $('stateLoadBtn').addEventListener('click', stateLoad);
+  $('stateExportBtn').addEventListener('click', () => {
+    if (!m) return;
+    const slot = stateSlot();
+    stateGet(slot, (rec) => {
+      if (!rec) { log('— ' + fmt('stateEmpty', slot) + '\n'); return; }
+      download(rec.bytes, savName().replace(/\.sav$/, '') + '_' + slot + '.mcs');
+    });
+  });
+  $('stateFile').addEventListener('change', (e) => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f || !m) return;
+    const r = new FileReader();
+    r.onload = () => {
+      const b = new Uint8Array(r.result);
+      if (stateApply(b, f.name)) { statePut(stateSlot(), { bytes: b, frame: m.frame, date: Date.now() }); showStateInfo(); }
+    };
+    r.readAsArrayBuffer(f);
+  });
   $('nvFile').addEventListener('change', (e) => {
     const f = e.target.files[0]; e.target.value = '';
     if (!f || !m) return;
@@ -903,6 +1009,15 @@ __CORE_JS__
   function onKey(e, down) {
     if (e.target.closest('input, select, textarea') && e.target.id !== 'kbdMode') return;
     if ($('view-sim').hidden || e.metaKey) return;
+    if (e.altKey && !e.ctrlKey && /^(KeyS|KeyR|Digit[1-4])$/.test(e.code)) {   // save states
+      e.preventDefault();
+      if (down && !e.repeat) {
+        if (e.code === 'KeyS') stateSave();
+        else if (e.code === 'KeyR') stateLoad();
+        else { $('stateSlot').value = e.code.slice(5); showStateInfo(); }
+      }
+      return;
+    }
     if (e.code === 'F9') { if (down) { $('kbdMode').checked = !$('kbdMode').checked; $('kbdMode').dispatchEvent(new Event('change')); } e.preventDefault(); return; }
     if ($('kbdMode').checked) {
       const c = PS2[e.code];
