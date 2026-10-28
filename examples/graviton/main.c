@@ -98,7 +98,8 @@ static int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v;
 static void set_rgb(int pal, int i, int r, int g, int b) { mc_color(pal * 16 + i, MC_RGB(r, g, b)); }
 static void text(int col, int row, const char *s, int ink) { mc_text(L_TEXT, col, row, s, INK(ink)); }
 static void text_c(int row, const char *s, int ink) { text((40 - (int)strlen(s)) / 2, row, s, ink); }
-static void text_clear(void) { mc_text_clear(L_TEXT); }
+static void hint_reset(void);
+static void text_clear(void) { mc_text_clear(L_TEXT); hint_reset(); }
 
 // ---------------------------------------------------------------- bitmaps (screen pixels)
 static uint16_t cell_tile[2][BM_ROWS][BM_COLS];    // tile of each cell, 0 = none
@@ -696,10 +697,17 @@ static void level_text(void) {                      // the advice of the level, 
   text(1, 2, l1, INK_GREY);
   if (nl) text(1, 3, nl + 1, INK_GREY);
 }
-static void hint(const char *s) {
-  char b[41]; memset(b, ' ', 40); b[40] = 0; text(0, 28, b, INK_WHITE);
-  text((40 - (int)strlen(s)) - 1, 28, s, INK_GREY);
+// the line of help at the bottom (row 29), centred; its colour tells the mode
+static void hint_ink(const char *s, int ink) {
+  static char last[48]; static int last_ink = -1;
+  if (ink == last_ink && !strcmp(s, last)) return;   // written each frame: only when it changes
+  char b[41]; memset(b, ' ', 40); b[40] = 0;
+  text(0, 28, b, INK_WHITE); text(0, 29, b, INK_WHITE);
+  text_c(29, s, ink);
+  strncpy(last, s, sizeof last - 1); last_ink = ink;
 }
+static void hint(const char *s) { hint_ink(s, INK_GREY); }
+static void hint_reset(void) { hint_ink("", -2); }
 
 // ---------------------------------------------------------------- vector title
 // strokes on a 4 x 6 grid: pairs of points, -1 = pen up, -2 = end
@@ -788,7 +796,7 @@ static int select_screen(int start) {
   draw_title();
   int c = start == GV_LEVELS ? GV_LEVELS : clampi(start, 0, save.unlocked - 1);
   text_c(12, "CHOIX DU NIVEAU", INK_PURPLE);
-  hint("B1: JOUER   START: TITRE");
+  hint("B1 JOUER   START/B6 TITRE");
   text(1, 13, "EN VERT : GAGNE (RECORD EN TIRS)", INK_GREY);
   display_play();
   for (;;) {
@@ -880,11 +888,7 @@ static void move_cursor(void) {
   if (mc_mouse_present()) { mc_mouse_set(2 * cur_x, 2 * cur_y); mx = cur_x; my = cur_y; }
 }
 
-static void mode_text(void) {
-  text(1, 29, "START/B6 : MENU", INK_GREY);
-  if (!can_place_any()) return;
-  text(29, 29, pod_mode ? "MODE PUITS" : "MODE VISEE", pod_mode ? INK_ORANGE : INK_GREY);
-}
+static void mode_text(void) { hint_reset(); }    // the colour of the help line says the mode
 
 // returns 1 when the shot is fired, 2 to go to the menu
 static int edit_frame(uint32_t t) {
@@ -950,12 +954,12 @@ static int edit_frame(uint32_t t) {
     mc_sprite_hide(S_CURSOR);
   } else if (pod_mode) {
     mc_sprite(S_CURSOR, 2 * cur_x - 16, 2 * cur_y - 16, CELL_CURSOR, 4, 4, PAL_CURSOR, 7);
-    if (near_player_pod(cur_x, cur_y) >= 0) hint("B1 PRENDRE  B5 RETIRER  B2 VISEE");
-    else if (left_of(sel) > 0) hint(sel > 0 ? "B1 POSER  B4 TYPE  B2 VISEE  B3 TIR" : "B1 REPOUSSOIR  B4 TYPE  B2 VISEE");
-    else hint("B2 VISEE   B3 TIR");
+    if (near_player_pod(cur_x, cur_y) >= 0) hint_ink("B1 PRENDRE  B5 RETIRER  B2 VISEE  B3 TIR", INK_ORANGE);
+    else if (left_of(sel) > 0) hint_ink(sel > 0 ? "B1 POSER  B4 TYPE  B2 VISEE  B3 TIR" : "B1 REPOUSSOIR  B4 TYPE  B2 VISEE  B3 TIR", INK_ORANGE);
+    else hint_ink("B2 VISEE   B3 TIR   B6 MENU", INK_ORANGE);
   } else {
     mc_sprite_hide(S_CURSOR);
-    hint(can_place_any() ? "HAUT/BAS VISER  B2 PUITS  B3 TIR" : "HAUT/BAS VISER   B3 TIR");
+    hint_ink(can_place_any() ? "HAUT/BAS VISER  B3 TIR  B2 PUITS B6 MENU" : "HAUT/BAS VISER   B3 TIR   START/B6 MENU", INK_GREY);
   }
   if (held < 0 && (p & IN_B(3))) return 1;
   return 0;
@@ -972,7 +976,7 @@ static int fly(void) {
   int col = 1 + trace_slot;
   mc_sprite_hide(S_CURSOR); mc_sprite_hide(S_HELD); draw_aim(false);
   sfx_fire = 24;
-  hint("B3: ACCELERER   B2: ABANDONNER");
+  hint("B3 ACCELERER   B2 ABANDONNER");
   for (uint32_t t = 0;; t++) {
     int steps = (held_all() & IN_B(3)) ? 3 : 1;
     if (pressed_all() & IN_B(2)) return EV_LOST;
@@ -1071,7 +1075,7 @@ static int play_lv(const gv_level *L, int n) {
       }
       text_c(12, s, INK_PURPLE);
       if (record && shots > 0) text_c(14, "NOUVEAU RECORD", INK_GREEN);
-      hint(n < 0 ? "B1: CONSTRUCTION   B2: REJOUER" : n + 1 < GV_LEVELS ? "B1: SUIVANT  B2: REJOUER  START: CHOIX" : "B1: CONTINUER");
+      hint(n < 0 ? "B1 CONSTRUCTION   B2 REJOUER" : n + 1 < GV_LEVELS ? "B1 SUIVANT   B2 REJOUER   B6 CHOIX" : "B1 CONTINUER");
       wait_frames(30);
       bool again = false;
       while (!again) {
@@ -1198,15 +1202,12 @@ static void ed_redraw(void) {
 }
 static void ed_text(int tool, int wall_on) {
   char s[48]; memset(s, ' ', 40); s[40] = 0;
-  text(0, 0, s, INK_WHITE); text(0, 28, s, INK_WHITE); text(0, 29, s, INK_WHITE);
-  text(0, 0, "CONSTRUCTION", INK_ORANGE);
-  text(13, 0, ed_name, INK_WHITE);
+  text(0, 0, s, INK_WHITE);
+  text(0, 0, "OUTIL (B4/B5)", INK_GREY); text(14, 0, tool_name[tool], INK_YELLOW);
   char c[16] = "+0 -0"; c[1] = (char)('0' + ed.n_pull); c[4] = (char)('0' + ed.n_push);
-  text(27, 0, "A POSER", INK_GREY); text(35, 0, c, INK_YELLOW);
-  text(1, 28, "OUTIL :", INK_GREY); text(9, 28, tool_name[tool], INK_YELLOW);
-  text(27, 28, "B4/B5 OUTIL", INK_GREY);
-  text(1, 29, wall_on ? "B1 FIN DU MUR   B2 ANNULER" : tool_help[tool], INK_WHITE);
-  text(30, 29, "B3 ESSAYER", INK_GREEN);
+  text(35, 0, c, INK_YELLOW);
+  char h[48]; strcpy(h, wall_on ? "B1 FIN DU MUR   B2 ANNULER" : tool_help[tool]); strcat(h, "   B3 ESSAI");
+  hint_ink(h, INK_WHITE);
 }
 // the wall being drawn, as a dim line on the trace bitmap (the aim line's pixel list is reused)
 static void ed_preview(int x0, int y0, int x1, int y1) {
@@ -1318,7 +1319,7 @@ static int slots_screen(void) {
   hide_all(); fx_clear(); text_clear();
   bm_clear(CHR_DYN); draw_title();
   text_c(12, "CONSTRUIRE UN NIVEAU", INK_ORANGE);
-  hint("B1 CONSTRUIRE   B3 JOUER   START RETOUR");
+  hint("B1 CONSTRUIRE   B3 JOUER   B6 RETOUR");
   text_c(26, "TOUT EST ENREGISTRE AU FUR ET A MESURE.", INK_GREY);
   display_play();
   static int c = 0;

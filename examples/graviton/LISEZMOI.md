@@ -43,7 +43,8 @@ si « clavier de la console » est coché (F9) ; les flèches visent alors en mo
 le curseur en mode PUITS.
 
 Toutes les manettes sont lues : n'importe quel joueur de la borne peut jouer. Les puits qui restent
-à poser sont les points en bas à gauche ; la ligne du bas rappelle les boutons utiles.
+à poser sont les points en bas à gauche ; la ligne du bas rappelle les boutons utiles, en vert en
+mode VISEE et en orange en mode PUITS.
 
 ## Niveaux
 
