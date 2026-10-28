@@ -32,16 +32,13 @@
 #define L_STAT 3
 
 // sprite cells (32 bytes each, from CHR_SPR), drawn at twice the size of the 320 x 240 version
-#define CELL_POD     0                     // 32 x 32 asterisk (pull): 16 cells
-#define CELL_PODPUSH 16                    // asterisk in a ring (push)
-#define CELL_TGT     32                    // 4 frames of the spinning target, 16 cells each
-#define CELL_SHOT    96                    // 8 x 8
-#define CELL_SPARK   97
-#define CELL_DOT     98                    // 4 x 4 dot
-#define CELL_CURSOR  100                   // 32 x 32
-#define CELL_BIGPOD  116                   // 64 x 64 planet: 64 cells
-#define CELL_BIGPUSH 180                   // 64 x 64
-#define N_CELLS      244
+#define CELL_TGT     0                     // 4 frames of the spinning target, 32 x 32 (16 cells each)
+#define CELL_SHOT    64                    // 8 x 8
+#define CELL_SPARK   65
+#define CELL_DOT     66                    // 4 x 4 dot
+#define CELL_CURSOR  68                    // 32 x 32
+#define CELL_PODS    84                    // pods in 6 sizes, pulling then pushing (see make_pods)
+#define N_SIZES      6
 
 // palettes
 #define PAL_FONT    0
@@ -252,9 +249,48 @@ static void gfx_asterisk(int c, int r, int col, int size) {
   }
 }
 
+// A pod is drawn as large as it is strong: its radius grows as the square root of its power (a
+// player's pod, power 64, has a radius of 10 screen pixels), rounded to one of six sizes drawn here.
+// A pod that pulls is a plain asterisk of 8 branches; one that pushes is a cross of 4 arrows pointing out.
+static const uint8_t size_r[N_SIZES] = { 9, 11, 13, 15, 18, 21 };
+static uint8_t size_px[N_SIZES];                   // canvas side, a multiple of 8
+static uint16_t pod_cell[2][N_SIZES];              // [0 pull, 1 push][size]
+static int pod_size(int power) {
+  int r = (int)mc_isqrt((uint32_t)(power * 100 * 100 / 64));   // 10 * sqrt(power / 64), in pixels
+  int best = 0;
+  for (int k = 1; k < N_SIZES; k++) if (iabs(size_r[k] * 10 - r) < iabs(size_r[best] * 10 - r)) best = k;
+  return best;
+}
+static void make_pods(void) {
+  int cell = CELL_PODS;
+  for (int kind = 0; kind < 2; kind++)
+    for (int k = 0; k < N_SIZES; k++) {
+      int r = size_r[k], sz = (2 * (r + 3) + 7) & ~7, c = sz / 2;
+      size_px[k] = (uint8_t)sz;
+      gfx_begin();
+      if (!kind) gfx_asterisk(c, r, 1, sz);
+      else for (int a = 0; a < 1024; a += 256) {      // a cross of 4 arrows pointing out
+        int tx = c + FIX_INT(mc_cos(a) * r + 32768), ty = c + FIX_INT(mc_sin(a) * r + 32768);
+        gfx_line(c, c, tx, ty, 1, sz);
+        gfx_line(c + (a == 0 || a == 512 ? 0 : -1), c + (a == 0 || a == 512 ? -1 : 0),
+                 tx + (a == 0 || a == 512 ? 0 : -1), ty + (a == 0 || a == 512 ? -1 : 0), 1, sz);
+        int hl = 4 + r / 4;
+        for (int sd = -1; sd <= 1; sd += 2) {
+          int b = a + 512 + sd * 128;
+          int hx = tx + FIX_INT(mc_cos(b) * hl + 32768), hy = ty + FIX_INT(mc_sin(b) * hl + 32768);
+          gfx_line(tx, ty, hx, hy, 1, sz);
+          gfx_line(tx + (a == 0 || a == 512 ? 0 : -1), ty + (a == 0 || a == 512 ? -1 : 0),
+                   hx + (a == 0 || a == 512 ? 0 : -1), hy + (a == 0 || a == 512 ? -1 : 0), 1, sz);
+        }
+      }
+      gfx_upload(cell, sz);
+      pod_cell[kind][k] = (uint16_t)cell;
+      cell += (sz / 8) * (sz / 8);
+    }
+}
+
 static void make_sprites(void) {
-  gfx_begin(); gfx_asterisk(16, 10, 1, 32); gfx_upload(CELL_POD, 32);
-  gfx_begin(); gfx_asterisk(16, 6, 1, 32); gfx_ring(31, 23, 1, 1, 32); gfx_upload(CELL_PODPUSH, 32);
+  make_pods();
   for (int f = 0; f < 4; f++) {                    // hatching turned by 22.5 degrees a frame
     gfx_begin(); gfx_ring(31, 27, 2, 1, 32);
     int32_t c = mc_cos(f * 64), sn = mc_sin(f * 64);
@@ -276,8 +312,6 @@ static void make_sprites(void) {
   gfx_begin();
   for (int i = 0; i < 32; i++) if (i < 11 || i > 20) { gfx_put(i, 16, 1, 32); gfx_put(16, i, 1, 32); }
   gfx_upload(CELL_CURSOR, 32);
-  gfx_begin(); gfx_ring(64, 54, 1, 1, 64); gfx_asterisk(32, 12, 1, 64); gfx_upload(CELL_BIGPOD, 64);
-  gfx_begin(); gfx_ring(64, 54, 1, 1, 64); gfx_ring(64, 36, 1, 1, 64); gfx_asterisk(32, 8, 1, 64); gfx_upload(CELL_BIGPUSH, 64);
   mc_sprite_sheet(MC_CHR(CHR_SPR));
 }
 
@@ -586,9 +620,8 @@ static void trace_new(void) {                      // next slot, wiping the shot
 static void pod_sprite(int n, int x, int y, int sign, bool fixed, int power, bool bad, uint32_t t) {
   (void)t;
   int pal = bad ? PAL_BAD : fixed ? (sign > 0 ? PAL_PULLFIX : PAL_PUSHFIX) : (sign > 0 ? PAL_PULL : PAL_PUSH);
-  bool big = power > GV_POD_POWER + 40;
-  if (big) mc_sprite(S_POD + n, 2 * x - 32, 2 * y - 32, sign > 0 ? CELL_BIGPOD : CELL_BIGPUSH, 8, 8, pal, 4);
-  else mc_sprite(S_POD + n, 2 * x - 16, 2 * y - 16, sign > 0 ? CELL_POD : CELL_PODPUSH, 4, 4, pal, 4);
+  int k = pod_size(power), sz = size_px[k];
+  mc_sprite(S_POD + n, 2 * x - sz / 2, 2 * y - sz / 2, pod_cell[sign > 0 ? 0 : 1][k], sz / 8, sz / 8, pal, 4);
   mc_sprite_hide(S_RING + n);
 }
 static void draw_target(uint32_t t) {

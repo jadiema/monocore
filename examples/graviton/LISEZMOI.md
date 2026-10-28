@@ -1,9 +1,11 @@
 # GRAVITON — casse-tête gravitationnel
 
 Un canon, plaqué contre le bord du cadre, tire un projectile qui doit atteindre la cible violette
-qui tourne. Des **puits** courbent sa trajectoire : ceux qui attirent sont des astérisques, ceux qui
-repoussent ont un cercle autour. Rouges, ils sont fixés par le niveau ; orange (attirent) et jaunes
-(repoussent), c'est le joueur qui les pose. Le tir est perdu s'il touche un mur vert, tombe dans un
+qui tourne. Des **puits** courbent sa trajectoire. La forme dit le sens : un astérisque à huit branches attire,
+une croix de quatre flèches tournées vers l'extérieur repousse. La taille dit la force : le rayon du
+dessin croît comme la racine carrée de la puissance (six tailles), si bien qu'un puits deux fois
+plus fort se voit nettement plus gros. La couleur dit qui l'a mis : rouge (ou violet pour un
+repoussoir) s'il est fixé par le niveau, orange ou jaune si c'est le joueur qui le pose. Le tir est perdu s'il touche un mur vert, tombe dans un
 puits, sort du cadre ou erre trop longtemps ; les murs bleus le font rebondir. Rien ne se pose dans
 les zones hachurées, mais un puits peut aller jusque dans un mur.
 
