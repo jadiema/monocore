@@ -97,7 +97,6 @@ enum { INK_WHITE, INK_YELLOW, INK_CYAN, INK_ORANGE, INK_PURPLE, INK_GREY, INK_GR
 static uint32_t rnd(uint32_t n) { return n ? mc_rand() % n : 0; }
 static int iabs(int v) { return v < 0 ? -v : v; }
 static int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
-static int font_white = 1, font_dark = 2;
 
 static void set_rgb(int pal, int i, int r, int g, int b) { mc_color(pal * 16 + i, MC_RGB(r, g, b)); }
 static void text(int col, int row, const char *s, int ink) { mc_text(L_TEXT, col, row, s, INK(ink)); }
@@ -282,34 +281,11 @@ static void make_sprites(void) {
   mc_sprite_sheet(MC_CHR(CHR_SPR));
 }
 
-// the 16 x 16 font: the SDK font (8 x 8, 4 bpp) enlarged with EPX, as text tiles
-extern const uint8_t font_chr[], font_pal[];
-static int font_px(const uint8_t *g, int x, int y) {
-  if ((unsigned)x > 7 || (unsigned)y > 7) return 0;
-  uint8_t v = g[y * 4 + (x >> 1)];
-  return (x & 1) ? v >> 4 : v & 15;
-}
+// the 16 x 16 font: an anti-aliased vector font (font16.h, made by make_font.py), as text tiles;
+// colour indices 1 (full) to 4 (faint) are coverage levels, blended with the background by the palettes
+#include "font16.h"
 static void make_font(void) {
-  static uint8_t t[128];
-  for (int ch = 0; ch < 96; ch++) {
-    const uint8_t *g = &font_chr[ch * 32];
-    memset(t, 0, sizeof t);
-    for (int y = 0; y < 8; y++) for (int x = 0; x < 8; x++) {
-      int e = font_px(g, x, y), ea = font_px(g, x, y - 1), eb = font_px(g, x + 1, y), ec = font_px(g, x - 1, y), ed = font_px(g, x, y + 1);
-      int q[4] = { e, e, e, e };                    // EPX: up a, right b, left c, down d
-      if (ec == ea && ec != ed && ea != eb) q[0] = ea;
-      if (ea == eb && ea != ec && eb != ed) q[1] = eb;
-      if (ed == ec && ed != eb && ec != ea) q[2] = ec;
-      if (eb == ed && eb != ea && ed != ec) q[3] = ed;
-      for (int k = 0; k < 4; k++) {
-        int X = 2 * x + (k & 1), Y = 2 * y + (k >> 1);
-        uint8_t *p = &t[Y * 8 + (X >> 1)];
-        *p = (X & 1) ? (uint8_t)((*p & 0x0F) | (q[k] << 4)) : (uint8_t)((*p & 0xF0) | q[k]);
-      }
-    }
-    mc_chr_upload(CHR_FONT + ch * 128, t, 128);
-  }
-  for (int i = 0; i < 16; i++) PALETTE[i] = font_pal[2 * i] | (font_pal[2 * i + 1] << 8);
+  mc_chr_upload(CHR_FONT, font16, sizeof font16);
   mc_layer(L_TEXT, MC_CHR(CHR_FONT), MC_TILE16 | MC_4BPP, 64, 32, 3);
   mc_text_clear(L_TEXT);
 }
@@ -317,18 +293,15 @@ static void make_font(void) {
 // ---------------------------------------------------------------- palettes
 static void two(int pal, int r, int g, int b) { set_rgb(pal, 1, r, g, b); set_rgb(pal, 2, r * 3 / 5, g * 3 / 5, b * 3 / 5); }
 static void make_palettes(void) {
-  font_white = 1;
-  for (int i = 1; i < 16; i++) if (PALETTE[i] == MC_RGB(255, 255, 255)) font_white = i;
-  font_dark = font_white == 1 ? 2 : 1;
-  for (int i = 1; i < 16; i++) if (i != font_white && PALETTE[i]) font_dark = i;
-  // green phosphor: INK_WHITE is the bright green, INK_GREY the dim one
+  // green phosphor: INK_WHITE is the bright green, INK_GREY the dim one. Indices 1-4 of an ink
+  // palette are the font's coverage levels, blended with the black background.
   static const uint8_t ink[7][3] = { {90, 255, 90}, {255, 230, 60}, {80, 230, 255}, {255, 150, 40},
-                                     {240, 80, 255}, {40, 150, 40}, {180, 255, 180} };
-  for (int p = 0; p < 7; p++) {
-    for (int i = 0; i < 16; i++) PALETTE[(PAL_INK + p) * 16 + i] = PALETTE[i];
-    set_rgb(PAL_INK + p, font_white, ink[p][0], ink[p][1], ink[p][2]);
-    set_rgb(PAL_INK + p, font_dark, 0, 0, 0);
-  }
+                                     {240, 80, 255}, {40, 160, 40}, {180, 255, 180} };
+  static const uint8_t cover[4] = { 100, 72, 47, 22 };   // percent
+  for (int p = 0; p < 7; p++)
+    for (int k = 0; k < 4; k++)
+      set_rgb(PAL_INK + p, 1 + k, ink[p][0] * cover[k] / 100, ink[p][1] * cover[k] / 100, ink[p][2] * cover[k] / 100);
+  for (int k = 0; k < 4; k++) set_rgb(PAL_FONT, 1 + k, 255 * cover[k] / 100, 255 * cover[k] / 100, 255 * cover[k] / 100);
   set_rgb(PAL_STAT, C_FRAME, 40, 200, 40);
   set_rgb(PAL_STAT, C_DIM, 20, 70, 20);
   set_rgb(PAL_STAT, C_HALO, 20, 90, 20);

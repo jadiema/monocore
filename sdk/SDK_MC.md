@@ -148,7 +148,7 @@ affiche tout ce que la console reçoit).
 | `examples/solfege` | SOLFEGE, lecture de notes au clavier MIDI en 640 × 480 entrelacé : texte et portée en tuiles 16 × 16 (police agrandie en EPX), piano en une image 8 bpp où chaque touche a sa couleur, sprites zoomés, progression gardée en NVRAM |
 | `examples/test_mtrack` | le module `mtrack` comme dans un jeu : un morceau, deux bruitages, pause |
 | `examples/virusmeadow` | pong-casse-briques coopératif à 4 joueurs : écran d'accueil en image 8 bpp (`maps8`) avec fondu par la palette, prairie procédurale, virus sur un plan de tuiles, joueurs console pour les places libres, manettes, sticks, spinners et paddles |
-| `examples/graviton` | casse-tête gravitationnel en 640 × 480 entrelacé : deux plans « bitmap » en tuiles 16 × 16 allouées à la demande (réserve de tuiles, copie à l'écriture d'une tuile partagée), police du SDK agrandie en EPX à l'exécution, physique en entiers partagée avec des outils de vérification sur PC |
+| `examples/graviton` | casse-tête gravitationnel en 640 × 480 entrelacé : deux plans « bitmap » en tuiles 16 × 16 allouées à la demande (réserve de tuiles, copie à l'écriture d'une tuile partagée), police vectorielle anticrénelée en 16 × 16 (comme SOLFEGE), physique en entiers partagée avec des outils de vérification sur PC |
 
 ## Fichiers
 
