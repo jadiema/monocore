@@ -645,9 +645,11 @@ static void hud(void) {
   char s[48];
   memset(s, ' ', 40); s[40] = 0;
   text(0, 0, s, INK_WHITE);
-  s[0] = 'N'; s[1] = 'I'; s[2] = 'V'; s[3] = 'E'; s[4] = 'A'; s[5] = 'U'; s[6] = ' '; num2(s + 7, level + 1); s[9] = 0;
-  text(0, 0, s, INK_GREY);
-  text(10, 0, lv->name, INK_WHITE);
+  if (level >= 0) {
+    s[0] = 'N'; s[1] = 'I'; s[2] = 'V'; s[3] = 'E'; s[4] = 'A'; s[5] = 'U'; s[6] = ' '; num2(s + 7, level + 1); s[9] = 0;
+    text(0, 0, s, INK_GREY);
+    text(10, 0, lv->name, INK_WHITE);
+  } else text(0, 0, lv->name, INK_ORANGE);
   char t[12] = "TIRS 00/20"; num2(t + 5, shots); num2(t + 8, GV_SHOTS); text(30, 0, t, shots >= GV_SHOTS - 3 ? INK_ORANGE : INK_WHITE);
   inventory();
 }
@@ -655,7 +657,7 @@ static void level_text(void) {                      // the advice of the level, 
   text(1, 2, "                                      ", INK_GREY);
   text(1, 3, "                                      ", INK_GREY);
   if (shots > 0) return;
-  const char *h = level_hint[level], *nl = strchr(h, '\n');
+  const char *h = level >= 0 ? level_hint[level] : "VOTRE NIVEAU : A VOUS DE JOUER !\nSTART OU B6 : RETOUR CONSTRUCTION", *nl = strchr(h, '\n');
   char l1[40]; int n = nl ? (int)(nl - h) : (int)strlen(h);
   memcpy(l1, h, (size_t)n); l1[n] = 0;
   text(1, 2, l1, INK_GREY);
@@ -751,9 +753,10 @@ static int select_screen(int start) {
   hide_all(); fx_clear(); text_clear();
   bm_clear(CHR_DYN);
   draw_title();
-  int c = clampi(start, 0, save.unlocked - 1);
+  int c = start == GV_LEVELS ? GV_LEVELS : clampi(start, 0, save.unlocked - 1);
   text_c(12, "CHOIX DU NIVEAU", INK_PURPLE);
   hint("B1: JOUER   START: TITRE");
+  text(1, 13, "EN VERT : GAGNE (RECORD EN TIRS)", INK_GREY);
   display_play();
   for (;;) {
     mc_frame(); sfx_update();
@@ -771,13 +774,18 @@ static int select_screen(int start) {
       int ink = !open ? INK_GREY : i == c ? INK_YELLOW : save.best[i] ? INK_GREEN : INK_WHITE;
       text(col, row, s, ink);
     }
+    text(1, 25, c == GV_LEVELS ? "> CONSTRUIRE UN NIVEAU" : "  CONSTRUIRE UN NIVEAU", c == GV_LEVELS ? INK_YELLOW : INK_ORANGE);
     uint32_t p = pressed_all();
     int old = c;
-    if (p & IN_UP) c = c % 10 == 0 ? c : c - 1;
-    if (p & IN_DOWN) c = (c % 10 == 9 || c + 1 >= GV_LEVELS) ? c : c + 1;
-    if (p & IN_LEFT) c = c >= 10 ? c - 10 : c;
-    if (p & IN_RIGHT) c = c + 10 < GV_LEVELS ? c + 10 : c;
-    if (c >= save.unlocked) c = old;
+    if (c == GV_LEVELS) {                            // the building entry, under the left column
+      if (p & IN_UP) c = 9 < save.unlocked ? 9 : save.unlocked - 1;
+    } else {
+      if (p & IN_UP) c = c % 10 == 0 ? c : c - 1;
+      if (p & IN_DOWN) c = (c % 10 == 9 || c + 1 >= GV_LEVELS) ? GV_LEVELS : c + 1;
+      if (p & IN_LEFT) c = c >= 10 ? c - 10 : c;
+      if (p & IN_RIGHT) c = c + 10 < GV_LEVELS ? c + 10 : c;
+      if (c >= save.unlocked && c != GV_LEVELS) c = (p & IN_DOWN) ? GV_LEVELS : old;
+    }
     if (c != old) click(660);
     if (p & (IN_B(1) | IN_B(3)) || (mc_mouse_pressed() & MOUSE_LEFT)) { click(990); return c; }
     if (p & IN_START) return -1;
@@ -786,8 +794,8 @@ static int select_screen(int start) {
 
 // ---------------------------------------------------------------- playing a level
 static void mode_text(void);
-static void level_start(int n) {
-  level = n; lv = &gv_levels[n];
+static void level_start_lv(const gv_level *L, int n) {
+  level = n; lv = L;
   memset(pp, 0, sizeof pp);
   angle = lv->angle; if (angle < lv->amin || angle > lv->amax) angle = (lv->amin + lv->amax) / 2;
   shots = 0; held = -1; pod_mode = false; aim_hold = 0;
@@ -840,6 +848,7 @@ static void move_cursor(void) {
 }
 
 static void mode_text(void) {
+  text(1, 29, "START/B6 : MENU", INK_GREY);
   if (!can_place_any()) return;
   text(29, 29, pod_mode ? "MODE PUITS" : "MODE VISEE", pod_mode ? INK_ORANGE : INK_GREY);
 }
@@ -895,7 +904,7 @@ static int edit_frame(uint32_t t) {
     if (k >= 0) { pp[k].on = false; if (held == k) held = -1; click(300); sel = pp[k].sign; hud(); }
   }
   if (pod_mode && (p & IN_B(4)) && lv->n_pull && lv->n_push && held < 0) { sel = -sel; click(sel > 0 ? 440 : 620); hud(); }
-  if (p & IN_START) return 2;
+  if (p & (IN_START | IN_B(6))) return 2;
 
   draw_pods(t);
   draw_target(t);
@@ -971,23 +980,25 @@ static const char *fail_text(int ev) {
 
 // pause menu: 0 continue, 1 restart, 2 level select
 static int pause_menu(void) {
-  static const char *items[3] = { "CONTINUER", "RECOMMENCER LE NIVEAU", "CHOIX DU NIVEAU" };
+  static const char *items_n[4] = { "CONTINUER", "RECOMMENCER LE NIVEAU", "CHOIX DU NIVEAU", "QUITTER VERS LE TITRE" };
+  static const char *items_e[4] = { "CONTINUER", "RECOMMENCER LE NIVEAU", "RETOUR A LA CONSTRUCTION", "QUITTER VERS LE TITRE" };
+  const char *const *items = level >= 0 ? items_n : items_e;
   int c = 0;
   mc_sprite_hide(S_CURSOR);
   for (;;) {
-    for (int i = 0; i < 3; i++) {
-      char s[32]; memset(s, ' ', 25); s[25] = 0;
+    for (int i = 0; i < 4; i++) {
+      char s[32]; memset(s, ' ', 28); s[28] = 0;
       s[0] = i == c ? '>' : ' ';
       for (int k = 0; items[i][k]; k++) s[2 + k] = items[i][k];
-      text(8, 12 + i * 2, s, i == c ? INK_YELLOW : INK_WHITE);
+      text(6, 11 + i * 2, s, i == c ? INK_YELLOW : INK_WHITE);
     }
     mc_frame(); sfx_update(); draw_target(t_frame++); draw_pods(t_frame);
     uint32_t p = pressed_all();
     if (p & IN_UP && c > 0) { c--; click(660); }
-    if (p & IN_DOWN && c < 2) { c++; click(660); }
-    if (p & IN_START) c = 0;
-    if (p & (IN_B(1) | IN_START) || (mc_mouse_pressed() & MOUSE_LEFT)) {
-      for (int i = 0; i < 3; i++) text(8, 12 + i * 2, "                         ", INK_WHITE);
+    if (p & IN_DOWN && c < 3) { c++; click(660); }
+    if (p & (IN_START | IN_B(6))) c = 0;
+    if (p & (IN_B(1) | IN_START | IN_B(6)) || (mc_mouse_pressed() & MOUSE_LEFT)) {
+      for (int i = 0; i < 4; i++) text(6, 11 + i * 2, "                            ", INK_WHITE);
       click(990);
       return c;
     }
@@ -995,16 +1006,19 @@ static int pause_menu(void) {
 }
 
 // plays level n; returns the next level, or -1 for the level select
-static int play_level(int n) {
-  level_start(n);
+// plays a level; returns the next level, -1 for the level select (or back to building), -2 for
+// the title. n < 0: a built level, no record kept.
+static int play_lv(const gv_level *L, int n) {
+  level_start_lv(L, n);
   for (;;) {
     mc_frame(); sfx_update(); fx_update();
     int r = edit_frame(t_frame++);
     if (r == 2) {
       int m = pause_menu();
       hud(); level_text(); angle_text(); mode_text();
-      if (m == 1) { level_start(n); continue; }
+      if (m == 1) { level_start_lv(L, n); continue; }
       if (m == 2) return -1;
+      if (m == 3) return -2;
       continue;
     }
     if (r != 1) continue;
@@ -1014,20 +1028,24 @@ static int play_level(int n) {
       num2(s + 18, shots);
       if (shots == 1) { s[21] = 'T'; s[22] = 'I'; s[23] = 'R'; s[24] = 0; }
       if (s[18] == '0') { memmove(s + 18, s + 19, strlen(s + 19) + 1); }
-      bool record = save.best[n] == 0 || shots < save.best[n];
-      if (record) save.best[n] = (uint8_t)clampi(shots, 1, 99);
-      if (save.unlocked < GV_LEVELS && save.unlocked <= n + 1) save.unlocked = (uint8_t)(n + 2);
-      save_store();
+      bool record = false;
+      if (n >= 0) {
+        record = save.best[n] == 0 || shots < save.best[n];
+        if (record) save.best[n] = (uint8_t)clampi(shots, 1, 99);
+        if (save.unlocked < GV_LEVELS && save.unlocked <= n + 1) save.unlocked = (uint8_t)(n + 2);
+        save_store();
+      }
       text_c(12, s, INK_PURPLE);
       if (record && shots > 0) text_c(14, "NOUVEAU RECORD", INK_GREEN);
-      hint(n + 1 < GV_LEVELS ? "B1: NIVEAU SUIVANT   B2: REJOUER" : "B1: CONTINUER");
+      hint(n < 0 ? "B1: CONSTRUCTION   B2: REJOUER" : n + 1 < GV_LEVELS ? "B1: SUIVANT  B2: REJOUER  START: CHOIX" : "B1: CONTINUER");
       wait_frames(30);
-      for (;;) {
+      bool again = false;
+      while (!again) {
         wait_frames(1);
         uint32_t p = pressed_all();
-        if (p & IN_B(1) || (mc_mouse_pressed() & MOUSE_LEFT)) return n + 1;
-        if (p & IN_B(2)) return n;
-        if (p & IN_START) return -1;
+        if (p & IN_B(1) || (mc_mouse_pressed() & MOUSE_LEFT)) return n < 0 ? -1 : n + 1;
+        if (p & IN_B(2)) { if (n >= 0) return n; level_start_lv(L, n); again = true; }
+        if (p & (IN_START | IN_B(6))) return -1;
       }
     } else {
       text_c(13, fail_text(ev), INK_ORANGE);
@@ -1060,7 +1078,251 @@ static void ending(void) {
   music_off();
 }
 
+static int play_level(int n) { return play_lv(&gv_levels[n], n); }
+
+// ---------------------------------------------------------------- level building
+// Six built levels, kept in NVRAM after the save (written back at every change). A built level
+// becomes a gv_level like the others: its fixed pods and walls point into the slot.
+#define ED_SLOTS 6
+#define ED_WALLS 24
+#define ED_PODS  10
+#define ED_MAGIC 0xA7
+#define ED_BASE  256                       // NVRAM offset of the slots
+typedef struct {
+  uint8_t magic, n_pull, n_push, nw, np, pad[3];
+  int16_t lx, ly, tx, ty;
+  gv_wall w[ED_WALLS];
+  gv_pod p[ED_PODS];
+} ed_slot_t;
+static ed_slot_t ed;
+static int ed_n;                            // slot being edited
+static gv_level ed_lv;
+static char ed_name[24];
+
+static uint32_t ed_addr(int n) { return ED_BASE + (uint32_t)n * ((sizeof(ed_slot_t) + 15) & ~15u); }
+static void ed_default(void) {
+  memset(&ed, 0, sizeof ed); ed.magic = ED_MAGIC;
+  ed.lx = 0; ed.ly = 126; ed.tx = 290; ed.ty = 126;
+}
+static bool ed_read(int n, ed_slot_t *o) {
+  for (unsigned i = 0; i < sizeof *o; i++) ((uint8_t *)o)[i] = MC_NVRAM[ed_addr(n) + i];
+  return o->magic == ED_MAGIC && o->nw <= ED_WALLS && o->np <= ED_PODS && o->n_pull <= 4 && o->n_push <= 3;
+}
+static void ed_load(int n) { ed_n = n; if (!ed_read(n, &ed)) ed_default(); }
+static void ed_store(void) { for (unsigned i = 0; i < sizeof ed; i++) MC_NVRAM[ed_addr(ed_n) + i] = ((uint8_t *)&ed)[i]; }
+
+// the aiming range follows the edge the launcher sits on; away from the edges, all round
+static void ed_build(void) {
+  gv_level *L = &ed_lv;
+  memset(L, 0, sizeof *L);
+  memcpy(ed_name, "MON NIVEAU 0", 13); ed_name[11] = (char)('1' + ed_n);
+  L->name = ed_name;
+  L->lx = ed.lx; L->ly = ed.ly; L->tx = ed.tx; L->ty = ed.ty; L->speed = 40;
+  if (ed.lx == 0) { L->amin = -890; L->amax = 890; L->angle = 0; }
+  else if (ed.lx == SCR_W - 1) { L->amin = 910; L->amax = 2690; L->angle = 1800; }
+  else if (ed.ly == GV_TOP) { L->amin = 10; L->amax = 1790; L->angle = 900; }
+  else if (ed.ly == SCR_H - 1) { L->amin = -1790; L->amax = -10; L->angle = -900; }
+  else { L->amin = -1800; L->amax = 1799; L->angle = 0; }
+  L->n_pull = ed.n_pull; L->n_push = ed.n_push;
+  L->fixed = ed.p; L->n_fixed = ed.np;
+  L->walls = ed.w; L->n_walls = ed.nw;
+}
+
+enum { T_LAUNCHER, T_TARGET, T_WALL, T_BOUNCE, T_PULL, T_PLANET, T_PUSH, T_STOCK, N_TOOLS };
+static const char *const tool_name[N_TOOLS] = { "CANON", "CIBLE", "MUR", "MUR REBONDISSANT", "PUITS",
+                                                "GROS PUITS", "REPOUSSOIR", "PUITS A POSER" };
+static const char *const tool_help[N_TOOLS] = {
+  "B1 PLACER (PRES D'UN BORD)", "B1 PLACER", "B1 DEBUT/FIN  B2 EFFACER", "B1 DEBUT/FIN  B2 EFFACER",
+  "B1 POSER   B2 EFFACER", "B1 POSER   B2 EFFACER", "B1 POSER   B2 EFFACER", "B1 ORANGE +1   B2 JAUNE +1" };
+
+static int snap4(int v) { return (v + 2) & ~3; }
+static int32_t seg_d2(const gv_wall *w, int x, int y) {      // squared distance, world pixels
+  int32_t dx = w->x2 - w->x1, dy = w->y2 - w->y1, l2 = dx * dx + dy * dy;
+  int32_t t = l2 ? (((x - w->x1) * dx + (y - w->y1) * dy) * 256) / l2 : 0;
+  t = clampi(t, 0, 256);
+  int32_t cx = w->x1 + dx * t / 256, cy = w->y1 + dy * t / 256;
+  return (x - cx) * (x - cx) + (y - cy) * (y - cy);
+}
+// removes what is nearest to the cursor: a pod, then a wall
+static bool ed_erase(int x, int y) {
+  int best = -1; int32_t bd = 12 * 12;
+  for (int i = 0; i < ed.np; i++) { int32_t dx = ed.p[i].x - x, dy = ed.p[i].y - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = i; } }
+  if (best >= 0) { ed.p[best] = ed.p[--ed.np]; return true; }
+  bd = 8 * 8;
+  for (int i = 0; i < ed.nw; i++) { int32_t d = seg_d2(&ed.w[i], x, y); if (d < bd) { bd = d; best = i; } }
+  if (best >= 0) { ed.w[best] = ed.w[--ed.nw]; return true; }
+  return false;
+}
+
+static void ed_redraw(void) {
+  ed_build();
+  lv = &ed_lv; level = -1;
+  hide_all(); fx_clear(); text_clear();
+  memset(pp, 0, sizeof pp);
+  draw_level(); bm_clear(CHR_DYN); aim_n = 0; aim_drawn = -9999;
+  angle = ed_lv.angle;
+}
+static void ed_text(int tool, int wall_on) {
+  char s[48]; memset(s, ' ', 40); s[40] = 0;
+  text(0, 0, s, INK_WHITE); text(0, 28, s, INK_WHITE); text(0, 29, s, INK_WHITE);
+  text(0, 0, "CONSTRUCTION", INK_ORANGE);
+  text(13, 0, ed_name, INK_WHITE);
+  char c[16] = "+0 -0"; c[1] = (char)('0' + ed.n_pull); c[4] = (char)('0' + ed.n_push);
+  text(27, 0, "A POSER", INK_GREY); text(35, 0, c, INK_YELLOW);
+  text(1, 28, "OUTIL :", INK_GREY); text(9, 28, tool_name[tool], INK_YELLOW);
+  text(27, 28, "B4/B5 OUTIL", INK_GREY);
+  text(1, 29, wall_on ? "B1 FIN DU MUR   B2 ANNULER" : tool_help[tool], INK_WHITE);
+  text(30, 29, "B3 ESSAYER", INK_GREEN);
+}
+// the wall being drawn, as a dim line on the trace bitmap (the aim line's pixel list is reused)
+static void ed_preview(int x0, int y0, int x1, int y1) {
+  aim_erase();
+  int dx = x1 - x0, dy = y1 - y0, n = iabs(dx) > iabs(dy) ? iabs(dx) : iabs(dy);
+  if (!n) n = 1;
+  for (int i = 0; i <= n; i++) aim_put(2 * x0 + 2 * dx * i / n, 2 * y0 + 2 * dy * i / n, 4, true);
+}
+
+// the building screen of slot n; returns when the player leaves
+static int ed_menu(void) {
+  static const char *items[4] = { "CONTINUER", "ESSAYER LE NIVEAU", "TOUT EFFACER", "QUITTER LA CONSTRUCTION" };
+  int c = 0;
+  mc_sprite_hide(S_CURSOR);
+  for (;;) {
+    for (int i = 0; i < 4; i++) {
+      char s[32]; memset(s, ' ', 28); s[28] = 0;
+      s[0] = i == c ? '>' : ' ';
+      for (int k = 0; items[i][k]; k++) s[2 + k] = items[i][k];
+      text(6, 11 + i * 2, s, i == c ? INK_YELLOW : INK_WHITE);
+    }
+    mc_frame(); sfx_update(); draw_target(t_frame++); draw_pods(t_frame);
+    uint32_t p = pressed_all();
+    if (p & IN_UP && c > 0) { c--; click(660); }
+    if (p & IN_DOWN && c < 3) { c++; click(660); }
+    if (p & (IN_START | IN_B(6))) { c = 0; p |= IN_B(1); }
+    if (p & IN_B(1) || (mc_mouse_pressed() & MOUSE_LEFT)) {
+      for (int i = 0; i < 4; i++) text(6, 11 + i * 2, "                            ", INK_WHITE);
+      click(990);
+      return c;
+    }
+  }
+}
+static int edit_level(int n) {
+  ed_load(n);
+  int tool = T_PULL, wall_on = 0, wx = 0, wy = 0;
+  bool dirty = true;
+  pod_mode = true;
+  cur_x = SCR_W / 2; cur_y = SCR_H / 2;
+  for (;;) {
+    if (dirty) { ed_redraw(); ed_text(tool, wall_on); display_play(); dirty = false; pod_mode = true; }
+    mc_frame(); sfx_update(); fx_update(); t_frame++;
+    move_cursor();
+    uint32_t p = pressed_all(), m = mc_mouse_pressed();
+    int wheel = mc_mouse_wheel();
+    if (m & MOUSE_LEFT) p |= IN_B(1);
+    if (m & MOUSE_RIGHT) p |= IN_B(2);
+    if (m & MOUSE_MIDDLE) p |= IN_B(3);
+    int x = snap4(cur_x), y = snap4(cur_y);
+    x = clampi(x, 0, SCR_W - 1); y = clampi(y, GV_TOP, SCR_H - 1);
+    int dt = ((p & IN_B(5)) ? 1 : 0) - ((p & IN_B(4)) ? 1 : 0) + (wheel > 0 ? 1 : wheel < 0 ? -1 : 0);
+    if (dt && !wall_on) { tool = (tool + dt + N_TOOLS) % N_TOOLS; click(600); ed_text(tool, 0); }
+    if (p & IN_B(1)) {
+      bool changed = true;
+      switch (tool) {
+        case T_LAUNCHER: {                           // sticks to the nearest edge within 16 pixels
+          int lx = cur_x, ly = cur_y;
+          if (lx < 16) lx = 0; else if (lx > SCR_W - 17) lx = SCR_W - 1;
+          else if (ly < GV_TOP + 16) ly = GV_TOP; else if (ly > SCR_H - 17) ly = SCR_H - 1;
+          ed.lx = (int16_t)lx; ed.ly = (int16_t)ly; break; }
+        case T_TARGET: ed.tx = (int16_t)clampi(x, 8, SCR_W - 9); ed.ty = (int16_t)clampi(y, GV_TOP + 8, SCR_H - 9); break;
+        case T_WALL: case T_BOUNCE:
+          if (!wall_on) { wall_on = 1; wx = x; wy = y; changed = false; ed_text(tool, 1); click(700); }
+          else {
+            wall_on = 0;
+            if ((x != wx || y != wy) && ed.nw < ED_WALLS) {
+              gv_wall w = { (int16_t)wx, (int16_t)wy, (int16_t)x, (int16_t)y, (uint8_t)(tool == T_BOUNCE ? W_BOUNCE : W_SOLID) };
+              ed.w[ed.nw++] = w;
+            } else sfx_buzz = 8;
+          }
+          break;
+        case T_PULL: case T_PLANET: case T_PUSH:
+          if (ed.np < ED_PODS) {
+            gv_pod q = { (int16_t)x, (int16_t)y, (int8_t)(tool == T_PUSH ? -1 : 1), (uint8_t)(tool == T_PLANET ? 180 : GV_POD_POWER) };
+            ed.p[ed.np++] = q;
+          } else { sfx_buzz = 8; changed = false; }
+          break;
+        case T_STOCK: ed.n_pull = (uint8_t)((ed.n_pull + 1) % 5); break;
+      }
+      if (changed) { ed_store(); dirty = true; click(520); }
+    }
+    if (p & IN_B(2)) {
+      if (wall_on) { wall_on = 0; aim_erase(); ed_text(tool, 0); }
+      else if (tool == T_STOCK) { ed.n_push = (uint8_t)((ed.n_push + 1) % 4); ed_store(); dirty = true; click(620); }
+      else if (ed_erase(cur_x, cur_y)) { ed_store(); dirty = true; click(300); }
+      else sfx_buzz = 8;
+    }
+    if (wall_on) ed_preview(wx, wy, x, y);
+    if (p & (IN_START | IN_B(6) | IN_B(3))) {
+      int c = (p & IN_B(3)) ? 1 : ed_menu();
+      if (c == 2) { ed_default(); ed_store(); }
+      if (c == 1) {
+        wall_on = 0;
+        ed_build();
+        int r = play_lv(&ed_lv, -1);
+        if (r == -2) return -2;
+      }
+      if (c == 3) return -1;
+      dirty = true;
+      continue;
+    }
+    draw_pods(t_frame); draw_target(t_frame);
+    mc_sprite(S_CURSOR, 2 * x - 16, 2 * y - 16, CELL_CURSOR, 4, 4, PAL_CURSOR, 7);
+  }
+}
+
+// the six slots: B1 builds, B3 plays
+static int slots_screen(void) {
+  hide_all(); fx_clear(); text_clear();
+  bm_clear(CHR_DYN); draw_title();
+  text_c(12, "CONSTRUIRE UN NIVEAU", INK_ORANGE);
+  hint("B1 CONSTRUIRE   B3 JOUER   START RETOUR");
+  text_c(26, "TOUT EST ENREGISTRE AU FUR ET A MESURE.", INK_GREY);
+  display_play();
+  static int c = 0;
+  for (;;) {
+    mc_frame(); sfx_update();
+    for (int i = 0; i < ED_SLOTS; i++) {
+      ed_slot_t o; bool used = ed_read(i, &o) && (o.nw || o.np);
+      char s[40]; memset(s, ' ', 30); s[30] = 0;
+      s[0] = i == c ? '>' : ' ';
+      memcpy(s + 2, "MON NIVEAU 1", 12); s[13] = (char)('1' + i);
+      if (used) {
+        char d[20] = "00 MURS, 00 PUITS"; num2(d, o.nw); num2(d + 9, o.np);
+        memcpy(s + 16, d, strlen(d));
+      } else memcpy(s + 16, "(VIDE)", 6);
+      text(5, 14 + i * 1 + i, s, i == c ? INK_YELLOW : used ? INK_WHITE : INK_GREY);
+    }
+    uint32_t p = pressed_all();
+    if (p & IN_UP && c > 0) { c--; click(660); }
+    if (p & IN_DOWN && c < ED_SLOTS - 1) { c++; click(660); }
+    if (p & (IN_START | IN_B(6))) return -1;
+    if (p & IN_B(1) || (mc_mouse_pressed() & MOUSE_LEFT)) { click(990); return c; }
+    if (p & IN_B(3)) { click(990); return 100 + c; }
+  }
+}
+static int building(void) {
+  for (;;) {
+    int c = slots_screen();
+    if (c < 0) return -1;
+    int r;
+    if (c >= 100) { ed_load(c - 100); ed_build(); r = play_lv(&ed_lv, -1); }
+    else r = edit_level(c);
+    if (r == -2) return -2;
+  }
+}
+
+
 // ---------------------------------------------------------------- main
+
 int main(void) {
   mc_init();
   mc_video_mode(HW, HH);                          // 640 x 480 interlaced
@@ -1079,13 +1341,16 @@ int main(void) {
   lvl = START_LEVEL - 1; save.unlocked = GV_LEVELS;
 #endif
   for (;;) {
+  title:
     title_screen();
     for (;;) {
       int c = select_screen(lvl);
       if (c < 0) break;
+      if (c == GV_LEVELS) { lvl = GV_LEVELS; if (building() == -2) goto title; continue; }
       lvl = c;
       for (;;) {
         int next = play_level(lvl);
+        if (next == -2) goto title;
         if (next < 0) break;
         if (next >= GV_LEVELS) { ending(); lvl = GV_LEVELS - 1; break; }
         lvl = next;

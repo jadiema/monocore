@@ -32,7 +32,7 @@ Style d'écran vectoriel monochrome à la manière des jeux Flash de tir gravita
 | B5 (mode PUITS) | | bouton droit | retirer le puits survolé |
 | B4 (mode PUITS) | | | changer de type (attire / repousse) |
 | B2 pendant le vol | | | abandonner le tir |
-| START | Échap | | menu (continuer, recommencer, choix du niveau) |
+| START ou B6 | Échap | | menu : continuer, recommencer, choix du niveau, quitter vers le titre |
 
 Toutes les manettes sont lues : n'importe quel joueur de la borne peut jouer. Les puits qui restent
 à poser sont les points en bas à gauche ; la ligne du bas rappelle les boutons utiles.
@@ -45,6 +45,29 @@ LA FRONDE, CHAMP D'ETOILES, LE COUDE, LE CHAS. De 13 à 20, on pose aussi ses pu
 POSER, DEMI-TOUR, ZONE INTERDITE, LE COULOIR, LE COFFRE, TROU NOIR, LE LACET, GRAND FINAL.
 La progression et le record de chaque niveau (le moins de tirs) sont gardés en NVRAM
 (`saves/MONOCORE/graviton.sav` sur MiSTer, à l'ouverture de l'OSD).
+
+## Rejouer un niveau
+
+START (ou B6, si START est pris par la MiSTer) ouvre à tout moment le menu ; « CHOIX DU NIVEAU »
+ramène à la liste, où l'on peut reprendre n'importe quel niveau déjà ouvert. Les niveaux gagnés y
+sont en vert, avec le record (le moins de tirs).
+
+## Construire ses niveaux
+
+La dernière ligne de la liste, CONSTRUIRE UN NIVEAU, mène à six emplacements (MON NIVEAU 1 à 6),
+enregistrés en NVRAM à chaque modification. B1 construit l'emplacement choisi, B3 le joue.
+
+| Manette | Souris | Action |
+|---|---|---|
+| croix | déplacement | curseur (les objets se calent sur une grille de 4 pixels) |
+| B4 / B5 | molette | outil précédent / suivant : CANON, CIBLE, MUR, MUR REBONDISSANT, PUITS, GROS PUITS, REPOUSSOIR, PUITS A POSER |
+| B1 | bouton gauche | appliquer l'outil : placer le canon (collé au bord le plus proche s'il en est à moins de 16 pixels) ou la cible, début puis fin d'un mur, poser un puits ; avec PUITS A POSER, un puits orange de plus à donner au joueur (0 à 4) |
+| B2 | bouton droit | effacer le puits ou le mur le plus proche ; pendant un mur, l'annuler ; avec PUITS A POSER, un puits jaune de plus (0 à 3) |
+| B3 | bouton du milieu | essayer le niveau tout de suite (START ou B6 ramène à la construction) |
+| START ou B6 | | menu : continuer, essayer, tout effacer, quitter |
+
+La plage d'angles du canon suit le bord où il est collé (comme dans la campagne) ; loin des bords,
+il tourne sur 360°. Un niveau construit compte 24 murs et 10 puits fixes au plus.
 
 ## Fichiers
 
