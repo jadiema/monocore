@@ -34,6 +34,12 @@ Style d'écran vectoriel monochrome à la manière des jeux Flash de tir gravita
 | B2 pendant le vol | | | abandonner le tir |
 | START ou B6 | Échap | | menu : continuer, recommencer, choix du niveau, quitter vers le titre |
 
+Dans le simulateur (`dist/monocore.html`), les touches du PC sont par défaut la manette du
+joueur 1 : flèches = croix, Z X C = B1 B2 B3 (**C tire**), A S D = B4 B5 B6, Entrée ou 1 = START.
+La colonne « Clavier » ci-dessus (Espace pour tirer, Entrée, Retour arrière, Échap) ne vaut que
+si « clavier de la console » est coché (F9) ; les flèches visent alors en mode VISEE et déplacent
+le curseur en mode PUITS.
+
 Toutes les manettes sont lues : n'importe quel joueur de la borne peut jouer. Les puits qui restent
 à poser sont les points en bas à gauche ; la ligne du bas rappelle les boutons utiles.
 

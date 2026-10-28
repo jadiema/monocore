@@ -867,8 +867,9 @@ static int edit_frame(uint32_t t) {
   // aiming: up / down (keyboard arrows too), 0.1 degree a step, faster when held; wheel 0.1 a notch
   uint32_t h = held_all();
   int d = 0;
-  int up = pod_mode ? (mc_key(KEY_UP) ? 1 : 0) : ((h & (IN_UP | IN_LEFT)) ? 1 : 0);
-  int dn = pod_mode ? (mc_key(KEY_DOWN) ? 1 : 0) : ((h & (IN_DOWN | IN_RIGHT)) ? 1 : 0);
+  // in the PUITS mode the arrows move the cursor: the wheel still aims
+  int up = pod_mode ? 0 : ((h & (IN_UP | IN_LEFT)) ? 1 : 0);
+  int dn = pod_mode ? 0 : ((h & (IN_DOWN | IN_RIGHT)) ? 1 : 0);
   if (up || dn) {
     aim_hold++;
     int step = aim_hold == 1 ? 1 : aim_hold < 15 ? 0 : aim_hold < 45 ? 1 : aim_hold < 90 ? 3 : 10;
