@@ -3,8 +3,8 @@
 // Everything that makes the level is in its bank, niveau.mgf, drawn with MONOPIXEL: the decor, what
 // the tiles are (solid, platform, water...) and the objects placed in it. This program only says what
 // each kind of object does, by the name of its sprite:
-//   HEROS    the player: runs, jumps (higher while B1 is held), goes down through the platforms
-//            (down + B1); water or a spike: a life lost, back to the start
+//   HEROS    the player: runs, jumps (B1 or B2, Space; higher while held), goes down through the
+//            platforms (down + jump); water or a spike: a life lost, back to the start
 //   PIECE    a coin: 10 points
 //   BLOB     an enemy that walks, turning back at walls and at the edge of a drop (param of the
 //            object in the map: its speed); jumped on, it is gone (50 points); touched, a life lost
@@ -34,6 +34,24 @@ static int HEROS, PIECE, BLOB, DRAPEAU;           // sprite numbers, found by na
 static mj_obj_t *hero;
 static int start_x, start_y, score, lives, best, hurt_timer;
 static struct { uint32_t best; } save;
+
+// the controls: pads 1 and 2 (on MiSTer the pad may be player 2, when the keyboard is set as player 1)
+// and the keyboard of the console, which the editors of the atelier need: arrows, Space or Ctrl to
+// jump, Enter to start. JUMP: B1 or B2 (pads do not all put "B1" on the same button)
+static uint32_t in_now, in_prev;
+#define JUMP (IN_B(1) | IN_B(2))
+#define START_ANY (IN_B(1) | IN_B(2) | IN_B(3) | IN_B(4) | IN_START)
+static void read_input(void) {
+  in_prev = in_now;
+  in_now = mc_pad(1) | mc_pad(2);
+  if (mc_key(KEY_LEFT)) in_now |= IN_LEFT;
+  if (mc_key(KEY_RIGHT)) in_now |= IN_RIGHT;
+  if (mc_key(KEY_UP)) in_now |= IN_UP;
+  if (mc_key(KEY_DOWN)) in_now |= IN_DOWN;
+  if (mc_key(KEY_SPACE) || mc_key(KEY_LCTRL)) in_now |= IN_B(1);
+  if (mc_key(KEY_ENTER) || mc_key(KEY_KPENTER)) in_now |= IN_START;
+}
+static uint32_t pressed(uint32_t b) { return in_now & ~in_prev & b; }
 
 enum { TITLE, PLAY, WON, OVER };
 static int scene, scene_timer;
@@ -71,17 +89,17 @@ static void lose_life(void) {
 
 // ---------------------------------------------------------------- what each object does
 static void update_hero(mj_obj_t *o) {
-  uint32_t p = mc_pad(1), pr = mc_pad_pressed(1);
+  uint32_t p = in_now;
   int target = (p & IN_LEFT) ? -28 : (p & IN_RIGHT) ? 28 : 0;
   o->vx += (int16_t)((target - o->vx) / 4);        // a little inertia
   if (target < 0) o->flags |= MJ_HFLIP;
   if (target > 0) o->flags &= ~MJ_HFLIP;
   bool ground = (o->touch & MJ_GROUND) != 0;
-  if (ground && (pr & IN_B(1))) {
+  if (ground && pressed(JUMP)) {
     if (p & IN_DOWN) o->flags |= MJ_DOWN;           // down + jump: through the platform
     else { o->vy = -76; sound("SAUT"); }
   }
-  if (!(p & IN_B(1)) && o->vy < -24) o->vy = -24;  // jump button released: a shorter jump
+  if (!(p & JUMP) && o->vy < -24) o->vy = -24;     // jump button released: a shorter jump
   mj_move(&world, o);
   // the picture: running when moving on the ground, image 1 in the air, image 0 standing
   if (!(o->touch & MJ_GROUND)) { o->flags &= ~MJ_ANIM; o->frame = 1; }
@@ -153,10 +171,10 @@ int main(void) {
   for (;;) {
     mj_frame();
     scene_timer++;
-    uint32_t pr = mc_pad_pressed(1);
+    read_input();
     int key;
     while ((key = mc_key_event()) >= 0) if (key == (KEY_F12 | 0x200) && at_present()) at_exit();
-    if (at_present() && (mc_pad(1) & IN_START) && (mc_pad(1) & IN_COIN)) at_exit();
+    if (at_present() && (in_now & IN_START) && ((mc_pad(1) | mc_pad(2)) & IN_COIN)) at_exit();
     if (scene == PLAY) {
       for (int i = 0; i < n_obj; i++) update(&obj[i]);
       if (hero) mj_camera(&world, hero);
@@ -164,13 +182,14 @@ int main(void) {
     } else {
       clear_text();
       if (scene == TITLE) {
-        text(13, 9, "PLATEFORMES"); text(5, 13, "GAUCHE / DROITE : COURIR"); text(5, 15, "B1 : SAUTER (BAS + B1 : DESCENDRE)");
+        text(13, 9, "PLATEFORMES"); text(5, 13, "GAUCHE / DROITE : COURIR"); text(5, 15, "B1 OU ESPACE : SAUTER");
+        text(5, 17, "BAS + SAUT : DESCENDRE");
         if (at_present()) text(5, 23, "F12 OU START + COIN : ATELIER");
       }
       if (scene == WON) { text(15, 10, "BRAVO !"); hud(); }
       if (scene == OVER) { text(14, 10, "PERDU..."); hud(); }
-      if ((scene_timer / 30) & 1) text(10, 19, "APPUYEZ SUR B1");
-      if ((pr & IN_B(1)) && scene_timer > 20) {
+      if ((scene_timer / 30) & 1) text(5, 20, "B1, START, ESPACE OU ENTREE");
+      if (pressed(START_ANY) && scene_timer > 20) {
         if (scene != TITLE && score > best) { best = score; save.best = (uint32_t)best; mj_save(&save, sizeof save); }
         sound("MENU");
         score = 0; lives = 3;

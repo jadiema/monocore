@@ -344,11 +344,12 @@ A(table(['Programme', 'Raccourcis'], [
     ['<b>MONOSFX</b>', k('F1') + ' effets, ' + k('F2') + ' banque, ' + k('F3') + ' aide ; ' + k('Espace') + ' jouer ; ' + k('Entrée') + ' nommer ; ' + k('Ctrl', 'C') + ' ' + k('Ctrl', 'V') + ' ' + k('Suppr')],
     ['<b>MONOTRACKER</b>', k('F1') + ' motifs, ' + k('F2') + ' sons, ' + k('F3') + ' morceau, ' + k('F4') + ' aide ; instrument : ' + k('+') + ' et ' + k('−') + ' du pavé ; voir son manuel'],
     ['<b>MONOBASIC</b>', k('F5') + ' RUN, ' + k('F2') + ' LIST, ' + k('Échap') + ' arrêt ; ' + c('AIDE') + ', ' + c('EXEMPLE') + ', ' + c('SAVE') + ', ' + c('LOAD') + ', ' + c('DIR')],
-    ['<b>PLATEFORMES</b>', 'gauche/droite, ' + k('B1') + ' sauter, bas + ' + k('B1') + ' descendre ; ' + k('START') + ' + ' + k('COIN') + ' : lanceur'],
+    ['<b>PLATEFORMES</b>', 'commencer : ' + k('B1') + ', ' + k('START') + ', ' + k('Espace') + ' ou ' + k('Entrée') + ' ; gauche/droite (manette ou flèches), ' + k('B1') + ' ou ' + k('Espace') + ' sauter, bas + saut descendre ; ' + k('START') + ' + ' + k('COIN') + ' : lanceur'],
 ]))
 A(h2("Dépannage"))
 A(table(['Ce qui se passe', 'Que faire'], [
     ['« demande le core version 5 »', 'mettre le core de ' + c('releases/v5_haute_resolution/') + ' (ou plus récent) dans ' + c('_Console')],
+    ['le jeu ne démarre pas sur l\'écran titre', 'PLATEFORMES accepte les boutons B1 à B4 et START des manettes 1 et 2, Espace et Entrée ; si rien ne marche, vérifier dans le menu de la MiSTer l\'affectation des boutons de la manette au core'],
     ['les créations ont disparu après avoir éteint', 'la NVRAM n\'est écrite sur la carte SD qu\'à l\'ouverture du menu : ' + k('Ctrl', 'S') + ', puis ouvrir et fermer le menu'],
     ['les lettres A et Q (ou Z et W) sont inversées', 'changer CLAVIER (AZERTY / QWERTY) sur la page BANQUE de MONOPIXEL ou de MONOSFX : le réglage vaut pour tout l\'atelier'],
     ['pas de pointeur de souris', 'brancher la souris avant de lancer le core ; dans le simulateur, cocher « souris de la console »'],
