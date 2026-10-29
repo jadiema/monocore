@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Assemble the single-file simulator page: core + page template + docs (French and English) + embedded ROMs.
+"""Assemble the single-file simulator page: core + page template + docs (French and English) + embedded ROMs
++ MiSTer video filter files.
 usage: build_page.py out.html"""
 import base64, json, os, sys
 import markdown
@@ -29,6 +30,19 @@ core = open(os.path.join(ROOT, 'sim/core.js'), encoding='utf-8').read()
 assert '</script' not in core
 page = page.replace('__CORE_JS__', core)
 page = page.replace('__ROMS_JSON__', json.dumps(roms))
+# MiSTer video filters (sim/crt/: Presets, Filters, Gamma, Shadow_Masks, copied from the MiSTer-devel repositories)
+crt_dir = os.path.join(ROOT, 'sim', 'crt')
+crt = {'files': {}, 'presets': []}
+for d, _, names in sorted(os.walk(crt_dir)):
+    for n in sorted(names):
+        if not n.endswith(('.txt', '.ini')):
+            continue
+        rel = os.path.relpath(os.path.join(d, n), crt_dir).replace(os.sep, '/')
+        crt['files'][rel] = open(os.path.join(d, n), encoding='utf-8', errors='replace').read()
+        if rel.startswith('Presets/'):
+            crt['presets'].append(rel[len('Presets/'):])
+crt['presets'].sort(key=lambda p: (p.count('/') == 0, p.lower()))
+page = page.replace('__CRT_JSON__', json.dumps(crt, sort_keys=True).replace('</', '<\\/'))
 page = page.replace('__SPEC_HTML_EN__', md('SPEC.en.md'))
 page = page.replace('__GUIDE_HTML_EN__', md('GUIDE.en.md'))
 page = page.replace('__SPEC_HTML__', md('SPEC.md'))

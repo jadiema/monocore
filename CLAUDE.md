@@ -51,6 +51,7 @@ Quartus : ouvrir `mister/MONOCORE.qpf` (voir `mister/LISEZMOI.md`). `tools/quart
 ## Ce qui reste à faire
 
 - Core MiSTer : rotation d'écran (nécessite la DDRAM pour `screen_rotate`), sauvegarde NVRAM, DIP switches dans l'OSD.
+- Page du simulateur sur téléphone : manette tactile du joueur 1 (`touchPad` dans `page.html`, bits ajoutés à `inputs[0]`), plein écran de repli (classe `fakefs`) quand le navigateur n'a pas le plein écran d'un élément (iPhone). Filtres vidéo MiSTer : WebGL 2, fichiers d'origine dans `sim/crt/` (voir son `LISEZMOI.md`), calcul gamma → filtre polyphasé H puis V → masque, sur les pixels de l'écran ; le chemin sans filtre (« pixels nets ») reste le canvas 2D.
 - Sauvegardes d'état : **simulateur seulement** pour l'instant (`saveState`/`loadState` de `sim/core.js`, format `.mcs` décrit au-dessus de `saveState`, version 1 ; refusées pour une autre ROM, CRC-32). Tout nouvel état de la machine ajouté au simulateur doit entrer dans `STATE_BLOBS`, `STATE_SCALARS` ou `STATE_OBJECTS`, sinon `tools/state_test.js` (dans `regress.sh`) le signale. Page : 4 emplacements par ROM (IndexedDB), Alt+S / Alt+R / Alt+1-4 ; `run.js` : `N:save=nom` et `N:load=fichier.mcs`. Le core MiSTer n'en a pas : ce même format servirait de spécification.
 - Bloc FM compatible YM2151.
 - La ROM de stress déborde du blanking sur 2 images en mode 288 lignes.

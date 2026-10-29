@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MONOCORE-1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -80,6 +81,46 @@ canvas#screen { image-rendering: auto; max-width: 100%; max-height: 100%; backgr
 .overlay p { margin: 0; color: var(--silk-dim); font-size: 13px; max-width: 34ch; }
 .bezel:fullscreen { display: flex; align-items: center; justify-content: center; border-radius: 0; }
 .bezel:fullscreen .screen-box { width: min(100vw, calc(100vh * 4 / 3)); }
+/* browsers without element full screen (iPhone): the bezel covers the window instead */
+.bezel.fakefs { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; border-radius: 0; padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0); }
+.bezel.fakefs .screen-box { width: min(100vw, calc(100vh * 4 / 3)); }
+.btn.fs-exit { display: none; position: absolute; top: 8px; right: 8px; z-index: 3; }
+.bezel.fakefs .btn.fs-exit { display: inline-flex; }
+canvas#screenGL { position: absolute; pointer-events: none; display: none; }
+
+/* touch pad: below the screen; in full screen, over the sides of the picture */
+.touchpad { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.touchpad[hidden] { display: none; }
+.tp-dpad { position: relative; width: 150px; height: 150px; flex: none; border-radius: 50%;
+  background: radial-gradient(circle, var(--board-2) 0 58%, color-mix(in srgb, var(--trace) 60%, transparent) 59% 100%);
+  border: 1px solid var(--trace); }
+.tp-dpad span { position: absolute; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  font: 700 18px var(--f-display); color: var(--silk-dim); border-radius: 8px; }
+.tp-dpad span.on { color: var(--board); background: var(--pad); }
+.tp-dpad .u { left: 53px; top: 6px; } .tp-dpad .d { left: 53px; bottom: 6px; }
+.tp-dpad .l { left: 6px; top: 53px; } .tp-dpad .r { right: 6px; top: 53px; }
+.tp-mid { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.tp-btns { display: grid; grid-template-columns: repeat(3, 50px); gap: 10px; flex: none; }
+.tp-key { height: 50px; border-radius: 50%; border: 1px solid var(--trace); background: var(--board-2); color: var(--silk);
+  display: flex; align-items: center; justify-content: center; font: 700 15px var(--f-display); }
+.tp-key.small { height: 30px; width: 64px; border-radius: 15px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.tp-key.on { background: var(--pad); color: var(--board); border-color: var(--pad); }
+.bezel:fullscreen .touchpad, .bezel.fakefs .touchpad { position: absolute; inset: auto 0 0 0; margin: 0; padding: 0 16px 16px; opacity: .55; pointer-events: none; }
+.bezel:fullscreen .touchpad > *, .bezel.fakefs .touchpad > * { pointer-events: auto; }
+@media (orientation: portrait) {
+  .bezel:fullscreen, .bezel.fakefs { flex-direction: column; justify-content: flex-start; padding-top: 12px; }
+  .bezel:fullscreen .touchpad, .bezel.fakefs .touchpad { position: static; opacity: 1; width: 100%; margin-top: auto; }
+}
+@media (max-width: 440px) {
+  body { padding-inline: 8px; } .bezel { padding: 8px; }
+  .touchpad { gap: 8px; }
+  .tp-dpad { width: 124px; height: 124px; } .tp-dpad span { width: 38px; height: 38px; }
+  .tp-dpad .u { left: 42px; top: 4px; } .tp-dpad .d { left: 42px; bottom: 4px; } .tp-dpad .l { top: 42px; left: 4px; } .tp-dpad .r { top: 42px; right: 4px; }
+  .tp-btns { grid-template-columns: repeat(3, 44px); gap: 7px; } .tp-key { height: 44px; }
+  .tp-key.small { width: 56px; font-size: 10px; }
+}
+.crtbar select.btn { text-transform: none; max-width: 100%; }
 
 .transport { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
 .btn {
@@ -205,9 +246,22 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
           <div class="bezel" id="bezel">
             <div class="screen-box" id="screenBox">
               <canvas id="screen" width="320" height="240" aria-label="Écran de la console" data-i18n-aria="screen"></canvas>
+              <canvas id="screenGL" aria-hidden="true"></canvas>
               <div class="overlay" id="overlay">
                 <button class="btn primary" id="startBtn" data-i18n="power">Mettre sous tension</button>
                 <p data-i18n="powerHint">Le son démarre avec ce bouton. Clavier ou manette : voir les commandes sous l'écran.</p>
+              </div>
+            </div>
+            <button class="btn fs-exit" id="fsExitBtn" data-i18n="fsExit">Quitter</button>
+            <div class="touchpad" id="touchPad" hidden>
+              <div class="tp-dpad" id="tpDpad"><span class="u" data-dir="0">▲</span><span class="d" data-dir="1">▼</span><span class="l" data-dir="2">◀</span><span class="r" data-dir="3">▶</span></div>
+              <div class="tp-mid">
+                <div class="tp-key small" data-bit="11" data-i18n="tpCoin">Pièce</div>
+                <div class="tp-key small" data-bit="10">Start</div>
+              </div>
+              <div class="tp-btns">
+                <div class="tp-key" data-bit="7">4</div><div class="tp-key" data-bit="8">5</div><div class="tp-key" data-bit="9">6</div>
+                <div class="tp-key" data-bit="4">1</div><div class="tp-key" data-bit="5">2</div><div class="tp-key" data-bit="6">3</div>
               </div>
             </div>
           </div>
@@ -218,6 +272,7 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
             <button class="btn" id="aspectBtn" aria-pressed="false" data-i18n="square">Pixels carrés</button>
             <button class="btn" id="wideBtn" aria-pressed="false" data-i18n-title="wideTitle" title="L'image étirée en 16:9, comme une MiSTer en plein écran sur un écran 16:9">16:9</button>
             <button class="btn" id="fsBtn" data-i18n="fullscreen">Plein écran</button>
+            <button class="btn" id="touchBtn" aria-pressed="false" data-i18n="touch" data-i18n-title="touchTitle" title="Une manette sur l'écran tactile (joueur 1) : croix, boutons 1 à 6, Start et pièce">Manette tactile</button>
             <span class="spacer"></span>
             <select class="btn" id="romSelect" aria-label="ROM intégrée" data-i18n-aria="romSel">
               <option value="aube" data-i18n="optAube">AUBE (démarrage)</option>
@@ -237,6 +292,13 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
             <input type="file" id="romFile" accept=".mnc,.bin" hidden>
           </div>
           <p class="drop-hint"><span data-i18n-html="dropHint">Tu peux aussi glisser un fichier <code>.mnc</code> sur l'écran.</span> <span class="romname" id="romName"></span></p>
+          <div class="transport nvbar crtbar">
+            <span class="nvlabel" data-i18n="crt">Filtres vidéo MiSTer</span>
+            <select class="btn" id="crtSelect" aria-label="Filtres vidéo MiSTer" data-i18n-aria="crt" data-i18n-title="crtTitle" title="Les préréglages de la MiSTer (filtre polyphasé horizontal et vertical, gamma, masque d'écran), calculés comme le scaler du framework"></select>
+            <label class="btn" for="crtFile" data-i18n="crtImport" data-i18n-title="crtImportTitle" title="Un préréglage .ini (Presets) avec les fichiers qu'il nomme, ou des fichiers .txt de Filters, Gamma ou Shadow_Masks pris sur la carte SD de la MiSTer">Importer de la MiSTer…</label>
+            <input type="file" id="crtFile" accept=".ini,.txt" multiple hidden>
+            <span class="nvlabel" id="crtInfo"></span>
+          </div>
           <div class="transport nvbar">
             <span class="nvlabel" data-i18n="nvram">NVRAM de la ROM</span>
             <button class="btn" id="nvExportBtn" data-i18n="nvExport" data-i18n-title="nvExportTitle" title="Enregistre la NVRAM dans un fichier .sav, le même que celui de la MiSTer (saves/MONOCORE)">Exporter .sav</button>
@@ -309,6 +371,7 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
                 <dt data-i18n="menus">Menus</dt><dd data-i18n-html="menusDd">valider avec le bouton 1 (<kbd>Z</kbd>) dans la plupart des jeux (Start ne fait que commencer)</dd>
                 <dt data-i18n="service">Service / test</dt><dd><kbd data-code="Digit9">9</kbd> · <kbd data-code="Digit0">0</kbd></dd>
                 <dt>Tilt</dt><dd><kbd data-code="KeyT">T</kbd></dd>
+                <dt data-i18n="touchDt">Écran tactile</dt><dd data-i18n="touchDd">bouton « Manette tactile » : croix, boutons 1 à 6, Start et pièce du joueur 1 (activée d'office sur un téléphone)</dd>
                 <dt data-i18n="pads">Manettes</dt><dd data-i18n="padsDd">jusqu'à 4 manettes USB ou Bluetooth : joueurs 1 à 4, sticks analogiques compris</dd>
                 <dt data-i18n="kbd">Clavier</dt><dd><label><input type="checkbox" id="kbdMode"> <span data-i18n="kbdLabel">clavier de la console</span></label> <span data-i18n-html="kbdDd">(<kbd>F9</kbd>) : les touches vont au jeu au lieu des joueurs 1 à 4</span></dd>
                 <dt data-i18n="mouse">Souris</dt><dd><label><input type="checkbox" id="mouseMode"> <span data-i18n="mouseLabel">souris de la console</span></label> <span data-i18n-html="mouseDd">: la souris pilote le pointeur du jeu sur l'écran (boutons et molette compris)</span></dd>
@@ -401,7 +464,26 @@ __CORE_JS__
     square: ['Pixels carrés', 'Square pixels'],
     wideTitle: ['L\'image étirée en 16:9, comme une MiSTer en plein écran sur un écran 16:9',
                 'The picture stretched to 16:9, like a MiSTer in full screen on a 16:9 display'],
-    fullscreen: ['Plein écran', 'Full screen'],
+    fullscreen: ['Plein écran', 'Full screen'], fsExit: ['Quitter', 'Exit'],
+    touch: ['Manette tactile', 'Touch pad'],
+    touchTitle: ['Une manette sur l\'écran tactile (joueur 1) : croix, boutons 1 à 6, Start et pièce',
+                 'A pad on the touch screen (player 1): D-pad, buttons 1 to 6, Start and coin'],
+    tpCoin: ['Pièce', 'Coin'],
+    touchDt: ['Écran tactile', 'Touch screen'],
+    touchDd: ['bouton « Manette tactile » : croix, boutons 1 à 6, Start et pièce du joueur 1 (activée d\'office sur un téléphone)',
+              '“Touch pad” button: D-pad, buttons 1 to 6, Start and coin of player 1 (on by default on a phone)'],
+    crt: ['Filtres vidéo MiSTer', 'MiSTer video filters'],
+    crtTitle: ['Les préréglages de la MiSTer (filtre polyphasé horizontal et vertical, gamma, masque d\'écran), calculés comme le scaler du framework',
+               'The MiSTer presets (horizontal and vertical polyphase filter, gamma, shadow mask), computed like the framework\'s scaler'],
+    crtImport: ['Importer de la MiSTer…', 'Import from the MiSTer…'],
+    crtImportTitle: ['Un préréglage .ini (Presets) avec les fichiers qu\'il nomme, ou des fichiers .txt de Filters, Gamma ou Shadow_Masks pris sur la carte SD de la MiSTer',
+                     'A .ini preset (Presets) with the files it names, or .txt files from Filters, Gamma or Shadow_Masks taken from the MiSTer\'s SD card'],
+    crtNone: ['Aucun (pixels nets du simulateur)', 'None (sharp simulator pixels)'],
+    crtDisplay: ['Écrans', 'Displays'], crtHardware: ['Matériel', 'Hardware'], crtGeneral: ['Généraux', 'General'],
+    crtCustom: ['Importé', 'Imported'],
+    crtNoGL: ['Filtres vidéo indisponibles : ce navigateur n\'a pas WebGL 2.', 'Video filters unavailable: this browser has no WebGL 2.'],
+    crtMissing: ['fichiers introuvables (à importer avec le .ini) :', 'files not found (import them with the .ini):'],
+    crtUnknown: ['fichier non reconnu :', 'file not recognised:'],
     romSel: ['ROM intégrée', 'Built-in ROM'],
     optAube: ['AUBE (démarrage)', 'AUBE (boot)'], optTest: ['ROM de test', 'Test ROM'], optHello: ['Exemple « Bonjour »', '“Hello” example'],
     optTracker: ['MONOTRACKER (musique, clavier)', 'MONOTRACKER (music, keyboard)'],
@@ -911,6 +993,7 @@ __CORE_JS__
     const rot = (m.gpuDV.getUint32(0, true) >> 8) & 3;
     const cw = rot & 1 ? H : W, ch = rot & 1 ? W : H;
     if (natW !== cw || natH !== ch) { natW = cw; natH = ch; canvas.width = cw; canvas.height = ch; layoutScreen(); }
+    if (crt && crtDraw(W, H, rot)) return;
     const dpr = window.devicePixelRatio || 1;
     const fx = Math.min(8, Math.max(1, Math.ceil((canvas.clientWidth || cw) * dpr / cw - 0.01)));
     const fy = Math.min(8, Math.max(1, Math.ceil((canvas.clientHeight || ch) * dpr / ch - 0.01)));
@@ -934,6 +1017,305 @@ __CORE_JS__
     canvas.style.height = rotated ? '100%' : 'auto';
     box.style.aspectRatio = wide && !rotated ? '16 / 9' : '4 / 3';
   }
+
+  // ---------------------------------------------------------------- MiSTer video filters
+  // The same files as the MiSTer's SD card (Presets, Filters, Gamma, Shadow_Masks; sim/crt/), computed
+  // as the framework does it: gamma on the core's pixels (gamma_corr.sv), then the polyphase scaler
+  // (ascal.vhd: 4 taps, 64 or 256 phases, horizontal then vertical, "adaptive" sets mixed by the
+  // brightness of the pixel), then the shadow mask on the output pixels (shadowmask.sv). The output
+  // pixels are those of the screen (CSS size x devicePixelRatio), as the HDMI pixels on the MiSTer.
+  const CRT = __CRT_JSON__;
+  const crtFiles = {};                                   // lower-case path -> text (built in, then imported)
+  for (const k in CRT.files) crtFiles[k.toLowerCase()] = CRT.files[k];
+  const crtBase = (k) => k.slice(k.lastIndexOf('/') + 1);
+  function crtNums(text) {   // rows of numbers, comments and keywords left out
+    const rows = [];
+    for (const line of text.split(/\r?\n/)) {
+      const l = line.replace(/#.*/, '').trim();
+      if (/^-?\d+(\s*,\s*-?\d+)*\s*,?$/.test(l)) rows.push(l.split(',').filter((x) => x.trim() !== '').map(Number));
+    }
+    return rows;
+  }
+  function crtKind(text) {
+    const lines = text.split(/\r?\n/).map((l) => l.replace(/#.*/, '').trim()).filter(Boolean);
+    if (lines.some((l) => /^v\d$/.test(l))) return 'mask';
+    if (/^\s*[hvs]filter\s*=|^\s*mask(mode)?\s*=|^\s*gamma\s*=/m.test(text)) return 'ini';
+    const rows = crtNums(text);
+    if (rows.length && rows.every((r) => r.length === 4)) return 'filter';
+    if (rows.length >= 256 && rows.every((r) => r.length === 1 || r.length === 3)) return 'gamma';
+    return null;
+  }
+  function crtFilter(text) {
+    const tens = /^\s*10bit\b/m.test(text), adaptive = /^\s*adaptive\b/m.test(text);
+    const rows = crtNums(text), norm = tens ? 256 : 128;
+    const sets = adaptive ? 2 : 1, phases = rows.length / sets;
+    if (!phases || phases !== Math.floor(phases)) return null;
+    const d = new Float32Array(phases * 2 * 4);
+    for (let r = 0; r < 2; r++) for (let p = 0; p < phases; p++) {
+      const row = rows[(adaptive ? r * phases : 0) + p];
+      for (let k = 0; k < 4; k++) d[(r * phases + p) * 4 + k] = row[k] / norm;
+    }
+    return { phases, adaptive, data: d };
+  }
+  function crtGamma(text) {
+    const rows = crtNums(text), d = new Float32Array(256 * 4);
+    const flat = rows.every((r) => r.length === 1) ? rows.map((r) => r[0]) : null;
+    for (let i = 0; i < 256; i++) {
+      for (let c = 0; c < 3; c++) {
+        let v = flat ? (flat.length >= 768 ? flat[c * 256 + i] : flat[i]) : rows[i][c];
+        d[i * 4 + c] = Math.max(0, Math.min(255, v | 0)) / 255;
+      }
+      d[i * 4 + 3] = 1;
+    }
+    return d;
+  }
+  function crtMask(text) {   // v2: "w,h" then rows of 3 hex digits (colour RGB bits, on, off)
+    const sections = [];
+    let res = 0, cur = null;
+    for (const line of text.split(/\r?\n/)) {
+      const l = line.replace(/#.*/, '').trim();
+      if (!l) continue;
+      let mm = /^resolution\s*=\s*(\d+)/i.exec(l);
+      if (mm) { res = +mm[1]; cur = null; continue; }
+      if (/^v\d$/i.test(l)) { cur = { res, w: 0, h: 0, cells: [] }; sections.push(cur); continue; }
+      if (!cur) continue;
+      if (!cur.w) { mm = /^(\d+)\s*,\s*(\d+)$/.exec(l); if (mm) { cur.w = +mm[1]; cur.h = +mm[2]; } continue; }
+      for (const e of l.split(',')) { const x = e.trim(); if (/^[0-9a-f]{3}$/i.test(x)) cur.cells.push(parseInt(x, 16)); }
+    }
+    const ok = sections.filter((q) => q.w && q.h && q.cells.length >= q.w * q.h && q.w <= 16 && q.h <= 16);
+    return ok.length ? ok : null;
+  }
+  // a preset: { name, h, v, gamma, mask, mode }, each a file text or null
+  function crtLookup(top, rel, extra) {
+    if (!rel) return { text: null };
+    const v = rel.trim();
+    if (!v || /^(off|same)$/i.test(v)) return { text: null };
+    const full = (top + '/' + v).toLowerCase();
+    if (crtFiles[full]) return { text: crtFiles[full] };
+    const b = crtBase(v).toLowerCase();
+    if (extra && extra[b]) return { text: extra[b] };
+    for (const k in crtFiles) if (crtBase(k) === b) return { text: crtFiles[k] };
+    return { text: null, missing: v };
+  }
+  function crtFromIni(name, text, extra) {
+    const kv = {};
+    for (const line of text.split(/\r?\n/)) {
+      const mm = /^\s*([a-z_]+)\s*=\s*(.*?)\s*$/i.exec(line);
+      if (mm) kv[mm[1].toLowerCase()] = mm[2];
+    }
+    const missing = [];
+    const get = (top, k) => { const r = crtLookup(top, kv[k], extra); if (r.missing) missing.push(r.missing); return r.text; };
+    const h = get('Filters', 'hfilter');
+    const v = /^same$/i.test(kv.vfilter || '') ? h : get('Filters', 'vfilter');
+    const mode = (kv.maskmode || '1x').toLowerCase();
+    const mask = /^off$/.test(mode) ? null : get('Shadow_Masks', 'mask');
+    return { name, h, v, gamma: get('Gamma', 'gamma'), mask, mode, missing };
+  }
+
+  const glc = $('screenGL');
+  let gl = null, crt = null, crtOk = null;   // crt: compiled preset; crtOk: WebGL 2 available
+  const NEAREST2 = { phases: 2, adaptive: false, data: new Float32Array([0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0]) };
+  const VS = '#version 300 es\nvoid main() { vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2)); gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); }';
+  const FS = `#version 300 es
+precision highp float; precision highp int; precision highp sampler2D;
+uniform sampler2D uSrc, uCoef, uGamma, uMask;
+uniform ivec2 uSrcSize, uOutSize, uMaskSize;
+uniform int uAxis, uPhases, uAdaptive, uGammaOn, uFlip, uMaskOn, uMask2x, uMaskRot;
+out vec4 oColor;
+vec3 tap(ivec2 p) {
+  vec3 c = texelFetch(uSrc, clamp(p, ivec2(0), uSrcSize - 1), 0).rgb;
+  if (uGammaOn == 1) {
+    ivec3 k = ivec3(c * 255.0 + 0.5);
+    c = vec3(texelFetch(uGamma, ivec2(k.r, 0), 0).r, texelFetch(uGamma, ivec2(k.g, 0), 0).g, texelFetch(uGamma, ivec2(k.b, 0), 0).b);
+  }
+  return c;
+}
+void main() {
+  ivec2 o = ivec2(gl_FragCoord.xy);
+  if (uFlip == 1) o.y = uOutSize.y - 1 - o.y;
+  bool h = uAxis == 0;
+  float n = float(h ? uSrcSize.x : uSrcSize.y), N = float(h ? uOutSize.x : uOutSize.y);
+  float s = (float(h ? o.x : o.y) + 0.5) * n / N - 0.5, fi = floor(s);
+  int i = int(fi), ph = min(uPhases - 1, int((s - fi) * float(uPhases)));
+  ivec2 d = h ? ivec2(1, 0) : ivec2(0, 1), b = h ? ivec2(i, o.y) : ivec2(o.x, i);
+  vec3 c0 = tap(b - d), c1 = tap(b), c2 = tap(b + d), c3 = tap(b + 2 * d);
+  vec4 k = texelFetch(uCoef, ivec2(ph, 0), 0);
+  if (uAdaptive == 1) {
+    float y = dot(ph < uPhases / 2 ? c1 : c2, vec3(0.299, 0.587, 0.114));
+    k = mix(k, texelFetch(uCoef, ivec2(ph, 1), 0), y);
+  }
+  vec3 col = clamp(c0 * k.x + c1 * k.y + c2 * k.z + c3 * k.w, 0.0, 1.0);
+  if (uMaskOn == 1) {
+    ivec2 q = o >> uMask2x;
+    ivec2 cell = uMaskRot == 1 ? ivec2(q.y % uMaskSize.x, q.x % uMaskSize.y) : ivec2(q.x % uMaskSize.x, q.y % uMaskSize.y);
+    col = min(col * texelFetch(uMask, cell, 0).rgb, 1.0);
+  }
+  oColor = vec4(col, 1.0);
+}`;
+  let prog = null, U = {}, texSrc, texMid, fbo, texCoefH, texCoefV, texGamma, texMask, midW = 0, midH = 0;
+  const rotc = document.createElement('canvas'), rctx = rotc.getContext('2d');
+  function glInit() {
+    if (crtOk !== null) return crtOk;
+    try { gl = glc.getContext('webgl2', { antialias: false, alpha: false, preserveDrawingBuffer: false }); } catch (e) { gl = null; }
+    if (!gl) { crtOk = false; return false; }
+    const sh = (type, src) => { const x = gl.createShader(type); gl.shaderSource(x, src); gl.compileShader(x); if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x)); return x; };
+    try {
+      prog = gl.createProgram();
+      gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+      gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    } catch (e) { log('WebGL: ' + e.message + '\n', 'err'); crtOk = false; return false; }
+    for (const n of ['uSrc', 'uCoef', 'uGamma', 'uMask', 'uSrcSize', 'uOutSize', 'uMaskSize', 'uAxis', 'uPhases', 'uAdaptive', 'uGammaOn', 'uFlip', 'uMaskOn', 'uMask2x', 'uMaskRot']) U[n] = gl.getUniformLocation(prog, n);
+    const tex = () => { const x = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, x); for (const p of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, p, gl.NEAREST); for (const p of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D, p, gl.CLAMP_TO_EDGE); return x; };
+    texSrc = tex(); texMid = tex(); texCoefH = tex(); texCoefV = tex(); texGamma = tex(); texMask = tex();
+    fbo = gl.createFramebuffer();
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    crtOk = true;
+    return true;
+  }
+  const f32 = (t, w, h, d) => { gl.bindTexture(gl.TEXTURE_2D, t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, w, h, 0, gl.RGBA, gl.FLOAT, d); };
+  function crtCompile(p) {   // file texts -> textures; null when the preset changes nothing
+    const unknown = [];
+    const fh = p.h ? crtFilter(p.h) : null, fv = p.v ? crtFilter(p.v) : null;
+    if (p.h && !fh) unknown.push('hfilter'); if (p.v && !fv) unknown.push('vfilter');
+    const masks = p.mask ? crtMask(p.mask) : null;
+    const c = { name: p.name, fh: fh || NEAREST2, fv: fv || NEAREST2, gamma: p.gamma ? crtGamma(p.gamma) : null, masks,
+                m2x: /2x/.test(p.mode || ''), mrot: /rot/.test(p.mode || ''), maskKey: '' };
+    f32(texCoefH, c.fh.phases, 2, c.fh.data);
+    f32(texCoefV, c.fv.phases, 2, c.fv.data);
+    if (c.gamma) f32(texGamma, 256, 1, c.gamma);
+    return c;
+  }
+  function crtMaskFor(outH) {   // the section of the mask file for this output height
+    if (!crt.masks) return null;
+    let best = crt.masks[0];
+    for (const q of crt.masks) if (q.res <= outH && q.res >= best.res) best = q;
+    const key = crt.masks.indexOf(best) + '';
+    if (crt.maskKey !== key) {
+      const d = new Float32Array(best.w * best.h * 4);
+      for (let i = 0; i < best.w * best.h; i++) {
+        const e = best.cells[i], col = e >> 8, on = (16 + ((e >> 4) & 15)) / 16, offv = (e & 15) / 16;
+        d[i * 4] = col & 4 ? on : offv; d[i * 4 + 1] = col & 2 ? on : offv; d[i * 4 + 2] = col & 1 ? on : offv; d[i * 4 + 3] = 1;
+      }
+      f32(texMask, best.w, best.h, d);
+      crt.maskKey = key;
+    }
+    return best;
+  }
+  function crtDraw(W, H, rot) {   // true when drawn
+    // source picture, turned like the MiSTer's screen_rotate
+    let sw = W, sh = H;
+    gl.bindTexture(gl.TEXTURE_2D, texSrc);
+    if (!rot) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(m.frameBuf.buffer, 0, W * H * 4));
+    else {
+      if (rot & 1) { sw = H; sh = W; }
+      if (rotc.width !== sw || rotc.height !== sh) { rotc.width = sw; rotc.height = sh; }
+      rctx.save(); rctx.translate(sw / 2, sh / 2); rctx.rotate(rot * Math.PI / 2); rctx.drawImage(off, -W / 2, -H / 2); rctx.restore();
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, rotc);
+    }
+    // output = the pixels of the screen under the canvas
+    const r = canvas.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    const ow = Math.max(1, Math.round(r.width * dpr)), oh = Math.max(1, Math.round(r.height * dpr));
+    if (glc.width !== ow || glc.height !== oh) { glc.width = ow; glc.height = oh; }
+    Object.assign(glc.style, { left: canvas.offsetLeft + 'px', top: canvas.offsetTop + 'px', width: r.width + 'px', height: r.height + 'px' });
+    if (midW !== ow || midH !== sh) {
+      midW = ow; midH = sh;
+      gl.bindTexture(gl.TEXTURE_2D, texMid);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, ow, sh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texMid, 0);
+    }
+    const mk = crtMaskFor(oh);
+    gl.useProgram(prog);
+    const bindTex = (unit, t, u) => { gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, t); gl.uniform1i(U[u], unit); };
+    bindTex(2, texGamma, 'uGamma'); bindTex(3, texMask, 'uMask');
+    // pass 1: horizontal, with gamma, into the intermediate picture (output width x source height)
+    bindTex(0, texSrc, 'uSrc'); bindTex(1, texCoefH, 'uCoef');
+    gl.uniform2i(U.uSrcSize, sw, sh); gl.uniform2i(U.uOutSize, ow, sh);
+    gl.uniform1i(U.uAxis, 0); gl.uniform1i(U.uPhases, crt.fh.phases); gl.uniform1i(U.uAdaptive, crt.fh.adaptive ? 1 : 0);
+    gl.uniform1i(U.uGammaOn, crt.gamma ? 1 : 0); gl.uniform1i(U.uFlip, 0); gl.uniform1i(U.uMaskOn, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo); gl.viewport(0, 0, ow, sh);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    // pass 2: vertical, then the shadow mask, onto the screen
+    bindTex(0, texMid, 'uSrc'); bindTex(1, texCoefV, 'uCoef');
+    gl.uniform2i(U.uSrcSize, ow, sh); gl.uniform2i(U.uOutSize, ow, oh);
+    gl.uniform1i(U.uAxis, 1); gl.uniform1i(U.uPhases, crt.fv.phases); gl.uniform1i(U.uAdaptive, crt.fv.adaptive ? 1 : 0);
+    gl.uniform1i(U.uGammaOn, 0); gl.uniform1i(U.uFlip, 1);
+    gl.uniform1i(U.uMaskOn, mk ? 1 : 0);
+    if (mk) { gl.uniform2i(U.uMaskSize, mk.w, mk.h); gl.uniform1i(U.uMask2x, crt.m2x ? 1 : 0); gl.uniform1i(U.uMaskRot, crt.mrot ? 1 : 0); }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, ow, oh);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    return true;
+  }
+  // the list: built-in presets by folder, then the imported one
+  const crtSel = $('crtSelect');
+  let crtCustom = null;   // { name, ini | null, files: { base: text } }
+  try { const c = localStorage.getItem('monocore-crt-custom'); if (c) crtCustom = JSON.parse(c); } catch (e) { crtCustom = null; }
+  function crtFill() {
+    const val = crtSel.value;
+    crtSel.textContent = '';
+    const opt = (parent, value, text) => { const o = document.createElement('option'); o.value = value; o.textContent = text; parent.appendChild(o); };
+    opt(crtSel, '', t('crtNone'));
+    const groups = [['Display Specific/', 'crtDisplay'], ['General Hardware/', 'crtHardware'], ['', 'crtGeneral']];
+    for (const [dir, key] of groups) {
+      const g = document.createElement('optgroup'); g.label = t(key);
+      for (const p of CRT.presets) if (dir ? p.startsWith(dir) : !p.includes('/')) opt(g, 'p:' + p, crtBase(p).replace(/\.ini$/i, ''));
+      crtSel.appendChild(g);
+    }
+    if (crtCustom) { const g = document.createElement('optgroup'); g.label = t('crtCustom'); opt(g, 'custom', crtCustom.name); crtSel.appendChild(g); }
+    crtSel.value = val;
+    if (crtSel.selectedIndex < 0) crtSel.value = '';
+  }
+  function crtPreset(value) {
+    if (value.startsWith('p:')) { const k = value.slice(2); return crtFromIni(crtBase(k).replace(/\.ini$/i, ''), crtFiles[('Presets/' + k).toLowerCase()] || ''); }
+    if (value === 'custom' && crtCustom) {
+      const extra = {};
+      for (const b in crtCustom.files) extra[b.toLowerCase()] = crtCustom.files[b];
+      if (crtCustom.ini) return crtFromIni(crtCustom.name, crtCustom.ini, extra);
+      // loose files: each replaces its part of the preset chosen before (or of "none")
+      const base = crtCustom.over ? crtPreset(crtCustom.over) : { h: null, v: null, gamma: null, mask: null, mode: '1x', missing: [] };
+      const p = Object.assign({}, base, { name: crtCustom.name, missing: [] });
+      for (const b in crtCustom.files) {
+        const x = crtCustom.files[b], k = crtKind(x);
+        if (k === 'filter') { p.h = x; p.v = x; } else if (k === 'gamma') p.gamma = x; else if (k === 'mask') { p.mask = x; if (/off/.test(p.mode || '')) p.mode = '1x'; }
+      }
+      return p;
+    }
+    return null;
+  }
+  function crtApply(value) {
+    crt = null; $('crtInfo').textContent = '';
+    try { localStorage.setItem('monocore-crt', value); } catch (e) { /* no storage */ }
+    const p = value ? crtPreset(value) : null;
+    if (p) {
+      if (!glInit()) { $('crtInfo').textContent = t('crtNoGL'); crtSel.value = ''; }
+      else {
+        crt = crtCompile(p);
+        if (p.missing && p.missing.length) $('crtInfo').textContent = t('crtMissing') + ' ' + p.missing.join(', ');
+      }
+    }
+    glc.style.display = crt ? 'block' : 'none';
+    canvas.style.opacity = crt ? '0' : '';
+    if (m) draw();
+  }
+  crtSel.addEventListener('change', () => { crtApply(crtSel.value); crtSel.blur(); });
+  $('crtFile').addEventListener('change', (e) => {
+    const list = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!list.length) return;
+    Promise.all(list.map((f) => f.text().then((x) => [f.name, x]))).then((pairs) => {
+      const ini = pairs.find(([n, x]) => crtKind(x) === 'ini');
+      const files = {}, bad = [];
+      for (const [n, x] of pairs) if (!ini || n !== ini[0]) { if (crtKind(x)) files[n] = x; else bad.push(n); }
+      const names = pairs.map(([n]) => n.replace(/\.(ini|txt)$/i, ''));
+      crtCustom = { name: ini ? ini[0].replace(/\.ini$/i, '') : names.join(' + '), ini: ini ? ini[1] : null, files,
+                    over: !ini && crtSel.value !== 'custom' ? crtSel.value : (crtCustom && crtCustom.over) || '' };
+      try { localStorage.setItem('monocore-crt-custom', JSON.stringify(crtCustom)); } catch (err) { /* too big or no storage */ }
+      crtFill(); crtSel.value = 'custom'; crtApply('custom');
+      if (bad.length) $('crtInfo').textContent += (($('crtInfo').textContent ? ' · ' : '') + t('crtUnknown') + ' ' + bad.join(', '));
+    });
+  });
+  relabel.push(crtFill);
 
   // ---------------------------------------------------------------- audio
   let ac = null, nextT = 0, muted = false;
@@ -1058,6 +1440,56 @@ __CORE_JS__
     return out;
   }
 
+  // ---------------------------------------------------------------- touch pad (player 1)
+  // Each finger is followed on its own: it presses what lies under it and can slide from one button
+  // to another (or round the D-pad, 8 directions) without being lifted, as on a real pad.
+  let touchBits = 0;
+  const pad = $('touchPad'), dpad = $('tpDpad'), fingers = new Map();
+  function touchHit(x, y) {
+    let v = 0;
+    const r = dpad.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const dx = x - cx, dy = y - cy, rad = r.width / 2;
+    if (dx * dx + dy * dy <= rad * rad * 1.69 && dx * dx + dy * dy >= rad * rad * 0.03) {
+      const a = Math.atan2(dy, dx) * 180 / Math.PI;   // 0 = right, 90 = down
+      if (a > -67.5 && a < 67.5) v |= 8;
+      if (a > 22.5 && a < 157.5) v |= 2;
+      if (a > 112.5 || a < -112.5) v |= 4;
+      if (a < -22.5 && a > -157.5) v |= 1;
+      return v;
+    }
+    const el = document.elementFromPoint(x, y), k = el && el.closest && el.closest('.tp-key');
+    return k && pad.contains(k) ? 1 << +k.dataset.bit : 0;
+  }
+  function touchUpdate() {
+    let v = 0;
+    fingers.forEach((b) => { v |= b; });
+    if (v & ~touchBits && navigator.vibrate) { try { navigator.vibrate(8); } catch (e) { /* not allowed */ } }
+    touchBits = v;
+    pad.querySelectorAll('[data-bit]').forEach((k) => k.classList.toggle('on', !!(v & (1 << +k.dataset.bit))));
+    dpad.querySelectorAll('[data-dir]').forEach((k) => k.classList.toggle('on', !!(v & (1 << +k.dataset.dir))));
+  }
+  const touchMove = (e) => { if (!fingers.has(e.pointerId)) return; e.preventDefault(); fingers.set(e.pointerId, touchHit(e.clientX, e.clientY)); touchUpdate(); };
+  const touchEnd = (e) => { if (fingers.delete(e.pointerId)) { e.preventDefault(); touchUpdate(); } };
+  pad.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (ac && ac.state === 'suspended') ac.resume();
+    fingers.set(e.pointerId, touchHit(e.clientX, e.clientY)); touchUpdate();
+  });
+  // on window: a finger that slides out of the pad is still followed (and released anywhere)
+  window.addEventListener('pointermove', touchMove, { passive: false });
+  window.addEventListener('pointerup', touchEnd); window.addEventListener('pointercancel', touchEnd);
+  pad.addEventListener('contextmenu', (e) => e.preventDefault());
+  function touchShow(on) {
+    pad.hidden = !on; $('touchBtn').setAttribute('aria-pressed', on);
+    if (!on) { fingers.clear(); touchUpdate(); }
+    try { localStorage.setItem('monocore-touch', on ? '1' : '0'); } catch (e) { /* no storage */ }
+    layoutScreen();
+  }
+  $('touchBtn').addEventListener('click', () => touchShow(pad.hidden));
+  let touchSaved = null;
+  try { touchSaved = localStorage.getItem('monocore-touch'); } catch (e) { /* no storage */ }
+  touchShow(touchSaved ? touchSaved === '1' : !!(window.matchMedia && matchMedia('(pointer: coarse)').matches));
+
   // ---------------------------------------------------------------- DIP switches
   const dipsEl = $('dips');
   for (let i = 15; i >= 0; i--) {
@@ -1125,7 +1557,7 @@ __CORE_JS__
   let acc = 0, last = 0, tick = 0;
   function step() {
     const pads = pollPads();
-    m.inputs[0] = keyState[0] | pads[0];
+    m.inputs[0] = keyState[0] | pads[0] | touchBits;
     m.inputs[1] = keyState[1] | pads[1];
     m.inputs[2] = keyState[2];
     m.inputs[3] = keyState[3] | pads[2]; m.inputs[4] = keyState[4] | pads[3];
@@ -1168,7 +1600,14 @@ __CORE_JS__
   relabel.push(labelButtons);
   $('aspectBtn').addEventListener('click', (e) => { squarePixels = !squarePixels; wide = false; $('wideBtn').setAttribute('aria-pressed', false); e.currentTarget.setAttribute('aria-pressed', squarePixels); layoutScreen(); });
   $('wideBtn').addEventListener('click', (e) => { wide = !wide; squarePixels = false; $('aspectBtn').setAttribute('aria-pressed', false); e.currentTarget.setAttribute('aria-pressed', wide); layoutScreen(); });
-  $('fsBtn').addEventListener('click', () => { const b = $('bezel'); if (b.requestFullscreen) b.requestFullscreen().catch(() => log(t('fsDenied') + '\n', 'err')); });
+  function fakeFs(on) { $('bezel').classList.toggle('fakefs', on); document.body.style.overflow = on ? 'hidden' : ''; if (m) draw(); }
+  $('fsBtn').addEventListener('click', () => {
+    const b = $('bezel'), req = b.requestFullscreen || b.webkitRequestFullscreen;
+    if (!req) { fakeFs(true); return; }
+    const r = req.call(b);
+    if (r && r.then) r.then(() => { try { screen.orientation.lock('landscape').catch(() => {}); } catch (e) { /* not on this device */ } }).catch(() => fakeFs(true));
+  });
+  $('fsExitBtn').addEventListener('click', () => fakeFs(false));
   $('romSelect').addEventListener('change', (e) => loadRom(b64(ROMS[e.target.value]), e.target.value));
   function loadFile(f) {
     if (!f) return;
@@ -1189,6 +1628,9 @@ __CORE_JS__
   applyLang(lang);
   relabel.push(() => { const e = $('timer0'); if (I18N.stopped.includes(e.textContent)) e.textContent = t('stopped'); });
   loadRom(b64(ROMS.aube), 'aube');
+  crtFill();
+  try { const v = localStorage.getItem('monocore-crt'); if (v) { crtSel.value = v; if (crtSel.selectedIndex < 0) crtSel.value = ''; } } catch (e) { /* no storage */ }
+  crtApply(crtSel.value);
   // show a first frame behind the power button
   for (let i = 0; i < 40; i++) m.runFrame();
   draw(); layoutScreen(); updateMonitor();
