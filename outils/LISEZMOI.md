@@ -11,12 +11,12 @@ Copiez les fichiers `.mnc` dans `games/MONOCORE` sur la carte SD de la MiSTer. I
 
 | Fichier | Contenu | Taille | SHA-256 |
 |---|---|---|---|
-| `MONOATELIER.mnc` | l'atelier : les cinq programmes ci-dessous dans une seule ROM, avec une seule sauvegarde | 7 477 Ko | `16ab4a9474431648…` |
-| `MONOPIXEL.mnc` | les images : planche, palettes, lutins animés, décors, attributs des tuiles, objets | 102 Ko | `0a65bb37a60c2dcc…` |
-| `MONOSFX.mnc` | les bruitages : 32 sons PSG par banque, générateurs | 64 Ko | `017857c74809d3d0…` |
-| `MONOTRACKER.mnc` | la musique : morceaux de 16 pistes (PSG et échantillons), clavier MIDI | 1 311 Ko | `ba91bbc7da369c43…` |
-| `MONOBASIC.mnc` | le BASIC : écrire un jeu sur la console | 1 333 Ko | `cf284d6240d17f7d…` |
-| `PLATEFORMES.mnc` | un jeu de plateformes tout fait, à refaire avec les outils | 1 278 Ko | `a6cd1938fd4c62ab…` |
+| `MONOATELIER.mnc` | l'atelier : les cinq programmes ci-dessous dans une seule ROM, avec une seule sauvegarde | 7 480 Ko | `d47f71d0b13261b9…` |
+| `MONOPIXEL.mnc` | les images : planche, palettes, lutins animés, décors, attributs des tuiles, objets | 105 Ko | `aac65587b3f07dc6…` |
+| `MONOSFX.mnc` | les bruitages : 32 sons PSG par banque, générateurs | 67 Ko | `39910812c50f70e2…` |
+| `MONOTRACKER.mnc` | la musique : morceaux de 16 pistes (PSG et échantillons), clavier MIDI | 1 314 Ko | `f25e68d67bd4c2da…` |
+| `MONOBASIC.mnc` | le BASIC : écrire un jeu sur la console | 1 336 Ko | `7181ce02e3c9c40f…` |
+| `PLATEFORMES.mnc` | un jeu de plateformes tout fait, à refaire avec les outils | 1 281 Ko | `bce0b96e8f488e08…` |
 
-Construits par `python3 tools/mkoutils.py` le 2026-10-29, à partir du commit `26f5617`.
+Construits par `python3 tools/mkoutils.py` le 2026-10-29, à partir du commit `9fb7989`.
 Dans le simulateur (`dist/monocore.html`), MONOATELIER et chacun des outils sont dans la liste des ROM intégrées.
