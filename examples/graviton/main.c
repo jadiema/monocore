@@ -561,11 +561,11 @@ static void aim_draw(void) {
   int32_t c, s; gv_dir(angle, &c, &s);
   int32_t ox = (2 * lv->lx) << 16, oy = (2 * lv->ly) << 16;
   int32_t x = ox + c * 36, y = oy + s * 36;
-  for (int i = 0; i < 900; i++) {                  // the long guide, a dimmed line
+  for (int i = 0; i < 1000; i++) {                 // the long guide, a dimmed line
     x += c; y += s;
     int px = x >> 16, py = y >> 16;
-    if (px < 1 || px >= HW - 1 || py < 2 * GV_TOP || py >= HH - 1) break;
-    aim_put(px, py, 4, false);
+    if (px < 0 || px >= HW || py < 2 * GV_TOP - 2 || py >= HH) break;   // only when it leaves the screen:
+    aim_put(px, py, 4, false);                                         // a launcher sits on the frame
   }
   // the barrel: a 28 x 10 outline from the centre outwards
   int32_t nx = -s * 5, ny = c * 5;
