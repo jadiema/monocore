@@ -37,7 +37,8 @@ static struct { uint32_t best; } save;
 
 // the controls: pads 1 and 2 (on MiSTer the pad may be player 2, when the keyboard is set as player 1)
 // and the keyboard of the console, which the editors of the atelier need: arrows, Space or Ctrl to
-// jump, Enter to start. JUMP: B1 or B2 (pads do not all put "B1" on the same button)
+// jump (Z and X too, the usual keys of emulators), Enter to start. JUMP: B1 or B2 (pads do not all
+// put "B1" on the same button)
 static uint32_t in_now, in_prev;
 #define JUMP (IN_B(1) | IN_B(2))
 #define START_ANY (IN_B(1) | IN_B(2) | IN_B(3) | IN_B(4) | IN_START)
@@ -48,7 +49,7 @@ static void read_input(void) {
   if (mc_key(KEY_RIGHT)) in_now |= IN_RIGHT;
   if (mc_key(KEY_UP)) in_now |= IN_UP;
   if (mc_key(KEY_DOWN)) in_now |= IN_DOWN;
-  if (mc_key(KEY_SPACE) || mc_key(KEY_LCTRL)) in_now |= IN_B(1);
+  if (mc_key(KEY_SPACE) || mc_key(KEY_LCTRL) || mc_key(0x1A) || mc_key(0x1D) || mc_key(0x22)) in_now |= IN_B(1);   // Z (AZERTY or QWERTY), W, X
   if (mc_key(KEY_ENTER) || mc_key(KEY_KPENTER)) in_now |= IN_START;
 }
 static uint32_t pressed(uint32_t b) { return in_now & ~in_prev & b; }

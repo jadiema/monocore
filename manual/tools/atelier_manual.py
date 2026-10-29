@@ -259,7 +259,7 @@ A(table(['Instruction / fonction', 'Rôle'], [
     [c('CHOC(I, J)'), 'les objets I et J se touchent'],
     [c('ENLEVE I') + ', ' + c('CACHE I, 1') + ', ' + c('MIROIR I, 1') + ', ' + c('ANIME I, 1') + ', ' + c('IMAGE I, N'), 'disparaître, ne plus être dessiné, regarder à gauche, s\'animer, montrer l\'image N'],
     [c('CAMERA I'), 'la caméra le suit dans le décor'],
-    [c('GAUCHE') + ', ' + c('DROITE') + ', ' + c('HAUT') + ', ' + c('BAS') + ', ' + c('BOUTON(N)') + ', ' + c('APPUI(N)'), 'la manette 1 (et les flèches, Espace = bouton 1) ; APPUI : le bouton vient d\'être enfoncé'],
+    [c('GAUCHE') + ', ' + c('DROITE') + ', ' + c('HAUT') + ', ' + c('BAS') + ', ' + c('BOUTON(N)') + ', ' + c('APPUI(N)'), 'la manette 1 (et les flèches ; Espace ou Z = bouton 1, X = bouton 2) ; APPUI : le bouton vient d\'être enfoncé'],
     [c('ATTENDS') + ' [n]', 'dessine les objets et attend l\'image suivante : une fois par tour de boucle'],
     [c('TEXTE X, Y, …') + ', ' + c('PRINT'), 'écrire sur l\'écran du jeu (40 colonnes, 30 lignes)'],
     [c('SON "SAUT"') + ', ' + c('MUSIQUE') + ', ' + c('SILENCE'), 'un bruitage par son nom, la musique de l\'atelier, le silence'],
@@ -344,7 +344,7 @@ A(table(['Programme', 'Raccourcis'], [
     ['<b>MONOSFX</b>', k('F1') + ' effets, ' + k('F2') + ' banque, ' + k('F3') + ' aide ; ' + k('Espace') + ' jouer ; ' + k('Entrée') + ' nommer ; ' + k('Ctrl', 'C') + ' ' + k('Ctrl', 'V') + ' ' + k('Suppr')],
     ['<b>MONOTRACKER</b>', k('F1') + ' motifs, ' + k('F2') + ' sons, ' + k('F3') + ' morceau, ' + k('F4') + ' aide ; instrument : ' + k('+') + ' et ' + k('−') + ' du pavé ; voir son manuel'],
     ['<b>MONOBASIC</b>', k('F5') + ' RUN, ' + k('F2') + ' LIST, ' + k('Échap') + ' arrêt ; ' + c('AIDE') + ', ' + c('EXEMPLE') + ', ' + c('SAVE') + ', ' + c('LOAD') + ', ' + c('DIR')],
-    ['<b>PLATEFORMES</b>', 'commencer : ' + k('B1') + ', ' + k('START') + ', ' + k('Espace') + ' ou ' + k('Entrée') + ' ; gauche/droite (manette ou flèches), ' + k('B1') + ' ou ' + k('Espace') + ' sauter, bas + saut descendre ; ' + k('START') + ' + ' + k('COIN') + ' : lanceur'],
+    ['<b>PLATEFORMES</b>', 'commencer : ' + k('B1') + ', ' + k('START') + ', ' + k('Espace') + ' ou ' + k('Entrée') + ' ; gauche/droite (manette ou flèches), ' + k('B1') + ', ' + k('Espace') + ', ' + k('Z') + ' ou ' + k('X') + ' sauter, bas + saut descendre ; ' + k('START') + ' + ' + k('COIN') + ' : lanceur'],
 ]))
 A(h2("Dépannage"))
 A(table(['Ce qui se passe', 'Que faire'], [

@@ -440,6 +440,8 @@ html:not([lang="en"]) .doc[data-lang="en"], html[lang="en"] .doc[data-lang="fr"]
 </div>
 
 <script>
+var kbdPadToo = false;   // keys to the console keyboard AND to the pad (the atelier: editors and games)
+
 __CORE_JS__
 </script>
 <script>
@@ -679,6 +681,7 @@ __CORE_JS__
     peakWin.length = 0;
     // MONOTRACKER needs the console keyboard: switched on for it, and off again after it
     const atelier = m.header.title === 'MONOATELIER' || m.header.title === 'MONOBASIC';
+    kbdPadToo = atelier;
     const pixel = m.header.title === 'MONOPIXEL' || m.header.title === 'MONOSFX' || atelier, sfxEd = m.header.title === 'MONOSFX';
     const tracker = m.header.title === 'MONOTRACKER' || pixel, cascade = ['CASCADE', 'PIANO DEFENDER', 'SOLFEGE'].includes(m.header.title);
     if ((tracker || cascade) && !$('kbdMode').checked) { setKbd(true); autoKbd = true; log(t(cascade ? 'cascadeKbd' : atelier ? 'atelierKbd' : sfxEd ? 'sfxKbd' : pixel ? 'pixelKbd' : 'trackerKbd') + '\n'); }
@@ -1408,6 +1411,9 @@ void main() {
       if (down === kbdDown.has(c)) return;          // auto-repeat
       if (down) kbdDown.add(c); else kbdDown.delete(c);
       m.keyEvent(c & 0xff, c > 0xff, down);
+      // the atelier and MONOBASIC hold editors (the keyboard) and games (the pad): the keys go to both
+      const k2 = kbdPadToo ? keyOf(e) : null;
+      if (k2) { if (down) keyState[k2[0]] |= 1 << k2[1]; else keyState[k2[0]] &= ~(1 << k2[1]); }
       return;
     }
     if (e.key === "'" || e.key === '/') e.preventDefault();   // Firefox: quick find

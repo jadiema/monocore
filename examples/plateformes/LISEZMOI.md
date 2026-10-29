@@ -25,7 +25,7 @@ sauvés dans l'atelier : on les refait dans les éditeurs, puis F5 pour y jouer.
     python3 ../../sdk/build.py .         # -> build/plateformes.mnc
 
 Commandes : B1, START, Espace ou Entrée pour commencer ; gauche et droite (manette 1 ou 2, ou les flèches)
-pour courir ; B1, B2 ou Espace pour sauter ; bas + saut pour descendre d'une plateforme.
+pour courir ; B1, B2, Espace, Z ou X pour sauter ; bas + saut pour descendre d'une plateforme.
 
 ## Faire son niveau
 

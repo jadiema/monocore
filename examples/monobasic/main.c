@@ -432,7 +432,8 @@ static void game_frame(void) {
   if (mc_key(KEY_RIGHT)) pad_now |= IN_RIGHT;
   if (mc_key(KEY_UP)) pad_now |= IN_UP;
   if (mc_key(KEY_DOWN)) pad_now |= IN_DOWN;
-  if (mc_key(KEY_SPACE)) pad_now |= IN_B(1);
+  if (mc_key(KEY_SPACE) || mc_key(0x1A) || mc_key(0x1D)) pad_now |= IN_B(1);   // Space, Z (AZERTY or QWERTY)
+  if (mc_key(0x22)) pad_now |= IN_B(2);                                          // X
   if (mc_key(KEY_LALT)) pad_now |= IN_B(2);
   if (mc_key(KEY_ESC)) error("ARRET");
 }

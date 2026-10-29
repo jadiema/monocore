@@ -69,7 +69,7 @@ instructions vont sur une ligne, séparées par `:`.
 | `CHOC(I, J)` | les deux objets se touchent |
 | `ENLEVE I`, `CACHE I, 1`, `MIROIR I, 1`, `ANIME I, 1`, `IMAGE I, n` | il disparaît, n'est plus dessiné, regarde à gauche, s'anime, montre l'image n |
 | `CAMERA I` | la caméra le suit |
-| `GAUCHE`, `DROITE`, `HAUT`, `BAS`, `BOUTON(n)`, `APPUI(n)` | la manette 1 (aussi les flèches, Espace = bouton 1, Alt = bouton 2) ; `APPUI` : vient d'être enfoncé |
+| `GAUCHE`, `DROITE`, `HAUT`, `BAS`, `BOUTON(n)`, `APPUI(n)` | la manette 1 (aussi les flèches ; Espace ou Z = bouton 1 ; X ou Alt = bouton 2) ; `APPUI` : vient d'être enfoncé |
 | `ATTENDS` [n] | dessine les objets et attend l'image suivante (n images) : une fois par tour de la boucle du jeu |
 | `TEXTE x, y, …` | écrit en colonne x (0–39), ligne y (0–29) ; `PRINT` écrit à la suite |
 | `SON "SAUT"`, `MUSIQUE`, `SILENCE` | un bruitage par son nom, la musique, le silence |
