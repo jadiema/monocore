@@ -75,7 +75,7 @@ Préparer les images à graver (programmateur TL866, puce W25Q64) :
 
 Le seul réglage qui dépend de la carte est l'instant où le contrôleur lit les données de la SDRAM. L'option OSD **Lecture SDRAM : Normale / Retardée** le décale d'un cycle. Si la ROM de test ne démarre pas, affiche des couleurs aberrantes ou des graphismes en désordre, passer sur **Retardée**, puis **Reset**. Noter quelle position fonctionne : c'est une information précieuse.
 
-Ce qui manque encore dans ce premier essai : la rotation d'écran pour les jeux verticaux (l'image n'est pas tournée), la sauvegarde de la NVRAM, et le réglage des DIP switches dans l'OSD (les valeurs par défaut de la ROM sont utilisées).
+Ce qui manque encore : la rotation d'écran pour les jeux verticaux (l'image n'est pas tournée) et le réglage des DIP switches dans l'OSD (les valeurs par défaut de la ROM sont utilisées). La NVRAM, elle, est sauvegardée dans `saves/MONOCORE/<rom>.sav` (`mc_nvsave.sv`), à l'ouverture de l'OSD.
 
 ## Ce qu'il est utile de me renvoyer
 

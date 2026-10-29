@@ -1,6 +1,7 @@
 // MONOCORE-1 "easy": see easy.h
 #include "easy.h"
 
+#include "font_fr.h"
 extern const uint8_t font_chr[], font_pal[];   // SDK font, added by build.py
 
 // made by build.py from project.txt: all the sprite sheets one after the other, one entry per
@@ -152,38 +153,11 @@ void wait_frame(void) {
 }
 
 // ---------------------------------------------------------------- text
-static int next_char(const char **pp) {
-  const unsigned char *p = (const unsigned char *)*pp;
-  int c = *p++;
-  if (c == 0xC3) {                     // accented letters (UTF-8): shown without the accent
-    int d = *p++;
-    if (d >= 0xA0 && d <= 0xA5) c = 'a';
-    else if (d == 0xA7) c = 'c';
-    else if (d >= 0xA8 && d <= 0xAB) c = 'e';
-    else if (d >= 0xAC && d <= 0xAF) c = 'i';
-    else if (d >= 0xB2 && d <= 0xB6) c = 'o';
-    else if (d >= 0xB9 && d <= 0xBC) c = 'u';
-    else if (d >= 0x80 && d <= 0x85) c = 'A';
-    else if (d == 0x87) c = 'C';
-    else if (d >= 0x88 && d <= 0x8B) c = 'E';
-    else if (d >= 0x8E && d <= 0x8F) c = 'I';
-    else if (d == 0x94) c = 'O';
-    else if (d >= 0x99 && d <= 0x9C) c = 'U';
-    else c = '?';
-  } else if (c >= 0x80) {
-    while (*p >= 0x80 && *p < 0xC0) p++;
-    c = '?';
-  }
-  *pp = (const char *)p;
-  return c;
-}
-
 void print_ink(int col, int row, const char *text, int n) {
   volatile uint32_t *m = TILEMAP(0);
   while (*text) {
-    int c = next_char(&text);
+    int c = font_next(&text);           // UTF-8: accented letters of font_fr.h
     if (c == '\n') { row++; col = 0; continue; }
-    if (c < 32 || c > 127) c = '?';
     if (col >= 0 && col < 64 && row >= 0 && row < 64) m[row * 64 + col] = TILE(c - 32, n & 7);
     col++;
   }

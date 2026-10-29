@@ -52,6 +52,12 @@ void mc_display(uint32_t flags);            // DISP_ON | DISP_LAYER(n) | DISP_SP
 void mc_color(int index, uint16_t rgb555);                    // index 0-4095
 void mc_palette(int pal, const uint16_t *colors, int count);  // from palette pal on (DMA)
 void mc_background(int index);                                // background colour = PALETTE[index]
+void mc_palette8(int pal, const void *colors);                // 256 colours (a maps8 _pal): palettes pal to pal + 15
+// fades: colours pal * 16 to pal * 16 + count - 1 set from "colors" (keep the original colours there, a _pal
+// of build.py or a uint16_t table) mixed with black or white; level 256 = the colours as they are, 0 = all
+// black (or white). mc_fade_to mixes with any RGB555 colour.
+void mc_fade(int pal, int count, const void *colors, int level, bool to_white);
+void mc_fade_to(int pal, int count, const void *colors, int level, uint16_t target);
 
 // layers (0-3): 8 or 16 pixel tiles, 4 or 8 bpp, maps of 32/64/128 tiles a side (4096 entries at most)
 #define MC_TILE8   0
@@ -67,6 +73,11 @@ static inline volatile uint32_t *mc_tilemap(int n) { return TILEMAP(n); }
 void mc_tile(int n, int x, int y, uint32_t entry);
 void mc_tilemap_fill(int n, uint32_t entry);
 void mc_tilemap_load(int n, const uint32_t *entries, int count);   // DMA
+// maps of build.py (maps = level.png -> level_chr, level_map, level_width, level_height, level_pal):
+// layer n set to 16 x 16 tiles with the map's graphics, a map size that holds it (4096 entries at most,
+// the rest cut off), the map written with palette pal, the layer's priority kept; scrolling left as is
+void mc_map_show(int n, const void *chr, const void *map, int w, int h, int pal);    // maps = (4 bpp)
+void mc_map8_show(int n, const void *chr, const void *map, int w, int h, int pal);   // maps8 = (8 bpp)
 
 // CHR RAM: 128 KB of graphics that can be changed at run time (decompression, fonts, effects)
 #define MC_CHRRAM      ((volatile uint8_t *)CHRRAM_BASE)
@@ -82,6 +93,11 @@ void mc_chr_upload(uint32_t offset, const void *src, uint32_t bytes);   // DMA
 #define MC_SPRITES 512
 extern sprite_t mc_spr[MC_SPRITES];
 void mc_sprite_sheet(const void *chr);      // sprite graphics (ROM or CHR RAM)
+// the sprite sheets of build.py (sprites = a.png b.png) follow each other in ROM from MC_SHEETS:
+// with mc_sprite_sheet(MC_SHEETS), MC_CELL(b_chr) is the first cell of sheet b (from the addresses)
+extern const uint8_t easy_sprite_chr[];
+#define MC_SHEETS ((const void *)easy_sprite_chr)
+#define MC_CELL(chr) ((int)(((const uint8_t *)(chr) - easy_sprite_chr) / 32))
 void mc_sprite(int n, int x, int y, int cell, int w, int h, int pal, int prio);
 void mc_sprite_zoom(int n, int zoomx, int zoomy);
 void mc_sprite_flip(int n, bool h, bool v);
@@ -90,9 +106,12 @@ void mc_sprite_hide(int n);
 void mc_sprites_hide_all(void);
 void mc_sprites_used(int count);            // entries scanned by the hardware (default 512)
 
-// debug text with the SDK font (8x8 cells, 4 bpp) on any layer
+// text with the SDK font (8x8 cells, 4 bpp, 128 glyphs) on any layer; UTF-8: the French letters
+// é è ê ë à â ç î ï ô ù û ü œ, their capitals (but Ü), « » … ° € (sdk/font_fr.h); other accented
+// letters lose their accent, unknown characters show as ?
 void mc_text_layer(int n, int prio);        // sets layer n up for text (font palette in palette 0)
 void mc_text(int n, int col, int row, const char *s, int pal);
+int  mc_text_len(const char *s);            // characters (cells) of s, not bytes: for centring
 void mc_text_clear(int n);
 
 // ================================================================ sound
@@ -108,6 +127,7 @@ void mc_master_volume(int vol);
 // small sequencer (same syntax as play() in easy: "C D E - . C5 ..."), stepped by mc_frame()
 void mc_tune(int ch, const char *notes, int frames_per_beat, int volume);
 void mc_tune_stop(int ch);
+void mc_tune_wave(int ch, int wave, int duty);   // PSG_SQUARE (default, duty 128), PSG_TRIANGLE, PSG_SAW, PSG_NOISE
 
 // ================================================================ inputs
 uint32_t mc_pad(int player);                // raw state (IN_UP ... IN_COIN), player 1 to 4
@@ -159,7 +179,7 @@ int  mc_midi_event(void);
 // WRAM 128 KB: .data, .bss, heap (malloc), then the stack (MC_STACK bytes at the top).
 #define MC_STACK 16384
 size_t mc_heap_free(void);                  // free bytes in the heap
-#define MC_NVRAM      ((volatile uint8_t *)NVRAM_BASE)   // 32 KB, kept in saves/MONOCORE/<rom>.sav (MiSTer)
+#define MC_NVRAM      ((volatile uint8_t *)NVRAM_BASE)   // 32 KB, saved in saves/MONOCORE/<rom>.sav when the OSD opens (MiSTer)
 #define MC_NVRAM_SIZE 0x8000u
 static inline void mc_copy(volatile void *dst, const void *src, uint32_t n) { dma_copy(dst, src, n); }
 static inline void mc_fill(volatile void *dst, uint32_t pattern, uint32_t n) { dma_fill(dst, pattern, n); }

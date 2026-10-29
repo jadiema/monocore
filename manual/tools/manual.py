@@ -248,7 +248,7 @@ A(table(['Ligne', "Ce qu'elle fait"], [
   ['8', "<code>for (;;)</code> répète sans fin ce qui suit. Un programme de console ne s'arrête jamais : ici, il attend image après image avec <code>wait_frame()</code>."]]))
 A(box('tip', 'À vous de jouer', ul([
   "Changez le texte, sa position, la couleur du fond, puis reconstruisez la ROM.",
-  "Les accents sont acceptés mais affichés sans accent : la police est celle des années 80, en majuscules de préférence.",
+  "Les accents du français s'affichent (é, è, à, ç, « »…) ; les autres lettres accentuées perdent leur accent.",
   "Une erreur ? <code>build.py</code> indique le fichier et la ligne. Le plus souvent, il manque un point-virgule <code>;</code> en fin de ligne."])))
 
 # ---------------------------------------------------------------- 4

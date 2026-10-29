@@ -1,5 +1,6 @@
 // MONOCORE-1 "mc" low-level SDK: see mc.h
 #include "mc.h"
+#include "font_fr.h"
 
 extern const uint8_t font_chr[], font_pal[];   // SDK font, added by build.py
 int vsnprintf(char *buf, size_t size, const char *fmt, __builtin_va_list ap);
@@ -100,6 +101,8 @@ void mc_debug(const char *fmt, ...) {
 }
 
 static void tunes_step(void);
+typedef struct { const char *start, *p; int beat, count, volume; uint8_t on, wave, duty; } track_t;   // kept small: MONOBASIC is short of WRAM
+static track_t track[8];
 
 void mc_init(void) {
   irq_global_disable();
@@ -115,6 +118,7 @@ void mc_init(void) {
   for (int c = 0; c < 8; c++) { PSG[c].vol_l = PSG[c].vol_r = 0; PCM[c].ctrl = 0; }
   MASTER_VOL = 255;
   rast_n = rast_i = 0; vbl_fn = 0; timer_fn[0] = timer_fn[1] = 0;
+  for (int c = 0; c < 8; c++) { track[c].on = 0; track[c].wave = PSG_SQUARE; track[c].duty = 128; }
   for (int j = 0; j < 4; j++) { pad_now[j] = pad_prev[j] = 0; spin_delta[j] = 0; }
   for (int k = 0; k < 8; k++) key_now[k] = key_prev[k] = 0;
   hw_version = HW_VERSION;
@@ -203,6 +207,41 @@ void mc_tile(int n, int x, int y, uint32_t e) { TILEMAP(n & 3)[y * map_w[n & 3] 
 void mc_tilemap_fill(int n, uint32_t e) { dma_fill(TILEMAP(n & 3), e, 0x4000); }
 void mc_tilemap_load(int n, const uint32_t *e, int count) { dma_copy(TILEMAP(n & 3), e, (uint32_t)count * 4); }
 
+// maps made by build.py (maps = / maps8 =): 16 x 16 tiles, one u16 tile number per cell
+static void map_show(int n, const void *chr, uint32_t bpp, const void *map, int w, int h, int pal) {
+  n &= 3;
+  int mw = w > 64 ? 128 : w > 32 ? 64 : 32, mh = h > 64 ? 128 : h > 32 ? 64 : 32;
+  while (mw * mh > 4096) { if (mh > 32) mh /= 2; else mw /= 2; }   // 4096 entries at most
+  mc_layer(n, chr, MC_TILE16 | bpp, mw, mh, (int)((lctrl[n] >> 8) & 3));   // keeps the layer's priority
+  dma_fill(TILEMAP(n), 0, 0x4000);
+  const uint8_t *m = map;
+  volatile uint32_t *t = TILEMAP(n);
+  for (int y = 0; y < h && y < mh; y++)
+    for (int x = 0; x < w; x++) {
+      int v = m[2 * (y * w + x)] | m[2 * (y * w + x) + 1] << 8;
+      if (x < mw) t[y * mw + x] = TILE(v, pal);
+    }
+}
+void mc_map_show(int n, const void *chr, const void *map, int w, int h, int pal) { map_show(n, chr, MC_4BPP, map, w, h, pal); }
+void mc_map8_show(int n, const void *chr, const void *map, int w, int h, int pal) { map_show(n, chr, MC_8BPP, map, w, h, pal); }
+void mc_palette8(int pal, const void *colors) { dma_copy(PALETTE + pal * 16, colors, 512); }
+
+void mc_fade_to(int pal, int count, const void *colors, int level, uint16_t target) {
+  const uint8_t *c = colors;
+  int k = level < 0 ? 0 : level > 256 ? 256 : level;
+  int tr = (target >> 10) & 31, tg = (target >> 5) & 31, tb = target & 31;
+  volatile uint16_t *d = PALETTE + pal * 16;
+  for (int i = 0; i < count; i++) {
+    int v = c[2 * i] | c[2 * i + 1] << 8;
+    int r = (v >> 10) & 31, g = (v >> 5) & 31, b = v & 31;
+    r = tr + ((r - tr) * k >> 8); g = tg + ((g - tg) * k >> 8); b = tb + ((b - tb) * k >> 8);
+    d[i] = (uint16_t)(r << 10 | g << 5 | b);
+  }
+}
+void mc_fade(int pal, int count, const void *colors, int level, bool to_white) {
+  mc_fade_to(pal, count, colors, level, to_white ? 0x7FFF : 0);
+}
+
 void mc_chr_upload(uint32_t off, const void *src, uint32_t bytes) { dma_copy(MC_CHRRAM + off, src, bytes); }
 
 void mc_sprite_sheet(const void *chr) { SPR_CHR = (uint32_t)chr; }
@@ -236,14 +275,13 @@ void mc_text_layer(int n, int prio) {
   mc_text_clear(n);
   DISP_CTRL |= DISP_ON | DISP_LAYER(n & 3);
 }
-void mc_text(int n, int col, int row, const char *s, int pal) {
-  for (; *s; s++, col++) {
-    int c = (unsigned char)*s;
+void mc_text(int n, int col, int row, const char *s, int pal) {   // UTF-8: one cell per character
+  for (int c; (c = font_next(&s)) != 0; col++) {
     if (c == '\n') { row++; col = -1; continue; }
-    if (c < 32 || c > 127) c = '?';
     if (col >= 0 && col < map_w[n & 3] && row >= 0) mc_tile(n, col, row, TILE(c - 32, pal));
   }
 }
+int mc_text_len(const char *s) { int k = 0; while (font_next(&s)) k++; return k; }
 void mc_text_clear(int n) { mc_tilemap_fill(n, 0); }
 
 // ---------------------------------------------------------------- sound
@@ -267,8 +305,6 @@ void mc_psg_freq16(int ch, uint32_t f) { PSG[ch & 7].freq = f; }
 void mc_psg_volume(int ch, int vl, int vr) { PSG[ch & 7].vol_l = (uint8_t)vl; PSG[ch & 7].vol_r = (uint8_t)vr; }
 void mc_master_volume(int vol) { MASTER_VOL = (uint32_t)vol; }
 
-typedef struct { const char *start, *p; int beat, count, volume, on; } track_t;
-static track_t track[8];
 static const uint16_t scale[12] = {4186, 4435, 4699, 4978, 5274, 5588, 5920, 6272, 6645, 7040, 7459, 7902};
 
 static int read_note(const char **pp, uint32_t *freq) {   // 1 note, 0 rest, 2 hold, -1 end
@@ -300,7 +336,7 @@ static void tune_beat(int c) {
   uint32_t f = 0;
   int r = read_note(&t->p, &f);
   if (r < 0) { t->p = t->start; r = read_note(&t->p, &f); if (r < 0) { t->on = 0; mc_psg_volume(c, 0, 0); return; } }
-  if (r == 1) { PSG[c].wave = PSG_SQUARE; PSG[c].duty = 128; PSG[c].freq = f; mc_psg_volume(c, t->volume, t->volume); }
+  if (r == 1) { PSG[c].wave = (uint8_t)t->wave; PSG[c].duty = (uint8_t)t->duty; PSG[c].freq = f; mc_psg_volume(c, t->volume, t->volume); }
   else if (r == 0) mc_psg_volume(c, 0, 0);
 }
 static void tunes_step(void) {
@@ -316,6 +352,7 @@ void mc_tune(int ch, const char *notes, int fpb, int vol) {
   track_t *t = &track[ch & 7];
   t->start = t->p = notes; t->beat = fpb > 0 ? fpb : 1; t->count = 0; t->volume = vol; t->on = 1;
 }
+void mc_tune_wave(int ch, int wave, int duty) { track[ch & 7].wave = (uint8_t)wave; track[ch & 7].duty = (uint8_t)duty; }
 void mc_tune_stop(int ch) { track[ch & 7].on = 0; mc_psg_volume(ch, 0, 0); }
 
 // ---------------------------------------------------------------- inputs

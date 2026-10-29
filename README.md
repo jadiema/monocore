@@ -75,7 +75,7 @@ Copie le core (`mister/output_files/MONOCORE.rbf`, renommé `MONOCORE_aaaammjj.r
 
 ## Ce qui reste à faire
 
-- Core MiSTer : rotation d'écran pour les jeux verticaux, sauvegarde de la NVRAM, DIP switches dans l'OSD.
+- Core MiSTer : rotation d'écran pour les jeux verticaux, DIP switches dans l'OSD.
 - Le bloc FM compatible YM2151 (emplacement réservé en `0x3000_1000`).
 - Traducteurs statiques vers RV32IM : 6809 (`examples/aigle`) et 68000 (`tools/recomp68k`) faits, Z80 à faire.
 - Puzzle Bobble 2 : le son (pilote Z80 et YM2610 pré-rendus hors ligne, en cours) et l'essai sur la carte.

@@ -53,11 +53,13 @@ des morceaux du tracker MONOTRACKER (`#include "mtrack.h"`, documentation : `MTR
 | Interruptions | `mc_on_vblank`, `mc_on_timer`, `mc_irq_off/on` | gestionnaires en C ; timers 0 et 1 à la fréquence voulue |
 | Effets raster | `mc_raster_add`, `mc_raster_clear`, `mc_raster_line` | jusqu'à 64 effets par image ; l'écriture faite dans l'effet s'applique **exactement** à partir de la ligne demandée (vérifié en simulation) |
 | Vidéo | `mc_video_mode`, `mc_display`, `mc_interlaced`, `mc_field`, `mc_layer`, `mc_layer_scroll`, `mc_layer_linescroll`, `mc_tile`, `mc_tilemap_fill/load` | résolution de 224 à 384 × 192 à 288 ; matériel version 5 : jusqu'à 640 de large avec 270 lignes au plus, et 640 × 480 entrelacé (hauteur de 384 à 512) ; 4 plans en tuiles 8 ou 16, 4 ou 8 bpp |
-| Couleurs | `mc_color`, `mc_palette`, `mc_background`, `MC_RGB` | 4096 couleurs RGB555 = 256 palettes de 16 |
+| Couleurs | `mc_color`, `mc_palette`, `mc_palette8`, `mc_background`, `MC_RGB` | 4096 couleurs RGB555 = 256 palettes de 16 ; `mc_palette8` charge les 256 couleurs d'une carte `maps8` (palettes `pal` à `pal + 15`) |
+| Fondus | `mc_fade`, `mc_fade_to` | couleurs recalculées depuis les couleurs d'origine, mêlées au noir, au blanc ou à une couleur RGB555 : niveau 256 = couleurs d'origine, 0 = tout noir (voir plus bas) |
+| Cartes de `build.py` | `mc_map_show`, `mc_map8_show` | affiche une carte `maps =` (4 bpp) ou `maps8 =` (8 bpp) sur un plan, en tuiles 16 × 16 (voir plus bas) |
 | Graphismes dynamiques | `mc_chr_upload`, `MC_CHR`, `MC_CHRRAM` | 128 Ko de CHR RAM utilisables par les plans et les sprites, à la place de la ROM |
-| Sprites | `mc_sprite`, `mc_sprite_zoom`, `mc_sprite_flip`, `mc_sprite_8bpp`, `mc_sprite_hide`, `mc_sprites_used` | 512 sprites de 8 × 8 à 256 × 256, table fantôme `mc_spr[]` en WRAM |
-| Texte | `mc_text_layer`, `mc_text`, `mc_text_clear` | police du SDK, pour les menus et le débogage |
-| Son | `mc_pcm_play`, `mc_pcm_stop`, `mc_pcm_pos`, `mc_psg`, `mc_psg_freq16`, `mc_psg_volume`, `mc_master_volume`, `mc_tune` | 8 voies PCM (8/16 bits, ADPCM) et 8 voies PSG |
+| Sprites | `mc_sprite`, `mc_sprite_zoom`, `mc_sprite_flip`, `mc_sprite_8bpp`, `mc_sprite_hide`, `mc_sprites_used`, `MC_SHEETS`, `MC_CELL` | 512 sprites de 8 × 8 à 256 × 256, table fantôme `mc_spr[]` en WRAM ; `MC_CELL(x_chr)` = première cellule de la planche `x` quand `mc_sprite_sheet(MC_SHEETS)` |
+| Texte | `mc_text_layer`, `mc_text`, `mc_text_len`, `mc_text_clear` | police du SDK (8 × 8, 128 glyphes), texte en UTF-8 avec les lettres accentuées du français (voir plus bas) |
+| Son | `mc_pcm_play`, `mc_pcm_stop`, `mc_pcm_pos`, `mc_psg`, `mc_psg_freq16`, `mc_psg_volume`, `mc_master_volume`, `mc_tune`, `mc_tune_wave` | 8 voies PCM (8/16 bits, ADPCM) et 8 voies PSG ; `mc_tune_wave` choisit la forme d'onde d'un canal de `mc_tune` (carré par défaut, triangle pour les basses) |
 | Musique (module `mtrack`) | `mt_init`, `mt_play`, `mt_stop`, `mt_sfx`, `mt_reserve`, `mt_level`… | morceaux de MONOTRACKER : enveloppes, vibrato, arpèges et effets sur les 16 canaux (`MTRACK.md`) |
 | Entrées | `mc_pad`, `mc_pad_pressed`, `mc_pad_released`, `mc_sys`, `mc_dip`, `mc_hw_version` | 4 manettes (joueurs 1 à 4) |
 | Analogique | `mc_stick_x`, `mc_stick_y`, `mc_paddle`, `mc_spinner`, `mc_spinner_delta` | sticks gauche et droit de −127 à +127, paddle 0-255, spinner en position 16 bits |
@@ -84,7 +86,48 @@ des morceaux du tracker MONOTRACKER (`#include "mtrack.h"`, documentation : `MTR
   quelques dizaines d'octets (ROM → CHR RAM, palettes, cartes).
 - **Virgule flottante** : le processeur (RV32IM) n'a pas d'unité flottante. Le compilateur émule
   `float`, mais lentement ; pour un portage, convertissez les calculs en `fix16`.
-- **NVRAM** : 32 Ko, sauvegardés par le core dans `saves/MONOCORE/<rom>.sav` (à l'ouverture de l'OSD).
+- **NVRAM** : 32 Ko, sauvegardés par le core MiSTer dans `saves/MONOCORE/<rom>.sav`, relus au
+  chargement de la ROM. La copie sur la carte SD se fait **à l'ouverture de l'OSD**, si le jeu a écrit
+  dans sa NVRAM depuis : un joueur qui éteint la console sans avoir ouvert l'OSD perd ce qu'il a
+  écrit depuis la dernière copie. Un mot de passe reste donc un bon secours pour une progression.
+
+## Texte en français
+
+`mc_text` lit du texte en UTF-8, comme les sources : une case par caractère, quel que soit le nombre
+d'octets (`mc_text_len` donne ce nombre de cases, pour centrer un texte). La police du SDK a 128
+glyphes : les caractères ASCII (32 à 127), puis é è ê ë à â ç î ï ô ù û ü œ, les capitales É È Ê Ë À
+Â Ç Î Ï Ô Ù Û Œ, et « » … ° €. Les capitales accentuées sont plus petites (5 lignes au lieu de 7)
+pour laisser la place de l'accent. L'apostrophe typographique, les guillemets anglais et les tirets
+deviennent `'`, `"` et `-` ; l'espace insécable (y compris l'espace fine avant `:` `;` `!` `?`) devient
+une espace. Les autres lettres accentuées (á, ñ, ö…) perdent leur accent, et un caractère inconnu
+s'affiche `?`. `print` de la bibliothèque `easy` fait de même. Les glyphes 96 à 127 de `sdk/font.png`
+et le tableau de `sdk/font_fr.h` sont produits ensemble par `sdk/tools/font_fr.py`.
+
+Un jeu qui copie la police en CHR RAM doit en copier les 128 glyphes (`128 * 32` octets) pour avoir
+les accents. La police 640 × 480 d'`ui480` n'a pas encore les accents.
+
+## Cartes et fondus
+
+Une carte déclarée dans `project.txt` (`maps = niveau.png` ou `maps8 = titre.png`) donne
+`niveau_chr`, `niveau_map`, `niveau_pal`, `niveau_width` et `niveau_height`. Pour l'afficher :
+
+    mc_palette(16, (const uint16_t *)niveau_pal, 16);              // 4 bpp : une palette de 16
+    mc_map_show(1, niveau_chr, niveau_map, niveau_width, niveau_height, 16);
+    mc_palette8(64, titre_pal);                                    // 8 bpp : couleurs 1024 à 1279
+    mc_map8_show(2, titre_chr, titre_map, titre_width, titre_height, 64);
+
+`mc_map_show` règle le plan en tuiles 16 × 16, choisit une taille de carte qui contient l'image
+(4096 entrées au plus : ce qui dépasse est coupé), efface la carte et l'écrit avec la palette
+donnée. Il garde la priorité du plan (réglée avant par `mc_layer`, 0 par défaut) et ne touche
+pas au défilement.
+
+`mc_fade(pal, nombre, couleurs, niveau, vers_blanc)` recalcule les couleurs `pal * 16` à
+`pal * 16 + nombre - 1` à partir de `couleurs`, qui doit garder les couleurs **d'origine** (un
+`_pal` de `build.py` ou un tableau `uint16_t`) : on ne repart jamais de la palette en cours, ce qui
+évite d'accumuler les arrondis. Niveau 256 = couleurs d'origine, 0 = tout noir (ou tout blanc).
+`mc_fade_to` mêle à une couleur RGB555 quelconque (rouge pour un coup reçu, sépia…).
+
+    for (int k = 0; k <= 256; k += 8) { mc_frame(); mc_fade(64, 256, titre_pal, k, false); }   // apparition
 
 ## Souris
 
