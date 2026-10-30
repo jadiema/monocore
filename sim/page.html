@@ -1391,7 +1391,42 @@ void main() {
   const kbdDown = new Set();
   function kbdRelease() { if (m) kbdDown.forEach((c) => m.keyEvent(c & 0xff, c > 0xff, false)); kbdDown.clear(); }
   $('kbdMode').addEventListener('change', () => { kbdRelease(); keyState.fill(0); $('kbdMode').blur(); });
+  // ---------------------------------------------------------------- key labels: the visitor's keyboard
+  // The keys are read by their place (e.code), for the pad as for the console keyboard (which is AZERTY
+  // or QWERTY on its own): what is printed on them depends on the keyboard. The labels come from the
+  // browser's layout map when it has one (Chromium), else AZERTY is assumed for French (France, Belgium),
+  // and every letter key pressed corrects them.
+  const keyLabel = {};
+  const AZERTY = { KeyA: 'Q', KeyQ: 'A', KeyZ: 'W', KeyW: 'Z', KeyM: ',', Comma: ';', Semicolon: 'M' };
+  const QWERTY = { KeyA: 'A', KeyQ: 'Q', KeyZ: 'Z', KeyW: 'W', KeyM: 'M', Comma: ',', Semicolon: ';' };
+  function keyLabels() {
+    document.querySelectorAll('kbd[data-code]').forEach((k) => {
+      const c = k.dataset.code;
+      if (!/^Digit/.test(c) && keyLabel[c]) k.textContent = keyLabel[c];   // digits: printed on AZERTY too
+    });
+  }
+  relabel.push(keyLabels);
+  {
+    const l = (navigator.languages && navigator.languages[0]) || navigator.language || '';
+    if (/^fr(-(FR|BE))?$/i.test(l)) Object.assign(keyLabel, AZERTY);
+    if (navigator.keyboard && navigator.keyboard.getLayoutMap)
+      navigator.keyboard.getLayoutMap().then((map) => {
+        map.forEach((v, c) => { if (v.length === 1 && !/^Digit/.test(c)) keyLabel[c] = v.toUpperCase(); });
+        keyLabels();
+      }).catch(() => {});
+    keyLabels();
+  }
+  function learnKey(e) {              // a key pressed tells what is printed on it
+    if (e.shiftKey || e.ctrlKey || e.altKey || !e.key || e.key.length !== 1 || /^Digit/.test(e.code)) return;
+    const v = e.key.toUpperCase();
+    if (keyLabel[e.code] === v) return;
+    if ((e.code === 'KeyQ' && v === 'A') || (e.code === 'KeyW' && v === 'Z')) Object.assign(keyLabel, AZERTY);
+    if ((e.code === 'KeyQ' && v === 'Q') || (e.code === 'KeyW' && v === 'W')) Object.assign(keyLabel, QWERTY);
+    keyLabel[e.code] = v;
+    keyLabels();
+  }
   function onKey(e, down) {
+    if (down) learnKey(e);
     if (e.target.closest('input, select, textarea') && e.target.id !== 'kbdMode') return;
     if ($('view-sim').hidden || e.metaKey) return;
     if (e.altKey && !e.ctrlKey && /^(KeyS|KeyR|Digit[1-4])$/.test(e.code)) {   // save states
