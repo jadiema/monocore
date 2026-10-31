@@ -103,11 +103,14 @@ static int read_note(const char **pp, int *freq) {   // 1 note, 0 rest, 2 hold, 
     int s = (*p >= 'A' && *p <= 'G') ? semitone[*p - 'A'] : -1;
     if (s < 0) { while (*p && *p != ' ') p++; *pp = p; return 0; }
     p++;
-    if (*p == '#') { s++; p++; }
+    if (*p == '#') { s++; p++; }         // sharp
+    else if (*p == 'b') { s--; p++; }    // flat
     int oct = 4;
     if (*p >= '0' && *p <= '8') { oct = *p - '0'; p++; }
-    uint32_t f = scale[s % 12] << (s / 12);
-    *freq = (int)(oct >= 4 ? f << (oct - 4) : f >> (4 - oct));
+    int n = oct * 12 + s;                // semitones from C0: Cb4 is B3, B#4 is C5
+    if (n < 0) n = 0;
+    uint32_t f = scale[n % 12];
+    *freq = (int)(n / 12 >= 4 ? f << (n / 12 - 4) : f >> (4 - n / 12));
     r = 1;
   }
   while (*p && *p != ' ') p++;

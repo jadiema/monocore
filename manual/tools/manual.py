@@ -324,11 +324,13 @@ A(table(['Fonction', 'Effet'], [
   [c('play(channel, tune, 15, 100)'), "joue une mélodie en boucle, toute seule"],
   [c('stop(channel)'), "arrête la mélodie"],
   [c('play_sample(voice, sound, volume)'), "joue un son enregistré (fichier WAV)"]]))
-A(p("La fréquence de <code>tone()</code> est en hertz, mais il est plus simple d'écrire le nom de la note : <code>easy.h</code> donne un nom <code>NOTE_</code> à chaque note, des octaves 2 à 7. Le nom suit la notation anglaise (voir plus bas), avec un <b>S</b> (<i>sharp</i>) pour le dièse, puis le numéro de l'octave."))
+A(p("La fréquence de <code>tone()</code> est en hertz, mais il est plus simple d'écrire le nom de la note : <code>easy.h</code> donne un nom <code>NOTE_</code> à chaque note, des octaves 2 à 7. Le nom suit la notation anglaise (voir plus bas), avec un <b>S</b> (<i>sharp</i>) pour le dièse ou un <b>b</b> pour le bémol, puis le numéro de l'octave. Comme sur un piano, DO dièse et RÉ bémol sont la même touche, donc la même fréquence : la console joue en <b>tempérament égal</b>, où l'octave est partagée en 12 demi-tons identiques (dans les accords anciens, les deux notes diffèrent un peu)."))
 A(table(['Nom', 'Note', 'Hertz'], [
   [c('NOTE_C4'), 'DO (le DO du milieu du clavier)', '262'],
   [c('NOTE_CS4'), 'DO dièse', '277'],
+  [c('NOTE_Db4'), 'RÉ bémol (la même note)', '277'],
   [c('NOTE_A4'), 'LA du diapason', '440'],
+  [c('NOTE_Bb4'), 'SI bémol', '466'],
   [c('NOTE_B4'), 'SI', '494'],
   [c('NOTE_C5'), "DO de l'octave au-dessus", '523']]))
 A(listing(source('05_sound'), '05_sound/main.c'))
@@ -340,6 +342,7 @@ A(table(['Écriture', 'Signification'], [
   [c('C D E F G A B'), "les notes, dans l'octave 4 (celle du LA à 440 Hz)"],
   [c('C5  G3'), "un chiffre après la note change d'octave : C5 est le DO aigu suivant"],
   [c('F#  C#5'), "un # (dièse) monte la note d'un demi-ton"],
+  [c('Bb  Eb5'), "un b (bémol) la descend d'un demi-ton"],
   [c('-'), "prolonge la note précédente d'un temps"],
   [c('.'), "un temps de silence"]]))
 A(p("Le troisième nombre de <code>play()</code> règle le tempo : le nombre d'images par temps. 15 images, c'est 4 temps par seconde (240 à la minute) ; 30, deux fois plus lent. Pour jouer plusieurs voix en même temps (une mélodie et une basse), lancez deux mélodies sur deux canaux."))
@@ -584,7 +587,7 @@ A(table(['Fonction', 'Traduction', 'Description'], [
   [c('play(channel, tune, frames, volume)'), 'jouer', "joue une mélodie en boucle"],
   [c('stop(channel)'), 'arrêter', "arrête la mélodie du canal"],
   [c('play_sample(voice, sound, volume)'), 'jouer un échantillon', "joue un son enregistré"]], 'ref'))
-A(p("Boutons : <code>PAD_UP</code> (haut), <code>PAD_DOWN</code> (bas), <code>PAD_LEFT</code> (gauche), <code>PAD_RIGHT</code> (droite), <code>PAD_B1</code> à <code>PAD_B6</code>, <code>PAD_START</code>, <code>PAD_COIN</code> (pièce). Notes pour <code>tone()</code> : <code>NOTE_C2</code> à <code>NOTE_B7</code> (<code>NOTE_A4</code> = 440 Hz, <code>NOTE_CS4</code> = DO dièse). Encres par défaut : 0 blanc, 1 jaune, 2 cyan, 3 vert, 4 rouge, 5 violet, 6 orange, 7 gris."))
+A(p("Boutons : <code>PAD_UP</code> (haut), <code>PAD_DOWN</code> (bas), <code>PAD_LEFT</code> (gauche), <code>PAD_RIGHT</code> (droite), <code>PAD_B1</code> à <code>PAD_B6</code>, <code>PAD_START</code>, <code>PAD_COIN</code> (pièce). Notes pour <code>tone()</code> : <code>NOTE_C2</code> à <code>NOTE_B7</code> (<code>NOTE_A4</code> = 440 Hz, <code>NOTE_CS4</code> = DO dièse, <code>NOTE_Db4</code> = RÉ bémol). Encres par défaut : 0 blanc, 1 jaune, 2 cyan, 3 vert, 4 rouge, 5 violet, 6 orange, 7 gris."))
 A(h3('Le fichier project.txt'))
 A(table(['Réglage', 'Contenu', 'Noms créés pour le programme'], [
   [c('name'), "nom du fichier produit (<code>build/name.mnc</code>)", ''],
