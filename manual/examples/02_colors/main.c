@@ -21,6 +21,6 @@ int main(void) {
     if ((frame_count / 30) % 2 == 0) print_ink(12, 27, "APPUIE SUR START", 6);
     else                             print    (12, 27, "                ");
 
-    if (pressed(1, START)) background(random(256), random(256), random(256));
+    if (pressed(1, PAD_START)) background(random(256), random(256), random(256));
   }
 }

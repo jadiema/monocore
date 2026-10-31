@@ -291,7 +291,7 @@ ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></di
 <span class="ln"> 21</span>    <span class="c-kw">if</span> ((frame_count / <span class="c-num">30</span>) % <span class="c-num">2</span> == <span class="c-num">0</span>) print_ink(<span class="c-num">12</span>, <span class="c-num">27</span>, <span class="c-str">"APPUIE SUR START"</span>, <span class="c-num">6</span>);
 <span class="ln"> 22</span>    <span class="c-kw">else</span>                             print    (<span class="c-num">12</span>, <span class="c-num">27</span>, <span class="c-str">"                "</span>);
 <span class="ln"> 23</span> 
-<span class="ln"> 24</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">START</span>)) background(random(<span class="c-num">256</span>), random(<span class="c-num">256</span>), random(<span class="c-num">256</span>));
+<span class="ln"> 24</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">PAD_START</span>)) background(random(<span class="c-num">256</span>), random(<span class="c-num">256</span>), random(<span class="c-num">256</span>));
 <span class="ln"> 25</span>  }
 <span class="ln"> 26</span>}</pre></div>
 <figure class="tv"><div class="bezel"><img src="images/screen_02.png"></div><figcaption>Les huit encres, le compteur de secondes et le message qui clignote.</figcaption></figure>
@@ -327,12 +327,12 @@ ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></di
   <text x="340" y="136">B4</text><text x="380" y="136">B5</text><text x="420" y="136">B6</text>
  </g>
  <g fill="#222" font-weight="600" text-anchor="middle" font-family="IBM Plex Mono">
-  <text x="115" y="28">UP DOWN LEFT RIGHT</text><text x="227" y="165">COIN</text><text x="279" y="165">START</text>
-  <text x="380" y="28">B1 ... B6</text>
+  <text x="115" y="28">PAD_UP … PAD_RIGHT</text><text x="244" y="165" text-anchor="end" fill="#ddd">PAD_COIN</text><text x="262" y="165" text-anchor="start" fill="#ddd">PAD_START</text>
+  <text x="380" y="28">PAD_B1 … PAD_B6</text>
  </g>
-</svg><figcaption>Les noms des commandes, tels qu'on les écrit dans un programme.</figcaption></figure>
+</svg><figcaption>Les noms des commandes, tels qu'on les écrit dans un programme : tous commencent par <code>PAD_</code> (<i>pad</i> : manette).</figcaption></figure>
 <p>Deux fonctions suffisent pour tout savoir des manettes :</p>
-<table class=""><thead><tr><th>Fonction</th><th>Rend vrai quand…</th><th>Pour…</th></tr></thead><tbody><tr><td><code>held(1, LEFT)</code></td><td>le bouton est enfoncé en ce moment (<i>held</i> : tenu)</td><td>les déplacements, le tir automatique</td></tr><tr><td><code>pressed(1, B1)</code></td><td>le bouton vient d'être enfoncé, une seule fois par appui (<i>pressed</i> : appuyé)</td><td>sauter, valider un menu, compter</td></tr></tbody></table>
+<table class=""><thead><tr><th>Fonction</th><th>Rend vrai quand…</th><th>Pour…</th></tr></thead><tbody><tr><td><code>held(1, PAD_LEFT)</code></td><td>le bouton est enfoncé en ce moment (<i>held</i> : tenu)</td><td>les déplacements, le tir automatique</td></tr><tr><td><code>pressed(1, PAD_B1)</code></td><td>le bouton vient d'être enfoncé, une seule fois par appui (<i>pressed</i> : appuyé)</td><td>sauter, valider un menu, compter</td></tr></tbody></table>
 <p>Le premier nombre est le joueur, de 1 à 4. Les manettes sont lues une fois par image, par <code>wait_frame()</code>. Voici un programme d'essai qui affiche l'état de chaque commande des quatre manettes :</p>
 <div class="listing "><div class="lst-cap"><span>LISTING</span> 03_joypad/main.c</div><pre><span class="ln">  1</span><span class="c-pre">#include "easy.h"</span>
 <span class="ln">  2</span> 
@@ -341,34 +341,35 @@ ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></di
 <span class="ln">  5</span>  <span class="c-str">"HAUT"</span>, <span class="c-str">"BAS"</span>, <span class="c-str">"GAUCHE"</span>, <span class="c-str">"DROITE"</span>, <span class="c-str">"BOUTON 1"</span>, <span class="c-str">"BOUTON 2"</span>,
 <span class="ln">  6</span>  <span class="c-str">"BOUTON 3"</span>, <span class="c-str">"BOUTON 4"</span>, <span class="c-str">"BOUTON 5"</span>, <span class="c-str">"BOUTON 6"</span>, <span class="c-str">"START"</span>, <span class="c-str">"PIECE"</span>};
 <span class="ln">  7</span><span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">uint32_t</span> buttons[<span class="c-num">12</span>] = {
-<span class="ln">  8</span>  UP, <span class="c-cst">DOWN</span>, <span class="c-cst">LEFT</span>, <span class="c-cst">RIGHT</span>, B1, B2, B3, B4, B5, B6, <span class="c-cst">START</span>, <span class="c-cst">COIN</span>};
-<span class="ln">  9</span> 
-<span class="ln"> 10</span><span class="c-kw">int</span> main(<span class="c-kw">void</span>) {
-<span class="ln"> 11</span>  init();
-<span class="ln"> 12</span>  background(<span class="c-num">0</span>, <span class="c-num">40</span>, <span class="c-num">30</span>);
-<span class="ln"> 13</span>  print_ink(<span class="c-num">10</span>, <span class="c-num">1</span>, <span class="c-str">"ESSAI DES MANETTES"</span>, <span class="c-num">1</span>);
-<span class="ln"> 14</span>  <span class="c-kw">int</span> presses[<span class="c-num">5</span>] = {<span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>};       <span class="c-com">// presses[1] to presses[4]: one for each player</span>
-<span class="ln"> 15</span> 
-<span class="ln"> 16</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> player = <span class="c-num">1</span>; player &lt;= <span class="c-num">4</span>; player++) {
-<span class="ln"> 17</span>    print_ink(<span class="c-num">9</span> + player * <span class="c-num">6</span>, <span class="c-num">3</span>, <span class="c-str">"J"</span>, <span class="c-num">2</span>);
-<span class="ln"> 18</span>    print_num(<span class="c-num">10</span> + player * <span class="c-num">6</span>, <span class="c-num">3</span>, player, <span class="c-num">1</span>, <span class="c-num">2</span>);
-<span class="ln"> 19</span>  }
-<span class="ln"> 20</span>  <span class="c-kw">for</span> (;;) {
-<span class="ln"> 21</span>    wait_frame();
-<span class="ln"> 22</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">12</span>; i++) {
-<span class="ln"> 23</span>      print(<span class="c-num">2</span>, <span class="c-num">5</span> + i * <span class="c-num">2</span>, labels[i]);
-<span class="ln"> 24</span>      <span class="c-kw">for</span> (<span class="c-kw">int</span> player = <span class="c-num">1</span>; player &lt;= <span class="c-num">4</span>; player++) {
-<span class="ln"> 25</span>        <span class="c-kw">if</span> (held(player, buttons[i])) print_ink(<span class="c-num">9</span> + player * <span class="c-num">6</span>, <span class="c-num">5</span> + i * <span class="c-num">2</span>, <span class="c-str">"##"</span>, <span class="c-num">3</span>);
-<span class="ln"> 26</span>        <span class="c-kw">else</span>                          print_ink(<span class="c-num">9</span> + player * <span class="c-num">6</span>, <span class="c-num">5</span> + i * <span class="c-num">2</span>, <span class="c-str">".."</span>, <span class="c-num">7</span>);
-<span class="ln"> 27</span>      }
-<span class="ln"> 28</span>    }
-<span class="ln"> 29</span>    print(<span class="c-num">2</span>, <span class="c-num">29</span>, <span class="c-str">"APPUIS B1"</span>);
-<span class="ln"> 30</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> player = <span class="c-num">1</span>; player &lt;= <span class="c-num">4</span>; player++) {
-<span class="ln"> 31</span>      <span class="c-kw">if</span> (pressed(player, B1)) presses[player]++;   <span class="c-com">// once per press, even if the button stays down</span>
-<span class="ln"> 32</span>      print_num(<span class="c-num">8</span> + player * <span class="c-num">6</span>, <span class="c-num">29</span>, presses[player], <span class="c-num">3</span>, <span class="c-num">2</span>);
-<span class="ln"> 33</span>    }
-<span class="ln"> 34</span>  }
-<span class="ln"> 35</span>}</pre></div>
+<span class="ln">  8</span>  <span class="c-cst">PAD_UP</span>, <span class="c-cst">PAD_DOWN</span>, <span class="c-cst">PAD_LEFT</span>, <span class="c-cst">PAD_RIGHT</span>, <span class="c-cst">PAD_B1</span>, <span class="c-cst">PAD_B2</span>,
+<span class="ln">  9</span>  <span class="c-cst">PAD_B3</span>, <span class="c-cst">PAD_B4</span>, <span class="c-cst">PAD_B5</span>, <span class="c-cst">PAD_B6</span>, <span class="c-cst">PAD_START</span>, <span class="c-cst">PAD_COIN</span>};
+<span class="ln"> 10</span> 
+<span class="ln"> 11</span><span class="c-kw">int</span> main(<span class="c-kw">void</span>) {
+<span class="ln"> 12</span>  init();
+<span class="ln"> 13</span>  background(<span class="c-num">0</span>, <span class="c-num">40</span>, <span class="c-num">30</span>);
+<span class="ln"> 14</span>  print_ink(<span class="c-num">10</span>, <span class="c-num">1</span>, <span class="c-str">"ESSAI DES MANETTES"</span>, <span class="c-num">1</span>);
+<span class="ln"> 15</span>  <span class="c-kw">int</span> presses[<span class="c-num">5</span>] = {<span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>, <span class="c-num">0</span>};       <span class="c-com">// presses[1] to presses[4]: one for each player</span>
+<span class="ln"> 16</span> 
+<span class="ln"> 17</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> player = <span class="c-num">1</span>; player &lt;= <span class="c-num">4</span>; player++) {
+<span class="ln"> 18</span>    print_ink(<span class="c-num">9</span> + player * <span class="c-num">6</span>, <span class="c-num">3</span>, <span class="c-str">"J"</span>, <span class="c-num">2</span>);
+<span class="ln"> 19</span>    print_num(<span class="c-num">10</span> + player * <span class="c-num">6</span>, <span class="c-num">3</span>, player, <span class="c-num">1</span>, <span class="c-num">2</span>);
+<span class="ln"> 20</span>  }
+<span class="ln"> 21</span>  <span class="c-kw">for</span> (;;) {
+<span class="ln"> 22</span>    wait_frame();
+<span class="ln"> 23</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">12</span>; i++) {
+<span class="ln"> 24</span>      print(<span class="c-num">2</span>, <span class="c-num">5</span> + i * <span class="c-num">2</span>, labels[i]);
+<span class="ln"> 25</span>      <span class="c-kw">for</span> (<span class="c-kw">int</span> player = <span class="c-num">1</span>; player &lt;= <span class="c-num">4</span>; player++) {
+<span class="ln"> 26</span>        <span class="c-kw">if</span> (held(player, buttons[i])) print_ink(<span class="c-num">9</span> + player * <span class="c-num">6</span>, <span class="c-num">5</span> + i * <span class="c-num">2</span>, <span class="c-str">"##"</span>, <span class="c-num">3</span>);
+<span class="ln"> 27</span>        <span class="c-kw">else</span>                          print_ink(<span class="c-num">9</span> + player * <span class="c-num">6</span>, <span class="c-num">5</span> + i * <span class="c-num">2</span>, <span class="c-str">".."</span>, <span class="c-num">7</span>);
+<span class="ln"> 28</span>      }
+<span class="ln"> 29</span>    }
+<span class="ln"> 30</span>    print(<span class="c-num">2</span>, <span class="c-num">29</span>, <span class="c-str">"APPUIS B1"</span>);
+<span class="ln"> 31</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> player = <span class="c-num">1</span>; player &lt;= <span class="c-num">4</span>; player++) {
+<span class="ln"> 32</span>      <span class="c-kw">if</span> (pressed(player, <span class="c-cst">PAD_B1</span>)) presses[player]++;   <span class="c-com">// once per press, even if the button stays down</span>
+<span class="ln"> 33</span>      print_num(<span class="c-num">8</span> + player * <span class="c-num">6</span>, <span class="c-num">29</span>, presses[player], <span class="c-num">3</span>, <span class="c-num">2</span>);
+<span class="ln"> 34</span>    }
+<span class="ln"> 35</span>  }
+<span class="ln"> 36</span>}</pre></div>
 <figure class="tv"><div class="bezel"><img src="images/screen_03.png"></div><figcaption>Le joueur 1 tient HAUT, DROITE et le bouton 2, le joueur 3 GAUCHE et le bouton 1, le joueur 4 BAS et START.</figcaption></figure>
 <p>Ce programme utilise deux <b>tableaux</b> : <code>labels[12]</code> contient douze textes, <code>buttons[12]</code> douze boutons. <code>labels[0]</code> est le premier, <code>labels[11]</code> le dernier. La boucle <code>for</code> les parcourt tous avec la même variable <code>i</code> ; une seconde boucle, à l'intérieur, passe en revue les joueurs. Le tableau <code>presses[5]</code> garde un compteur par joueur : on lui a donné une case de plus pour écrire <code>presses[1]</code> à <code>presses[4]</code>, la case 0 reste inutilisée.</p>
 <div class="box know"><div class="box-t">Joueurs 3 et 4</div><p>Les manettes 3 et 4 existent depuis la version 2 de la console. Sur un core MiSTer plus ancien, <code>held(3, …)</code> et <code>held(4, …)</code> répondent toujours faux : le jeu reste jouable à un ou deux.</p></div>
@@ -398,12 +399,12 @@ ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></di
 <span class="ln"> 15</span> 
 <span class="ln"> 16</span>  <span class="c-kw">for</span> (;;) {
 <span class="ln"> 17</span>    wait_frame();
-<span class="ln"> 18</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">LEFT</span>))  x = x - <span class="c-num">2</span>;
-<span class="ln"> 19</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">RIGHT</span>)) x = x + <span class="c-num">2</span>;
-<span class="ln"> 20</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, UP))    y = y - <span class="c-num">2</span>;
-<span class="ln"> 21</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">DOWN</span>))  y = y + <span class="c-num">2</span>;
-<span class="ln"> 22</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, B1)) { flipped = !flipped; flip_sprite(<span class="c-num">0</span>, <span class="c-num">0</span>, flipped); }
-<span class="ln"> 23</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, B2)) { big = !big;         scale_sprite(<span class="c-num">0</span>, big ? <span class="c-num">200</span> : <span class="c-num">100</span>); }
+<span class="ln"> 18</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">PAD_LEFT</span>))  x = x - <span class="c-num">2</span>;
+<span class="ln"> 19</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">PAD_RIGHT</span>)) x = x + <span class="c-num">2</span>;
+<span class="ln"> 20</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">PAD_UP</span>))    y = y - <span class="c-num">2</span>;
+<span class="ln"> 21</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">PAD_DOWN</span>))  y = y + <span class="c-num">2</span>;
+<span class="ln"> 22</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">PAD_B1</span>)) { flipped = !flipped; flip_sprite(<span class="c-num">0</span>, <span class="c-num">0</span>, flipped); }
+<span class="ln"> 23</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">PAD_B2</span>)) { big = !big;         scale_sprite(<span class="c-num">0</span>, big ? <span class="c-num">200</span> : <span class="c-num">100</span>); }
 <span class="ln"> 24</span>    sprite(<span class="c-num">0</span>, x, y, <span class="c-cst">SHIP</span>);
 <span class="ln"> 25</span> 
 <span class="ln"> 26</span>    <span class="c-com">// five twinkling stars: the picture changes every 10 frames</span>
@@ -419,7 +420,9 @@ ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></di
 <div class="box warn"><div class="box-t">Les limites</div><p>On peut afficher jusqu'à <b>64 sprites sur une même ligne</b> de l'écran, et 1280 pixels de sprites en tout sur cette ligne : c'est 80 sprites de 16 x 16 mais seulement <b>20 sprites de 64 x 64</b> côte à côte. Au-delà, les derniers ne sont pas dessinés sur cette ligne : le moniteur du simulateur l'indique en rouge. Un jeu a au plus <b>8 planches et décors</b> en tout, car chacun prend l'une des 8 palettes de couleurs.</p></div>
 <section class="chap-open c7"><div class="chap-num">7</div><div class="chap-band"></div><h1 id="ch7">Le son</h1><p class="lead">Des bips, des bruits, des mélodies et des échantillons.</p></section>
 <p>La MONOCORE-1 a <b>8 canaux</b> de notes (numérotés de 0 à 7), qui jouent ensemble, et <b>8 voix d'échantillons</b> pour les sons enregistrés.</p>
-<table class=""><thead><tr><th>Fonction</th><th>Effet</th></tr></thead><tbody><tr><td><code>tone(channel, 440, 150)</code></td><td>joue un son carré de 440 hertz (le LA du diapason) au volume 150 sur 255</td></tr><tr><td><code>noise(channel, 120)</code></td><td>un souffle : explosions, vagues, caisse claire</td></tr><tr><td><code>quiet(channel)</code></td><td>fait taire le canal</td></tr><tr><td><code>play(channel, tune, 15, 100)</code></td><td>joue une mélodie en boucle, toute seule</td></tr><tr><td><code>stop(channel)</code></td><td>arrête la mélodie</td></tr><tr><td><code>play_sample(voice, sound, volume)</code></td><td>joue un son enregistré (fichier WAV)</td></tr></tbody></table>
+<table class=""><thead><tr><th>Fonction</th><th>Effet</th></tr></thead><tbody><tr><td><code>tone(channel, NOTE_A4, 150)</code></td><td>joue un son carré de 440 hertz (le LA du diapason) au volume 150 sur 255</td></tr><tr><td><code>noise(channel, 120)</code></td><td>un souffle : explosions, vagues, caisse claire</td></tr><tr><td><code>quiet(channel)</code></td><td>fait taire le canal</td></tr><tr><td><code>play(channel, tune, 15, 100)</code></td><td>joue une mélodie en boucle, toute seule</td></tr><tr><td><code>stop(channel)</code></td><td>arrête la mélodie</td></tr><tr><td><code>play_sample(voice, sound, volume)</code></td><td>joue un son enregistré (fichier WAV)</td></tr></tbody></table>
+<p>La fréquence de <code>tone()</code> est en hertz, mais il est plus simple d'écrire le nom de la note : <code>easy.h</code> donne un nom <code>NOTE_</code> à chaque note, des octaves 2 à 7. Le nom suit la notation anglaise (voir plus bas), avec un <b>S</b> (<i>sharp</i>) pour le dièse, puis le numéro de l'octave.</p>
+<table class=""><thead><tr><th>Nom</th><th>Note</th><th>Hertz</th></tr></thead><tbody><tr><td><code>NOTE_C4</code></td><td>DO (le DO du milieu du clavier)</td><td>262</td></tr><tr><td><code>NOTE_CS4</code></td><td>DO dièse</td><td>277</td></tr><tr><td><code>NOTE_A4</code></td><td>LA du diapason</td><td>440</td></tr><tr><td><code>NOTE_B4</code></td><td>SI</td><td>494</td></tr><tr><td><code>NOTE_C5</code></td><td>DO de l'octave au-dessus</td><td>523</td></tr></tbody></table>
 <div class="listing "><div class="lst-cap"><span>LISTING</span> 05_sound/main.c</div><pre><span class="ln">  1</span><span class="c-pre">#include "easy.h"</span>
 <span class="ln">  2</span> 
 <span class="ln">  3</span><span class="c-com">// "Au clair de la lune", one note per beat</span>
@@ -436,8 +439,8 @@ ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></di
 <span class="ln"> 14</span>  print(<span class="c-num">4</span>, <span class="c-num">12</span>, <span class="c-str">"BAS           : BRUIT"</span>);
 <span class="ln"> 15</span>  print(<span class="c-num">4</span>, <span class="c-num">14</span>, <span class="c-str">"START         : MUSIQUE OUI / NON"</span>);
 <span class="ln"> 16</span> 
-<span class="ln"> 17</span>  <span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">int</span> notes[<span class="c-num">6</span>] = {<span class="c-num">262</span>, <span class="c-num">294</span>, <span class="c-num">330</span>, <span class="c-num">349</span>, <span class="c-num">392</span>, <span class="c-num">440</span>};   <span class="c-com">// C D E F G A, in hertz</span>
-<span class="ln"> 18</span>  <span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">uint32_t</span> keys[<span class="c-num">6</span>] = {B1, B2, B3, B4, B5, B6};
+<span class="ln"> 17</span>  <span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">int</span> notes[<span class="c-num">6</span>] = {<span class="c-cst">NOTE_C4</span>, <span class="c-cst">NOTE_D4</span>, <span class="c-cst">NOTE_E4</span>, <span class="c-cst">NOTE_F4</span>, <span class="c-cst">NOTE_G4</span>, <span class="c-cst">NOTE_A4</span>};
+<span class="ln"> 18</span>  <span class="c-kw">static</span> <span class="c-kw">const</span> <span class="c-kw">uint32_t</span> keys[<span class="c-num">6</span>] = {<span class="c-cst">PAD_B1</span>, <span class="c-cst">PAD_B2</span>, <span class="c-cst">PAD_B3</span>, <span class="c-cst">PAD_B4</span>, <span class="c-cst">PAD_B5</span>, <span class="c-cst">PAD_B6</span>};
 <span class="ln"> 19</span>  <span class="c-kw">int</span> playing = <span class="c-num">0</span>;
 <span class="ln"> 20</span> 
 <span class="ln"> 21</span>  <span class="c-kw">for</span> (;;) {
@@ -445,11 +448,11 @@ ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></di
 <span class="ln"> 23</span>    <span class="c-kw">int</span> frequency = <span class="c-num">0</span>;
 <span class="ln"> 24</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">6</span>; i++)
 <span class="ln"> 25</span>      <span class="c-kw">if</span> (held(<span class="c-num">1</span>, keys[i])) frequency = notes[i];
-<span class="ln"> 26</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, UP)) frequency = <span class="c-num">494</span>;                   <span class="c-com">// B</span>
+<span class="ln"> 26</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">PAD_UP</span>)) frequency = <span class="c-cst">NOTE_B4</span>;
 <span class="ln"> 27</span>    <span class="c-kw">if</span> (frequency) tone(<span class="c-num">0</span>, frequency, <span class="c-num">150</span>); <span class="c-kw">else</span> quiet(<span class="c-num">0</span>);
-<span class="ln"> 28</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">DOWN</span>)) noise(<span class="c-num">1</span>, <span class="c-num">120</span>); <span class="c-kw">else</span> quiet(<span class="c-num">1</span>);
+<span class="ln"> 28</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">PAD_DOWN</span>)) noise(<span class="c-num">1</span>, <span class="c-num">120</span>); <span class="c-kw">else</span> quiet(<span class="c-num">1</span>);
 <span class="ln"> 29</span> 
-<span class="ln"> 30</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">START</span>)) {
+<span class="ln"> 30</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">PAD_START</span>)) {
 <span class="ln"> 31</span>      playing = !playing;
 <span class="ln"> 32</span>      <span class="c-kw">if</span> (playing) play(<span class="c-num">2</span>, moonlight, <span class="c-num">15</span>, <span class="c-num">100</span>);
 <span class="ln"> 33</span>      <span class="c-kw">else</span>         stop(<span class="c-num">2</span>);
@@ -482,10 +485,10 @@ ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></di
 <span class="ln"> 10</span> 
 <span class="ln"> 11</span>  <span class="c-kw">for</span> (;;) {
 <span class="ln"> 12</span>    wait_frame();
-<span class="ln"> 13</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">RIGHT</span>) &amp;&amp; speed &lt; <span class="c-num">6</span>)  speed++;
-<span class="ln"> 14</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">LEFT</span>)  &amp;&amp; speed &gt; -<span class="c-num">6</span>) speed--;
-<span class="ln"> 15</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, UP)   &amp;&amp; y &gt; <span class="c-num">20</span>)  y -= <span class="c-num">2</span>;
-<span class="ln"> 16</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">DOWN</span>) &amp;&amp; y &lt; <span class="c-num">160</span>) y += <span class="c-num">2</span>;
+<span class="ln"> 13</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">PAD_RIGHT</span>) &amp;&amp; speed &lt; <span class="c-num">6</span>)  speed++;
+<span class="ln"> 14</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">PAD_LEFT</span>)  &amp;&amp; speed &gt; -<span class="c-num">6</span>) speed--;
+<span class="ln"> 15</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">PAD_UP</span>)   &amp;&amp; y &gt; <span class="c-num">20</span>)  y -= <span class="c-num">2</span>;
+<span class="ln"> 16</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">PAD_DOWN</span>) &amp;&amp; y &lt; <span class="c-num">160</span>) y += <span class="c-num">2</span>;
 <span class="ln"> 17</span> 
 <span class="ln"> 18</span>    camera = camera + speed;
 <span class="ln"> 19</span>    scroll_map(camera, <span class="c-num">0</span>);                <span class="c-com">// the map is 1024 pixels wide and wraps around by itself</span>
@@ -500,7 +503,7 @@ ROM ready: /home/.../monocore/manual/examples/01_hello/build/hello.mnc</pre></di
 <div class="box know"><div class="box-t">Le saviez-vous ?</div><p>Les jeux des années 80 donnaient de la profondeur en faisant défiler plusieurs plans à des vitesses différentes : le lointain lentement, le premier plan vite. La MONOCORE-1 a quatre plans, et peut même faire défiler chaque ligne de l'écran différemment (chapitre 10).</p></div>
 <section class="chap-open c9"><div class="chap-num">9</div><div class="chap-band"></div><h1 id="ch9">Projet : ATTRAPE-ÉTOILES</h1><p class="lead">Un jeu complet : écran titre, score, record, vies, musique et explosions.</p></section>
 <div class="pair"><figure class="tv small"><div class="bezel"><img src="images/screen_07_title.png"></div><figcaption>L'écran titre.</figcaption></figure><figure class="tv small"><div class="bezel"><img src="images/screen_07_game.png"></div><figcaption>Une partie en cours.</figcaption></figure></div>
-<p>Le principe : des étoiles et des bombes tombent du ciel. Déplacez le vaisseau avec LEFT et RIGHT pour attraper les étoiles (10 points chacune) et éviter les bombes (une vie perdue). Plus le score monte, plus tout tombe vite. Le jeu tient en 150 lignes, rangées en <b>fonctions</b> qui ont chacune un rôle.</p>
+<p>Le principe : des étoiles et des bombes tombent du ciel. Déplacez le vaisseau avec <code>PAD_LEFT</code> et <code>PAD_RIGHT</code> pour attraper les étoiles (10 points chacune) et éviter les bombes (une vie perdue). Plus le score monte, plus tout tombe vite. Le jeu tient en 150 lignes, rangées en <b>fonctions</b> qui ont chacune un rôle.</p>
 <h2>Organisation du programme</h2>
 <table class=""><thead><tr><th>Fonction</th><th>Rôle</th></tr></thead><tbody><tr><td><code>main</code></td><td>prépare la console, puis enchaîne pour toujours : titre, partie, fin de partie</td></tr><tr><td><code>title_screen</code></td><td>écran titre : affiche le titre et les règles, joue la musique, attend START</td></tr><tr><td><code>game</code></td><td>la partie : manette, objets, explosion, score, jusqu'à ce qu'il n'y ait plus de vies</td></tr><tr><td><code>drop_item</code></td><td>« lâcher un objet » : le place en haut de l'écran, au hasard, étoile ou bombe</td></tr><tr><td><code>move_items</code></td><td>fait tomber les objets et teste s'ils touchent le vaisseau</td></tr><tr><td><code>show_score</code></td><td>écrit le score et le record, dessine les cœurs</td></tr><tr><td><code>game_over</code></td><td>affiche PARTIE TERMINEE pendant trois secondes</td></tr></tbody></table>
 <h2>Les structures</h2>
@@ -613,7 +616,7 @@ sounds  = boom.wav</pre></div>
 <span class="ln"> 98</span>    <span class="c-kw">for</span> (<span class="c-kw">int</span> i = <span class="c-num">0</span>; i &lt; <span class="c-num">4</span>; i++)                <span class="c-com">// four stars dancing under the rules</span>
 <span class="ln"> 99</span>      sprite(<span class="c-cst">SPR_ITEM</span> + i, <span class="c-num">152</span> + (i - <span class="c-num">2</span>) * <span class="c-num">50</span> + <span class="c-num">25</span>, <span class="c-num">118</span> + ((frame_count / <span class="c-num">3</span> + i * <span class="c-num">3</span>) % <span class="c-num">8</span>), <span class="c-cst">STAR</span>);
 <span class="ln">100</span>    scroll_map(frame_count / <span class="c-num">2</span>, <span class="c-num">0</span>);
-<span class="ln">101</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">START</span>)) <span class="c-kw">break</span>;
+<span class="ln">101</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">PAD_START</span>)) <span class="c-kw">break</span>;
 <span class="ln">102</span>  }
 <span class="ln">103</span>  stop(<span class="c-num">2</span>);
 <span class="ln">104</span>}
@@ -627,8 +630,8 @@ sounds  = boom.wav</pre></div>
 <span class="ln">112</span> 
 <span class="ln">113</span>  <span class="c-kw">while</span> (lives &gt; <span class="c-num">0</span>) {
 <span class="ln">114</span>    wait_frame();
-<span class="ln">115</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">LEFT</span>)  &amp;&amp; player_x &gt; <span class="c-num">4</span>)   player_x -= <span class="c-num">3</span>;
-<span class="ln">116</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">RIGHT</span>) &amp;&amp; player_x &lt; <span class="c-num">300</span>) player_x += <span class="c-num">3</span>;
+<span class="ln">115</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">PAD_LEFT</span>)  &amp;&amp; player_x &gt; <span class="c-num">4</span>)   player_x -= <span class="c-num">3</span>;
+<span class="ln">116</span>    <span class="c-kw">if</span> (held(<span class="c-num">1</span>, <span class="c-cst">PAD_RIGHT</span>) &amp;&amp; player_x &lt; <span class="c-num">300</span>) player_x += <span class="c-num">3</span>;
 <span class="ln">117</span>    <span class="c-kw">if</span> (frame_count % <span class="c-num">8</span> == <span class="c-num">0</span>) quiet(<span class="c-num">1</span>);        <span class="c-com">// ends the "ding"</span>
 <span class="ln">118</span> 
 <span class="ln">119</span>    <span class="c-kw">if</span> (explosion &gt; <span class="c-num">0</span>) {
@@ -649,7 +652,7 @@ sounds  = boom.wav</pre></div>
 <span class="ln">134</span>  print_ink(<span class="c-num">12</span>, <span class="c-num">12</span>, <span class="c-str">"PARTIE TERMINEE"</span>, <span class="c-num">4</span>);
 <span class="ln">135</span>  <span class="c-kw">for</span> (<span class="c-kw">int</span> t = <span class="c-num">0</span>; t &lt; <span class="c-num">180</span>; t++) {              <span class="c-com">// 3 seconds, or START</span>
 <span class="ln">136</span>    wait_frame();
-<span class="ln">137</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">START</span>)) <span class="c-kw">break</span>;
+<span class="ln">137</span>    <span class="c-kw">if</span> (pressed(<span class="c-num">1</span>, <span class="c-cst">PAD_START</span>)) <span class="c-kw">break</span>;
 <span class="ln">138</span>  }
 <span class="ln">139</span>}
 <span class="ln">140</span> 
@@ -665,7 +668,7 @@ sounds  = boom.wav</pre></div>
 <span class="ln">150</span>}</pre></div>
 <h2>Pour aller plus loin</h2>
 <p>Le jeu est à vous : modifiez-le ! Quelques idées, de la plus simple à la plus ambitieuse :</p>
-<ol><li>Changez les couleurs, la vitesse, le nombre de points par étoile.</li><li>Ajoutez un objet rare (le cœur, dessin 5) qui rend une vie.</li><li>Faites défiler le décor plus vite quand le score augmente.</li><li>Ajoutez une deuxième voix à la musique (une basse sur le canal 3).</li><li>Mode à plusieurs : jusqu'à quatre vaisseaux, un par manette (<code>held(2, LEFT)</code> pour le joueur 2…).</li><li>Ajoutez le tir : le bouton 1 lance un projectile qui détruit les bombes.</li></ol>
+<ol><li>Changez les couleurs, la vitesse, le nombre de points par étoile.</li><li>Ajoutez un objet rare (le cœur, dessin 5) qui rend une vie.</li><li>Faites défiler le décor plus vite quand le score augmente.</li><li>Ajoutez une deuxième voix à la musique (une basse sur le canal 3).</li><li>Mode à plusieurs : jusqu'à quatre vaisseaux, un par manette (<code>held(2, PAD_LEFT)</code> pour le joueur 2…).</li><li>Ajoutez le tir : le bouton 1 lance un projectile qui détruit les bombes.</li></ol>
 <section class="chap-open c10"><div class="chap-num">10</div><div class="chap-band"></div><h1 id="ch10">Sous le capot</h1><p class="lead">La bibliothèque easy n'est qu'un raccourci : voici ce que la console sait faire d'autre.</p></section>
 <p>Toutes les fonctions de <code>easy</code> écrivent dans des <b>registres</b> : des adresses mémoire spéciales qui commandent les circuits de la console. <code>monocore.h</code> leur donne des noms. Vous pouvez les utiliser à côté de <code>easy</code>, à condition de respecter son rangement (plans 0 et 1, palettes 0 à 15 : les 8 encres puis les 8 palettes de couleurs, sprites 0 à 63) ou de ne pas l'utiliser du tout.</p>
 <h2>Changer la taille de l'écran</h2>
@@ -1534,7 +1537,7 @@ sources = main.c</pre></div>
 <ol><li>Ajoutez une ligne de règle (les numéros de colonnes) sous la barre de titre.</li><li>Gardez le texte dans la mémoire sauvegardée (NVRAM), pour le retrouver au prochain lancement.</li><li>Changez la police : rendez-en une avec le <code>make_font.py</code> de MONOTRACKER.</li><li>Passez CARNET en 640 x 240, sans entrelacement : une seule carte de 128 x 32 tuiles de 8 x 8 couvre alors l'écran, et les caractères redeviennent des cases de 8 x 8.</li></ol>
 <section class="chap-open c1"><div class="chap-num">A</div><div class="chap-band"></div><h1 id="chA">La bibliothèque easy</h1><p class="lead">Toutes les fonctions, d'un coup d'oeil, avec la traduction de leur nom.</p></section>
 <table class="ref"><thead><tr><th>Fonction</th><th>Traduction</th><th>Description</th></tr></thead><tbody><tr><td><code>init()</code></td><td>initialiser</td><td>prépare la console : à appeler une fois, au début</td></tr><tr><td><code>wait_frame()</code></td><td>attendre l'image</td><td>attend l'image suivante (1/60 de seconde), lit les manettes, fait avancer les mélodies</td></tr><tr><td><code>frame_count</code></td><td>nombre d'images</td><td>variable : images depuis le démarrage</td></tr><tr><td><code>random(n)</code></td><td>au hasard</td><td>nombre au hasard de 0 à n - 1</td></tr><tr><td><code>background(r, g, b)</code></td><td>fond</td><td>couleur du fond (rouge, vert, bleu de 0 à 255)</td></tr><tr><td><code>ink(n, r, g, b)</code></td><td>encre</td><td>couleur de l'encre de texte n (0 à 7)</td></tr><tr><td><code>load_palette(n, pal)</code></td><td>charger une palette</td><td>range les couleurs d'une image en palette n (0 à 7), par exemple <code>load_palette(3, hero_pal)</code></td></tr><tr><td><code>cls()</code></td><td>effacer l'écran</td><td>efface tout le texte (de <i>CLear Screen</i>)</td></tr><tr><td><code>print(col, row, text)</code></td><td>imprimer</td><td>écrit en blanc, colonne <i>col</i>, ligne <i>row</i></td></tr><tr><td><code>print_ink(col, row, text, ink)</code></td><td>imprimer en couleur</td><td>écrit avec l'encre choisie</td></tr><tr><td><code>print_num(col, row, n, digits, ink)</code></td><td>imprimer un nombre</td><td>écrit un nombre sur <i>digits</i> chiffres, complété par des zéros</td></tr><tr><td><code>held(player, button)</code></td><td>tenu</td><td>vrai si le bouton du joueur (1 à 4) est enfoncé</td></tr><tr><td><code>pressed(player, button)</code></td><td>appuyé</td><td>vrai si le bouton du joueur (1 à 4) vient d'être enfoncé</td></tr><tr><td><code>sprite(n, x, y, picture)</code></td><td>sprite</td><td>affiche le sprite n (0 à 63) avec le dessin <i>picture</i></td></tr><tr><td><code>hide_sprite(n)</code></td><td>cacher</td><td>cache le sprite n</td></tr><tr><td><code>flip_sprite(n, h, v)</code></td><td>retourner</td><td>retourne le sprite n</td></tr><tr><td><code>scale_sprite(n, percent)</code></td><td>mettre à l'échelle</td><td>agrandit ou réduit le sprite n</td></tr><tr><td><code>sprite_palette(n, palette)</code></td><td>palette du sprite</td><td>change la palette du sprite n (-1 : celle de sa planche)</td></tr><tr><td><code>collide(a, b)</code></td><td>se heurter</td><td>vrai si les sprites a et b se touchent</td></tr><tr><td><code>load_map(map)</code></td><td>charger le décor</td><td>remplace le décor affiché par <code>init()</code></td></tr><tr><td><code>scroll_map(x, y)</code></td><td>faire défiler</td><td>fait défiler le décor</td></tr><tr><td><code>tone(channel, freq, volume)</code></td><td>note</td><td>son carré sur un canal</td></tr><tr><td><code>noise(channel, volume)</code></td><td>bruit</td><td>bruit sur un canal</td></tr><tr><td><code>quiet(channel)</code></td><td>silence</td><td>fait taire un canal</td></tr><tr><td><code>play(channel, tune, frames, volume)</code></td><td>jouer</td><td>joue une mélodie en boucle</td></tr><tr><td><code>stop(channel)</code></td><td>arrêter</td><td>arrête la mélodie du canal</td></tr><tr><td><code>play_sample(voice, sound, volume)</code></td><td>jouer un échantillon</td><td>joue un son enregistré</td></tr></tbody></table>
-<p>Boutons : <code>UP</code> (haut), <code>DOWN</code> (bas), <code>LEFT</code> (gauche), <code>RIGHT</code> (droite), <code>B1</code> à <code>B6</code>, <code>START</code>, <code>COIN</code> (pièce). Encres par défaut : 0 blanc, 1 jaune, 2 cyan, 3 vert, 4 rouge, 5 violet, 6 orange, 7 gris.</p>
+<p>Boutons : <code>PAD_UP</code> (haut), <code>PAD_DOWN</code> (bas), <code>PAD_LEFT</code> (gauche), <code>PAD_RIGHT</code> (droite), <code>PAD_B1</code> à <code>PAD_B6</code>, <code>PAD_START</code>, <code>PAD_COIN</code> (pièce). Notes pour <code>tone()</code> : <code>NOTE_C2</code> à <code>NOTE_B7</code> (<code>NOTE_A4</code> = 440 Hz, <code>NOTE_CS4</code> = DO dièse). Encres par défaut : 0 blanc, 1 jaune, 2 cyan, 3 vert, 4 rouge, 5 violet, 6 orange, 7 gris.</p>
 <h3>Le fichier project.txt</h3>
 <table class="ref"><thead><tr><th>Réglage</th><th>Contenu</th><th>Noms créés pour le programme</th></tr></thead><tbody><tr><td><code>name</code></td><td>nom du fichier produit (<code>build/name.mnc</code>)</td><td></td></tr><tr><td><code>title</code></td><td>titre inscrit dans la ROM</td><td></td></tr><tr><td><code>sources</code></td><td>fichiers C du programme</td><td></td></tr><tr><td><code>sprites</code></td><td>planches de sprites (PNG de 16, 32 ou 64 pixels de large)</td><td><code>x</code> : numéro de son premier dessin</td></tr><tr><td><code>maps</code></td><td>décors (PNG, tuiles de 16 x 16)</td><td><code>x</code> : le décor, pour <code>load_map</code></td></tr><tr><td><code>sounds</code></td><td>sons (WAV)</td><td><code>x</code> : le son, pour <code>play_sample</code></td></tr><tr><td><code>origin</code></td><td>origine inscrite dans la ROM (facultatif)</td><td></td></tr><tr><td><code>rotation</code></td><td>orientation de l'écran au démarrage : 0 à 3 quarts de tour (facultatif)</td><td></td></tr><tr><td><code>dip</code></td><td>DIP switches par défaut, par exemple <code>0x01</code> (facultatif)</td><td></td></tr></tbody></table>
 <p><code>x</code> est le nom du fichier sans son extension : <code>sheet.png</code> donne <code>sheet</code>. Les planches puis les décors reçoivent chacun une palette de couleurs, dans l'ordre de <code>project.txt</code> (0, 1, 2…). Les données brutes existent aussi sous les noms <code>x_chr</code>, <code>x_pal</code>, <code>x_map</code>, <code>x_data</code>… (utiles avec <code>load_palette</code> ou le SDK <b>mc</b>).</p>

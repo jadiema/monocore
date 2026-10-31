@@ -15,12 +15,12 @@ int main(void) {
 
   for (;;) {
     wait_frame();
-    if (held(1, LEFT))  x = x - 2;
-    if (held(1, RIGHT)) x = x + 2;
-    if (held(1, UP))    y = y - 2;
-    if (held(1, DOWN))  y = y + 2;
-    if (pressed(1, B1)) { flipped = !flipped; flip_sprite(0, 0, flipped); }
-    if (pressed(1, B2)) { big = !big;         scale_sprite(0, big ? 200 : 100); }
+    if (held(1, PAD_LEFT))  x = x - 2;
+    if (held(1, PAD_RIGHT)) x = x + 2;
+    if (held(1, PAD_UP))    y = y - 2;
+    if (held(1, PAD_DOWN))  y = y + 2;
+    if (pressed(1, PAD_B1)) { flipped = !flipped; flip_sprite(0, 0, flipped); }
+    if (pressed(1, PAD_B2)) { big = !big;         scale_sprite(0, big ? 200 : 100); }
     sprite(0, x, y, SHIP);
 
     // five twinkling stars: the picture changes every 10 frames

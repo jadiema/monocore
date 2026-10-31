@@ -5,7 +5,8 @@ static const char *labels[12] = {
   "HAUT", "BAS", "GAUCHE", "DROITE", "BOUTON 1", "BOUTON 2",
   "BOUTON 3", "BOUTON 4", "BOUTON 5", "BOUTON 6", "START", "PIECE"};
 static const uint32_t buttons[12] = {
-  UP, DOWN, LEFT, RIGHT, B1, B2, B3, B4, B5, B6, START, COIN};
+  PAD_UP, PAD_DOWN, PAD_LEFT, PAD_RIGHT, PAD_B1, PAD_B2,
+  PAD_B3, PAD_B4, PAD_B5, PAD_B6, PAD_START, PAD_COIN};
 
 int main(void) {
   init();
@@ -28,7 +29,7 @@ int main(void) {
     }
     print(2, 29, "APPUIS B1");
     for (int player = 1; player <= 4; player++) {
-      if (pressed(player, B1)) presses[player]++;   // once per press, even if the button stays down
+      if (pressed(player, PAD_B1)) presses[player]++;   // once per press, even if the button stays down
       print_num(8 + player * 6, 29, presses[player], 3, 2);
     }
   }

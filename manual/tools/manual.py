@@ -130,10 +130,10 @@ FIG_JOYPAD = '''
   <text x="340" y="136">B4</text><text x="380" y="136">B5</text><text x="420" y="136">B6</text>
  </g>
  <g fill="#222" font-weight="600" text-anchor="middle" font-family="IBM Plex Mono">
-  <text x="115" y="28">UP DOWN LEFT RIGHT</text><text x="227" y="165">COIN</text><text x="279" y="165">START</text>
-  <text x="380" y="28">B1 ... B6</text>
+  <text x="115" y="28">PAD_UP … PAD_RIGHT</text><text x="244" y="165" text-anchor="end" fill="#ddd">PAD_COIN</text><text x="262" y="165" text-anchor="start" fill="#ddd">PAD_START</text>
+  <text x="380" y="28">PAD_B1 … PAD_B6</text>
  </g>
-</svg><figcaption>Les noms des commandes, tels qu'on les écrit dans un programme.</figcaption></figure>'''
+</svg><figcaption>Les noms des commandes, tels qu'on les écrit dans un programme : tous commencent par <code>PAD_</code> (<i>pad</i> : manette).</figcaption></figure>'''
 
 # ---------------------------------------------------------------- content
 parts = []
@@ -281,8 +281,8 @@ A(chapter(5, 'La manette', "Savoir ce que fait le joueur, image après image.", 
 A(FIG_JOYPAD)
 A(p("Deux fonctions suffisent pour tout savoir des manettes :"))
 A(table(['Fonction', 'Rend vrai quand…', 'Pour…'], [
-  [c('held(1, LEFT)'), "le bouton est enfoncé en ce moment (<i>held</i> : tenu)", "les déplacements, le tir automatique"],
-  [c('pressed(1, B1)'), "le bouton vient d'être enfoncé, une seule fois par appui (<i>pressed</i> : appuyé)", "sauter, valider un menu, compter"]]))
+  [c('held(1, PAD_LEFT)'), "le bouton est enfoncé en ce moment (<i>held</i> : tenu)", "les déplacements, le tir automatique"],
+  [c('pressed(1, PAD_B1)'), "le bouton vient d'être enfoncé, une seule fois par appui (<i>pressed</i> : appuyé)", "sauter, valider un menu, compter"]]))
 A(p("Le premier nombre est le joueur, de 1 à 4. Les manettes sont lues une fois par image, par <code>wait_frame()</code>. Voici un programme d'essai qui affiche l'état de chaque commande des quatre manettes :"))
 A(listing(source('03_joypad'), '03_joypad/main.c'))
 A(screen('screen_03.png', "Le joueur 1 tient HAUT, DROITE et le bouton 2, le joueur 3 GAUCHE et le bouton 1, le joueur 4 BAS et START."))
@@ -318,12 +318,19 @@ A(box('warn', 'Les limites', p("On peut afficher jusqu'à <b>64 sprites sur une 
 A(chapter(7, 'Le son', "Des bips, des bruits, des mélodies et des échantillons.", 7))
 A(p("La MONOCORE-1 a <b>8 canaux</b> de notes (numérotés de 0 à 7), qui jouent ensemble, et <b>8 voix d'échantillons</b> pour les sons enregistrés."))
 A(table(['Fonction', 'Effet'], [
-  [c('tone(channel, 440, 150)'), "joue un son carré de 440 hertz (le LA du diapason) au volume 150 sur 255"],
+  [c('tone(channel, NOTE_A4, 150)'), "joue un son carré de 440 hertz (le LA du diapason) au volume 150 sur 255"],
   [c('noise(channel, 120)'), "un souffle : explosions, vagues, caisse claire"],
   [c('quiet(channel)'), "fait taire le canal"],
   [c('play(channel, tune, 15, 100)'), "joue une mélodie en boucle, toute seule"],
   [c('stop(channel)'), "arrête la mélodie"],
   [c('play_sample(voice, sound, volume)'), "joue un son enregistré (fichier WAV)"]]))
+A(p("La fréquence de <code>tone()</code> est en hertz, mais il est plus simple d'écrire le nom de la note : <code>easy.h</code> donne un nom <code>NOTE_</code> à chaque note, des octaves 2 à 7. Le nom suit la notation anglaise (voir plus bas), avec un <b>S</b> (<i>sharp</i>) pour le dièse, puis le numéro de l'octave."))
+A(table(['Nom', 'Note', 'Hertz'], [
+  [c('NOTE_C4'), 'DO (le DO du milieu du clavier)', '262'],
+  [c('NOTE_CS4'), 'DO dièse', '277'],
+  [c('NOTE_A4'), 'LA du diapason', '440'],
+  [c('NOTE_B4'), 'SI', '494'],
+  [c('NOTE_C5'), "DO de l'octave au-dessus", '523']]))
 A(listing(source('05_sound'), '05_sound/main.c'))
 A(screen('screen_05.png', 'Le petit piano : chaque bouton joue une note.'))
 A(h2('Écrire une mélodie'))
@@ -356,7 +363,7 @@ A(box('know', 'Le saviez-vous ?', p("Les jeux des années 80 donnaient de la pro
 A(chapter(9, 'Projet : ATTRAPE-ÉTOILES', "Un jeu complet : écran titre, score, record, vies, musique et explosions.", 9))
 A('<div class="pair">' + screen('screen_07_title.png', "L'écran titre.", True) + screen('screen_07_game.png', 'Une partie en cours.', True) + '</div>')
 n_lines = len(source('07_stars').rstrip('\n').split('\n'))
-A(p("Le principe : des étoiles et des bombes tombent du ciel. Déplacez le vaisseau avec LEFT et RIGHT pour attraper les étoiles (10 points chacune) et éviter les bombes (une vie perdue). Plus le score monte, plus tout tombe vite. Le jeu tient en %d lignes, rangées en <b>fonctions</b> qui ont chacune un rôle." % n_lines))
+A(p("Le principe : des étoiles et des bombes tombent du ciel. Déplacez le vaisseau avec <code>PAD_LEFT</code> et <code>PAD_RIGHT</code> pour attraper les étoiles (10 points chacune) et éviter les bombes (une vie perdue). Plus le score monte, plus tout tombe vite. Le jeu tient en %d lignes, rangées en <b>fonctions</b> qui ont chacune un rôle." % n_lines))
 A(h2('Organisation du programme'))
 A(table(['Fonction', 'Rôle'], [
   [c('main'), "prépare la console, puis enchaîne pour toujours : titre, partie, fin de partie"],
@@ -377,7 +384,7 @@ A(ol(["Changez les couleurs, la vitesse, le nombre de points par étoile.",
       "Ajoutez un objet rare (le cœur, dessin 5) qui rend une vie.",
       "Faites défiler le décor plus vite quand le score augmente.",
       "Ajoutez une deuxième voix à la musique (une basse sur le canal 3).",
-      "Mode à plusieurs : jusqu'à quatre vaisseaux, un par manette (<code>held(2, LEFT)</code> pour le joueur 2…).",
+      "Mode à plusieurs : jusqu'à quatre vaisseaux, un par manette (<code>held(2, PAD_LEFT)</code> pour le joueur 2…).",
       "Ajoutez le tir : le bouton 1 lance un projectile qui détruit les bombes."]))
 
 # ---------------------------------------------------------------- 10
@@ -577,7 +584,7 @@ A(table(['Fonction', 'Traduction', 'Description'], [
   [c('play(channel, tune, frames, volume)'), 'jouer', "joue une mélodie en boucle"],
   [c('stop(channel)'), 'arrêter', "arrête la mélodie du canal"],
   [c('play_sample(voice, sound, volume)'), 'jouer un échantillon', "joue un son enregistré"]], 'ref'))
-A(p("Boutons : <code>UP</code> (haut), <code>DOWN</code> (bas), <code>LEFT</code> (gauche), <code>RIGHT</code> (droite), <code>B1</code> à <code>B6</code>, <code>START</code>, <code>COIN</code> (pièce). Encres par défaut : 0 blanc, 1 jaune, 2 cyan, 3 vert, 4 rouge, 5 violet, 6 orange, 7 gris."))
+A(p("Boutons : <code>PAD_UP</code> (haut), <code>PAD_DOWN</code> (bas), <code>PAD_LEFT</code> (gauche), <code>PAD_RIGHT</code> (droite), <code>PAD_B1</code> à <code>PAD_B6</code>, <code>PAD_START</code>, <code>PAD_COIN</code> (pièce). Notes pour <code>tone()</code> : <code>NOTE_C2</code> à <code>NOTE_B7</code> (<code>NOTE_A4</code> = 440 Hz, <code>NOTE_CS4</code> = DO dièse). Encres par défaut : 0 blanc, 1 jaune, 2 cyan, 3 vert, 4 rouge, 5 violet, 6 orange, 7 gris."))
 A(h3('Le fichier project.txt'))
 A(table(['Réglage', 'Contenu', 'Noms créés pour le programme'], [
   [c('name'), "nom du fichier produit (<code>build/name.mnc</code>)", ''],

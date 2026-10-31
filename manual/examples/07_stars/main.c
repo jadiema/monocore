@@ -98,7 +98,7 @@ static void title_screen(void) {
     for (int i = 0; i < 4; i++)                // four stars dancing under the rules
       sprite(SPR_ITEM + i, 152 + (i - 2) * 50 + 25, 118 + ((frame_count / 3 + i * 3) % 8), STAR);
     scroll_map(frame_count / 2, 0);
-    if (pressed(1, START)) break;
+    if (pressed(1, PAD_START)) break;
   }
   stop(2);
 }
@@ -112,8 +112,8 @@ static void game(void) {
 
   while (lives > 0) {
     wait_frame();
-    if (held(1, LEFT)  && player_x > 4)   player_x -= 3;
-    if (held(1, RIGHT) && player_x < 300) player_x += 3;
+    if (held(1, PAD_LEFT)  && player_x > 4)   player_x -= 3;
+    if (held(1, PAD_RIGHT) && player_x < 300) player_x += 3;
     if (frame_count % 8 == 0) quiet(1);        // ends the "ding"
 
     if (explosion > 0) {
@@ -134,7 +134,7 @@ static void game_over(void) {
   print_ink(12, 12, "PARTIE TERMINEE", 4);
   for (int t = 0; t < 180; t++) {              // 3 seconds, or START
     wait_frame();
-    if (pressed(1, START)) break;
+    if (pressed(1, PAD_START)) break;
   }
 }
 

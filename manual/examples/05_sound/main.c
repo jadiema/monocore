@@ -14,8 +14,8 @@ int main(void) {
   print(4, 12, "BAS           : BRUIT");
   print(4, 14, "START         : MUSIQUE OUI / NON");
 
-  static const int notes[6] = {262, 294, 330, 349, 392, 440};   // C D E F G A, in hertz
-  static const uint32_t keys[6] = {B1, B2, B3, B4, B5, B6};
+  static const int notes[6] = {NOTE_C4, NOTE_D4, NOTE_E4, NOTE_F4, NOTE_G4, NOTE_A4};
+  static const uint32_t keys[6] = {PAD_B1, PAD_B2, PAD_B3, PAD_B4, PAD_B5, PAD_B6};
   int playing = 0;
 
   for (;;) {
@@ -23,11 +23,11 @@ int main(void) {
     int frequency = 0;
     for (int i = 0; i < 6; i++)
       if (held(1, keys[i])) frequency = notes[i];
-    if (held(1, UP)) frequency = 494;                   // B
+    if (held(1, PAD_UP)) frequency = NOTE_B4;
     if (frequency) tone(0, frequency, 150); else quiet(0);
-    if (held(1, DOWN)) noise(1, 120); else quiet(1);
+    if (held(1, PAD_DOWN)) noise(1, 120); else quiet(1);
 
-    if (pressed(1, START)) {
+    if (pressed(1, PAD_START)) {
       playing = !playing;
       if (playing) play(2, moonlight, 15, 100);
       else         stop(2);

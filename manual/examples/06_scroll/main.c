@@ -10,10 +10,10 @@ int main(void) {
 
   for (;;) {
     wait_frame();
-    if (pressed(1, RIGHT) && speed < 6)  speed++;
-    if (pressed(1, LEFT)  && speed > -6) speed--;
-    if (held(1, UP)   && y > 20)  y -= 2;
-    if (held(1, DOWN) && y < 160) y += 2;
+    if (pressed(1, PAD_RIGHT) && speed < 6)  speed++;
+    if (pressed(1, PAD_LEFT)  && speed > -6) speed--;
+    if (held(1, PAD_UP)   && y > 20)  y -= 2;
+    if (held(1, PAD_DOWN) && y < 160) y += 2;
 
     camera = camera + speed;
     scroll_map(camera, 0);                // the map is 1024 pixels wide and wraps around by itself
